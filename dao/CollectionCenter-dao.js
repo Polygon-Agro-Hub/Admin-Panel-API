@@ -1491,7 +1491,7 @@ exports.getCenterNameAndOficerCountDao = (centerId) => {
     const sql = `
          SELECT CC.id, CC.centerName, CC.regCode, COUNT(COF.id) AS officerCount
          FROM collectioncenter CC, collectionofficer COF
-         WHERE CC.id = ? AND CC.id = COF.centerId
+         WHERE CC.id = ? AND CC.id = COF.centerId AND COF.companyId = 1
          GROUP BY CC.id, CC.centerName, CC.regCode
       `;
     collectionofficer.query(sql, [centerId], (err, results) => {
