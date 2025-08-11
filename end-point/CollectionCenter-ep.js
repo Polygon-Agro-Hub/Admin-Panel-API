@@ -947,19 +947,19 @@ exports.getCenterDashbord = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const officerCount =
-      await CollectionCenterDao.getCenterNameAndOficerCountDao(id);
+    const officerCount = await CollectionCenterDao.getCenterNameAndOficerCountDao(id);
     const transCount = await CollectionCenterDao.getTransactionCountDao(id);
-    const transAmountCount =
-      await CollectionCenterDao.getTransactionAmountCountDao(id);
-    const resentCollection = await CollectionCenterDao.getReseantCollectionDao(
-      id
-    );
+    const transAmountCount = await CollectionCenterDao.getTransactionAmountCountDao(id);
+    const resentCollection = await CollectionCenterDao.getReseantCollectionDao(id);
     console.log("resentCollection", resentCollection);
     const totExpences = await CollectionCenterDao.getTotExpencesDao(id);
     const difExpences = await CollectionCenterDao.differenceBetweenExpences(id);
 
     const limitedResentCollection = resentCollection.slice(0, 5);
+
+   console.log(transAmountCount);
+   
+    
 
     console.log("Successfully fetched gatogory");
     return res.status(200).json({
