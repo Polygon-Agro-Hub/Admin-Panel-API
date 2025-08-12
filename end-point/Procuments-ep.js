@@ -292,17 +292,18 @@ exports.createOrderPackageItem = async (req, res) => {
 
 exports.getAllMarketplaceItems = async (req, res) => {
   try {
-    console.log("hello world",req.params.id);
-
-    console.log('params', req.params.id);
-
-    // const orderId = req.params.id;
-    const orderId = req.params.id; // You shold pass processOrderId from frontend change it Ashan
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log(fullUrl);
+    
+    const orderId = req.params.id; 
     const btype = await procumentDao.getOrderTypeDao(orderId);
+    console.log('btype', btype);
+    
     const marketplaceItems = await procumentDao.getAllMarketplaceItems(
       btype.buyerType,
       btype.userId
     );
+    console.log('marketplaceItems', marketplaceItems);
 
     if (!marketplaceItems || marketplaceItems.length === 0) {
       return res.status(404).json({

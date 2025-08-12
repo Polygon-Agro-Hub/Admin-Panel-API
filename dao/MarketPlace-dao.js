@@ -2427,6 +2427,7 @@ exports.getBillingDetailsDAO = (processOrderId, userId) => {
         o.phoneCode1,
         o.phone1,
         o.buildingType,
+        o.couponValue,
         COALESCE(oh.houseNo, oa.houseNo) AS houseNo,
         COALESCE(oh.streetName, oa.streetName) AS street,
         COALESCE(oh.city, oa.city) AS city

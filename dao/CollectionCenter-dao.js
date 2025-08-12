@@ -1322,7 +1322,7 @@ exports.getTransactionCountDao = (centerId) => {
     const sql = `
           SELECT COUNT(RFP.id) AS transactionCount
           FROM registeredfarmerpayments RFP, collectionofficer COF
-          WHERE DATE(RFP.createdAt) = '2024-12-31' AND RFP.collectionOfficerId = COF.id AND COF.centerId = ?
+          WHERE DATE(RFP.createdAt) = CURDATE() AND RFP.collectionOfficerId = COF.id AND COF.centerId = ?
           GROUP BY DATE(RFP.createdAt);
 
       `;
@@ -1330,6 +1330,11 @@ exports.getTransactionCountDao = (centerId) => {
       if (err) {
         return reject(err);
       }
+      console.log("Transaction Count Results:", results);
+      if (results.length === 0) {
+        return resolve({ transactionCount: 0 })
+      }
+
       resolve(results[0]);
     });
   });
@@ -1348,6 +1353,9 @@ exports.getTransactionAmountCountDao = (centerId) => {
       if (err) {
         return reject(err);
       }
+      if (results.length === 0) {
+        return resolve({ transAmountCount: 0 })
+      }
       resolve(results[0]);
     });
   });
@@ -1365,8 +1373,7 @@ exports.getReseantCollectionDao = (centerId) => {
           JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
           JOIN plant_care.cropvariety CV ON FPC.cropId = CV.id
           JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
-          WHERE DATE(RFP.createdAt) = '2025-06-11' 
-          AND COF.centerId = ?
+          WHERE COF.centerId = ?
           GROUP BY CG.cropNameEnglish, CV.varietyNameEnglish, DATE(RFP.createdAt)
           ORDER BY DATE(RFP.createdAt)
           LIMIT 5
@@ -1437,6 +1444,11 @@ exports.getTotExpencesDao = (centerId) => {
       if (err) {
         return reject(err);
       }
+      console.log("--------",results);
+      
+      if (results.length === 0 || results[0].totExpences === null) {
+        return resolve({ totExpences: 0.00 })
+      }
       resolve(results[0]);
     });
   });
@@ -1462,20 +1474,14 @@ exports.differenceBetweenExpences = (centerId) => {
         return reject(err);
       }
 
-      let roundedDifExpences = 100;
-
-      if (results.length < 2) {
-        // return reject(new Error("Not enough data to compare two months."));
-        return resolve(roundedDifExpences);
+      let difExpences = 0.00
+      if (results.length >= 2) {
+        difExpences = ((results[0].monthexpences - results[1].monthexpences) / results[0].monthexpences) * 100;
       }
 
-      const difExpences =
-        ((results[0].monthexpences - results[1].monthexpences) /
-          results[0].monthexpences) *
-        100;
-      roundedDifExpences = parseFloat(difExpences.toFixed(2));
+      const roundedDifExpences = parseFloat(difExpences.toFixed(2));
 
-      resolve(roundedDifExpences);
+      resolve(roundedDifExpences);;
     });
   });
 };
@@ -1483,10 +1489,10 @@ exports.differenceBetweenExpences = (centerId) => {
 exports.getCenterNameAndOficerCountDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-         SELECT CC.id, CC.centerName, COUNT(COF.id) AS officerCount
+         SELECT CC.id, CC.centerName, CC.regCode, COUNT(COF.id) AS officerCount
          FROM collectioncenter CC, collectionofficer COF
          WHERE CC.id = ? AND CC.id = COF.centerId AND COF.companyId = 1
-         GROUP BY CC.id, CC.centerName
+         GROUP BY CC.id, CC.centerName, CC.regCode
       `;
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
@@ -1777,10 +1783,10 @@ exports.getAllCenterPageAW = (
 };
 
 exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, searchText) => {
-    return new Promise((resolve, reject) => {
-        const offset = (page - 1) * limit;
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
 
-        let countSql = `
+    let countSql = `
             SELECT COUNT(DISTINCT rfp.invNo) AS total
             FROM collection_officer.registeredfarmerpayments rfp
             LEFT JOIN collection_officer.farmerpaymentscrops fpc ON rfp.id = fpc.registerFarmerId
@@ -1790,7 +1796,7 @@ exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, sear
             WHERE co.centerId = ? AND DATE(rfp.createdAt) BETWEEN ? AND ?
             `;
 
-        let dataSql = `
+    let dataSql = `
             SELECT 
                 rfp.createdAt,
                 rfp.invNo,
@@ -1818,11 +1824,11 @@ exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, sear
             WHERE co.centerId = ? AND DATE(rfp.createdAt) BETWEEN ? AND ?
             `;
 
-        const countParams = [centerId, fromDate, toDate];
-        const dataParams = [centerId, fromDate, toDate];
+    const countParams = [centerId, fromDate, toDate];
+    const dataParams = [centerId, fromDate, toDate];
 
-        if (searchText) {
-            const searchCondition = `
+    if (searchText) {
+      const searchCondition = `
                 AND (
                     rfp.invNo LIKE ?
                     OR rfp.createdAt LIKE ?
@@ -1830,15 +1836,15 @@ exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, sear
                     OR u.NICnumber LIKE ?
                 )
                 `;
-            countSql += searchCondition;
-            dataSql += searchCondition;
-            const searchValue = `%${searchText}%`;
-            countParams.push(searchValue, searchValue, searchValue, searchValue);
-            dataParams.push(searchValue, searchValue, searchValue, searchValue);
-        }
+      countSql += searchCondition;
+      dataSql += searchCondition;
+      const searchValue = `%${searchText}%`;
+      countParams.push(searchValue, searchValue, searchValue, searchValue);
+      dataParams.push(searchValue, searchValue, searchValue, searchValue);
+    }
 
-        // Modified GROUP BY clause to include all non-aggregated columns
-        dataSql += `
+    // Modified GROUP BY clause to include all non-aggregated columns
+    dataSql += `
             GROUP BY 
                 rfp.invNo,
                 rfp.createdAt,
@@ -1848,36 +1854,36 @@ exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, sear
                 u.NICnumber,
                 co.companyId
             `;
-            
-        // Add pagination to the data query
-        dataSql += " LIMIT ? OFFSET ?";
-        dataParams.push(limit, offset);
 
-        // Execute count query
-        collectionofficer.query(countSql, countParams, (countErr, countResults) => {
-            if (countErr) {
-                console.error('Error in count query:', countErr);
-                return reject(countErr);
-            }
+    // Add pagination to the data query
+    dataSql += " LIMIT ? OFFSET ?";
+    dataParams.push(limit, offset);
 
-            const total = countResults[0].total;
+    // Execute count query
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        console.error('Error in count query:', countErr);
+        return reject(countErr);
+      }
 
-            // Execute data query
-            collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
-                if (dataErr) {
-                    console.error('Error in data query:', dataErr);
-                    return reject(dataErr);
-                }
+      const total = countResults[0].total;
 
-                resolve({ items: dataResults, total });
-            });
-        });
+      // Execute data query
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error('Error in data query:', dataErr);
+          return reject(dataErr);
+        }
+
+        resolve({ items: dataResults, total });
+      });
     });
+  });
 };
 
 exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) => {
-    return new Promise((resolve, reject) => {
-        let dataSql = `
+  return new Promise((resolve, reject) => {
+    let dataSql = `
         SELECT 
                 rfp.createdAt,
                 rfp.invNo,
@@ -1915,10 +1921,10 @@ exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) =
             LEFT JOIN plant_care.userbankdetails ub ON u.id = ub.userId
             WHERE co.centerId = ? AND DATE(rfp.createdAt) BETWEEN ? AND ?
         `;
-        const dataParams = [centerId, fromDate, toDate];
+    const dataParams = [centerId, fromDate, toDate];
 
-        if (searchText) {
-            const searchCondition = `
+    if (searchText) {
+      const searchCondition = `
                 AND (
                     rfp.invNo LIKE ?
                     OR rfp.createdAt LIKE ?
@@ -1926,12 +1932,12 @@ exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) =
                     OR u.NICnumber LIKE ?
                 )
             `;
-            dataSql += searchCondition;
-            const searchValue = `%${searchText}%`;
-            dataParams.push(searchValue, searchValue, searchValue, searchValue);
-        }
+      dataSql += searchCondition;
+      const searchValue = `%${searchText}%`;
+      dataParams.push(searchValue, searchValue, searchValue, searchValue);
+    }
 
-        dataSql += ` 
+    dataSql += ` 
             GROUP BY 
                 rfp.invNo,
                 rfp.createdAt,
@@ -1950,13 +1956,13 @@ exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) =
                 co.empId
         `;
 
-        collectionofficer.query(dataSql, dataParams, (err, results) => {
-            if (err) {
-                console.error('Error in download report query:', err);
-                return reject(err);
-            }
-            resolve(results);
-            console.log(results);
-        });
+    collectionofficer.query(dataSql, dataParams, (err, results) => {
+      if (err) {
+        console.error('Error in download report query:', err);
+        return reject(err);
+      }
+      resolve(results);
+      console.log(results);
     });
+  });
 };
