@@ -71,9 +71,11 @@ exports.checkEmailExist = async (email, excludeId = null) => {
 
 // Check if phone number exists, excluding the current officer
 exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
-  console.log('officer',excludeId)
+  console.log('officer', excludeId);
   return new Promise((resolve, reject) => {
-    let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE phoneNumber01 = ? OR phoneNumber02 = ?`;
+    let sql = `SELECT COUNT(*) as count 
+               FROM collectionofficer 
+               WHERE (phoneNumber01 = ? OR phoneNumber02 = ?)`;
     const params = [phoneNumber, phoneNumber];
     if (excludeId) {
       sql += ` AND id != ?`;
@@ -85,6 +87,7 @@ exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
     });
   });
 };
+
 
 // exports.createCollectionOfficerPersonal = (officerData, profileImageUrl) => {
 //   return new Promise(async (resolve, reject) => {

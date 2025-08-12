@@ -587,66 +587,46 @@ exports.getAllMarketplacePackagesDAO = (searchText, date) => {
         MP.displayName,
         (MP.productPrice + MP.packingFee + MP.serviceFee) AS total,
         MP.status,
-        (
-          SELECT DP.createdAt
-          FROM definepackage DP
-          WHERE DP.packageId = MP.id
-          ORDER BY DP.createdAt DESC
-          LIMIT 1
-        ) AS defineDate,
-        (
-          SELECT U.userName
-          FROM agro_world_admin.adminusers U
-          WHERE U.id = (
-            SELECT DP.adminId
-            FROM definepackage DP
-            WHERE DP.packageId = MP.id
-            ORDER BY DP.createdAt DESC
-            LIMIT 1
-          )
-        ) AS adminUser
+        DP.defineDate,
+        AU.userName AS adminUser
       FROM marketplacepackages MP
+      LEFT JOIN (
+        -- Get latest modification per package
+        SELECT d1.packageId, d1.createdAt AS defineDate, d1.adminId
+        FROM definepackage d1
+        INNER JOIN (
+          SELECT packageId, MAX(createdAt) AS latestDate
+          FROM definepackage
+          GROUP BY packageId
+        ) latest ON latest.packageId = d1.packageId AND latest.latestDate = d1.createdAt
+      ) DP ON DP.packageId = MP.id
+      LEFT JOIN agro_world_admin.adminusers AU ON AU.id = DP.adminId
       WHERE MP.isValid = 1
     `;
 
-    // Array to hold WHERE conditions
     const whereConditions = [];
 
     if (searchText) {
-      whereConditions.push(`displayName LIKE ?`);
+      whereConditions.push(`MP.displayName LIKE ?`);
       sqlParams.push(`%${searchText}%`);
     }
 
     if (date) {
-      // Assuming date is in YYYY-MM-DD format
-      whereConditions.push(`(
-        SELECT DP.createdAt
-        FROM definepackage DP
-        WHERE DP.packageId = MP.id
-        ORDER BY DP.createdAt DESC
-        LIMIT 1
-      ) >= ?`);
+      whereConditions.push(`DP.defineDate >= ?`);
       sqlParams.push(`${date} 00:00:00`);
     }
 
-    // Combine WHERE conditions if any exist
     if (whereConditions.length > 0) {
       sql += ` AND ` + whereConditions.join(" AND ");
     }
 
-    // Order by status A-Z first, then by package name A-Z
-    sql += ` ORDER BY status ASC, displayName ASC `;
+    sql += ` ORDER BY MP.status ASC, MP.displayName ASC`;
 
     marketPlace.query(sql, sqlParams, (err, results) => {
-      if (err) {
-        return reject(err);
-      }
+      if (err) return reject(err);
 
-      // Group packages by status
       const groupedData = {};
-      console.log(results);
-
-      results.forEach((pkg) => {
+      results.forEach(pkg => {
         const {
           status,
           id,
@@ -658,40 +638,33 @@ exports.getAllMarketplacePackagesDAO = (searchText, date) => {
           subtotal,
           defineDate,
           adminUser,
-          created_at,
+          created_at
         } = pkg;
 
-        // Initialize the status group if it doesn't exist
         if (!groupedData[status]) {
-          groupedData[status] = {
-            status: status,
-            packages: [],
-          };
+          groupedData[status] = { status, packages: [] };
         }
 
-        // Add the package to its status group
         groupedData[status].packages.push({
-          id: id,
-          displayName: displayName,
-          image: image,
-          description: description,
-          total: total,
-          status: status,
-          discount: discount,
-          subtotal: subtotal,
-          defineDate: defineDate,
-          adminUser: adminUser,
+          id,
+          displayName,
+          image,
+          description,
+          total,
+          status,
+          discount,
+          subtotal,
+          defineDate,
+          adminUser,
           createdAt: created_at,
         });
       });
 
-      // Convert the grouped data object into an array
-      const formattedResult = Object.values(groupedData);
-
-      resolve(formattedResult);
+      resolve(Object.values(groupedData));
     });
   });
 };
+
 
 exports.getMarketplacePackagesByDateDAO = (date) => {
   return new Promise((resolve, reject) => {
