@@ -701,55 +701,55 @@ exports.getOrderDetailsById = (orderId) => {
   console.log(`[getOrderDetailsById] Fetching details for orderId: ${orderId}`);
 
   return new Promise((resolve, reject) => {
-//     const sql = `
-      
-//     SELECT 
-//     po.invNo,
-//     po.id AS processOrderId,
-//     o.id AS orderId,
-//     mpp.id AS packageId,
-//     op.id AS orderpkgId,
-//     mpp.displayName,
-//     CAST(mpp.productPrice AS DECIMAL(10,2)) AS productPrice,
-//     df.id AS definePkgId,
-//     CAST(df.price AS DECIMAL(10,2)) AS definePkgPrice,
-//     JSON_ARRAYAGG(
-//         JSON_OBJECT(
-//             'itemId', dfi.id,
-//             'productTypeId', dfi.productType,
-//             'productTypeShortCode', pt.shortCode,
-//             'productId', dfi.productId,
-//             'productName', mpi.displayName,
-//             'qty', dfi.qty,
-//             'price', dfi.price,
-//             'dicountedPrice', mpi.discountedPrice 
-//         )
-//     ) AS items
-// FROM 
-//     market_place.processorders po
-// JOIN 
-//     market_place.orders o ON po.orderId = o.id
-// LEFT JOIN 
-//     market_place.orderpackage op ON po.id = op.orderId
-// LEFT JOIN 
-//     market_place.marketplacepackages mpp ON op.packageId = mpp.id
-// LEFT JOIN 
-//     market_place.definepackage df ON mpp.id = df.packageId
-// LEFT JOIN
-//     market_place.definepackageitems dfi ON df.id = dfi.definePackageId
-// JOIN 
-//     market_place.producttypes pt ON pt.id = dfi.productType
-// JOIN 
-//     market_place.marketplaceitems mpi ON mpi.id = dfi.productId
-// WHERE 
-//     po.id = ?
-// GROUP BY 
-//     po.invNo, po.id, o.id, op.id, mpp.id, mpp.displayName, mpp.productPrice, df.id
+    //     const sql = `
+
+    //     SELECT 
+    //     po.invNo,
+    //     po.id AS processOrderId,
+    //     o.id AS orderId,
+    //     mpp.id AS packageId,
+    //     op.id AS orderpkgId,
+    //     mpp.displayName,
+    //     CAST(mpp.productPrice AS DECIMAL(10,2)) AS productPrice,
+    //     df.id AS definePkgId,
+    //     CAST(df.price AS DECIMAL(10,2)) AS definePkgPrice,
+    //     JSON_ARRAYAGG(
+    //         JSON_OBJECT(
+    //             'itemId', dfi.id,
+    //             'productTypeId', dfi.productType,
+    //             'productTypeShortCode', pt.shortCode,
+    //             'productId', dfi.productId,
+    //             'productName', mpi.displayName,
+    //             'qty', dfi.qty,
+    //             'price', dfi.price,
+    //             'dicountedPrice', mpi.discountedPrice 
+    //         )
+    //     ) AS items
+    // FROM 
+    //     market_place.processorders po
+    // JOIN 
+    //     market_place.orders o ON po.orderId = o.id
+    // LEFT JOIN 
+    //     market_place.orderpackage op ON po.id = op.orderId
+    // LEFT JOIN 
+    //     market_place.marketplacepackages mpp ON op.packageId = mpp.id
+    // LEFT JOIN 
+    //     market_place.definepackage df ON mpp.id = df.packageId
+    // LEFT JOIN
+    //     market_place.definepackageitems dfi ON df.id = dfi.definePackageId
+    // JOIN 
+    //     market_place.producttypes pt ON pt.id = dfi.productType
+    // JOIN 
+    //     market_place.marketplaceitems mpi ON mpi.id = dfi.productId
+    // WHERE 
+    //     po.id = ?
+    // GROUP BY 
+    //     po.invNo, po.id, o.id, op.id, mpp.id, mpp.displayName, mpp.productPrice, df.id
 
 
-//     `;
+    //     `;
 
-const sql = `
+    const sql = `
 SELECT 
     po.invNo,
     po.id AS processOrderId,
@@ -807,22 +807,22 @@ GROUP BY
           console.log("Database error:", err);
           return reject(err);
         }
-      
+
         // Convert string to float for both prices
         const parsedResults = results.map(row => ({
           ...row,
           productPrice: parseFloat(row.productPrice),
           definePkgPrice: parseFloat(row.definePkgPrice)
         }));
-      
+
         resolve(parsedResults);
       });
 
-    }catch (error) {
+    } catch (error) {
       console.log("Error in createOrderPackageItemDao:", error);
       reject(error);
     }
-    
+
   });
 };
 
@@ -855,8 +855,8 @@ GROUP BY
 //         po.orderId = ?
 //       ORDER BY
 //         op.id, pt.id
-      
-      
+
+
 //     `;
 
 //     // LEFT JOIN 
@@ -870,7 +870,7 @@ GROUP BY
 //       // LEFT JOIN 
 //       //   producttype pt ON pd.productTypeId = pt.id
 //       // WHERE po.id = ?
-    
+
 
 //     console.log(
 //       `[getOrderDetailsById] SQL Query:`,
@@ -988,13 +988,13 @@ exports.getAllMarketplaceItems = (category, userId) => {
         XL.id AS isExcluded
       FROM marketplaceitems MPI
       LEFT JOIN excludelist XL ON MPI.id = XL.mpItemId AND XL.userId = ?
-      WHERE category = ?
+      WHERE category = 'Retail'
       ORDER BY 
         MPI.displayName
     `;
 
 
-    marketPlace.query(sql, [userId, category], (err, results) => {
+    marketPlace.query(sql, [userId], (err, results) => {
       if (err) {
         console.error(
           "[getAllMarketplaceItems] Error fetching all marketplace items:",
@@ -1017,11 +1017,11 @@ exports.getAllMarketplaceItems = (category, userId) => {
         startValue: row.startValue,
         changeby: row.changeby,
         isExcluded: row.isExcluded === null ? false : true,
-        
+
       }));
 
       console.log(items);
-      
+
       resolve(items);
     });
   });
@@ -1390,7 +1390,7 @@ exports.updateDefinePackageItemData = (formattedData) => {
 
     packages.forEach(pkg => {
       const { orderpkgId, packageId, items } = pkg;
-    
+
       // 1. Update packagingStatus to 'Completed'
       const updateStatusSQL = `
         UPDATE market_place.orderpackage
@@ -1406,7 +1406,7 @@ exports.updateDefinePackageItemData = (formattedData) => {
           resolveInner(result);
         });
       }));
-    
+
       // 2. Insert items
       items.forEach(item => {
         const insertItemSQL = `
@@ -1414,13 +1414,13 @@ exports.updateDefinePackageItemData = (formattedData) => {
           VALUES (?, ?, ?, ?, ?)
         `;
         const itemParams = [
-          orderpkgId,                        
+          orderpkgId,
           item.productTypeId,
           item.productId,
           item.qty,
-          item.price,                                 
+          item.price,
         ];
-    
+
         updatePromises.push(new Promise((resolveInner, rejectInner) => {
           marketPlace.query(insertItemSQL, itemParams, (err, result) => {
             if (err) {
@@ -1432,7 +1432,7 @@ exports.updateDefinePackageItemData = (formattedData) => {
         }));
       });
     });
-    
+
 
     Promise.all(updatePromises)
       .then(results => {
