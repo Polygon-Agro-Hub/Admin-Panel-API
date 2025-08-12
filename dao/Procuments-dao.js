@@ -1303,7 +1303,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     const countParams = [];
 
     let dataSql = `
-         SELECT 
+        SELECT 
         o.*,
         po.id AS processOrderId,
         po.invNo,
@@ -1315,14 +1315,18 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
         po.reportStatus,
         po.createdAt AS processCreatedAt,
         op.packingStatus
-        FROM processorders po, orders o, orderpackage op
-        WHERE packingStatus = 'Dispatch' AND po.status = 'Processing'  AND po.orderId = o.id AND po.id = op.orderId 
+        FROM processorders po
+        LEFT JOIN orders o  ON po.orderId = o.id
+        LEFT JOIN orderpackage op ON po.id = op.orderId
+        WHERE op.packingStatus = 'Completed' AND po.status = 'Processing'
       `;
     countSql = `
       SELECT 
         COUNT(po.id) AS total
-        FROM processorders po, orders o, orderpackage op
-        WHERE packingStatus = 'Dispatch' AND po.status = 'Processing' AND po.orderId = o.id AND po.id = op.orderId
+        FROM processorders po
+        LEFT JOIN orders o  ON po.orderId = o.id
+        LEFT JOIN orderpackage op ON po.id = op.orderId
+        WHERE op.packingStatus = 'Completed' AND po.status = 'Processing'
       `;
 
     if (dateFilter) {

@@ -119,11 +119,11 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
       countParams.push(packageStatus);
     }
 
-    if (date) {
-      whereClause += " AND DATE(o.sheduleDate) = ?";
-      params.push(date);
-      countParams.push(date);
-    }
+    // if (date) {
+    //   whereClause += " AND DATE(o.sheduleDate) = ?";
+    //   params.push(date);
+    //   countParams.push(date);
+    // }
 
     if (search) {
       whereClause += ` AND (po.invNo LIKE ?)`;
@@ -164,15 +164,15 @@ JOIN market_place.orders o ON po.orderId = o.id
     GROUP_CONCAT(DISTINCT CONCAT(oai.productId, ':', oai.isPacked)) AS additionalProductIdsString,
     GROUP_CONCAT(DISTINCT CONCAT(opi.productId, ':', opi.isPacked)) AS packageProductIdsString,
     COALESCE(SUM(DISTINCT oai.price), 0) AS totalAdditionalItemsPrice
-  FROM market_place.orderpackage op 
-JOIN market_place.marketplacepackages mpp ON op.packageId = mpp.id 
-JOIN market_place.processorders po ON op.orderId = po.id
-JOIN market_place.orders o ON po.orderId = o.id 
-LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-JOIN market_place.packagedetails pd ON pd.packageId = mpp.id
-JOIN market_place.producttypes pt ON pt.id = pd.productTypeId
-LEFT JOIN market_place.orderpackageitems opi ON op.id = opi.orderPackageId
-      ${whereClause} AND o.isPackage = 1
+    FROM market_place.orderpackage op 
+    LEFT JOIN market_place.marketplacepackages mpp ON op.packageId = mpp.id 
+    LEFT JOIN market_place.processorders po ON op.orderId = po.id
+    LEFT JOIN market_place.orders o ON po.orderId = o.id 
+    LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
+    LEFT JOIN market_place.packagedetails pd ON pd.packageId = mpp.id
+    LEFT JOIN market_place.producttypes pt ON pt.id = pd.productTypeId
+    LEFT JOIN market_place.orderpackageitems opi ON op.id = opi.orderPackageId
+      ${whereClause} AND o.isPackage = 1 AND op.packingStatus = 'Dispatch'
       GROUP BY po.id, o.id
       LIMIT ? OFFSET ?
     `;
