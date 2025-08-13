@@ -144,12 +144,12 @@ exports.createSalesAgent = async (req, res) => {
     // Check if phone numbers, NIC, or email already exist
     const isExistingPhone1 = await DashDao.checkPhoneExist(officerData.phoneNumber1);
     if (isExistingPhone1) {
-      return res.status(400).json({ error: "Phone number 01 already exists" });
+      return res.status(400).json({ error: "Mobile number 01 already exists" });
     }
 
     const isExistingPhone2 = await DashDao.checkPhoneExist(officerData.phoneNumber2);
     if (isExistingPhone2) {
-      return res.status(400).json({ error: "Phone number 02 already exists" });
+      return res.status(400).json({ error: "Mobile number 02 already exists" });
     }
 
     const isExistingNIC = await DashDao.checkNICExist(officerData.nic);
@@ -247,14 +247,14 @@ exports.updateSalesAgentDetails = async (req, res) => {
   // const qrCode = await collectionofficerDao.getQrImage(id);
   // const officerDataForImage = await DashDao.getSalesAgentDataById(id);
   console.log(officerData);
+const isExistingPhone1 = officerData.phoneNumber1
+  ? await DashDao.checkPhoneExistSaEdit(officerData.phoneNumber1, id)
+  : false;
 
-  const isExistingPhone1 = await DashDao.checkPhoneExistSaEdit(
-    officerData.phoneNumber1, id
-  );
+const isExistingPhone2 = officerData.phoneNumber2
+  ? await DashDao.checkPhoneExistSaEdit(officerData.phoneNumber2, id)
+  : false;
 
-  const isExistingPhone2 = await DashDao.checkPhoneExistSaEdit(
-    officerData.phoneNumber2, id
-  );
 
   const isExistingNIC = await DashDao.checkNICExistSaEdit(
     officerData.nic, id
@@ -277,13 +277,13 @@ exports.updateSalesAgentDetails = async (req, res) => {
 
   if (isExistingPhone1) {
     return res.status(500).json({
-      error: "Phone number 01 already exists",
+      error: "Mobile number 01 already exists",
     });
   }
 
   if (isExistingPhone2) {
     return res.status(500).json({
-      error: "Phone number 02 already exists",
+      error: "Mobile number 02 already exists",
     });
   }
 
