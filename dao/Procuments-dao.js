@@ -1133,10 +1133,10 @@ exports.updateOrderPackagePackingStatusDao = (orderPackageId, orderId, status) =
       const sql = `
       UPDATE orderpackage 
       SET packingStatus = ?
-      WHERE packageId = ? AND orderId = ?;
+      WHERE orderId = ?;
       `;
 
-      marketPlace.query(sql, [status, orderPackageId, orderId], (err, results) => {
+      marketPlace.query(sql, [status, orderId], (err, results) => {
         if (err) {
           console.log("Database error:", err);
           return reject(err);
@@ -1317,16 +1317,16 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
         op.packingStatus
         FROM processorders po
         LEFT JOIN orders o  ON po.orderId = o.id
-        LEFT JOIN orderpackage op ON po.id = op.orderId
-        WHERE op.packingStatus = 'Completed' AND po.status = 'Processing'
+        LEFT JOIN orderpackage op ON op.orderId = po.id
+        WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
     countSql = `
       SELECT 
         COUNT(po.id) AS total
         FROM processorders po
         LEFT JOIN orders o  ON po.orderId = o.id
-        LEFT JOIN orderpackage op ON po.id = op.orderId
-        WHERE op.packingStatus = 'Completed' AND po.status = 'Processing'
+        LEFT JOIN orderpackage op ON op.orderId = po.id
+        WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
 
     if (dateFilter) {
@@ -1361,7 +1361,9 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
         console.error("Count query error:", countErr);
         return reject(countErr);
       }
-
+      
+      console.log(countResults);
+      
       const total = countResults[0]?.total || 0;
 
       console.log("Executing Data Query...");
@@ -1370,7 +1372,8 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
           console.error("Data query error:", dataErr);
           return reject(dataErr);
         }
-
+        console.log(dataResults);
+        
         resolve({
           items: dataResults,
           total,
