@@ -12,7 +12,7 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
-    let whereClause = ` WHERE o.orderApp = 'Dash' AND o.isPackage = 1 `;
+    let whereClause = ` WHERE o.orderApp = 'Dash' AND op.packingStatus = 'Dispatch' AND o.isPackage = 1 `;
     const params = [];
     const countParams = [];
 
@@ -45,63 +45,65 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
       
     `;
     const dataSql = `
-          WITH package_counts AS (
-    SELECT 
-        op.id AS orderPackageId,
-        COUNT(*) AS totalItems,
-        SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
-    FROM orderpackageitems opi
-    JOIN orderpackage op ON op.id = opi.orderPackageId
-    GROUP BY op.id
-),
-additional_items_counts AS (
-    SELECT 
-        odi.id AS orderId,
-        COUNT(*) AS totalAdditionalItems,
-        SUM(CASE WHEN odi.isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
-    FROM orderadditionalitems odi
-    GROUP BY odi.id
-)
-
-SELECT 
-    o.id,
-    po.id AS processOrderId,
-    op.id AS orderPackageId,
-    po.invNo,
-    mpi.displayName,
-    mpi.productPrice,
-    o.sheduleDate,
-    pc.totalItems AS totcount,
-    pc.packedItems AS packCount,
-    aic.totalAdditionalItems AS orderAdditionalCount,
-    COALESCE(
-        (SELECT SUM(odi.price)
-        FROM orderadditionalitems odi
-        WHERE odi.id = o.id),
-        0
-    ) AS additionalPrice,
-    CASE
-        WHEN pc.packedItems > 0 AND pc.totalItems > pc.packedItems THEN 'Opened'
-        WHEN pc.packedItems = 0 AND pc.totalItems > 0 THEN 'Pending'
-        WHEN pc.totalItems > 0 AND pc.packedItems = pc.totalItems THEN 'Completed'
-        ELSE 'Unknown'
-    END AS packageStatus,
-    CASE
-        WHEN aic.packedAdditionalItems > 0 AND aic.totalAdditionalItems > aic.packedAdditionalItems THEN 'Opened'
-        WHEN aic.packedAdditionalItems = 0 AND aic.totalAdditionalItems > 0 THEN 'Pending'
-        WHEN aic.totalAdditionalItems > 0 AND aic.packedAdditionalItems = aic.totalAdditionalItems THEN 'Completed'
-        ELSE 'Unknown'
-    END AS additionalItemsStatus
-FROM processorders po
-LEFT JOIN orders o ON po.orderId = o.id
-LEFT JOIN orderpackage op ON po.id = op.orderId
-LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
-LEFT JOIN package_counts pc ON pc.orderPackageId = op.id
-LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
-${whereClause}
-ORDER BY po.createdAt DESC
-LIMIT ? OFFSET ?
-    `
+      WITH package_counts AS (
+          SELECT 
+              op.id AS orderPackageId,
+              COUNT(*) AS totalItems,
+              SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
+          FROM orderpackageitems opi
+          JOIN orderpackage op ON op.id = opi.orderPackageId
+          GROUP BY op.id
+      ),
+      additional_items_counts AS (
+          SELECT 
+              orderId,
+              COUNT(*) AS totalAdditionalItems,
+              SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
+          FROM orderadditionalitems
+          GROUP BY orderId
+      )
+        
+      SELECT 
+          o.id,
+          po.id AS processOrderId,
+          op.id AS orderPackageId,
+          po.invNo,
+          mpi.displayName,
+          mpi.productPrice,
+          o.sheduleDate,
+          pc.totalItems AS totcount,
+          pc.packedItems AS packCount,
+          COALESCE(aic.totalAdditionalItems, 0) AS orderAdditionalCount,
+          COALESCE(
+              (SELECT SUM(price)
+              FROM orderadditionalitems
+              WHERE orderId = o.id),
+              0
+          ) AS additionalPrice,
+          CASE
+              WHEN pc.packedItems > 0 AND pc.totalItems > pc.packedItems THEN 'Opened'
+              WHEN pc.packedItems = 0 AND pc.totalItems > 0 THEN 'Pending'
+              WHEN pc.totalItems > 0 AND pc.packedItems = pc.totalItems THEN 'Completed'
+              ELSE 'Unknown'
+          END AS packageStatus,
+          COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
+          COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
+          CASE
+              WHEN COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0) THEN 'Opened'
+              WHEN COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0 THEN 'Pending'
+              WHEN COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0) THEN 'Completed'
+              ELSE 'Unknown'
+          END AS additionalItemsStatus
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN orderpackage op ON po.id = op.orderId
+      LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
+      LEFT JOIN package_counts pc ON pc.orderPackageId = op.id
+      LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      ${whereClause}
+      ORDER BY po.createdAt DESC
+      LIMIT ? OFFSET ?
+      `;
 
     params.push(parseInt(limit), parseInt(offset));
 
