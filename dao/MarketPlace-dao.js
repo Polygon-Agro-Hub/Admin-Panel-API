@@ -3155,3 +3155,31 @@ exports.removeMarketplacePckages = async (id) => {
     });
   });
 };
+
+exports.checkMarketProductExistsDaoEdit = async (varietyId, displayName, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = "SELECT * FROM marketplaceitems WHERE (varietyId = ? OR displayName = ?)";
+    const values = [varietyId, displayName];
+    
+    if (excludeId) {
+      sql += " AND id != ?";
+      values.push(excludeId);
+    }
+
+    marketPlace.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Check for specific cases
+        const varietyExists = results.some(item => item.varietyId == varietyId);
+        const nameExists = results.some(item => item.displayName === displayName);
+        
+        resolve({
+          exists: results.length > 0,
+          varietyExists,
+          nameExists
+        });
+      }
+    });
+  });
+};
