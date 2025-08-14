@@ -92,14 +92,23 @@ exports.createMarketProduct = async (req, res) => {
     };
 
     // First check if the product already exists
-    const exists = await MarketPlaceDao.checkMarketProductExistsDao(
+    const { exists, varietyExists, nameExists } = await MarketPlaceDao.checkMarketProductExistsDao(
       product.varietyId,
       product.cropName
     );
+    
     if (exists) {
+      let message = "";
+      if (varietyExists && nameExists) {
+        message = "A product with the same display name and variety already exists. Please enter unique values.";
+      } else if (varietyExists) {
+        message = "A product with the same variety already exists. Please select a different variety.";
+      } else if (nameExists) {
+        message = "A product with the same display name already exists. Please use a different display name.";
+      }
+      
       return res.status(201).json({
-        message:
-          "A product with this variety ID and display name already exists",
+        message: message,
         status: false,
       });
     }
