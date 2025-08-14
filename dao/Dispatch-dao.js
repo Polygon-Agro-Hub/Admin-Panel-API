@@ -133,107 +133,81 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
 
 
 
-
-
-
-
-
-
-
-
-
-exports.getSelectedPackages = (page, limit, packageStatus, date, search) => {
+exports.getSelectedPackages = (page, limit, Status, date, search) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
-    // Build parameters for the base query (date and search filters)
-    const baseParams = [];
-    let whereClause = 'WHERE o.isPackage = 0';
+    let whereClause = ` WHERE o.orderApp = 'Dash' AND o.isPackage = 0 `;
+    const params = [];
+    const countParams = [];
 
-    if (date) {
-      whereClause += ' AND DATE(o.sheduleDate) = ?';
-      baseParams.push(date);
-    }
+    // if (Status) {
+    //   whereClause += ` AND op.packingStatus = ?`;
+    //   params.push(Status);
+    //   countParams.push(Status);
+    // }
+
+    // if (date) {
+    //   whereClause += " AND DATE(o.sheduleDate) = ?";
+    //   params.push(date);
+    //   countParams.push(date);
+    // }
 
     if (search) {
-      whereClause += ' AND po.invNo LIKE ?';
-      baseParams.push(`%${search}%`);
+      whereClause += ` AND (po.invNo LIKE ?)`;
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern);
+      countParams.push(searchPattern);
     }
 
-    // Create a CTE (Common Table Expression) to calculate item status
-    const baseSql = `
-      WITH ProcessedOrders AS (
-        SELECT 
-          po.id, 
-          po.invNo, 
-          o.id AS orderId, 
-          o.fullTotal, 
-          o.sheduleDate, 
-          o.createdAt, 
-          o.isPackage,
-          IFNULL(
-            GROUP_CONCAT(
-              CONCAT(oai.productId, ' (', 
-                    CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END, 
-                    ')') 
-              SEPARATOR ', '
-            ),
-            'No products'
-          ) AS productStatuses,
-          COUNT(oai.id) AS productCount,
-          -- Calculate status in the CTE
-          CASE 
-            WHEN COUNT(oai.id) = 0 THEN 'Pending'
-            WHEN SUM(CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(oai.id) THEN 'Completed'
-            WHEN SUM(CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END) > 0 THEN 'Opened'
-            ELSE 'Pending'
-          END AS customItemStatus
-        FROM market_place.processorders po
-        JOIN market_place.orders o ON po.orderId = o.id
-        LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-        ${whereClause}
-        GROUP BY po.id, po.invNo, o.id, o.fullTotal, o.sheduleDate, o.createdAt, o.isPackage
-      )
-    `;
-
-    // Build parameters for count query
-    const countParams = [...baseParams];
-    let finalWhereClause = '';
-
-    if (packageStatus) {
-      finalWhereClause = 'WHERE customItemStatus = ?';
-      countParams.push(packageStatus);
-    }
-
-    // Build parameters for data query
-    const dataParams = [...baseParams];
-    if (packageStatus) {
-      dataParams.push(packageStatus);
-    }
-    dataParams.push(parseInt(limit), parseInt(offset));
-
-    // Count query
     const countSql = `
-      ${baseSql}
-      SELECT COUNT(*) AS total
-      FROM ProcessedOrders
-      ${finalWhereClause}
+      SELECT COUNT(*) as total
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      ${whereClause}
+      
     `;
-
-    // Data query with pagination
     const dataSql = `
-      ${baseSql}
-      SELECT *
-      FROM ProcessedOrders
-      ${finalWhereClause}
-      ORDER BY sheduleDate DESC, id DESC
+      WITH additional_items_counts AS (
+          SELECT 
+              orderId,
+              COUNT(*) AS totalAdditionalItems,
+              SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
+          FROM orderadditionalitems
+          GROUP BY orderId
+      )
+        
+      SELECT 
+          o.id,
+          po.id AS processOrderId,
+          po.invNo,
+          o.sheduleDate,
+          COALESCE(aic.totalAdditionalItems, 0) AS orderAdditionalCount,
+          COALESCE(
+              (SELECT SUM(price)
+              FROM orderadditionalitems
+              WHERE orderId = o.id),
+              0
+          ) AS additionalPrice,
+          COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
+          COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
+          CASE
+              WHEN COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0) THEN 'Opened'
+              WHEN COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0 THEN 'Pending'
+              WHEN COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0) THEN 'Completed'
+              ELSE 'Unknown'
+          END AS additionalItemsStatus
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      ${whereClause}
+      ORDER BY po.createdAt DESC
       LIMIT ? OFFSET ?
-    `;
+      `;
+
+    params.push(parseInt(limit), parseInt(offset));
 
     console.log('Executing Count Query...');
-    console.log('Count SQL:', countSql);
-    console.log('Count Params:', countParams);
-
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
@@ -243,157 +217,20 @@ exports.getSelectedPackages = (page, limit, packageStatus, date, search) => {
       const total = countResults[0]?.total || 0;
 
       console.log('Executing Data Query...');
-      console.log('Data SQL:', dataSql);
-      console.log('Data Params:', dataParams);
-
-      marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
         }
-
-        // Process results to create productStatusMap
-        const processedResults = dataResults.map(record => {
-          const productStatusMap = new Map();
-
-          if (record.productStatuses && record.productStatuses !== 'No products') {
-            const statusPairs = record.productStatuses.split(', ');
-            statusPairs.forEach(pair => {
-              const match = pair.match(/^(.+)\s+\(([01])\)$/);
-              if (match) {
-                const productId = match[1].trim();
-                const isPacked = parseInt(match[2]);
-                productStatusMap.set(productId, isPacked);
-              }
-            });
-          }
-
-          return {
-            ...record,
-            productStatusMap: Object.fromEntries(productStatusMap)
-          };
-        });
-
         resolve({
-          items: processedResults,
-          total: total,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          totalPages: Math.ceil(total / limit)
+          items: dataResults,
+          total,
         });
       });
     });
   });
 };
 
-// let whereClause = ` WHERE 1=1`;
-
-// if (packageStatus) {
-//   whereClause += ` AND op.packingStatus = ?`;
-//   params.push(packageStatus);
-//   countParams.push(packageStatus);
-// }
-
-// if (date) {
-//   whereClause += " AND DATE(o.sheduleDate) = ?";
-//   params.push(date);
-//   countParams.push(date);
-// }
-
-// if (search) {
-//   whereClause += ` AND (po.invNo LIKE ?)`;
-//   const searchPattern = `%${search}%`;
-//   params.push(searchPattern);
-//   countParams.push(searchPattern);
-// }
-
-
-
-
-
-
-
-
-// exports.getSelectedPackages = (page, limit, packageStatus, date, search) => {
-//   return new Promise((resolve, reject) => {
-//     const offset = (page - 1) * limit;
-
-//     let whereClause = ` WHERE 1=1`;
-//     const params = [];
-//     const countParams = [];
-
-//     if (packageStatus) {
-//       whereClause += ` AND o.packageStatus = ?`;
-//       params.push(packageStatus);
-//       countParams.push(packageStatus);
-//     }
-
-//     if (date) {
-//       whereClause += " AND DATE(o.scheduleDate) = ?";
-//       params.push(date);
-//       countParams.push(date);
-//     }
-
-//     if (search) {
-//       whereClause += ` AND (o.invNo LIKE ?)`;
-//       const searchPattern = `%${search}%`;
-//       params.push(searchPattern);
-//       countParams.push(searchPattern);
-//     }
-
-//     const countSql = `
-//         SELECT 
-//           COUNT(DISTINCT o.id) AS total
-//         FROM 
-//           orders o
-//         INNER JOIN orderselecteditems osi ON o.id = osi.orderId
-//         ${whereClause}
-//       `;
-
-//     const dataSql = `
-//         SELECT 
-//         o.id AS id,
-//         o.invNo AS invoiceNum,
-//         o.packageStatus AS packageStatus,
-//         IFNULL(SUM(osi.subtotal), 0) AS totalPrice,
-//         o.scheduleDate AS scheduleDate,
-//         o.fullSubTotal AS fullSubTotal
-//         FROM 
-//         orders o
-//         INNER JOIN orderselecteditems osi ON o.id = osi.orderId
-//         ${whereClause}
-//         GROUP BY o.id, o.invNo
-//         ORDER BY o.createdAt DESC
-//         LIMIT ? OFFSET ?
-//       `;
-
-//     // Add limit and offset to the end of params
-//     params.push(parseInt(limit), parseInt(offset));
-
-//     console.log('Executing Count Query...');
-//     marketPlace.query(countSql, countParams, (countErr, countResults) => {
-//       if (countErr) {
-//         console.error("Error in count query:", countErr);
-//         return reject(countErr);
-//       }
-
-//       const total = countResults[0]?.total || 0;
-
-//       console.log('Executing Data Query...');
-//       marketPlace.query(dataSql, params, (dataErr, dataResults) => {
-//         if (dataErr) {
-//           console.error("Error in data query:", dataErr);
-//           return reject(dataErr);
-//         }
-
-//         resolve({
-//           items: dataResults,
-//           total
-//         });
-//       });
-//     });
-//   });
-// };
 
 
 exports.getPackageItems = (id) => {
@@ -441,50 +278,6 @@ exports.getPackageItems = (id) => {
   });
 };
 
-// exports.updateIsPackedStatus = (packedItems) => {
-//   return new Promise((resolve, reject) => {
-//     if (!Array.isArray(packedItems)) {
-//       return reject(new Error('packedItems must be an array'));
-//     }
-
-//     if (packedItems.length === 0) {
-//       return resolve({ affectedRows: 0, message: 'No items to update' });
-//     }
-
-//     const updateSql = `
-//       UPDATE finalorderpackagelist 
-//       SET isPacking = ? 
-//       WHERE id = ?
-//     `;
-
-//     let completed = 0;
-//     let totalUpdated = 0;
-//     let failedUpdates = [];
-
-//     packedItems.forEach(({ id, isPacked }) => {
-//       marketPlace.query(updateSql, [isPacked, id], (err, result) => {
-//         completed++;
-
-//         if (err) {
-//           console.error(`Error updating item with ID ${id}:`, err);
-//           failedUpdates.push(id);
-//         } else {
-//           console.log(`Updated item ID ${id} to isPacking = ${isPacked}`);
-//           totalUpdated += result.affectedRows;
-//         }
-
-//         if (completed === packedItems.length) {
-//           resolve({
-//             success: true,
-//             affectedRows: totalUpdated,
-//             failedUpdates,
-//             message: `${totalUpdated} items updated. ${failedUpdates.length ? failedUpdates.length + ' failed.' : 'All successful.'}`
-//           });
-//         }
-//       });
-//     });
-//   });
-// };
 
 
 exports.updatePackageItemData = (packedItems, id) => {
