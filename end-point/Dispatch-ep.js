@@ -35,29 +35,12 @@ exports.getPreMadePackages = async (req, res) => {
     );
 
     // Add combinedStatus to each item in the response
-    const processedItems = reportData.items.map(item => {
-      let combinedStatus;
-
-      if (item.additionalProductStatus === 'Pending' || item.packageProductStatus === 'Pending') {
-        combinedStatus = 'Pending';
-      } else if (item.additionalProductStatus === 'Opened' || item.packageProductStatus === 'Opened') {
-        combinedStatus = 'Opened';
-      } else {
-        combinedStatus = 'Completed';
-      }
-
-      return {
-        ...item,
-        combinedStatus
-      };
-    });
-
+    
     const finalResponse = {
-      items: processedItems,
+      items: reportData.items,
       total: reportData.total
     };
 
-    console.log('premad', finalResponse);
     res.json(finalResponse);
   } catch (err) {
     console.error("Error fetching daily report:", err);

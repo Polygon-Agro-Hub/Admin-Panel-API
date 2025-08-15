@@ -17,16 +17,38 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
     const countParams = [];
 
     if (packageStatus) {
-      whereClause += ` AND op.packingStatus = ?`;
-      params.push(packageStatus);
-      countParams.push(packageStatus);
+      if (packageStatus === 'Pending') {
+        whereClause += ` 
+      AND (
+        (pc.packedItems = 0 AND pc.totalItems > 0) 
+        OR 
+        (COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0)
+      )
+    `;
+      } else if (packageStatus === 'Completed') {
+        whereClause += ` 
+      AND (
+        (pc.totalItems > 0 AND pc.packedItems = pc.totalItems) 
+        OR 
+        (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0))
+      )
+    `;
+      } else if (packageStatus === 'Opened') {
+        whereClause += ` 
+      AND (
+        (pc.packedItems > 0 AND pc.totalItems > pc.packedItems) 
+        OR 
+        (COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0))
+      )
+    `;
+      }
     }
 
-    // if (date) {
-    //   whereClause += " AND DATE(o.sheduleDate) = ?";
-    //   params.push(date);
-    //   countParams.push(date);
-    // }
+    if (date) {
+      whereClause += " AND DATE(o.sheduleDate) = ?";
+      params.push(date);
+      countParams.push(date);
+    }
 
     if (search) {
       whereClause += ` AND (po.invNo LIKE ?)`;
@@ -36,11 +58,31 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
     }
 
     const countSql = `
+    WITH package_counts AS (
+          SELECT 
+              op.id AS orderPackageId,
+              COUNT(*) AS totalItems,
+              SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
+          FROM orderpackageitems opi
+          JOIN orderpackage op ON op.id = opi.orderPackageId
+          GROUP BY op.id
+      ),
+      additional_items_counts AS (
+          SELECT 
+              orderId,
+              COUNT(*) AS totalAdditionalItems,
+              SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
+          FROM orderadditionalitems
+          GROUP BY orderId
+      )
+
       SELECT COUNT(*) as total
       FROM processorders po
       LEFT JOIN orders o ON po.orderId = o.id
       LEFT JOIN orderpackage op ON po.id = op.orderId
       LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
+      LEFT JOIN package_counts pc ON pc.orderPackageId = op.id
+      LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
       ${whereClause}
       
     `;
@@ -141,17 +183,27 @@ exports.getSelectedPackages = (page, limit, Status, date, search) => {
     const params = [];
     const countParams = [];
 
-    // if (Status) {
-    //   whereClause += ` AND op.packingStatus = ?`;
-    //   params.push(Status);
-    //   countParams.push(Status);
-    // }
+    if (Status) {
+      if (Status === 'Pending') {
+        whereClause += ` 
+      AND (COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0)
+    `;
+      } else if (Status === 'Completed') {
+        whereClause += ` 
+      AND (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0))
+    `;
+      } else if (Status === 'Opened') {
+        whereClause += ` 
+      AND (COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0))
+    `;
+      }
+    }
 
-    // if (date) {
-    //   whereClause += " AND DATE(o.sheduleDate) = ?";
-    //   params.push(date);
-    //   countParams.push(date);
-    // }
+    if (date) {
+      whereClause += " AND DATE(o.sheduleDate) = ?";
+      params.push(date);
+      countParams.push(date);
+    }
 
     if (search) {
       whereClause += ` AND (po.invNo LIKE ?)`;
@@ -161,9 +213,19 @@ exports.getSelectedPackages = (page, limit, Status, date, search) => {
     }
 
     const countSql = `
+    WITH additional_items_counts AS (
+          SELECT 
+              orderId,
+              COUNT(*) AS totalAdditionalItems,
+              SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
+          FROM orderadditionalitems
+          GROUP BY orderId
+      )
+
       SELECT COUNT(*) as total
       FROM processorders po
       LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
       ${whereClause}
       
     `;
