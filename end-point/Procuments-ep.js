@@ -496,6 +496,8 @@ exports.getOrderPackageItemsById = async (req, res) => {
       message: "Order package items retrieved successfully",
     };
 
+    console.log('formattedResponse', formattedResponse.data.packages[0].productTypes[0].price)
+
     res.json(formattedResponse);
   } catch (err) {
     console.error("Error fetching order package items:", err);
@@ -610,6 +612,8 @@ exports.updateDefinePackageData = async (req, res) => {
   try {
     const { definePackageItems } = req.body;
 
+    console.log('definePackageItems', definePackageItems)
+
     if (!Array.isArray(definePackageItems) || definePackageItems.length === 0) {
       return res.status(400).json({
         success: false,
@@ -643,10 +647,8 @@ exports.updateDefinePackageData = async (req, res) => {
       })
     };
 
-    console.log(formattedData);
+    console.log('formattedData', formattedData.packages[0].items[1])
     
-    
-
     const updateResult = await procumentDao.updateDefinePackageItemData(formattedData);
     console.log(formattedData);
 
