@@ -35,7 +35,7 @@ exports.getPreMadePackages = async (req, res) => {
     );
 
     // Add combinedStatus to each item in the response
-    
+
     const finalResponse = {
       items: reportData.items,
       total: reportData.total
@@ -439,3 +439,36 @@ exports.updatePackAdditionItems = async (req, res) => {
   }
 };
 
+
+
+exports.getMarketPlacePremadePackages = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const validatedQuery = await DispatchVali.getPreMadePackages.validateAsync(req.query);
+    const { page, limit, selectedStatus, date, search } = validatedQuery;
+
+    console.log({ selectedStatus, date, search });
+
+    const packageData = await DispatchDao.getMarketPlacePremadePackagesDao(
+      page,
+      limit,
+      selectedStatus,
+      date,
+      search
+    );
+
+    // Add combinedStatus to each item in the response
+
+    const finalResponse = {
+      items: packageData.items,
+      total: packageData.total,
+      status: true
+    };
+
+    res.json(finalResponse);
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
