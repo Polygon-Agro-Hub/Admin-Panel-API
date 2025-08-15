@@ -1191,6 +1191,7 @@ exports.getOrderPackagesByOrderId = (orderId) => {
           opi.productId,
           opi.qty,
           opi.price,
+          m.discountedPrice,
           m.displayName as productDisplayName,
           pt.id as productTypeId,
           pt.typeName,
@@ -1225,6 +1226,8 @@ exports.getOrderPackagesByOrderId = (orderId) => {
           return resolve(null);
         }
 
+        console.log('results', results)
+
         // Transform the flat results into the nested structure
         const response = {
           invNo: results[0].invNo,
@@ -1255,7 +1258,7 @@ exports.getOrderPackagesByOrderId = (orderId) => {
               displayName: row.productDisplayName,
               productId: row.productId,
               qty: row.qty,
-              price: row.price,
+              price: row.discountedPrice,
             });
           }
         }
