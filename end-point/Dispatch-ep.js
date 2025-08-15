@@ -73,8 +73,6 @@ exports.getSelectedPackages = async (req, res) => {
   try {
 
     const validatedQuery = await DispatchVali.getPreMadePackages.validateAsync(req.query);
-
-
     const { page, limit, selectedStatus, date, search } = validatedQuery;
 
     // console.log({ selectedStatus, date, search })
@@ -286,9 +284,6 @@ exports.getCustomOrderDetailsById = async (req, res) => {
 };
 
 
-
-
-
 exports.updateCustomPackItems = async (req, res) => {
   try {
     const { invoiceId, updatedItems } = req.body;
@@ -362,8 +357,6 @@ exports.updateCustomAdditionalItemData = async (req, res) => {
 };
 
 
-
-
 exports.getPackageOrderDetailsById = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -395,9 +388,6 @@ exports.getPackageOrderDetailsById = async (req, res) => {
       .json({ error: "An error occurred while fetching the news content" });
   }
 };
-
-
-
 
 
 

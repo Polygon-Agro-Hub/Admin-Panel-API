@@ -8,108 +8,11 @@ const {
 
 
 
-
-// exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
-//   return new Promise((resolve, reject) => {
-//     const offset = (page - 1) * limit;
-
-//     let whereClause = ` WHERE 1=1`;
-//     const params = [];
-//     const countParams = [];
-
-//     if (packageStatus) {
-//       whereClause += ` AND o.packageStatus = ?`;
-//       params.push(packageStatus);
-//       countParams.push(packageStatus);
-//     }
-
-//     if (date) {
-//       whereClause += " AND DATE(o.scheduleDate) = ?";
-//       params.push(date);
-//       countParams.push(date);
-//     }
-
-//     if (search) {
-//       whereClause += ` AND (o.invNo LIKE ?)`;
-//       const searchPattern = `%${search}%`;
-//       params.push(searchPattern);
-//       countParams.push(searchPattern);
-//     }
-
-//     const countSql = `
-//         SELECT 
-//           COUNT(DISTINCT o.id) AS total
-//         FROM 
-//           orders o
-//         INNER JOIN orderpackageitems opi ON o.id = opi.orderId
-//         LEFT JOIN modifiedplusitems mpi ON opi.id = mpi.orderPackageItemsId
-//         LEFT JOIN modifiedminitems mmi ON opi.id = mmi.orderPackageItemsId
-//         INNER JOIN market_place.marketplacepackages mpp ON opi.packageId = mpp.id
-//         LEFT JOIN additionalitem ai ON opi.id = ai.orderPackageItemsId
-//         ${whereClause}
-//       `;
-
-//     const dataSql = `
-//         SELECT 
-//           o.id AS id,
-//           o.invNo AS invoiceNum,
-//           o.packageStatus AS packageStatus,
-//           o.addItemStatus AS addItemStatus,
-//           o.packItemStatus AS packItemStatus,
-//           opi.id AS orderPackageItemsId,
-//           mpp.displayName AS packageName,
-//           opi.packageSubTotal-IFNULL(SUM(ai.subtotal), 0) AS packagePrice,
-//           IFNULL(SUM(ai.subtotal), 0) AS additionalPrice,
-//           o.scheduleDate AS scheduleDate,
-//           o.fullSubTotal AS fullSubTotal,
-//           opi.packageSubTotal AS totalPrice
-//         FROM 
-//           orders o
-//         INNER JOIN orderpackageitems opi ON o.id = opi.orderId
-//         LEFT JOIN modifiedplusitems mpi ON opi.id = mpi.orderPackageItemsId
-//         LEFT JOIN modifiedminitems mmi ON opi.id = mmi.orderPackageItemsId
-//         INNER JOIN market_place.marketplacepackages mpp ON opi.packageId = mpp.id
-//         LEFT JOIN additionalitem ai ON opi.id = ai.orderPackageItemsId
-//         ${whereClause}
-//         GROUP BY o.id, o.invNo, o.packageStatus, mpp.displayName, opi.packageSubTotal, o.scheduleDate, o.fullSubTotal
-//         ORDER BY o.createdAt DESC
-//         LIMIT ? OFFSET ?
-//       `;
-
-//     // Add pagination parameters
-//     params.push(parseInt(limit), parseInt(offset));
-
-//     console.log('Executing Count Query...');
-//     dash.query(countSql, countParams, (countErr, countResults) => {
-//       if (countErr) {
-//         console.error("Error in count query:", countErr);
-//         return reject(countErr);
-//       }
-
-//       const total = countResults[0]?.total || 0;
-
-//       console.log('Executing Data Query...');
-//       dash.query(dataSql, params, (dataErr, dataResults) => {
-//         if (dataErr) {
-//           console.error("Error in data query:", dataErr);
-//           return reject(dataErr);
-//         }
-
-//         resolve({
-//           items: dataResults,
-//           total,
-//         });
-//       });
-//     });
-//   });
-// };
-
-
 exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
-    let whereClause = ` WHERE 1=1`;
+    let whereClause = ` WHERE o.orderApp = 'Dash' AND op.packingStatus = 'Dispatch' AND o.isPackage = 1 `;
     const params = [];
     const countParams = [];
 
@@ -133,54 +36,79 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
     }
 
     const countSql = `
-      SELECT COUNT(DISTINCT po.id) as total
-      FROM market_place.orderpackage op 
-      JOIN market_place.marketplacepackages mpp ON op.packageId = mpp.id 
-      JOIN market_place.processorders po ON op.orderId = po.id
-JOIN market_place.orders o ON po.orderId = o.id 
-      LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-      JOIN market_place.packagedetails pd ON pd.packageId = mpp.id
-      JOIN market_place.producttypes pt ON pt.id = pd.productTypeId
-      LEFT JOIN market_place.orderpackageitems opi ON op.id = opi.orderPackageId
-      ${whereClause} AND o.isPackage = 1
+      SELECT COUNT(*) as total
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN orderpackage op ON po.id = op.orderId
+      LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
+      ${whereClause}
       
     `;
-
     const dataSql = `
-    SELECT 
-    po.id AS processOrderId,
-    o.id AS orderId,
-    MAX(mpp.displayName) AS displayName,
-    MAX(o.isPackage) AS isPackage,
-    MAX(op.id) AS orderPackageId,
-    MAX(op.createdAt) AS createdAt,
-    MAX(op.packingStatus) AS packingStatus,
-    MAX(o.sheduleDate) AS sheduleDate,
-    MAX(mpp.productPrice) AS productPrice,
-    MAX(pd.qty) AS qty,
-    MAX(pd.productTypeId) AS productTypeId,
-    MAX(pt.typeName) AS typeName,
-    MAX(po.invNo) AS invNo,
-    GROUP_CONCAT(DISTINCT CONCAT(oai.productId, ':', oai.isPacked)) AS additionalProductIdsString,
-    GROUP_CONCAT(DISTINCT CONCAT(opi.productId, ':', opi.isPacked)) AS packageProductIdsString,
-    COALESCE(SUM(DISTINCT oai.price), 0) AS totalAdditionalItemsPrice
-    FROM market_place.orderpackage op 
-    LEFT JOIN market_place.marketplacepackages mpp ON op.packageId = mpp.id 
-    LEFT JOIN market_place.processorders po ON op.orderId = po.id
-    LEFT JOIN market_place.orders o ON po.orderId = o.id 
-    LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-    LEFT JOIN market_place.packagedetails pd ON pd.packageId = mpp.id
-    LEFT JOIN market_place.producttypes pt ON pt.id = pd.productTypeId
-    LEFT JOIN market_place.orderpackageitems opi ON op.id = opi.orderPackageId
-      ${whereClause} AND o.isPackage = 1 AND op.packingStatus = 'Dispatch'
-      GROUP BY po.id, o.id
+      WITH package_counts AS (
+          SELECT 
+              op.id AS orderPackageId,
+              COUNT(*) AS totalItems,
+              SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
+          FROM orderpackageitems opi
+          JOIN orderpackage op ON op.id = opi.orderPackageId
+          GROUP BY op.id
+      ),
+      additional_items_counts AS (
+          SELECT 
+              orderId,
+              COUNT(*) AS totalAdditionalItems,
+              SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
+          FROM orderadditionalitems
+          GROUP BY orderId
+      )
+        
+      SELECT 
+          o.id,
+          po.id AS processOrderId,
+          op.id AS orderPackageId,
+          po.invNo,
+          mpi.displayName,
+          mpi.productPrice,
+          o.sheduleDate,
+          pc.totalItems AS totcount,
+          pc.packedItems AS packCount,
+          COALESCE(aic.totalAdditionalItems, 0) AS orderAdditionalCount,
+          COALESCE(
+              (SELECT SUM(price)
+              FROM orderadditionalitems
+              WHERE orderId = o.id),
+              0
+          ) AS additionalPrice,
+          CASE
+              WHEN pc.packedItems > 0 AND pc.totalItems > pc.packedItems THEN 'Opened'
+              WHEN pc.packedItems = 0 AND pc.totalItems > 0 THEN 'Pending'
+              WHEN pc.totalItems > 0 AND pc.packedItems = pc.totalItems THEN 'Completed'
+              ELSE 'Unknown'
+          END AS packageStatus,
+          COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
+          COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
+          CASE
+              WHEN COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0) THEN 'Opened'
+              WHEN COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0 THEN 'Pending'
+              WHEN COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0) THEN 'Completed'
+              ELSE 'Unknown'
+          END AS additionalItemsStatus
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN orderpackage op ON po.id = op.orderId
+      LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
+      LEFT JOIN package_counts pc ON pc.orderPackageId = op.id
+      LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      ${whereClause}
+      ORDER BY po.createdAt DESC
       LIMIT ? OFFSET ?
-    `;
+      `;
 
     params.push(parseInt(limit), parseInt(offset));
 
     console.log('Executing Count Query...');
-    dash.query(countSql, countParams, (countErr, countResults) => {
+    marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
         return reject(countErr);
@@ -189,90 +117,13 @@ JOIN market_place.orders o ON po.orderId = o.id
       const total = countResults[0]?.total || 0;
 
       console.log('Executing Data Query...');
-      dash.query(dataSql, params, (dataErr, dataResults) => {
+      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
         }
-
-        // Process the results to create maps, counters, and statuses
-        const processedResults = dataResults.map(item => {
-          // Create maps for product IDs in {productId: 0|1} format
-          const additionalProductsMap = {};
-          const packageProductsMap = {};
-
-          // Initialize counters
-          let additionalProductsCount = 0;
-          let packageProductsCount = 0;
-
-          // Track packed status for additional products
-          let additionalAllPacked = true;
-          let additionalAnyPacked = false;
-
-          // Process additional products
-          if (item.additionalProductIdsString) {
-            const additionalProducts = item.additionalProductIdsString.split(',');
-            additionalProductsCount = additionalProducts.length;
-
-            additionalProducts.forEach(pair => {
-              const [productId, isPacked] = pair.split(':');
-              const packedStatus = isPacked === '1' ? 1 : 0;
-              additionalProductsMap[parseInt(productId)] = packedStatus;
-
-              if (packedStatus === 0) {
-                additionalAllPacked = false;
-              } else {
-                additionalAnyPacked = true;
-              }
-            });
-          }
-
-          // Track packed status for package products
-          let packageAllPacked = true;
-          let packageAnyPacked = false;
-
-          // Process package products
-          if (item.packageProductIdsString) {
-            const packageProducts = item.packageProductIdsString.split(',');
-            packageProductsCount = packageProducts.length;
-
-            packageProducts.forEach(pair => {
-              const [productId, isPacked] = pair.split(':');
-              const packedStatus = isPacked === '1' ? 1 : 0;
-              packageProductsMap[parseInt(productId)] = packedStatus;
-
-              if (packedStatus === 0) {
-                packageAllPacked = false;
-              } else {
-                packageAnyPacked = true;
-              }
-            });
-          }
-
-          // Determine statuses based on the rules
-          const additionalProductStatus =
-            additionalProductsCount === 0 ? 'Pending' :
-              additionalAllPacked ? 'Completed' :
-                additionalAnyPacked ? 'Opened' : 'Pending';
-
-          const packageProductStatus =
-            packageProductsCount === 0 ? 'Pending' :
-              packageAllPacked ? 'Completed' :
-                packageAnyPacked ? 'Opened' : 'Pending';
-
-          return {
-            ...item,
-            additionalProductsMap,
-            packageProductsMap,
-            additionalProductsCount,
-            packageProductsCount,
-            additionalProductStatus,
-            packageProductStatus
-          };
-        });
-
         resolve({
-          items: processedResults,
+          items: dataResults,
           total,
         });
       });
@@ -282,108 +133,82 @@ JOIN market_place.orders o ON po.orderId = o.id
 
 
 
-
-
-
-
-
-
-
-
-
-exports.getSelectedPackages = (page, limit, packageStatus, date, search) => {
+exports.getSelectedPackages = (page, limit, Status, date, search) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
-    // Build parameters for the base query (date and search filters)
-    const baseParams = [];
-    let whereClause = 'WHERE o.isPackage = 0';
+    let whereClause = ` WHERE o.orderApp = 'Dash' AND o.isPackage = 0 `;
+    const params = [];
+    const countParams = [];
 
-    if (date) {
-      whereClause += ' AND DATE(o.sheduleDate) = ?';
-      baseParams.push(date);
-    }
+    // if (Status) {
+    //   whereClause += ` AND op.packingStatus = ?`;
+    //   params.push(Status);
+    //   countParams.push(Status);
+    // }
+
+    // if (date) {
+    //   whereClause += " AND DATE(o.sheduleDate) = ?";
+    //   params.push(date);
+    //   countParams.push(date);
+    // }
 
     if (search) {
-      whereClause += ' AND po.invNo LIKE ?';
-      baseParams.push(`%${search}%`);
+      whereClause += ` AND (po.invNo LIKE ?)`;
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern);
+      countParams.push(searchPattern);
     }
 
-    // Create a CTE (Common Table Expression) to calculate item status
-    const baseSql = `
-      WITH ProcessedOrders AS (
-        SELECT 
-          po.id, 
-          po.invNo, 
-          o.id AS orderId, 
-          o.fullTotal, 
-          o.sheduleDate, 
-          o.createdAt, 
-          o.isPackage,
-          IFNULL(
-            GROUP_CONCAT(
-              CONCAT(oai.productId, ' (', 
-                    CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END, 
-                    ')') 
-              SEPARATOR ', '
-            ),
-            'No products'
-          ) AS productStatuses,
-          COUNT(oai.id) AS productCount,
-          -- Calculate status in the CTE
-          CASE 
-            WHEN COUNT(oai.id) = 0 THEN 'Pending'
-            WHEN SUM(CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(oai.id) THEN 'Completed'
-            WHEN SUM(CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END) > 0 THEN 'Opened'
-            ELSE 'Pending'
-          END AS customItemStatus
-        FROM market_place.processorders po
-        JOIN market_place.orders o ON po.orderId = o.id
-        LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-        ${whereClause}
-        GROUP BY po.id, po.invNo, o.id, o.fullTotal, o.sheduleDate, o.createdAt, o.isPackage
-      )
-    `;
-
-    // Build parameters for count query
-    const countParams = [...baseParams];
-    let finalWhereClause = '';
-    
-    if (packageStatus) {
-      finalWhereClause = 'WHERE customItemStatus = ?';
-      countParams.push(packageStatus);
-    }
-
-    // Build parameters for data query
-    const dataParams = [...baseParams];
-    if (packageStatus) {
-      dataParams.push(packageStatus);
-    }
-    dataParams.push(parseInt(limit), parseInt(offset));
-
-    // Count query
     const countSql = `
-      ${baseSql}
-      SELECT COUNT(*) AS total
-      FROM ProcessedOrders
-      ${finalWhereClause}
+      SELECT COUNT(*) as total
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      ${whereClause}
+      
     `;
-
-    // Data query with pagination
     const dataSql = `
-      ${baseSql}
-      SELECT *
-      FROM ProcessedOrders
-      ${finalWhereClause}
-      ORDER BY sheduleDate DESC, id DESC
+      WITH additional_items_counts AS (
+          SELECT 
+              orderId,
+              COUNT(*) AS totalAdditionalItems,
+              SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
+          FROM orderadditionalitems
+          GROUP BY orderId
+      )
+        
+      SELECT 
+          o.id,
+          po.id AS processOrderId,
+          po.invNo,
+          o.sheduleDate,
+          COALESCE(aic.totalAdditionalItems, 0) AS orderAdditionalCount,
+          COALESCE(
+              (SELECT SUM(price)
+              FROM orderadditionalitems
+              WHERE orderId = o.id),
+              0
+          ) AS additionalPrice,
+          COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
+          COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
+          CASE
+              WHEN COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0) THEN 'Opened'
+              WHEN COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0 THEN 'Pending'
+              WHEN COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0) THEN 'Completed'
+              ELSE 'Unknown'
+          END AS additionalItemsStatus
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      ${whereClause}
+      ORDER BY po.createdAt DESC
       LIMIT ? OFFSET ?
-    `;
+      `;
+
+    params.push(parseInt(limit), parseInt(offset));
 
     console.log('Executing Count Query...');
-    console.log('Count SQL:', countSql);
-    console.log('Count Params:', countParams);
-
-    dash.query(countSql, countParams, (countErr, countResults) => {
+    marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
         return reject(countErr);
@@ -392,157 +217,20 @@ exports.getSelectedPackages = (page, limit, packageStatus, date, search) => {
       const total = countResults[0]?.total || 0;
 
       console.log('Executing Data Query...');
-      console.log('Data SQL:', dataSql);
-      console.log('Data Params:', dataParams);
-
-      dash.query(dataSql, dataParams, (dataErr, dataResults) => {
+      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
         }
-
-        // Process results to create productStatusMap
-        const processedResults = dataResults.map(record => {
-          const productStatusMap = new Map();
-          
-          if (record.productStatuses && record.productStatuses !== 'No products') {
-            const statusPairs = record.productStatuses.split(', ');
-            statusPairs.forEach(pair => {
-              const match = pair.match(/^(.+)\s+\(([01])\)$/);
-              if (match) {
-                const productId = match[1].trim();
-                const isPacked = parseInt(match[2]);
-                productStatusMap.set(productId, isPacked);
-              }
-            });
-          }
-
-          return {
-            ...record,
-            productStatusMap: Object.fromEntries(productStatusMap)
-          };
-        });
-
         resolve({
-          items: processedResults,
-          total: total,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          totalPages: Math.ceil(total / limit)
+          items: dataResults,
+          total,
         });
       });
     });
   });
 };
 
-// let whereClause = ` WHERE 1=1`;
-
-// if (packageStatus) {
-//   whereClause += ` AND op.packingStatus = ?`;
-//   params.push(packageStatus);
-//   countParams.push(packageStatus);
-// }
-
-// if (date) {
-//   whereClause += " AND DATE(o.sheduleDate) = ?";
-//   params.push(date);
-//   countParams.push(date);
-// }
-
-// if (search) {
-//   whereClause += ` AND (po.invNo LIKE ?)`;
-//   const searchPattern = `%${search}%`;
-//   params.push(searchPattern);
-//   countParams.push(searchPattern);
-// }
-
-
-
-
-
-
-
-
-// exports.getSelectedPackages = (page, limit, packageStatus, date, search) => {
-//   return new Promise((resolve, reject) => {
-//     const offset = (page - 1) * limit;
-
-//     let whereClause = ` WHERE 1=1`;
-//     const params = [];
-//     const countParams = [];
-
-//     if (packageStatus) {
-//       whereClause += ` AND o.packageStatus = ?`;
-//       params.push(packageStatus);
-//       countParams.push(packageStatus);
-//     }
-
-//     if (date) {
-//       whereClause += " AND DATE(o.scheduleDate) = ?";
-//       params.push(date);
-//       countParams.push(date);
-//     }
-
-//     if (search) {
-//       whereClause += ` AND (o.invNo LIKE ?)`;
-//       const searchPattern = `%${search}%`;
-//       params.push(searchPattern);
-//       countParams.push(searchPattern);
-//     }
-
-//     const countSql = `
-//         SELECT 
-//           COUNT(DISTINCT o.id) AS total
-//         FROM 
-//           orders o
-//         INNER JOIN orderselecteditems osi ON o.id = osi.orderId
-//         ${whereClause}
-//       `;
-
-//     const dataSql = `
-//         SELECT 
-//         o.id AS id,
-//         o.invNo AS invoiceNum,
-//         o.packageStatus AS packageStatus,
-//         IFNULL(SUM(osi.subtotal), 0) AS totalPrice,
-//         o.scheduleDate AS scheduleDate,
-//         o.fullSubTotal AS fullSubTotal
-//         FROM 
-//         orders o
-//         INNER JOIN orderselecteditems osi ON o.id = osi.orderId
-//         ${whereClause}
-//         GROUP BY o.id, o.invNo
-//         ORDER BY o.createdAt DESC
-//         LIMIT ? OFFSET ?
-//       `;
-
-//     // Add limit and offset to the end of params
-//     params.push(parseInt(limit), parseInt(offset));
-
-//     console.log('Executing Count Query...');
-//     dash.query(countSql, countParams, (countErr, countResults) => {
-//       if (countErr) {
-//         console.error("Error in count query:", countErr);
-//         return reject(countErr);
-//       }
-
-//       const total = countResults[0]?.total || 0;
-
-//       console.log('Executing Data Query...');
-//       dash.query(dataSql, params, (dataErr, dataResults) => {
-//         if (dataErr) {
-//           console.error("Error in data query:", dataErr);
-//           return reject(dataErr);
-//         }
-
-//         resolve({
-//           items: dataResults,
-//           total
-//         });
-//       });
-//     });
-//   });
-// };
 
 
 exports.getPackageItems = (id) => {
@@ -590,50 +278,6 @@ exports.getPackageItems = (id) => {
   });
 };
 
-// exports.updateIsPackedStatus = (packedItems) => {
-//   return new Promise((resolve, reject) => {
-//     if (!Array.isArray(packedItems)) {
-//       return reject(new Error('packedItems must be an array'));
-//     }
-
-//     if (packedItems.length === 0) {
-//       return resolve({ affectedRows: 0, message: 'No items to update' });
-//     }
-
-//     const updateSql = `
-//       UPDATE finalorderpackagelist 
-//       SET isPacking = ? 
-//       WHERE id = ?
-//     `;
-
-//     let completed = 0;
-//     let totalUpdated = 0;
-//     let failedUpdates = [];
-
-//     packedItems.forEach(({ id, isPacked }) => {
-//       dash.query(updateSql, [isPacked, id], (err, result) => {
-//         completed++;
-
-//         if (err) {
-//           console.error(`Error updating item with ID ${id}:`, err);
-//           failedUpdates.push(id);
-//         } else {
-//           console.log(`Updated item ID ${id} to isPacking = ${isPacked}`);
-//           totalUpdated += result.affectedRows;
-//         }
-
-//         if (completed === packedItems.length) {
-//           resolve({
-//             success: true,
-//             affectedRows: totalUpdated,
-//             failedUpdates,
-//             message: `${totalUpdated} items updated. ${failedUpdates.length ? failedUpdates.length + ' failed.' : 'All successful.'}`
-//           });
-//         }
-//       });
-//     });
-//   });
-// };
 
 
 exports.updatePackageItemData = (packedItems, id) => {
@@ -791,7 +435,7 @@ exports.updateAdditionalItemData = (additionalItems, id) => {
           po.id = ? AND oai.productId = ?
       `;
 
-      const params = [ item.packedStatus, id, item.productId];
+      const params = [item.packedStatus, id, item.productId];
 
       return new Promise((resolveInner, rejectInner) => {
         marketPlace.query(updateSql, params, (err, result) => {
@@ -874,7 +518,7 @@ exports.updateCustomAdditionalItemData = (customAdditionalItems, id) => {
           po.id = ? AND oai.productId = ?
       `;
 
-      const params = [ item.packedStatus, id, item.productId];
+      const params = [item.packedStatus, id, item.productId];
 
       return new Promise((resolveInner, rejectInner) => {
         marketPlace.query(updateSql, params, (err, result) => {
@@ -924,7 +568,7 @@ exports.updateIsPackedStatus = (packedItems) => {
       WHERE id IN (?)
     `;
 
-    dash.query(getOrderIdsSql, [itemIds], (err, orderResults) => {
+    marketPlace.query(getOrderIdsSql, [itemIds], (err, orderResults) => {
       if (err) {
         return reject(new Error(`Error fetching order IDs: ${err.message}`));
       }
@@ -940,7 +584,7 @@ exports.updateIsPackedStatus = (packedItems) => {
 
       // First update all items in finalorderpackagelist
       packedItems.forEach(({ id, isPacked }) => {
-        dash.query(updateSql, [isPacked, id], (err, result) => {
+        marketPlace.query(updateSql, [isPacked, id], (err, result) => {
           completed++;
 
           if (err) {
@@ -967,7 +611,7 @@ exports.updateIsPackedStatus = (packedItems) => {
               WHERE orderId IN (?)
             `;
 
-            dash.query(getOrdersInfoSql, [orderIds], (err, ordersInfoResults) => {
+            marketPlace.query(getOrdersInfoSql, [orderIds], (err, ordersInfoResults) => {
               if (err) {
                 console.error('Error fetching orders information:', err);
                 // Still resolve with the item update results
@@ -980,7 +624,7 @@ exports.updateIsPackedStatus = (packedItems) => {
               }
 
               // Get the isAdditionalItems status for each order
-              dash.query(getAdditionalItemStatusSql, [orderIds], (err, additionalItemsResults) => {
+              marketPlace.query(getAdditionalItemStatusSql, [orderIds], (err, additionalItemsResults) => {
                 if (err) {
                   console.error('Error fetching additional items status:', err);
                   return resolve({
@@ -1004,7 +648,7 @@ exports.updateIsPackedStatus = (packedItems) => {
                   WHERE orderId IN (?)
                 `;
 
-                dash.query(getItemsForOrdersSql, [orderIds], (err, allItemsResults) => {
+                marketPlace.query(getItemsForOrdersSql, [orderIds], (err, allItemsResults) => {
                   if (err) {
                     console.error('Error fetching items for orders:', err);
                     // Still resolve with the item update results
@@ -1131,7 +775,7 @@ exports.updateIsPackedStatus = (packedItems) => {
 
                   // Update all orders with both statuses
                   orderUpdates.forEach(({ orderId, packItemStatus, packageStatus }) => {
-                    dash.query(updateOrderSql, [packItemStatus, packageStatus, orderId], (err, result) => {
+                    marketPlace.query(updateOrderSql, [packItemStatus, packageStatus, orderId], (err, result) => {
                       ordersCompleted++;
 
                       if (err) {
@@ -1185,7 +829,7 @@ exports.getCustomOrderDetailsById = (id) => {
                    WHERE orderId = ?
                    `;
 
-    dash.query(sql, [id], (err, results) => {
+    marketPlace.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1215,7 +859,7 @@ exports.updateCustomPackItems = (items) => {
             SET isPacked = ? 
             WHERE id = ?
           `;
-        dash.query(sql, [item.isPacked, item.id], (err, result) => {
+        marketPlace.query(sql, [item.isPacked, item.id], (err, result) => {
           if (err) {
             return rej(err);
           }
@@ -1237,7 +881,7 @@ exports.updateCustomPackItems = (items) => {
           `;
 
         return new Promise((res, rej) => {
-          dash.query(getOrderIdsSql, [], (err, results) => {
+          marketPlace.query(getOrderIdsSql, [], (err, results) => {
             if (err) {
               return rej(err);
             }
@@ -1262,7 +906,7 @@ exports.updateCustomPackItems = (items) => {
                 WHERE orderId = ?
               `;
 
-            dash.query(countSql, [orderId], (err, counts) => {
+            marketPlace.query(countSql, [orderId], (err, counts) => {
               if (err) {
                 return rej(err);
               }
@@ -1301,7 +945,7 @@ exports.updateCustomPackItems = (items) => {
                   WHERE id = ?
                 `;
 
-              dash.query(updateOrderSql, [packageStatus, orderId], (err, result) => {
+              marketPlace.query(updateOrderSql, [packageStatus, orderId], (err, result) => {
                 if (err) {
                   console.error(`Failed to update order ${orderId}:`, err);
                   return rej(err);
@@ -1343,7 +987,7 @@ exports.getPackageOrderDetailsById = (id) => {
                    WHERE orderPackageItemsId = ?
                    `;
 
-    dash.query(sql, [id], (err, results) => {
+    marketPlace.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1368,7 +1012,7 @@ exports.getOrderPackageId = (id) => {
                    WHERE ai.id = ?
                    `;
 
-    dash.query(sql, [id], (err, results) => {
+    marketPlace.query(sql, [id], (err, results) => {
       if (err) {
         console.error('Error in getOrderPackageId:', err);
         reject(err);
@@ -1396,7 +1040,7 @@ exports.updatePackItemsAdditional = (items) => {
           WHERE id = ?
         `;
 
-        dash.query(sql, [item.isPacked, item.id], (err, result) => {
+        marketPlace.query(sql, [item.isPacked, item.id], (err, result) => {
           if (err) {
             console.error(`Error updating item ID ${item.id}:`, err);
             return rej(err);
@@ -1423,7 +1067,7 @@ exports.getAdditionalItemsStatus = (orderId) => {
       WHERE opi.orderId = ?
     `;
 
-    dash.query(sql, [orderId], (err, results) => {
+    marketPlace.query(sql, [orderId], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1438,7 +1082,7 @@ exports.getPackItemStatus = (orderId) => {
   return new Promise((resolve, reject) => {
     const sql = `SELECT packItemStatus FROM orders WHERE id = ?`;
 
-    dash.query(sql, [orderId], (err, results) => {
+    marketPlace.query(sql, [orderId], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1472,7 +1116,7 @@ exports.updateOrderStatuses = (orderId, addItemStatus, packItemStatus) => {
       WHERE id = ?
     `;
 
-    dash.query(sql, [addItemStatus, packageStatus, orderId], (err, result) => {
+    marketPlace.query(sql, [addItemStatus, packageStatus, orderId], (err, result) => {
       if (err) {
         reject(err);
       } else {
