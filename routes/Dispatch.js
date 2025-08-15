@@ -112,6 +112,12 @@ router.get(
   DispatchEP.getMarketPlacePremadePackages
 );
 
+router.get(
+  '/marketplace-premade-package-items', 
+  authMiddleware,
+  DispatchEP.getMarketPlacePremadePackagesItems
+);
+
 
 
 
