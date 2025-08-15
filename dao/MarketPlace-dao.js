@@ -3182,7 +3182,8 @@ exports.checkMarketProductExistsDaoEdit = async (varietyId, displayName, exclude
         resolve({
           exists: results.length > 0,
           varietyExists,
-          nameExists
+          nameExists,
+          bothExist: varietyExists && nameExists
         });
       }
     });

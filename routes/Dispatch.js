@@ -103,7 +103,15 @@ router.get(
 router.post(
   '/update-pack-additiona-items', 
   authMiddleware,
-  DispatchEP.updatePackAdditionItems);
+  DispatchEP.updatePackAdditionItems
+);
+
+router.get(
+  '/marketplace-premade-package', 
+  authMiddleware,
+  DispatchEP.getMarketPlacePremadePackages
+);
+
 
 
 

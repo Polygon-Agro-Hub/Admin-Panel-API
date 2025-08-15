@@ -500,6 +500,27 @@ exports.editMarketProduct = async (req, res) => {
 
     console.log('request',checkProduct);
     
+    // Handle validation cases
+    if (checkProduct.bothExist) {
+      return res.status(400).json({
+        error: "A product with the same display name and variety already exists. Please enter unique values.",
+        status: false
+      });
+    }
+    
+    if (checkProduct.varietyExists) {
+      return res.status(400).json({
+        error: "A product with the same variety already exists. Please select a different variety.",
+        status: false
+      });
+    }
+    
+    if (checkProduct.nameExists) {
+      return res.status(400).json({
+        error: "A product with the same display name already exists. Please use a different display name.",
+        status: false
+      });
+    }
 
     const result = await MarketPlaceDao.updateMarketProductDao(req.body, id);
     console.log(result);
@@ -513,7 +534,7 @@ exports.editMarketProduct = async (req, res) => {
 
     console.log("marcket product creation success");
     res.status(201).json({
-      message: "marcket product created successfully",
+      message: "marcket product updated successfully",
       result: result,
       status: true,
     });
@@ -527,7 +548,7 @@ exports.editMarketProduct = async (req, res) => {
 
     console.error("Error executing query:", err);
     return res.status(500).json({
-      error: "An error occurred while creating marcket product",
+      error: "An error occurred while updating marcket product",
       status: false,
     });
   }
