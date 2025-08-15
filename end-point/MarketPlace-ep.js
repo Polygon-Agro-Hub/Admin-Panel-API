@@ -486,7 +486,6 @@ exports.editMarketProduct = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
-    // const product = await MarketPriceValidate.AddProductValidation.validateAsync(req.body)
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
       req.params
     );
