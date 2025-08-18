@@ -246,14 +246,14 @@ exports.createDistributionHead = async (req, res) => {
 
 const isExistingPhone1 = await DistributionDao.checkPhoneExist(officerData.phoneNumber01);
     if (isExistingPhone1) {
-      return res.status(500).json({ error: "Phone number 1 already exists" });
+      return res.status(500).json({ error: "Mobile number 1 already exists" });
     }
 
     // ✅ Optional: Check Phone Number 2
     if (officerData.phoneNumber02) {
       const isExistingPhone2 = await DistributionDao.checkPhoneExist(officerData.phoneNumber02);
       if (isExistingPhone2) {
-        return res.status(500).json({ error: "Phone number 2 already exists" });
+        return res.status(500).json({ error: "Mobile number 2 already exists" });
       }
     }
 
@@ -574,11 +574,11 @@ if (existingPhones.length > 0) {
   let errorMessage = '';
 
   if (existingPhones.length === 2) {
-    errorMessage = 'Both Phone Number - 1 and Phone Number - 2 already exist for other users';
+    errorMessage = 'Both Mobile Number - 1 and Mobile Number - 2 already exist for other users';
   } else if (existingPhones[0] === 'phoneNumber01') {
-    errorMessage = 'Phone Number - 1 already exists for another user';
+    errorMessage = 'Mobile Number - 1 already exists for another user';
   } else {
-    errorMessage = 'Phone Number - 2 already exists for another user';
+    errorMessage = 'Mobile Number - 2 already exists for another user';
   }
 
   return res.status(409).json({
