@@ -1133,10 +1133,10 @@ exports.updateOrderPackagePackingStatusDao = (orderPackageId, orderId, status) =
       const sql = `
       UPDATE orderpackage 
       SET packingStatus = ?
-      WHERE packageId = ? AND orderId = ?;
+      WHERE orderId = ?;
       `;
 
-      marketPlace.query(sql, [status, orderPackageId, orderId], (err, results) => {
+      marketPlace.query(sql, [status, orderId], (err, results) => {
         if (err) {
           console.log("Database error:", err);
           return reject(err);
@@ -1191,6 +1191,7 @@ exports.getOrderPackagesByOrderId = (orderId) => {
           opi.productId,
           opi.qty,
           opi.price,
+          m.discountedPrice,
           m.displayName as productDisplayName,
           pt.id as productTypeId,
           pt.typeName,
@@ -1225,6 +1226,8 @@ exports.getOrderPackagesByOrderId = (orderId) => {
           return resolve(null);
         }
 
+        console.log('results', results)
+
         // Transform the flat results into the nested structure
         const response = {
           invNo: results[0].invNo,
@@ -1255,7 +1258,7 @@ exports.getOrderPackagesByOrderId = (orderId) => {
               displayName: row.productDisplayName,
               productId: row.productId,
               qty: row.qty,
-              price: row.price,
+              price: row.discountedPrice,
             });
           }
         }
@@ -1303,7 +1306,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     const countParams = [];
 
     let dataSql = `
-         SELECT 
+        SELECT 
         o.*,
         po.id AS processOrderId,
         po.invNo,
@@ -1315,14 +1318,18 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
         po.reportStatus,
         po.createdAt AS processCreatedAt,
         op.packingStatus
-        FROM processorders po, orders o, orderpackage op
-        WHERE packingStatus = 'Dispatch' AND po.status = 'Processing'  AND po.orderId = o.id AND po.id = op.orderId 
+        FROM processorders po
+        LEFT JOIN orders o  ON po.orderId = o.id
+        LEFT JOIN orderpackage op ON op.orderId = po.id
+        WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
     countSql = `
       SELECT 
         COUNT(po.id) AS total
-        FROM processorders po, orders o, orderpackage op
-        WHERE packingStatus = 'Dispatch' AND po.status = 'Processing' AND po.orderId = o.id AND po.id = op.orderId
+        FROM processorders po
+        LEFT JOIN orders o  ON po.orderId = o.id
+        LEFT JOIN orderpackage op ON op.orderId = po.id
+        WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
 
     if (dateFilter) {
@@ -1357,7 +1364,9 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
         console.error("Count query error:", countErr);
         return reject(countErr);
       }
-
+      
+      console.log(countResults);
+      
       const total = countResults[0]?.total || 0;
 
       console.log("Executing Data Query...");
@@ -1366,7 +1375,8 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
           console.error("Data query error:", dataErr);
           return reject(dataErr);
         }
-
+        console.log(dataResults);
+        
         resolve({
           items: dataResults,
           total,
