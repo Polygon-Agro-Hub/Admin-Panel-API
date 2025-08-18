@@ -202,6 +202,9 @@ exports.createCollectionOfficerPersonal = (
 
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
+      if(officerData.jobRole === 'Collection Center Manager' || officerData.jobRole === 'Collection Center Head'){
+        officerData.irmId = null;
+      }
 
       const sql = `
                 INSERT INTO collectionofficer (
