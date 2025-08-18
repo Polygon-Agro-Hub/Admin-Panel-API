@@ -485,9 +485,9 @@ exports.getMarketPlacePremadePackagesItems = async (req, res) => {
 
     // Add combinedStatus to each item in the response
 
-    
 
-    res.json(packageData, additionalData);
+
+    res.json({ packageData, additionalData });
   } catch (err) {
     console.error("Error fetching daily report:", err);
     res.status(500).send("An error occurred while fetching the report.");

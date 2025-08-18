@@ -1383,18 +1383,49 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
 exports.getMarketPlacePremadePackagesItemsDao = (orderId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-    SELECT 
-      po.id AS orderId,
-      mp.displayName AS name,
-      mp.productPrice AS price,
-    FROM processorders po
-    LEFT JOIN orderpackage op ON po.id = op.orderId
-    LEFT JOIN marketplacepackages mp ON packageId = mp.id
-    WHERE po.id = ?
+      WITH package_item_counts AS (
+        SELECT 
+          op.id AS packageId,
+          op.orderId,
+          COUNT(*) AS totalItems,
+          SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
+        FROM orderpackageitems opi
+        JOIN orderpackage op ON opi.orderPackageId = op.id
+        WHERE op.orderId = ?
+        GROUP BY op.id, op.orderId
+      ),
+      package_details AS (
+        SELECT 
+          po.id AS processOrderId,
+          mp.displayName AS name,
+          mp.productPrice AS price,
+          op.id AS packageId
+        FROM processorders po
+        LEFT JOIN orderpackage op ON po.id = op.orderId
+        LEFT JOIN marketplacepackages mp ON op.packageId = mp.id
+        WHERE po.id = ?
+      )
+
+      SELECT 
+        pd.processOrderId AS orderId,
+        pd.name,
+        pd.price,
+        COALESCE(pic.totalItems, 0) AS totCount,
+        COALESCE(pic.packedItems, 0) AS packCount,
+        CASE
+          WHEN COALESCE(pic.packedItems, 0) = 0 AND COALESCE(pic.totalItems, 0) > 0 THEN 'Pending'
+          WHEN COALESCE(pic.packedItems, 0) > 0 AND COALESCE(pic.packedItems, 0) < COALESCE(pic.totalItems, 0) THEN 'Opened'
+          WHEN COALESCE(pic.packedItems, 0) = COALESCE(pic.totalItems, 0) AND COALESCE(pic.totalItems, 0) > 0 THEN 'Completed'
+          ELSE 'Unknown'
+        END AS packStatus
+      FROM package_details pd
+      LEFT JOIN package_item_counts pic ON pd.packageId = pic.packageId AND pd.processOrderId = pic.orderId
+      ORDER BY pd.name
     `;
 
-    marketPlace.query(sql, [orderId], (err, results) => {
+    marketPlace.query(sql, [orderId, orderId], (err, results) => {
       if (err) {
+        console.error('Error in getMarketPlacePremadePackagesItemsDao:', err);
         reject(err);
       } else {
         resolve(results || []);
@@ -1406,13 +1437,23 @@ exports.getMarketPlacePremadePackagesItemsDao = (orderId) => {
 exports.getMarketPlacePremadePackagesAdditionalItemsDao = (orderId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-    SELECT 
-      po.id AS orderId,
-      SUM(oai.normalPrice) AS price,
-    FROM processorders po
-    LEFT JOIN orders op ON po.orderId = o.id
-    LEFT JOIN orderadditionalitems oai ON o.id = oai.orderId
-    WHERE po.id = ?
+      SELECT 
+        po.id AS orderId,
+        SUM(oai.normalPrice) AS price,
+        COUNT(*) AS totCount,
+        SUM(CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END) AS packCount,
+        CASE
+          WHEN SUM(CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END) = 0 AND COUNT(*) > 0 THEN 'Pending'
+          WHEN SUM(CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END) > 0 
+               AND SUM(CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+          WHEN SUM(CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
+          ELSE 'Unknown'
+        END AS packStatus
+      FROM processorders po
+      JOIN orders o ON po.orderId = o.id
+      JOIN orderadditionalitems oai ON o.id = oai.orderId
+      WHERE po.id = ?
+      GROUP BY po.id
     `;
 
     marketPlace.query(sql, [orderId], (err, results) => {
