@@ -113,7 +113,7 @@ router.get(
 );
 
 router.get(
-  '/marketplace-premade-package-items', 
+  '/marketplace-premade-package-items/:id', 
   authMiddleware,
   DispatchEP.getMarketPlacePremadePackagesItems
 );

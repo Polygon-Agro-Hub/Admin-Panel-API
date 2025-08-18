@@ -1378,3 +1378,49 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
     });
   });
 };
+
+
+exports.getMarketPlacePremadePackagesItemsDao = (orderId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT 
+      po.id AS orderId,
+      mp.displayName AS name,
+      mp.productPrice AS price,
+    FROM processorders po
+    LEFT JOIN orderpackage op ON po.id = op.orderId
+    LEFT JOIN marketplacepackages mp ON packageId = mp.id
+    WHERE po.id = ?
+    `;
+
+    marketPlace.query(sql, [orderId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results || []);
+      }
+    });
+  });
+};
+
+exports.getMarketPlacePremadePackagesAdditionalItemsDao = (orderId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT 
+      po.id AS orderId,
+      SUM(oai.normalPrice) AS price,
+    FROM processorders po
+    LEFT JOIN orders op ON po.orderId = o.id
+    LEFT JOIN orderadditionalitems oai ON o.id = oai.orderId
+    WHERE po.id = ?
+    `;
+
+    marketPlace.query(sql, [orderId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0] || null);
+      }
+    });
+  });
+};
