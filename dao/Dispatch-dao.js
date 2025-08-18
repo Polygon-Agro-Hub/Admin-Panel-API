@@ -1281,25 +1281,42 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
         aic.totalAdditionalItems,
         aic.packedAdditionalItems
     `;
+
+
     const dataSql = `
       WITH package_item_counts AS (
-      SELECT 
-          op.orderId,
-          COUNT(*) AS totalItems,
-          SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
-      FROM orderpackageitems opi
-      JOIN orderpackage op ON opi.orderPackageId = op.id
-      GROUP BY op.orderId
-        ),
+          SELECT 
+              op.orderId,
+              COUNT(*) AS totalItems,
+              SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems,
+              CASE
+                  WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 AND COUNT(*) > 0 THEN 'Pending'
+                  WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                       AND SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+                  WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
+                  ELSE 'Unknown'
+              END AS packageStatus
+          FROM orderpackageitems opi
+          JOIN orderpackage op ON opi.orderPackageId = op.id
+          GROUP BY op.orderId
+      ),
       additional_items_counts AS (
           SELECT 
               orderId,
               COUNT(*) AS totalAdditionalItems,
-              SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
+              SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
+              CASE
+                  WHEN COUNT(*) = 0 THEN 'Unknown'
+                  WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
+                  WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                       AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+                  WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+                  ELSE 'Unknown'
+              END AS additionalItemsStatus
           FROM orderadditionalitems
           GROUP BY orderId
       )
-
+        
       SELECT 
           o.id,
           po.id AS processOrderId,
@@ -1311,28 +1328,8 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
           COALESCE(pic.packedItems, 0) AS packPackageItems,
           COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
           COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
-          CASE
-              /* Opened - either packages or additional items are partially packed */
-              WHEN (COALESCE(pic.packedItems, 0) > 0 AND COALESCE(pic.totalItems, 0) > COALESCE(pic.packedItems, 0)) OR
-                   (COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0))
-              THEN 'Opened'
-              /* Pending - neither packages nor additional items have been packed */
-              WHEN (COALESCE(pic.packedItems, 0) = 0 AND COALESCE(pic.totalItems, 0) > 0) AND
-                   (COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0)
-              THEN 'Pending'
-              /* Completed - both packages and additional items are fully packed (or no additional items) */
-              WHEN (COALESCE(pic.totalItems, 0) > 0 AND COALESCE(pic.packedItems, 0) = COALESCE(pic.totalItems, 0)) AND
-                   (COALESCE(aic.totalAdditionalItems, 0) = 0 OR 
-                    (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0)))
-              THEN 'Completed'
-              ELSE 'Unknown'
-          END AS packingStatus,
-          CASE
-              WHEN COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0) THEN 'Opened'
-              WHEN COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0 THEN 'Pending'
-              WHEN COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0) THEN 'Completed'
-              ELSE 'Unknown'
-          END AS additionalItemsStatus
+          pic.packageStatus,
+          COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus
       FROM processorders po
       LEFT JOIN orders o ON po.orderId = o.id
       LEFT JOIN orderpackage op ON op.orderId = po.id 
@@ -1341,14 +1338,16 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
       LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
       ${whereClause}
       GROUP BY
-        o.id,
-        po.id,
-        po.invNo,
-        o.sheduleDate,
-        pic.totalItems,
-        pic.packedItems,
-        aic.totalAdditionalItems,
-        aic.packedAdditionalItems
+          o.id,
+          po.id,
+          po.invNo,
+          o.sheduleDate,
+          pic.totalItems,
+          pic.packedItems,
+          pic.packageStatus,
+          aic.totalAdditionalItems,
+          aic.packedAdditionalItems,
+          aic.additionalItemsStatus
       ORDER BY po.createdAt DESC
       LIMIT ? OFFSET ?
       `;
