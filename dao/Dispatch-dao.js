@@ -1464,3 +1464,144 @@ exports.getMarketPlacePremadePackagesAdditionalItemsDao = (orderId) => {
     });
   });
 };
+
+
+exports.getMarketPlaceCustomePackagesDao = (page, limit, packageStatus, date, search) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let whereClause = ` 
+    WHERE 
+      o.orderApp = 'Marketplace' 
+      AND op.id IS NULL
+     `;
+    const params = [];
+    const countParams = [];
+
+   if (packageStatus) {
+      if (packageStatus === 'Pending') {
+        whereClause += ` 
+          AND (
+            COALESCE(aic.packedAdditionalItems, 0) = 0 
+            AND COALESCE(aic.totalAdditionalItems, 0) > 0
+          )
+        `;
+      } else if (packageStatus === 'Completed') {
+        whereClause += ` 
+          AND (
+            COALESCE(aic.totalAdditionalItems, 0) > 0 
+            AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0)
+          )
+        `;
+      } else if (packageStatus === 'Opened') {
+        whereClause += ` 
+          AND (
+            COALESCE(aic.packedAdditionalItems, 0) > 0 
+            AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0)
+          )
+        `;
+      }
+    }
+
+    // if (date) {
+    //   whereClause += " AND DATE(o.sheduleDate) = ?";
+    //   params.push(date);
+    //   countParams.push(date);
+    // }
+
+    if (search) {
+      whereClause += ` AND (po.invNo LIKE ?)`;
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern);
+      countParams.push(searchPattern);
+    }
+
+    const countSql = `
+WITH additional_items_counts AS (
+    SELECT 
+        orderId,
+        COUNT(*) AS totalAdditionalItems,
+        SUM(normalPrice) AS price,
+        SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
+    FROM orderadditionalitems
+    GROUP BY orderId
+)
+
+SELECT COUNT(DISTINCT po.id) as total
+FROM processorders po
+LEFT JOIN orders o ON po.orderId = o.id
+LEFT JOIN orderpackage op ON op.orderId = po.id 
+LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+${whereClause}
+`;
+
+    const dataSql = `
+      WITH additional_items_counts AS (
+          SELECT 
+              orderId,
+              COUNT(*) AS totalAdditionalItems,
+              SUM(normalPrice) AS price,
+              SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
+              CASE
+                  WHEN COUNT(*) = 0 THEN 'Unknown'
+                  WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
+                  WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                       AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+                  WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+                  ELSE 'Unknown'
+              END AS additionalItemsStatus
+          FROM orderadditionalitems
+          GROUP BY orderId
+      )
+        
+      SELECT 
+          o.id,
+          po.id AS processOrderId,
+          po.invNo,
+          o.sheduleDate,
+          COALESCE(aic.price, 0) AS additionalItemPrice,
+          COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
+          COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
+          COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN orderpackage op ON op.orderId = po.id 
+      LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      ${whereClause}
+      GROUP BY
+          o.id,
+          po.id,
+          po.invNo,
+          o.sheduleDate,
+          aic.totalAdditionalItems,
+          aic.packedAdditionalItems,
+          aic.additionalItemsStatus
+      ORDER BY po.createdAt DESC
+      LIMIT ? OFFSET ?
+      `;
+
+    params.push(parseInt(limit), parseInt(offset));
+
+    console.log('Executing Count Query...');
+    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
+      }
+
+      const total = countResults[0]?.total || 0;
+
+      console.log('Executing Data Query...');
+      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+        resolve({
+          items: dataResults,
+          total,
+        });
+      });
+    });
+  });
+};

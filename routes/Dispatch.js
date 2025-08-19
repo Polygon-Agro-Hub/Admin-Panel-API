@@ -118,6 +118,12 @@ router.get(
   DispatchEP.getMarketPlacePremadePackagesItems
 );
 
+router.get(
+  '/marketplace-custome-package', 
+  authMiddleware,
+  DispatchEP.getMarketPlaceCustomePackages
+);
+
 
 
 
