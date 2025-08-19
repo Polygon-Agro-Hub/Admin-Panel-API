@@ -472,3 +472,60 @@ exports.getMarketPlacePremadePackages = async (req, res) => {
     res.status(500).send("An error occurred while fetching the report.");
   }
 };
+
+exports.getMarketPlacePremadePackagesItems = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = await DispatchVali.idValidate.validateAsync(req.params);
+
+
+    const packageData = await DispatchDao.getMarketPlacePremadePackagesItemsDao(id);
+    const additionalData = await DispatchDao.getMarketPlacePremadePackagesAdditionalItemsDao(id);
+
+    // Add combinedStatus to each item in the response
+
+
+
+    res.json({ packageData, additionalData });
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+
+exports.getMarketPlaceCustomePackages = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const validatedQuery = await DispatchVali.getPreMadePackages.validateAsync(req.query);
+    const { page, limit, selectedStatus, date, search } = validatedQuery;
+
+    console.log({ selectedStatus, date, search });
+
+    const packageData = await DispatchDao.getMarketPlaceCustomePackagesDao(
+      page,
+      limit,
+      selectedStatus,
+      date,
+      search
+    );
+
+    // Add combinedStatus to each item in the response
+
+    const finalResponse = {
+      items: packageData.items,
+      total: packageData.total,
+      status: true
+    };
+
+    console.log('-----',packageData.total,'---------');
+    
+
+    res.json(finalResponse);
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
