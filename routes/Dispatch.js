@@ -130,6 +130,12 @@ router.get(
   DispatchEP.getPackageForDispatch
 );
 
+router.patch(
+  '/dispatch-package', 
+  authMiddleware,
+  DispatchEP.dispatchPackage
+);
+
 
 
 

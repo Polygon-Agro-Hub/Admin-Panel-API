@@ -1632,3 +1632,24 @@ exports.getPackageForDispatchDao = (orderId) => {
     });
   });
 };
+
+exports.dispatchPackageDao = (package) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE orderpackageitems
+      SET 
+        isPacked = ?
+      WHERE 
+        id = ?
+    `;
+
+    marketPlace.query(sql, [package.isPacked, package.id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
