@@ -1409,6 +1409,7 @@ exports.getMarketPlacePremadePackagesItemsDao = (orderId) => {
         pd.processOrderId AS orderId,
         pd.name,
         pd.price,
+        pd.packageId,
         COALESCE(pic.totalItems, 0) AS totCount,
         COALESCE(pic.packedItems, 0) AS packCount,
         CASE
@@ -1602,6 +1603,32 @@ ${whereClause}
           total,
         });
       });
+    });
+  });
+};
+
+
+exports.getPackageForDispatchDao = (orderId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        opi.id,
+        opi.qty,
+        opi.isPacked,
+        opi.price,
+        mpi.displayName,
+        mpi.discountedPrice     
+      FROM orderpackageitems opi
+      LEFT JOIN marketplaceitems mpi ON opi.productId = mpi.id
+      WHERE orderPackageId = ?
+    `;
+
+    marketPlace.query(sql, [orderId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
     });
   });
 };

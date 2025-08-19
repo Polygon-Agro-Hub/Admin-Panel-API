@@ -529,3 +529,23 @@ exports.getMarketPlaceCustomePackages = async (req, res) => {
     res.status(500).send("An error occurred while fetching the report.");
   }
 };
+
+
+exports.getPackageForDispatch = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = await DispatchVali.idValidate.validateAsync(req.params);
+
+
+    const packageData = await DispatchDao.getPackageForDispatchDao(id);
+    console.log(packageData);
+    
+
+
+    res.json(packageData);
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
