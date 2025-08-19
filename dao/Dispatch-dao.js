@@ -1653,3 +1653,77 @@ exports.dispatchPackageDao = (package) => {
   });
 };
 
+exports.getDispatchOrderTypeDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT O.userId, U.buyerType, POR.invNo
+      FROM processorders POR, orders O, marketplaceusers U
+      WHERE POR.id = ? AND POR.orderId = O.id AND O.userId = U.id
+    `;
+    marketPlace.query(sql, [id], (err, results) => {
+      if (err) {
+        console.log("Erro", err);
+
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.getAllDispatchMarketplaceItems = (category, userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        MPI.id,
+        MPI.varietyId,
+        MPI.displayName,
+        MPI.category,
+        MPI.normalPrice,
+        MPI.discountedPrice,
+        MPI.discount,
+        MPI.unitType,
+        MPI.startValue,
+        MPI.changeby,
+        XL.id AS isExcluded
+      FROM marketplaceitems MPI
+      LEFT JOIN excludelist XL ON MPI.id = XL.mpItemId AND XL.userId = ?
+      WHERE category = ?
+      ORDER BY 
+        MPI.displayName
+    `;
+
+
+    marketPlace.query(sql, [userId, category], (err, results) => {
+      if (err) {
+        console.error(
+          "[getAllMarketplaceItems] Error fetching all marketplace items:",
+          err
+        );
+        return reject(err);
+      }
+
+      // Structure the data
+      const items = results.map((row) => ({
+        id: row.id,
+        varietyId: row.varietyId,
+        displayName: row.displayName,
+        category: row.category,
+        normalPrice: row.normalPrice,
+        discountedPrice: row.discountedPrice,
+        discount: row.discount,
+        promo: row.promo,
+        unitType: row.unitType,
+        startValue: row.startValue,
+        changeby: row.changeby,
+        isExcluded: row.isExcluded === null ? false : true,
+
+      }));
+
+      console.log(items);
+
+      resolve(items);
+    });
+  });
+};

@@ -125,7 +125,7 @@ router.get(
 );
 
 router.get(
-  '/get-package-for-dispatch/:id', 
+  '/get-package-for-dispatch/:id/:orderId', 
   authMiddleware,
   DispatchEP.getPackageForDispatch
 );

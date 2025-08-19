@@ -58,3 +58,9 @@ exports.dispatchPackageSchema = Joi.array().items(
     ).required()
   })
 ).min(1); 
+
+
+exports.getPackageForDispatchParamScema = Joi.object({
+  id: Joi.number().integer().required(), 
+  orderId: Joi.number().integer().required(), 
+});
