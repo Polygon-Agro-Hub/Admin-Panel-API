@@ -1479,7 +1479,7 @@ exports.getMarketPlaceCustomePackagesDao = (page, limit, packageStatus, date, se
     const params = [];
     const countParams = [];
 
-   if (packageStatus) {
+    if (packageStatus) {
       if (packageStatus === 'Pending') {
         whereClause += ` 
           AND (
@@ -1724,6 +1724,81 @@ exports.getAllDispatchMarketplaceItems = (category, userId) => {
       console.log(items);
 
       resolve(items);
+    });
+  });
+};
+
+
+exports.getAdditionalItemsForDispatchDao = (orderId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        oai.id,
+        oai.qty,
+        oai.isPacked,
+        oai.price,
+        oai.unit,
+        mpi.displayName,
+        mpi.discountedPrice     
+      FROM orderadditionalitems oai
+      LEFT JOIN marketplaceitems mpi ON oai.productId = mpi.id
+      WHERE oai.orderId = ?
+    `;
+
+    marketPlace.query(sql, [orderId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+
+exports.getDispatchOrderDetailsDao = (orderId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        po.invNo,
+        o.id AS orderId,
+        (
+          SELECT SUM(oa.price)
+          FROM orderadditionalitems oa
+          WHERE oa.orderId = o.id
+        ) AS additionalPrice
+      FROM processorders po
+      JOIN orders o ON po.orderId = o.id
+      WHERE po.id = ?
+    `;
+
+    marketPlace.query(sql, [orderId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0] || null);
+      }
+    });
+  });
+};
+
+
+exports.dispatchAdditionalItemsDao = (package) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE orderadditionalitems
+      SET 
+        isPacked = ?
+      WHERE 
+        id = ?
+    `;
+
+    marketPlace.query(sql, [package.isPacked, package.id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
     });
   });
 };
