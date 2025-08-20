@@ -1409,6 +1409,7 @@ exports.getMarketPlacePremadePackagesItemsDao = (orderId) => {
         pd.processOrderId AS orderId,
         pd.name,
         pd.price,
+        pd.packageId,
         COALESCE(pic.totalItems, 0) AS totCount,
         COALESCE(pic.packedItems, 0) AS packCount,
         CASE
@@ -1602,6 +1603,127 @@ ${whereClause}
           total,
         });
       });
+    });
+  });
+};
+
+
+exports.getPackageForDispatchDao = (orderId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        opi.id,
+        opi.qty,
+        opi.isPacked,
+        opi.price,
+        mpi.displayName,
+        mpi.discountedPrice     
+      FROM orderpackageitems opi
+      LEFT JOIN marketplaceitems mpi ON opi.productId = mpi.id
+      WHERE orderPackageId = ?
+    `;
+
+    marketPlace.query(sql, [orderId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+exports.dispatchPackageDao = (package) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE orderpackageitems
+      SET 
+        isPacked = ?
+      WHERE 
+        id = ?
+    `;
+
+    marketPlace.query(sql, [package.isPacked, package.id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+exports.getDispatchOrderTypeDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT O.userId, U.buyerType, POR.invNo
+      FROM processorders POR, orders O, marketplaceusers U
+      WHERE POR.id = ? AND POR.orderId = O.id AND O.userId = U.id
+    `;
+    marketPlace.query(sql, [id], (err, results) => {
+      if (err) {
+        console.log("Erro", err);
+
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.getAllDispatchMarketplaceItems = (category, userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        MPI.id,
+        MPI.varietyId,
+        MPI.displayName,
+        MPI.category,
+        MPI.normalPrice,
+        MPI.discountedPrice,
+        MPI.discount,
+        MPI.unitType,
+        MPI.startValue,
+        MPI.changeby,
+        XL.id AS isExcluded
+      FROM marketplaceitems MPI
+      LEFT JOIN excludelist XL ON MPI.id = XL.mpItemId AND XL.userId = ?
+      WHERE category = ?
+      ORDER BY 
+        MPI.displayName
+    `;
+
+
+    marketPlace.query(sql, [userId, category], (err, results) => {
+      if (err) {
+        console.error(
+          "[getAllMarketplaceItems] Error fetching all marketplace items:",
+          err
+        );
+        return reject(err);
+      }
+
+      // Structure the data
+      const items = results.map((row) => ({
+        id: row.id,
+        varietyId: row.varietyId,
+        displayName: row.displayName,
+        category: row.category,
+        normalPrice: row.normalPrice,
+        discountedPrice: row.discountedPrice,
+        discount: row.discount,
+        promo: row.promo,
+        unitType: row.unitType,
+        startValue: row.startValue,
+        changeby: row.changeby,
+        isExcluded: row.isExcluded === null ? false : true,
+
+      }));
+
+      console.log(items);
+
+      resolve(items);
     });
   });
 };

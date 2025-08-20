@@ -124,6 +124,18 @@ router.get(
   DispatchEP.getMarketPlaceCustomePackages
 );
 
+router.get(
+  '/get-package-for-dispatch/:id/:orderId', 
+  authMiddleware,
+  DispatchEP.getPackageForDispatch
+);
+
+router.patch(
+  '/dispatch-package', 
+  authMiddleware,
+  DispatchEP.dispatchPackage
+);
+
 
 
 

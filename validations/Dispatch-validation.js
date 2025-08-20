@@ -42,3 +42,25 @@ exports.getCustomAdditionalItems = Joi.object({
   id: Joi.number().integer().required(),
   
 });
+
+
+exports.dispatchPackageSchema = Joi.array().items(
+  Joi.object({
+    id: Joi.number().integer().required(),
+    isPacked: Joi.number().integer().valid(0, 1).required(),
+    qty: Joi.alternatives().try(
+      Joi.number(),
+      Joi.string().pattern(/^\d+(\.\d{1,3})?$/) 
+    ).required(),
+    price: Joi.alternatives().try(
+      Joi.number(),
+      Joi.string().pattern(/^\d+(\.\d{1,2})?$/)
+    ).required()
+  })
+).min(1); 
+
+
+exports.getPackageForDispatchParamScema = Joi.object({
+  id: Joi.number().integer().required(), 
+  orderId: Joi.number().integer().required(), 
+});

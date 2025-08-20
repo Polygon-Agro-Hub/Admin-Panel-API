@@ -520,10 +520,62 @@ exports.getMarketPlaceCustomePackages = async (req, res) => {
       status: true
     };
 
-    console.log('-----',packageData.total,'---------');
-    
+    console.log('-----', packageData.total, '---------');
+
 
     res.json(finalResponse);
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+
+exports.getPackageForDispatch = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id, orderId } = await DispatchVali.getPackageForDispatchParamScema.validateAsync(req.params);
+
+
+    const packageData = await DispatchDao.getPackageForDispatchDao(id);
+    console.log(packageData);
+
+    const btype = await DispatchDao.getDispatchOrderTypeDao(orderId);
+    const marketplaceItems = await DispatchDao.getAllDispatchMarketplaceItems(
+      btype.buyerType,
+      btype.userId
+    );
+
+
+    res.json({packageData, marketplaceItems});
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+exports.dispatchPackage = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const packageArr = await DispatchVali.dispatchPackageSchema.validateAsync(req.body);
+    console.log(packageArr);
+
+    for (let i = 0; i < packageArr.length; i++) {
+      const packageData = await DispatchDao.dispatchPackageDao(packageArr[i]);
+      if (packageData.affectedRows === 0) {
+        return res.json({
+          message: "Packing Faild",
+          status: false
+        })
+      }
+    }
+
+    res.json({
+      message: "Package pack successfully",
+      status: true
+    });
   } catch (err) {
     console.error("Error fetching daily report:", err);
     res.status(500).send("An error occurred while fetching the report.");
