@@ -3149,7 +3149,9 @@ exports.removeMarketplacePckages = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
           UPDATE marketplacepackages 
-          SET isValid = 0
+          SET 
+            isValid = 0,
+            status = 'Enabled'
           WHERE id = ?`;
     marketPlace.query(sql, [id], (err, results) => {
       if (err) {

@@ -136,6 +136,17 @@ router.patch(
   DispatchEP.dispatchPackage
 );
 
+router.get(
+  '/get-additional-items-for-dispatch/:id', 
+  authMiddleware,
+  DispatchEP.getAdditionalItemsForDispatch
+);
+
+router.patch(
+  '/dispatch-additional-items', 
+  authMiddleware,
+  DispatchEP.dispatchPackage
+);
 
 
 
