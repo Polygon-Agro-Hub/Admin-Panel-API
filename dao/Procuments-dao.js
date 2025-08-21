@@ -1404,7 +1404,7 @@ exports.updateDefinePackageItemData = (formattedData) => {
       // 1. Update packagingStatus to 'Completed'
       const updateStatusSQL = `
         UPDATE market_place.orderpackage
-        SET packingStatus = 'Completed'
+        SET packingStatus = 'Dispatch'
         WHERE packageId = ? AND orderId = ?
       `;
       updatePromises.push(new Promise((resolveInner, rejectInner) => {
