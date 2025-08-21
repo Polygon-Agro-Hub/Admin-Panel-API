@@ -578,7 +578,7 @@ exports.checkPhoneExistExceptId = (phone, id) => {
 
 exports.GetAllCompanyList = () => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT id, companyNameEnglish FROM company";
+    const sql = "SELECT id, companyNameEnglish FROM company WHERE company.isDistributed = 1";
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
