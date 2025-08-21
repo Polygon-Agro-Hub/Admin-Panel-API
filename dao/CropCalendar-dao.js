@@ -641,7 +641,8 @@ exports.getAllTaskByCropId = (cropId, limit, offset) => {
             JOIN cropcalendardays cd ON cc.id = cd.cropId 
             WHERE cc.id = ?
             ORDER BY cd.taskIndex 
-            LIMIT ? OFFSET ?`;
+            `;
+            // LIMIT ? OFFSET ?
     const values = [cropId];
 
     plantcare.query(countSql, [cropId], (countErr, countResults) => {
