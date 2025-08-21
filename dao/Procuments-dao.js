@@ -1307,28 +1307,26 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
 
     let dataSql = `
         SELECT 
-        o.*,
+        o.fullTotal AS total,
+        o.sheduleDate,
+        o.orderApp,
         po.id AS processOrderId,
         po.invNo,
-        po.transactionId,
-        po.paymentMethod,
-        po.isPaid,
-        po.amount,
         po.status,
-        po.reportStatus,
+        po.createdAt,
         po.createdAt AS processCreatedAt,
         op.packingStatus
         FROM processorders po
-        LEFT JOIN orders o  ON po.orderId = o.id
-        LEFT JOIN orderpackage op ON op.orderId = po.id
+         JOIN orders o  ON po.orderId = o.id
+         JOIN orderpackage op ON op.orderId = po.id
         WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
     countSql = `
       SELECT 
-        COUNT(po.id) AS total
+        COUNT(DISTINCT po.id) AS total
         FROM processorders po
-        LEFT JOIN orders o  ON po.orderId = o.id
-        LEFT JOIN orderpackage op ON op.orderId = po.id
+         JOIN orders o  ON po.orderId = o.id
+         JOIN orderpackage op ON op.orderId = po.id
         WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
 
@@ -1350,6 +1348,15 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     }
 
     dataSql += ` 
+                GROUP BY
+                  o.fullTotal,
+                  o.sheduleDate,
+                  o.orderApp,
+                  po.id,
+                  po.invNo,
+                  po.status,
+                  op.packingStatus,
+                  op.createdAt
                  ORDER BY op.createdAt DESC
                  LIMIT ? OFFSET ?
                 `;
