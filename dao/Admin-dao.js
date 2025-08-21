@@ -1703,7 +1703,8 @@ exports.getAllUserTaskByCropId = (cropId, userId, limit, offset) => {
           AND slavecropcalendardays.userId = ? 
       GROUP BY slavecropcalendardays.id
       ORDER BY slavecropcalendardays.taskIndex
-      LIMIT ? OFFSET ?`;
+      `;
+      // LIMIT ? OFFSET ?
 
     const values = [cropId, userId, limit, offset];
 

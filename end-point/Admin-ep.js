@@ -1730,36 +1730,6 @@ exports.editTask = async (req, res) => {
   }
 };
 
-// exports.getAllUsersTaskByCropId = async (req, res) => {
-//   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-//   console.log("Request URL:", fullUrl);
-
-//   try {
-//     // Validate request parameters (cropId)
-//     const { cropId } = req.params;
-//     const { userId } = req.params;
-//     const { page, limit } =
-//     await ValidateSchema.getAllCropCalendarSchema.validateAsync(req.query);
-
-//     const offset = (page - 1) * limit;
-
-//     console.log(cropId);
-//     console.log(userId);
-//     const results = await adminDao.getAllUserTaskByCropId(cropId, userId);
-
-//     res.json(results);
-//   } catch (error) {
-//     if (error.isJoi) {
-//       // Handle validation error
-//       return res.status(400).json({ error: error.details[0].message });
-//     }
-
-//     console.error("Error fetching tasks for crop ID:", error);
-//     return res.status(500).json({
-//       error: "An error occurred while fetching tasks for the crop ID",
-//     });
-//   }
-// };
 
 exports.getAllUsersTaskByCropId = async (req, res) => {
   try {
