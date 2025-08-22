@@ -561,7 +561,8 @@ exports.getAllCropCalendars = (limit, offset, searchText, category) => {
     limit = parseInt(limit, 10) || 10;
     offset = parseInt(offset, 10) || 0;
 
-    dataSql += " ORDER BY cropcalender.createdAt DESC LIMIT ? OFFSET ?";
+    // dataSql += " ORDER BY cropcalender.createdAt DESC LIMIT ? OFFSET ?";
+    dataSql += " ORDER BY cropcalender.createdAt DESC";
     const dataParams = [...params, limit, offset];
 
     plantcare.query(countSql, params, (countErr, countResults) => {
@@ -640,7 +641,8 @@ exports.getAllTaskByCropId = (cropId, limit, offset) => {
             JOIN cropcalendardays cd ON cc.id = cd.cropId 
             WHERE cc.id = ?
             ORDER BY cd.taskIndex 
-            LIMIT ? OFFSET ?`;
+            `;
+            // LIMIT ? OFFSET ?
     const values = [cropId];
 
     plantcare.query(countSql, [cropId], (countErr, countResults) => {

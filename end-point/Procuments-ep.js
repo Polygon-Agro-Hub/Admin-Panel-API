@@ -110,18 +110,18 @@ exports.getAllOrdersWithProcessInfo = async (req, res) => {
       success: true,
       data: ordersData.items, // Using the original data without transformation
       total: ordersData.total,
-      currentPage: parseInt(page),
-      totalPages: Math.ceil(ordersData.total / limit),
-      packingStatusSummary: {
-        packed: ordersData.items.filter((o) => o.packingStatus === "packed")
-          .length,
-        not_packed: ordersData.items.filter(
-          (o) => o.packingStatus === "not_packed"
-        ).length,
-        // Only count explicit "not_packed" statuses
-        no_status: ordersData.items.filter((o) => !o.packingStatus).length,
-        // Count records with null/undefined packingStatus separately
-      },
+      // currentPage: parseInt(page),
+      // totalPages: Math.ceil(ordersData.total / limit),
+      // packingStatusSummary: {
+      //   packed: ordersData.items.filter((o) => o.packingStatus === "packed")
+      //     .length,
+      //   not_packed: ordersData.items.filter(
+      //     (o) => o.packingStatus === "not_packed"
+      //   ).length,
+      //   // Only count explicit "not_packed" statuses
+      //   no_status: ordersData.items.filter((o) => !o.packingStatus).length,
+      //   // Count records with null/undefined packingStatus separately
+      // },
     });
   } catch (err) {
     console.error("Error fetching orders with process info:", err);
