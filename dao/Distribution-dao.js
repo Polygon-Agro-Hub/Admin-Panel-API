@@ -997,3 +997,427 @@ exports.getDistributedIdforCreateEmpIdDao = (employee) => {
     });
   });
 };
+
+exports.getAllDistributionOfficers = (
+  page,
+  limit,
+  searchNIC,
+  companyid,
+  role,
+  centerStatus,
+  status,
+  centerId
+) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+            SELECT COUNT(*) as total
+            FROM collectionofficer coff
+            JOIN company cm ON coff.companyId = cm.id
+            LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
+            WHERE coff.jobRole IN ('Distribution Center Manager', 'Distribution Officer') AND cm.id = 1
+        `;
+
+    let dataSql = `
+            SELECT
+                coff.id,
+                coff.image,
+                coff.firstNameEnglish,
+                coff.lastNameEnglish,
+                coff.empId,
+                coff.status,
+                coff.claimStatus,
+                coff.jobRole,
+                coff.phoneCode01,
+                coff.phoneNumber01,
+                coff.nic,
+                cm.companyNameEnglish,
+                dc.centerName
+            FROM collectionofficer coff
+            JOIN company cm ON coff.companyId = cm.id
+            LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
+            WHERE coff.jobRole IN ('Distribution Center Manager', 'Distribution Officer') AND cm.id = 1
+        `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    if (companyid) {
+      countSql += " AND cm.id = ?";
+      dataSql += " AND cm.id = ?";
+      countParams.push(companyid);
+      dataParams.push(companyid);
+    }
+
+    if (centerStatus) {
+      // Convert centerStatus to corresponding numeric value
+      let claimStatusValue;
+      if (centerStatus === "Claimed") {
+        claimStatusValue = 1;
+      } else if (centerStatus === "Disclaimed") {
+        claimStatusValue = 0;
+      }
+
+      console.log("this is claimstatus value", claimStatusValue);
+
+      // Apply filter only if it's a valid value
+      if (claimStatusValue !== undefined) {
+        countSql += " AND coff.claimStatus = ? ";
+        dataSql += " AND coff.claimStatus = ? ";
+        countParams.push(claimStatusValue);
+        dataParams.push(claimStatusValue);
+      }
+    }
+
+    if (status) {
+      countSql += " AND coff.status LIKE ? ";
+      dataSql += " AND coff.status LIKE ? ";
+      countParams.push(status);
+      dataParams.push(status);
+    }
+
+    if (role) {
+      countSql += " AND coff.jobRole = ?";
+      dataSql += " AND coff.jobRole = ?";
+      countParams.push(role);
+      dataParams.push(role);
+    }
+
+    if (centerId) {
+      countSql += " AND coff.centerId = ?";
+      dataSql += " AND coff.centerId = ?";
+      countParams.push(centerId);
+      dataParams.push(centerId);
+    }
+
+    // Apply search filters for NIC or related fields
+    if (searchNIC) {
+      const searchCondition = `
+                AND (
+                    coff.nic LIKE ?
+                    OR coff.firstNameEnglish LIKE ?
+                    OR cm.companyNameEnglish LIKE ?
+                    OR coff.phoneNumber01 LIKE ?
+                    OR coff.phoneNumber02 LIKE ?
+                    OR coff.district LIKE ?
+                    OR coff.empId LIKE ?
+                    OR dc.centerName LIKE ?
+                )
+            `;
+      countSql += searchCondition;
+      dataSql += searchCondition;
+      const searchValue = `%${searchNIC}%`;
+      countParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
+      dataParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
+    }
+
+    dataSql += " ORDER BY coff.createdAt DESC";
+
+    // Add pagination to the data query
+    dataSql += " LIMIT ? OFFSET ?";
+    dataParams.push(limit, offset);
+
+    // Execute count query
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
+      }
+
+      const total = countResults[0].total;
+
+      // Execute data query
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+
+        resolve({ items: dataResults, total });
+      });
+    });
+  });
+};
+
+exports.getAllDistributionCenterNamesDao = (district) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            SELECT DC.id, DC.regCode, DC.centerName
+            FROM distributedcenter DC, distributedcompanycenter DCOMC, company COM
+            WHERE DC.id = DCOMC.centerId AND DCOMC.companyId = COM.id AND COM.isDistributed = 1;
+        `;
+    collectionofficer.query(sql, [district], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      resolve(results); // Resolve the promise with the query results
+    });
+  });
+};
+
+exports.getAllDistributionCenterManagerDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, firstNameEnglish, lastNameEnglish
+      FROM collectionofficer
+      WHERE jobRole = 'Distribution Center Manager';
+    `;
+
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      resolve(results); // Resolve the promise with the query results
+    });
+  });
+};
+
+exports.getQrImage = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT image, QRcode FROM collectionofficer WHERE id = ?";
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.DeleteDistributionOfficerDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            DELETE FROM collectionofficer
+            WHERE id = ?
+        `;
+    collectionofficer.query(sql, [parseInt(id)], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      resolve(results); // Resolve the promise with the query results
+    });
+  });
+};
+
+exports.getDistributionOfficerEmailDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            SELECT c.email, c.firstNameEnglish, c.empId AS empId
+            FROM collectionofficer c
+            WHERE c.id = ?
+        `;
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      if (results.length > 0) {
+        resolve({
+          email: results[0].email, // Resolve with email
+          firstNameEnglish: results[0].firstNameEnglish,
+          empId: results[0].empId, // Resolve with employeeType (empId)
+        });
+      } else {
+        resolve(null); // Resolve with null if no record is found
+      }
+    });
+  });
+};
+
+exports.UpdateDistributionOfficerStatusAndPasswordDao = (params) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            UPDATE collectionofficer
+            SET status = ?, password = ?, passwordUpdated = 0
+            WHERE id = ?
+        `;
+    collectionofficer.query(
+      sql,
+      [params.status, params.password, parseInt(params.id)],
+      (err, results) => {
+        if (err) {
+          return reject(err); // Reject promise if an error occurs
+        }
+        resolve(results); // Resolve with the query results
+      }
+    );
+  });
+};
+
+exports.SendGeneratedPasswordDao = async (
+  email,
+  password,
+  empId,
+  firstNameEnglish
+) => {
+  try {
+    const doc = new PDFDocument();
+
+    // Create a buffer to hold the PDF in memory
+    const pdfBuffer = [];
+    doc.on("data", pdfBuffer.push.bind(pdfBuffer));
+    doc.on("end", () => {});
+
+    const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
+    doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
+
+    doc
+      .fontSize(20)
+      .fillColor("#071a51")
+      .text("Welcome to AgroWorld (Pvt) Ltd - Registration Confirmation", {
+        align: "center",
+      });
+
+    doc.moveDown();
+
+    const lineY = doc.y;
+
+    doc.moveTo(50, lineY).lineTo(550, lineY).stroke();
+
+    doc.moveDown();
+
+    doc.fontSize(12).text(`Dear ${firstNameEnglish},`);
+
+    doc.moveDown();
+
+    doc
+      .fontSize(12)
+      .text(
+        "Thank you for registering with us! We are excited to have you on board."
+      );
+
+    doc.moveDown();
+
+    doc
+      .fontSize(12)
+      .text(
+        "You have successfully created an account with AgroWorld (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
+        {
+          align: "justify",
+        }
+      );
+
+    doc.moveDown();
+
+    doc.fontSize(12).text(`Your User Name/ID: ${empId}`);
+    doc.fontSize(12).text(`Your Password: ${password}`);
+
+    doc.moveDown();
+
+    doc
+      .fontSize(12)
+      .text(
+        "If you have any questions or need assistance, feel free to reach out to our support team at info@agroworld.lk",
+        {
+          align: "justify",
+        }
+      );
+
+    doc.moveDown();
+
+    doc.fontSize(12).text("We are here to support you every step of the way!", {
+      align: "justify",
+    });
+
+    doc.moveDown();
+    doc.fontSize(12).text(`Best Regards,`);
+    doc.fontSize(12).text(`The AgroWorld Team`);
+    doc.fontSize(12).text(`AgroWorld (Pvt) Ltd. | All rights reserved.`);
+    doc.moveDown();
+    doc.fontSize(12).text(`Address: No:14,`);
+    doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
+    doc.fontSize(12).text(`            Colombo 01.`);
+    doc.moveDown();
+    doc.fontSize(12).text(`Email: info@agroworld.lk`);
+
+    doc.end();
+
+    // Wait until the PDF is fully created and available in the buffer
+    await new Promise((resolve) => doc.on("end", resolve));
+
+    const pdfData = Buffer.concat(pdfBuffer); // Concatenate the buffer data
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465, // or 587 for TLS
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        family: 4,
+      },
+    });
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 465, // SSL
+    //   secure: true, // true for 465, false for 587
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: {
+    //     rejectUnauthorized: false, // <-- This allows self-signed certificates
+    //     family: 4, // optional if you want to force IPv4
+    //   },
+    // });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Welcome to AgroWorld (Pvt) Ltd - Registration Confirmation",
+      text: `Dear ${firstNameEnglish},\n\nYour registration details are attached in the PDF.`,
+      attachments: [
+        {
+          filename: `password_${empId}.pdf`, // PDF file name
+          content: pdfData, // Attach the PDF buffer directly
+        },
+      ],
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.response);
+
+    return { success: true, message: "Email sent successfully!" };
+  } catch (error) {
+    console.error("Error sending email:", error);
+
+    return { success: false, message: "Failed to send email.", error };
+  }
+};
+
+exports.getAllCompanyNamesDao = (district) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            SELECT id, companyNameEnglish
+            FROM company
+            WHERE isDistributed = 1;
+        `;
+    collectionofficer.query(sql, [district], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      resolve(results); // Resolve the promise with the query results
+    });
+  });
+};

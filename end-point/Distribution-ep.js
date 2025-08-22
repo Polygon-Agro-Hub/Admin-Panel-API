@@ -854,3 +854,237 @@ exports.checkDistributionCenterNameExists = async (req, res) => {
     });
   }
 };
+
+exports.getAllDistributionOfficers = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+
+    const validatedQuery =
+      await DistributionValidation.getAllDistributionOfficersSchema.validateAsync(
+        req.query
+      );
+
+    const { page, limit, centerStatus, status, nic, company, role, centerId } = validatedQuery;
+
+    console.log(centerStatus, status)
+
+    
+    const result = await DistributionDao.getAllDistributionOfficers(
+      page,
+      limit,
+      nic,
+      company,
+      role,
+      centerStatus,
+      status,
+      centerId
+    );
+
+    console.log(result);
+
+    console.log("Successfully fetched distribution officers");
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching distribution officers:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching distribution officers" });
+  }
+};
+
+exports.getAllDistributedCenterNames = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const results = await DistributionDao.getAllDistributionCenterNamesDao();
+
+    console.log("Successfully retrieved reports");
+    res.status(200).json(results);
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error retrieving", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching" });
+  }
+};
+
+exports.getAllDistributionManagerNames = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const results = await DistributionDao.getAllDistributionCenterManagerDao();
+
+    console.log("Successfully retrieved reports");
+    res.status(200).json(results);
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error retrieving district reports:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching the reports" });
+  }
+};
+
+exports.deleteDistributionOfficer = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = req.params;
+
+    const qrimage = await DistributionDao.getQrImage(id);
+
+    const qrUrl = qrimage.QRcode;
+    const imageUrl = qrimage.image;
+
+    console.log(qrUrl);
+
+    if (qrUrl) {
+      try {
+        await deleteFromS3(qrUrl);
+      } catch (s3Error) {
+        console.error("Failed to delete image from S3:", s3Error);
+      }
+    }
+
+    if (imageUrl) {
+      try {
+        await deleteFromS3(imageUrl);
+      } catch (s3Error) {
+        console.error("Failed to delete image from S3:", s3Error);
+      }
+    }
+
+    const results = await DistributionDao.DeleteDistributionOfficerDao(
+      req.params.id
+    );
+
+    console.log("Successfully Delete Status");
+    if (results.affectedRows > 0) {
+      res.status(200).json({ results: results, status: true });
+    } else {
+      res.json({ results: results, status: false });
+    }
+  } catch (error) {
+    if (error.isJoi) {
+      return res
+        .status(400)
+        .json({ error: error.details[0].message, status: false });
+    }
+
+    console.error("Error retrieving Updated Status:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while Updated Statuss" });
+  }
+};
+
+exports.UpdateStatusAndSendPassword = async (req, res) => {
+  try {
+    const { id, status } = req.params;
+
+    // Validate input
+    if (!id || !status) {
+      return res
+        .status(400)
+        .json({ message: "ID and status are required.", status: false });
+    }
+
+    // Fetch officer details by ID
+    const officerData = await DistributionDao.getDistributionOfficerEmailDao(
+      id
+    );
+    if (!officerData) {
+      return res
+        .status(404)
+        .json({ message: "Collection officer not found.", status: false });
+    }
+
+    // Destructure email, firstNameEnglish, and empId from fetched data
+    const { email, firstNameEnglish, empId } = officerData;
+    console.log(`Email: ${email}, Name: ${firstNameEnglish}, Emp ID: ${empId}`);
+
+    // Generate a new random password
+    const generatedPassword = Math.random().toString(36).slice(-8); // Example: 8-character random password
+
+    const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+
+    // Update status and password in the database
+    const updateResult =
+      await DistributionDao.UpdateDistributionOfficerStatusAndPasswordDao({
+        id,
+        status,
+        password: hashedPassword,
+      });
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(400).json({
+        message: "Failed to update status and password.",
+        status: false,
+      });
+    }
+
+    // If status is 'Approved', send the password email
+    if (status === "Approved") {
+      const emailResult = await DistributionDao.SendGeneratedPasswordDao(
+        email,
+        generatedPassword,
+        empId,
+        firstNameEnglish
+      );
+
+      if (!emailResult.success) {
+        return res.status(500).json({
+          message: "Failed to send password email.",
+          error: emailResult.error,
+        });
+      }
+    }
+
+    // Return success response with empId and email
+    res.status(200).json({
+      message: "Status updated and password sent successfully.",
+      status: true,
+      data: {
+        empId, // Include empId for reference
+        email, // Include the email sent to
+      },
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ message: "An error occurred.", error });
+  }
+};
+
+exports.getAllCompanyNames = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const results = await DistributionDao.getAllCompanyNamesDao();
+
+    console.log("Successfully retrieved reports");
+    res.status(200).json(results);
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error retrieving district reports:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching the reports" });
+  }
+};
