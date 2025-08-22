@@ -145,7 +145,7 @@ router.get(
 router.patch(
   '/dispatch-additional-items', 
   authMiddleware,
-  DispatchEP.dispatchPackage
+  DispatchEP.dispatchAdditonalPackage
 );
 
 

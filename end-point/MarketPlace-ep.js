@@ -498,8 +498,8 @@ exports.editMarketProduct = async (req, res) => {
       id
     );
 
-    console.log('request',checkProduct);
-    
+    console.log('request', checkProduct);
+
     // Handle validation cases
     if (checkProduct.bothExist) {
       return res.status(400).json({
@@ -507,14 +507,14 @@ exports.editMarketProduct = async (req, res) => {
         status: false
       });
     }
-    
+
     if (checkProduct.varietyExists) {
       return res.status(400).json({
         error: "A product with the same variety already exists. Please select a different variety.",
         status: false
       });
     }
-    
+
     if (checkProduct.nameExists) {
       return res.status(400).json({
         error: "A product with the same display name already exists. Please use a different display name.",
@@ -1615,6 +1615,7 @@ exports.getAllDeliveryCharges = async (req, res) => {
 
 exports.uploadDeliveryCharges = async (req, res) => {
   try {
+    const userId = req.user.userId
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -1622,7 +1623,7 @@ exports.uploadDeliveryCharges = async (req, res) => {
       });
     }
 
-    const result = await MarketPlaceDao.uploadDeliveryCharges(req.file.buffer);
+    const result = await MarketPlaceDao.uploadDeliveryCharges(req.file.buffer, userId);
 
     return res.status(200).json({
       success: true,
@@ -1648,9 +1649,7 @@ exports.editDeliveryCharge = async (req, res) => {
 
     const deliveryData = req.body; // Assuming JSON data is sent directly in body
     const id = req.params.id;
-    console.log("Delivery Charge ID:", id);
-    console.log("Update Data:", deliveryData);
-
+    const userId = req.user.userId
     // Validate required fields
     if (!deliveryData.city || !deliveryData.charge) {
       return res.status(400).json({
@@ -1662,7 +1661,8 @@ exports.editDeliveryCharge = async (req, res) => {
     // Update delivery charge
     const results = await MarketPlaceDao.editDeliveryChargeDAO(
       deliveryData,
-      id
+      id,
+      userId
     );
 
     if (!results || results.affectedRows === 0) {
