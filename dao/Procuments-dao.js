@@ -589,26 +589,26 @@ exports.getAllOrdersWithProcessInfo = (
 
     let dataSql = `
          SELECT 
-        o.*,
-        po.id AS processOrderId,
-        po.invNo,
-        po.transactionId,
-        po.paymentMethod,
-        po.isPaid,
-        po.amount,
-        po.status,
-        po.reportStatus,
-        po.createdAt AS processCreatedAt,
-        op.packingStatus
+          o.fullTotal AS total,
+          o.sheduleDate,
+          o.orderApp,
+          po.id AS processOrderId,
+          po.invNo,
+          po.status,
+          po.createdAt,
+          op.packingStatus,
+          op.createdAt AS packageCreatedAt
         FROM processorders po, orders o, orderpackage op
         WHERE op.packingStatus = 'Todo' AND po.status = 'Processing' AND po.orderId = o.id AND po.id = op.orderId 
       `;
-    countSql = `
-      SELECT 
-        COUNT(po.id) AS total
-        FROM processorders po, orders o, orderpackage op
-        WHERE op.packingStatus = 'Todo' AND po.status = 'Processing' AND po.orderId = o.id AND po.id = op.orderId
-      `;
+
+    let countSql = `
+      SELECT COUNT(DISTINCT po.id) AS total
+      FROM processorders po, orders o, orderpackage op
+      WHERE op.packingStatus = 'Todo' AND po.status = 'Processing' AND po.orderId = o.id AND po.id = op.orderId
+    `;
+
+    // Apply filters to both queries
     if (statusFilter) {
       if (statusFilter === "Paid") {
         dataSql += ` AND po.isPaid = 1 `;
@@ -623,8 +623,6 @@ exports.getAllOrdersWithProcessInfo = (
     }
 
     if (dateFilter) {
-      console.log("Date Filter:", dateFilter);
-
       dataSql += ` AND DATE(o.sheduleDate) = ? `;
       countSql += ` AND DATE(o.sheduleDate) = ? `;
       params.push(dateFilter);
@@ -632,8 +630,6 @@ exports.getAllOrdersWithProcessInfo = (
     }
 
     if (dateFilter1) {
-      console.log("Date Filter:", dateFilter1);
-
       dataSql += ` AND DATE(po.createdAt) = ? `;
       countSql += ` AND DATE(po.createdAt) = ? `;
       params.push(dateFilter1);
@@ -641,23 +637,28 @@ exports.getAllOrdersWithProcessInfo = (
     }
 
     if (searchText) {
-      console.log("searchText", searchText);
-
       dataSql += ` AND po.invNo LIKE ? `;
       countSql += ` AND po.invNo LIKE ? `;
       params.push(`%${searchText}%`);
       countParams.push(`%${searchText}%`);
     }
 
-    dataSql += ` 
+    // Add GROUP BY and ORDER BY only to data query
+    dataSql += ` GROUP BY
+                  o.fullTotal,
+                  o.sheduleDate,
+                  o.orderApp,
+                  po.id,
+                  po.invNo,
+                  po.status,
+                  op.packingStatus,
+                  op.createdAt
                  ORDER BY op.createdAt DESC
                  LIMIT ? OFFSET ?
                 `;
 
     params.push(parseInt(limit), parseInt(offset));
 
-    console.log("Executing Count Query...");
-    // console.log(dataSql);
 
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
@@ -667,7 +668,6 @@ exports.getAllOrdersWithProcessInfo = (
 
       const total = countResults[0]?.total || 0;
 
-      console.log("Executing Data Query...");
       marketPlace.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Data query error:", dataErr);
@@ -1307,28 +1307,26 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
 
     let dataSql = `
         SELECT 
-        o.*,
+        o.fullTotal AS total,
+        o.sheduleDate,
+        o.orderApp,
         po.id AS processOrderId,
         po.invNo,
-        po.transactionId,
-        po.paymentMethod,
-        po.isPaid,
-        po.amount,
         po.status,
-        po.reportStatus,
+        po.createdAt,
         po.createdAt AS processCreatedAt,
         op.packingStatus
         FROM processorders po
-        LEFT JOIN orders o  ON po.orderId = o.id
-        LEFT JOIN orderpackage op ON op.orderId = po.id
+         JOIN orders o  ON po.orderId = o.id
+         JOIN orderpackage op ON op.orderId = po.id
         WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
     countSql = `
       SELECT 
-        COUNT(po.id) AS total
+        COUNT(DISTINCT po.id) AS total
         FROM processorders po
-        LEFT JOIN orders o  ON po.orderId = o.id
-        LEFT JOIN orderpackage op ON op.orderId = po.id
+         JOIN orders o  ON po.orderId = o.id
+         JOIN orderpackage op ON op.orderId = po.id
         WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
 
@@ -1350,6 +1348,15 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     }
 
     dataSql += ` 
+                GROUP BY
+                  o.fullTotal,
+                  o.sheduleDate,
+                  o.orderApp,
+                  po.id,
+                  po.invNo,
+                  po.status,
+                  op.packingStatus,
+                  op.createdAt
                  ORDER BY op.createdAt DESC
                  LIMIT ? OFFSET ?
                 `;
@@ -1364,9 +1371,9 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
         console.error("Count query error:", countErr);
         return reject(countErr);
       }
-      
+
       console.log(countResults);
-      
+
       const total = countResults[0]?.total || 0;
 
       console.log("Executing Data Query...");
@@ -1376,7 +1383,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
           return reject(dataErr);
         }
         console.log(dataResults);
-        
+
         resolve({
           items: dataResults,
           total,
@@ -1404,7 +1411,7 @@ exports.updateDefinePackageItemData = (formattedData) => {
       // 1. Update packagingStatus to 'Completed'
       const updateStatusSQL = `
         UPDATE market_place.orderpackage
-        SET packingStatus = 'Completed'
+        SET packingStatus = 'Dispatch'
         WHERE packageId = ? AND orderId = ?
       `;
       updatePromises.push(new Promise((resolveInner, rejectInner) => {
