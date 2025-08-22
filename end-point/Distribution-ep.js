@@ -1088,3 +1088,186 @@ exports.getAllCompanyNames = async (req, res) => {
       .json({ error: "An error occurred while fetching the reports" });
   }
 };
+
+exports.createDistributionOfficer = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const officerData = JSON.parse(req.body.officerData);
+
+    const isExistingNIC = await DistributionDao.checkNICExist(
+      officerData.nic
+    );
+    const isExistingEmail = await DistributionDao.checkEmailExist(
+      officerData.email
+    );
+
+    if (isExistingNIC) {
+      return res.status(500).json({
+        error: "NIC already exists",
+      });
+    }
+
+    if (isExistingEmail) {
+      return res.status(500).json({
+        error: "Email already exists",
+      });
+    }
+
+
+    const isExistingPhoneNumber01 = await DistributionDao.checkPhoneNumberExist(officerData.phoneNumber01);
+    if (isExistingPhoneNumber01) {
+      return res.status(500).json({
+        error: "Primary phone number already exists",
+      });
+    }
+
+    if (officerData.phoneNumber02) {
+      const isExistingPhoneNumber02 = await DistributionDao.checkPhoneNumberExist(officerData.phoneNumber02);
+      if (isExistingPhoneNumber02) {
+        return res.status(500).json({
+          error: "Secondary phone number already exists",
+        });
+      }
+    }
+
+    let profileImageUrl = null; // Default to null if no image is provided
+    const lastId = await DistributionDao.getDCIDforCreateEmpIdDao(officerData.jobRole);
+    console.log("LastId",lastId);
+    
+
+    // Check if an image file is provided
+    if (req.body.file) {
+      try {
+        const base64String = req.body.file.split(",")[1]; // Extract the Base64 content
+        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1]; // Extract MIME type
+        const fileBuffer = Buffer.from(base64String, "base64"); // Decode Base64 to buffer
+
+        const fileExtension = mimeType.split("/")[1]; // Extract file extension from MIME type
+        const fileName = `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}.${fileExtension}`;
+
+        // Upload image to S3
+        profileImageUrl = await uploadFileToS3(
+          fileBuffer,
+          fileName,
+          "collectionofficer/image"
+        );
+      } catch (err) {
+        console.error("Error processing image file:", err);
+        return res
+          .status(400)
+          .json({ error: "Invalid file format or file upload error" });
+      }
+    }
+
+    // Save officer data (without image if no image is uploaded)
+    const resultsPersonal =
+      await DistributionDao.createDistributionOfficerPersonal(
+        officerData,
+        profileImageUrl,
+        lastId
+      );
+
+    console.log("Distribution Officer created successfully");
+    return res.status(201).json({
+      message: "Distribution Officer created successfully",
+      id: resultsPersonal.insertId,
+      status: true,
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error creating distribution officer:", error);
+    return res.status(500).json({
+      error: "An error occurred while creating the distribution officer",
+    });
+  }
+};
+
+exports.getAllDistributionCenterByCompany = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const companyId = req.params.companyId;
+    const result = await DistributionDao.GetDistributionCentersByCompanyIdDAO(
+      companyId
+    );
+
+    if (result.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No news items found", data: result });
+    }
+
+    console.log("Successfully retrieved all distribution center");
+    res.json(result);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching news:", err);
+    res.status(500).json({ error: "An error occurred while fetching news" });
+  }
+};
+
+exports.getAllDistributionManagerList = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    const companyId = req.params.companyId;
+    const centerId = req.params.centerId;
+    console.log(companyId, centerId);
+
+    const result = await DistributionDao.GetAllDistributionManagerList(
+      companyId,
+      centerId
+    );
+
+    if (result.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No collection Managers found", data: result });
+    }
+
+    console.log("Successfully retrieved all collection Managers");
+    res.json(result);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching news:", err);
+    res.status(500).json({ error: "An error occurred while fetching news" });
+  }
+};
+
+exports.getForCreateId = async (req, res) => {
+  try {
+    const { role } = await DistributionValidation.getRoleShema.validateAsync(
+      req.params
+    );
+    const results = await DistributionDao.getForCreateId(role);
+
+    if (results.length === 0) {
+      return res.json({ result: { empId: "00001" }, status: true });
+    }
+
+    res.status(200).json({ result: results[0], status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};

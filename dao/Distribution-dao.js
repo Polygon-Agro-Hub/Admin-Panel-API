@@ -7,6 +7,8 @@ const {
 const { error } = require("console");
 const Joi = require("joi");
 const path = require("path");
+const QRCode = require("qrcode");
+const uploadFileToS3 = require("../middlewares/s3upload");
 
 exports.checkExistingDistributionCenter = (checkData) => {
   return new Promise((resolve, reject) => {
@@ -1418,6 +1420,212 @@ exports.getAllCompanyNamesDao = (district) => {
         return reject(err); // Reject promise if an error occurs
       }
       resolve(results); // Resolve the promise with the query results
+    });
+  });
+};
+
+exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
+  console.log('officer', excludeId);
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count 
+               FROM collectionofficer 
+               WHERE (phoneNumber01 = ? OR phoneNumber02 = ?)`;
+    const params = [phoneNumber, phoneNumber];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.getDCIDforCreateEmpIdDao = (employee) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT empId 
+      FROM collectionofficer
+      WHERE jobRole = ?
+      ORDER BY 
+        CAST(SUBSTRING(empId FROM 4) AS UNSIGNED) DESC
+      LIMIT 1
+    `;
+    const values = [employee];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.length === 0) {
+        if (employee === "Distribution Center Head") {
+          return resolve("DCH00001");
+        } else if (employee === "Distribution Center Manager") {
+          return resolve("DBM00001");
+        } else if (employee === "Distribution Officer") {
+          return resolve("DIO00001");
+        }
+      }
+
+      const highestId = results[0].empId;
+
+      // Extract the numeric part
+      const prefix = highestId.substring(0, 3); // Get "CCM"
+      const numberStr = highestId.substring(3); // Get "00007"
+      const number = parseInt(numberStr, 10); // Convert to number 7
+
+      // Increment and format back to 5 digits
+      const nextNumber = number + 1;
+      const nextId = `${prefix}${nextNumber.toString().padStart(5, "0")}`; // "CCM00008"
+
+      resolve(nextId);
+    });
+  });
+};
+
+exports.createDistributionOfficerPersonal = (
+  officerData,
+  profileImageUrl,
+  lastId
+) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Prepare data for QR code generation
+      const qrData = `
+            {
+                "empId": "${officerData.empId}",
+            }
+            `;
+
+      const qrCodeBase64 = await QRCode.toDataURL(qrData);
+      const qrCodeBuffer = Buffer.from(
+        qrCodeBase64.replace(/^data:image\/png;base64,/, ""),
+        "base64"
+      );
+      const qrcodeURL = await uploadFileToS3(
+        qrCodeBuffer,
+        `${officerData.empId}.png`,
+        "collectionofficer/QRcode"
+      );
+      console.log(qrcodeURL);
+
+      // If no image URL, set it to null
+      const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
+      if(officerData.jobRole === 'Distribution Center Manager' || officerData.jobRole === 'Distribution Center Head'){
+        officerData.irmId = null;
+      }
+
+      const sql = `
+                INSERT INTO collectionofficer (
+                    centerId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
+                    lastNameSinhala, lastNameTamil, jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
+                    nic, email, houseNumber, streetName, city, district, province, country,
+                    languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                         ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?, 'Not Approved')
+            `;
+
+      // Database query with QR image data added
+      collectionofficer.query(
+        sql,
+        [
+          officerData.centerId,
+          officerData.companyId,
+          officerData.irmId,
+          officerData.firstNameEnglish,
+          officerData.firstNameSinhala,
+          officerData.firstNameTamil,
+          officerData.lastNameEnglish,
+          officerData.lastNameSinhala,
+          officerData.lastNameTamil,
+          officerData.jobRole,
+          lastId, //this is latest empId
+          officerData.empType,
+          officerData.phoneCode01,
+          officerData.phoneNumber01,
+          officerData.phoneCode02,
+          officerData.phoneNumber02,
+          officerData.nic,
+          officerData.email,
+          officerData.houseNumber,
+          officerData.streetName,
+          officerData.city,
+          officerData.district,
+          officerData.province,
+          officerData.country,
+          officerData.languages,
+          officerData.accHolderName,
+          officerData.accNumber,
+          officerData.bankName,
+          officerData.branchName,
+          imageUrl, // Use the potentially null image URL
+          qrcodeURL,
+        ],
+        (err, results) => {
+          if (err) {
+            console.log(err);
+            return reject(err); // Reject promise if an error occurs
+          }
+          resolve(results); // Resolve the promise with the query results
+        }
+      );
+    } catch (error) {
+      reject(error); // Reject if any error occurs during QR code generation
+    }
+  });
+};
+
+exports.GetDistributionCentersByCompanyIdDAO = (companyId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT dc.* 
+      FROM distributedcenter dc
+      JOIN distributedcompanycenter dcc ON dc.id = dcc.centerId
+      WHERE dcc.companyId = ?
+    `;
+    collectionofficer.query(sql, [companyId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.GetAllDistributionManagerList = (companyId, centerId) => {
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT id, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND centerId = ?";
+    collectionofficer.query(sql, [companyId, centerId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getForCreateId = (role) => {
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT empId FROM collectionofficer WHERE empId LIKE ? ORDER BY empId DESC LIMIT 1";
+    collectionofficer.query(sql, [`${role}%`], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.length > 0) {
+        const numericPart = parseInt(results[0].empId.substring(3), 10);
+
+        const incrementedValue = numericPart + 1;
+
+        results[0].empId = incrementedValue.toString().padStart(5, "0");
+      }
+
+      resolve(results);
     });
   });
 };

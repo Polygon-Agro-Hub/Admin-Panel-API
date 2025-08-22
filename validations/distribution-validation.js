@@ -39,3 +39,7 @@ exports.getAllDistributionOfficersSchema = Joi.object({
     role: Joi.string().optional(),
     centerId: Joi.number().optional(),
 });
+
+exports.getRoleShema = Joi.object({
+    role: Joi.string().required(),
+})

@@ -146,4 +146,29 @@ router.get(
   distributionEp.getAllCompanyNames
 );
 
+router.post(
+  "/create-distribution-officer",
+  authMiddleware,
+  upload.single("image"),
+  distributionEp.createDistributionOfficer
+);
+
+router.get(
+  "/get-all-distribution-center-by-company/:companyId",
+  authMiddleware,
+  distributionEp.getAllDistributionCenterByCompany
+);
+
+router.get(
+  "/get-all-distribution-manager-list/:companyId/:centerId",
+  authMiddleware,
+  distributionEp.getAllDistributionManagerList
+);
+
+router.get(
+  "/get-last-emp-id/:role",
+  authMiddleware,
+  distributionEp.getForCreateId
+);
+
 module.exports = router;
