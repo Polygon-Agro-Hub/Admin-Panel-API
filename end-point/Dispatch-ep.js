@@ -559,6 +559,8 @@ exports.dispatchPackage = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
+    console.log('dispatch packages');
+    
     const packageArr = await DispatchVali.dispatchPackageSchema.validateAsync(req.body);
     console.log(packageArr);
 
@@ -618,7 +620,7 @@ exports.getAdditionalItemsForDispatch = async (req, res) => {
 };
 
 
-exports.dispatchPackage = async (req, res) => {
+exports.dispatchAdditonalPackage = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {

@@ -110,4 +110,65 @@ router.get(
   distributionEp.checkDistributionCenterNameExists
 );
 
+router.get(
+  "/get-all-distribution-officers",
+  authMiddleware,
+  distributionEp.getAllDistributionOfficers
+);
+
+router.get(
+  "/get-all-distributed-center-names",
+  authMiddleware,
+  distributionEp.getAllDistributedCenterNames
+);
+
+router.get(
+  "/get-all-distribution-manager-names",
+  authMiddleware,
+  distributionEp.getAllDistributionManagerNames
+);
+
+router.delete(
+  "/delete-distribution-officer/:id",
+  authMiddleware,
+  distributionEp.deleteDistributionOfficer
+);
+
+router.get(
+  "/update-status/:id/:status",
+  authMiddleware,
+  distributionEp.UpdateStatusAndSendPassword
+);
+
+router.get(
+  "/get-all-company-names",
+  authMiddleware,
+  distributionEp.getAllCompanyNames
+);
+
+router.post(
+  "/create-distribution-officer",
+  authMiddleware,
+  upload.single("image"),
+  distributionEp.createDistributionOfficer
+);
+
+router.get(
+  "/get-all-distribution-center-by-company/:companyId",
+  authMiddleware,
+  distributionEp.getAllDistributionCenterByCompany
+);
+
+router.get(
+  "/get-all-distribution-manager-list/:companyId/:centerId",
+  authMiddleware,
+  distributionEp.getAllDistributionManagerList
+);
+
+router.get(
+  "/get-last-emp-id/:role",
+  authMiddleware,
+  distributionEp.getForCreateId
+);
+
 module.exports = router;

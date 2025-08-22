@@ -111,7 +111,7 @@ exports.checkMarketProductExistsDao = async (varietyId, displayName) => {
         // Check for specific cases
         const varietyExists = results.some(item => item.varietyId === varietyId);
         const nameExists = results.some(item => item.displayName === displayName);
-        
+
         resolve({
           exists: results.length > 0,
           varietyExists,
@@ -1611,15 +1611,25 @@ exports.getAllDeliveryCharges = (searchItem, city) => {
   return new Promise((resolve, reject) => {
     let whereConditions = [];
     let params = [];
-    let sql = "SELECT * FROM deliverycharge";
+    let sql = `
+        SELECT 
+          dc.id,
+          dc.province,
+          dc.district,
+          dc.city,
+          dc.charge,
+          au.userName
+        FROM deliverycharge dc
+        LEFT JOIN agro_world_admin.adminusers au ON dc.editBy = au.id
+        `;
 
     if (searchItem) {
-      whereConditions.push("city LIKE ?");
+      whereConditions.push("dc.city LIKE ?");
       params.push(`%${searchItem}%`);
     }
 
     if (city) {
-      whereConditions.push("city = ?");
+      whereConditions.push("dc.city = ?");
       params.push(city);
     }
 
@@ -1628,8 +1638,8 @@ exports.getAllDeliveryCharges = (searchItem, city) => {
     }
 
     // Changed from ORDER BY createdAt DESC to ORDER BY city ASC for A-Z ordering
-    sql += " ORDER BY city ASC";
-    
+    sql += " ORDER BY dc.city ASC";
+
     collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
@@ -1640,49 +1650,55 @@ exports.getAllDeliveryCharges = (searchItem, city) => {
   });
 };
 
-exports.uploadDeliveryCharges = async (fileBuffer) => {
+exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
   return new Promise(async (resolve, reject) => {
     try {
       // Read the Excel file
       const workbook = XLSX.read(fileBuffer, { type: "buffer" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(worksheet);
+      console.log(data);
 
       // Validate data structure
       if (data.length === 0) {
         return reject(new Error("Excel file is empty"));
       }
 
-      const requiredColumns = ["City Name", "Charge (Rs.)"];
+      const requiredColumns = ["Province", "District", "City", "Charge"];
       const headers = Object.keys(data[0]);
 
       if (!requiredColumns.every((col) => headers.includes(col))) {
         return reject(
           new Error(
-            "Excel file must contain 'City Name' and 'Charge (Rs.)' columns"
+            "Excel file must contain 'Province', 'District', 'City', and 'Charge' columns"
           )
         );
       }
 
       // Process data and remove duplicates within the file
       const chargesToProcess = [];
-      const cityMap = new Map();
+      const uniqueKeyMap = new Map(); // Use composite key for uniqueness
 
       for (const row of data) {
-        const city = row["City Name"]?.toString().trim();
-        const charge = parseFloat(row["Charge (Rs.)"]);
+        const province = row["Province"]?.toString().trim();
+        const district = row["District"]?.toString().trim();
+        const city = row["City"]?.toString().trim();
+        const charge = parseFloat(row["Charge"]);
 
-        if (!city || isNaN(charge)) {
+        if (!province || !district || !city || isNaN(charge)) {
           continue; // Skip invalid rows
         }
 
-        // Check if city already exists in this batch
-        if (!cityMap.has(city.toLowerCase())) {
-          cityMap.set(city.toLowerCase(), { city, charge });
+        // Create a unique key using province, district, and city
+        const uniqueKey = `${province.toLowerCase()}-${district.toLowerCase()}-${city.toLowerCase()}`;
+
+        // Check if this combination already exists in this batch
+        if (!uniqueKeyMap.has(uniqueKey)) {
+          uniqueKeyMap.set(uniqueKey, { province, district, city, charge });
         }
       }
 
-      if (cityMap.size === 0) {
+      if (uniqueKeyMap.size === 0) {
         return resolve({
           inserted: 0,
           updated: 0,
@@ -1691,9 +1707,9 @@ exports.uploadDeliveryCharges = async (fileBuffer) => {
         });
       }
 
-      // Get existing cities with their current charges
-      const existingCities = await new Promise((resolve, reject) => {
-        const sql = "SELECT city, charge FROM deliverycharge";
+      // Get existing delivery charges with their current values
+      const existingCharges = await new Promise((resolve, reject) => {
+        const sql = "SELECT province, district, city, charge FROM deliverycharge";
         collectionofficer.query(sql, (err, results) => {
           if (err) return reject(err);
           resolve(results);
@@ -1704,24 +1720,25 @@ exports.uploadDeliveryCharges = async (fileBuffer) => {
       const chargesToInsert = [];
       const chargesToUpdate = [];
 
-      // Create a map of existing cities for easy lookup
-      const existingCityMap = new Map();
-      existingCities.forEach(c => {
-        existingCityMap.set(c.city.toLowerCase(), c);
+      // Create a map of existing charges for easy lookup
+      const existingChargeMap = new Map();
+      existingCharges.forEach(c => {
+        const uniqueKey = `${c.province.toLowerCase()}-${c.district.toLowerCase()}-${c.city.toLowerCase()}`;
+        existingChargeMap.set(uniqueKey, c);
       });
 
-      // Process each city from the Excel file
-      cityMap.forEach((excelCityData, lowercaseCity) => {
-        const existingCity = existingCityMap.get(lowercaseCity);
+      // Process each record from the Excel file
+      uniqueKeyMap.forEach((excelData, uniqueKey) => {
+        const existingCharge = existingChargeMap.get(uniqueKey);
 
-        if (existingCity) {
-          // City exists, check if charge is different
-          if (existingCity.charge !== excelCityData.charge) {
-            chargesToUpdate.push(excelCityData);
+        if (existingCharge) {
+          // Record exists, check if charge is different
+          if (existingCharge.charge !== excelData.charge) {
+            chargesToUpdate.push(excelData);
           }
         } else {
-          // City doesn't exist, needs to be inserted
-          chargesToInsert.push(excelCityData);
+          // Record doesn't exist, needs to be inserted
+          chargesToInsert.push(excelData);
         }
       });
 
@@ -1730,10 +1747,13 @@ exports.uploadDeliveryCharges = async (fileBuffer) => {
 
       // Process inserts if any
       if (chargesToInsert.length > 0) {
-        const insertSql = "INSERT INTO deliverycharge (city, charge) VALUES ?";
+        const insertSql = "INSERT INTO deliverycharge (province, district, city, charge, editBy) VALUES ?";
         const insertValues = chargesToInsert.map((charge) => [
+          charge.province,
+          charge.district,
           charge.city,
           charge.charge,
+          userId
         ]);
 
         insertedCount = await new Promise((resolve, reject) => {
@@ -1752,10 +1772,24 @@ exports.uploadDeliveryCharges = async (fileBuffer) => {
       if (chargesToUpdate.length > 0) {
         const updatePromises = chargesToUpdate.map((charge) => {
           return new Promise((resolve, reject) => {
-            const updateSql = "UPDATE deliverycharge SET charge = ? WHERE LOWER(city) = ?";
+            const updateSql = `
+              UPDATE deliverycharge 
+              SET 
+                charge = ?,
+                editBy = ?
+              WHERE LOWER(province) = ? 
+              AND LOWER(district) = ? 
+              AND LOWER(city) = ?
+            `;
             collectionofficer.query(
               updateSql,
-              [charge.charge, charge.city.toLowerCase()],
+              [
+                charge.charge,
+                userId,
+                charge.province.toLowerCase(),
+                charge.district.toLowerCase(),
+                charge.city.toLowerCase()
+              ],
               (err, result) => {
                 if (err) return reject(err);
                 resolve(result.affectedRows);
@@ -1764,14 +1798,16 @@ exports.uploadDeliveryCharges = async (fileBuffer) => {
           });
         });
 
-        updatedCount = await Promise.all(updatePromises)
-          .then(results => results.reduce((sum, count) => sum + count, 0));
+        const updateResults = await Promise.allSettled(updatePromises);
+        updatedCount = updateResults
+          .filter(result => result.status === 'fulfilled')
+          .reduce((sum, result) => sum + result.value, 0);
       }
 
       resolve({
         inserted: insertedCount,
         updated: updatedCount,
-        duplicates: cityMap.size - chargesToInsert.length - chargesToUpdate.length,
+        duplicates: uniqueKeyMap.size - chargesToInsert.length - chargesToUpdate.length,
         message: "Delivery charges processed successfully",
       });
     } catch (error) {
@@ -1780,15 +1816,15 @@ exports.uploadDeliveryCharges = async (fileBuffer) => {
   });
 };
 
-exports.editDeliveryChargeDAO = async (data, id) => {
+exports.editDeliveryChargeDAO = async (data, id, userId) => {  
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE deliverycharge 
-      SET city = ?, charge = ? 
+      SET charge = ? , editBy = ?
       WHERE id = ?
     `;
 
-    const values = [data.city, data.charge, id];
+    const values = [data.charge, userId, id];
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
@@ -2994,26 +3030,26 @@ exports.pieDataDao = async () => {
       } else {
         // Define the desired category order
         const categoryOrder = ["Vegetables", "Grain", "Fruit", "Mushrooms"];
-        
+
         // Create a map for quick lookup
         const resultMap = {};
         results.forEach(item => {
           resultMap[item.category] = parseInt(item.count);
         });
-        
+
         // Build the ordered arrays
         const orderedResponse = {
           category: [],
           count: []
         };
-        
+
         categoryOrder.forEach(cat => {
           if (resultMap.hasOwnProperty(cat)) {
             orderedResponse.category.push(cat);
             orderedResponse.count.push(resultMap[cat]);
           }
         });
-        
+
         resolve(orderedResponse);
       }
     });
@@ -3167,7 +3203,7 @@ exports.checkMarketProductExistsDaoEdit = async (varietyId, displayName, exclude
   return new Promise((resolve, reject) => {
     let sql = "SELECT * FROM marketplaceitems WHERE (varietyId = ? OR displayName = ?)";
     const values = [varietyId, displayName];
-    
+
     if (excludeId) {
       sql += " AND id != ?";
       values.push(excludeId);
@@ -3180,7 +3216,7 @@ exports.checkMarketProductExistsDaoEdit = async (varietyId, displayName, exclude
         // Check for specific cases
         const varietyExists = results.some(item => item.varietyId == varietyId);
         const nameExists = results.some(item => item.displayName === displayName);
-        
+
         resolve({
           exists: results.length > 0,
           varietyExists,
