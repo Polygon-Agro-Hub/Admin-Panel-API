@@ -1513,7 +1513,7 @@ exports.createDistributionOfficerPersonal = (
 
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
-      if(officerData.jobRole === 'Distribution Center Manager' || officerData.jobRole === 'Distribution Center Head'){
+      if(officerData.jobRole === 'Distribution Center Manager' || officerData.jobRole === 'Distribution Officer'){
         officerData.irmId = null;
       }
 
