@@ -1018,7 +1018,7 @@ exports.getAllDistributionOfficers = (
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
-            WHERE coff.jobRole IN ('Distribution Center Manager', 'Distribution Officer') AND cm.id = 1
+            WHERE coff.jobRole IN ('Distribution Center Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
     let dataSql = `
@@ -1039,7 +1039,7 @@ exports.getAllDistributionOfficers = (
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
-            WHERE coff.jobRole IN ('Distribution Center Manager', 'Distribution Officer') AND cm.id = 1
+            WHERE coff.jobRole IN ('Distribution Center Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
     const countParams = [];
