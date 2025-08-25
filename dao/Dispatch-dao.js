@@ -2007,3 +2007,26 @@ exports.replaceDispatchPackageItemsDao = (oldItem, newItem) => {
     });
   });
 };
+
+
+exports.trackPackagePackDao = (userId, orderId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE processorders
+      SET 
+        adminPackby = ?
+      WHERE 
+        id = ?
+    `;
+
+    marketPlace.query(sql, [parseInt(userId), parseInt(orderId)], (err, results) => {
+      if (err) {
+        console.log(err);
+        
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
