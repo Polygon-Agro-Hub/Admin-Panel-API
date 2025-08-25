@@ -2390,7 +2390,6 @@ exports.getDeliveryChargeByCityDAO = (city) => {
     const sql = `
       SELECT 
         id,
-        companycenterId,
         city,
         charge
       FROM deliverycharge
