@@ -559,8 +559,8 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
     let countSql = `
       SELECT COUNT(DISTINCT OC.id) as total 
       FROM ongoingcultivations OC
-      JOIN users U ON OC.userId = U.id
-      JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+      LEFT JOIN users U ON OC.userId = U.id
+      LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
     `;
 
     // Data query remains similar but with explicit JOINs for clarity
@@ -573,8 +573,8 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
         U.NICnumber,
         COUNT(OCC.cropCalendar) AS CropCount
       FROM ongoingcultivations OC
-      JOIN users U ON OC.userId = U.id
-      JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+      LEFT JOIN users U ON OC.userId = U.id
+      LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
     `;
 
     const countParams = [];
