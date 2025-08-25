@@ -1315,10 +1315,13 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
         po.status,
         po.createdAt,
         po.createdAt AS processCreatedAt,
-        op.packingStatus
+        op.packingStatus,
+        mu.firstName,
+        mu.lastName
         FROM processorders po
          JOIN orders o  ON po.orderId = o.id
          JOIN orderpackage op ON op.orderId = po.id
+         JOIN marketplaceusers mu ON o.userId = mu.id
         WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
     countSql = `
@@ -1327,6 +1330,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
         FROM processorders po
          JOIN orders o  ON po.orderId = o.id
          JOIN orderpackage op ON op.orderId = po.id
+         JOIN marketplaceusers mu ON o.userId = mu.id
         WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
 
@@ -1340,11 +1344,11 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     }
 
     if (searchTerm) {
-      dataSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ?)`;
-      countSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ?)`;
+      dataSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ? OR mu.firstName LIKE ? OR mu.lastName LIKE ?)`;
+      countSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ? OR mu.firstName LIKE ? OR mu.lastName LIKE ?)`;
       const searchPattern = `%${searchTerm}%`;
-      params.push(searchPattern, searchPattern);
-      countParams.push(searchPattern, searchPattern);
+      params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+      countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
     }
 
     dataSql += ` 
@@ -1356,7 +1360,9 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
                   po.invNo,
                   po.status,
                   op.packingStatus,
-                  op.createdAt
+                  op.createdAt,
+                  mu.firstName,
+                  mu.lastName
                  ORDER BY op.createdAt DESC
                  LIMIT ? OFFSET ?
                 `;
