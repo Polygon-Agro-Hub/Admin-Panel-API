@@ -560,7 +560,7 @@ exports.dispatchPackage = async (req, res) => {
   console.log(fullUrl);
   try {
     console.log('dispatch packages');
-    
+
     const packageArr = await DispatchVali.dispatchPackageSchema.validateAsync(req.body);
     console.log(packageArr);
 
@@ -644,5 +644,33 @@ exports.dispatchAdditonalPackage = async (req, res) => {
   } catch (err) {
     console.error("Error fetching daily report:", err);
     res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+
+exports.replaceDispatchPackageItems = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    // const { id } = await DispatchVali.idValidate.validateAsync(req.params);
+    const oldItem = req.body.oldItem;
+    const newItem = req.body.newItem;
+    console.log(req.body);
+    
+    const result = await DispatchDao.replaceDispatchPackageItemsDao(oldItem, newItem);
+    if (result.affectedRows === 0) {
+      return res.json({
+        status: false,
+        message: "Item replce faild try again later."
+      })
+    }
+
+    res.json({
+      status: true,
+      message: "Item replace successfull."
+    });
+  } catch (err) {
+    console.error("Error replaceDispatchPackageItems:", err);
+    res.status(500).send("An error occurred while replaceDispatchPackageItems");
   }
 };

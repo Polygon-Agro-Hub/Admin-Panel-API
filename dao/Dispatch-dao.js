@@ -1802,3 +1802,32 @@ exports.dispatchAdditionalItemsDao = (package) => {
     });
   });
 };
+
+
+exports.replaceDispatchPackageItemsDao = (oldItem, newItem) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE orderpackageitems
+      SET 
+        productId = ?,
+        qty = ?,
+        price = ?,
+        isPacked = 0
+      WHERE 
+        id = ?
+    `;
+
+    marketPlace.query(sql, [
+      newItem.id,
+      newItem.qty,
+      newItem.price,
+      oldItem.id
+    ], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
