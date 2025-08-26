@@ -633,8 +633,11 @@ exports.dispatchAdditonalPackage = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    const packageArr = await DispatchVali.dispatchPackageSchema.validateAsync(req.body);
+    const packageArr = await DispatchVali.dispatchPackageSchema.validateAsync(req.body.array);
     console.log(packageArr);
+    const orderId = req.body.orderId;
+    const isLastOrder = req.body.isLastOrder
+    const userId = req.user.userId
 
     for (let i = 0; i < packageArr.length; i++) {
       const packageData = await DispatchDao.dispatchAdditionalItemsDao(packageArr[i]);
@@ -644,6 +647,12 @@ exports.dispatchAdditonalPackage = async (req, res) => {
           status: false
         })
       }
+    }
+
+    if (isLastOrder) {
+      const packResult = await DispatchDao.trackPackagePackDao(userId, orderId);
+      console.log("pack officer->",packResult);
+      
     }
 
     res.json({
