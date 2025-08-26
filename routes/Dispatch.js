@@ -148,6 +148,12 @@ router.patch(
   DispatchEP.dispatchAdditonalPackage
 );
 
+router.patch(
+  '/replace-dispatch-package-items', 
+  authMiddleware,
+  DispatchEP.replaceDispatchPackageItems
+);
+
 
 
 

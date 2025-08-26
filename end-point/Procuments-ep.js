@@ -159,7 +159,7 @@ exports.getOrderDetailsById = async (req, res) => {
 
   try {
     // The DAO now returns properly structured data
-    
+
     const orderDetails = await procumentDao.getOrderDetailsById(id);
     console.log('orderDetails', orderDetails);
     const additionalItems = await procumentDao.getAllOrderAdditionalItemsDao(
@@ -178,7 +178,7 @@ exports.getOrderDetailsById = async (req, res) => {
     const btype = await procumentDao.getOrderTypeDao(id);
     const excludeList = await procumentDao.getExcludeListDao(btype.userId);
     const category = await procumentDao.productCategoryDao();
-    
+
 
 
     console.log(`[getOrderDetailsById] Successfully fetched order details`);
@@ -186,7 +186,7 @@ exports.getOrderDetailsById = async (req, res) => {
       success: true,
       data: orderDetails,
       additionalItems: additionalItems,
-      excludeList:excludeList,
+      excludeList: excludeList,
       category
     });
   } catch (err) {
@@ -294,11 +294,11 @@ exports.getAllMarketplaceItems = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log(fullUrl);
-    
-    const orderId = req.params.id; 
+
+    const orderId = req.params.id;
     const btype = await procumentDao.getOrderTypeDao(orderId);
     console.log('btype', btype);
-    
+
     const marketplaceItems = await procumentDao.getAllMarketplaceItems(
       btype.buyerType,
       btype.userId
@@ -375,7 +375,7 @@ exports.getAllOrdersWithProcessInfoCompleted = async (req, res) => {
       limit,
       dateFilter,
       searchTerm
-      
+
     );
     // console.log("Orders Data:", ordersData);
 
@@ -610,7 +610,10 @@ exports.updateDefinePackageData = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    const { definePackageItems } = req.body;
+    const { definePackageItems, orderId } = req.body;
+    const userId = req.user.userId
+
+    console.log(req.body);
 
     console.log('definePackageItems', definePackageItems)
 
@@ -635,7 +638,7 @@ exports.updateDefinePackageData = async (req, res) => {
           productPrice,
           items
         } = pkg;
-    
+
         return {
           orderpkgId,
           packageId,
@@ -648,9 +651,11 @@ exports.updateDefinePackageData = async (req, res) => {
     };
 
     console.log('formattedData', formattedData.packages[0].items[1])
-    
+
     const updateResult = await procumentDao.updateDefinePackageItemData(formattedData);
-    console.log(formattedData);
+    
+    const trackResult = await procumentDao.trackDispatchOfficerDao(userId, orderId);
+
 
     res.json({
       success: true,
