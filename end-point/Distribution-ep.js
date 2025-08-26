@@ -1275,11 +1275,9 @@ exports.getForCreateId = async (req, res) => {
 
 exports.getAllAssigningCities = async (req, res) => {
   try {
-    // const { role } = await DistributionValidation.getRoleShema.validateAsync(
-    //   req.params
-    // );
+    const { provine, district } = await DistributionValidation.getAllAssigningCitiesShema.validateAsync(req.params);
     const centers = await DistributionDao.getAssigningForDistributedCentersDao();
-    const cities = await DistributionDao.getAssigningForCityDao();
+    const cities = await DistributionDao.getAssigningForCityDao(provine, district);
 
     res.status(200).json({ centers, cities, status: true });
   } catch (err) {
@@ -1296,7 +1294,7 @@ exports.assignCityToDistributedCcenter = async (req, res) => {
   try {
     const data = await DistributionValidation.assignCityToDistributedCcenterShema.validateAsync(req.body);
     const result = await DistributionDao.assignCityToDistributedCenterDao(data);
-    if(result.affectedRows === 0){
+    if (result.affectedRows === 0) {
       return res.json({ message: "Assig failed or no changes made", status: false });
     }
 
@@ -1315,7 +1313,7 @@ exports.removeAssignCityToDistributedCcenter = async (req, res) => {
   try {
     const data = await DistributionValidation.assignCityToDistributedCcenterShema.validateAsync(req.body);
     const result = await DistributionDao.removeAssignCityToDistributedCenterDao(data);
-    if(result.affectedRows === 0){
+    if (result.affectedRows === 0) {
       return res.json({ message: "Assig failed or no changes made", status: false });
     }
 

@@ -1655,15 +1655,16 @@ exports.getAssigningForDistributedCentersDao = () => {
   });
 };
 
-exports.getAssigningForCityDao = () => {
+exports.getAssigningForCityDao = (provine, district) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
         id,
         city
       FROM deliverycharge
+      WHERE province = ? AND district = ?
       `;
-    collectionofficer.query(sql, (err, results) => {
+    collectionofficer.query(sql, [provine, district], (err, results) => {
       if (err) {
         return reject(err);
       }

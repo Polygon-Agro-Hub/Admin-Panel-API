@@ -172,7 +172,7 @@ router.get(
 );
 
 router.get(
-  "/get-all-assigning-cities",
+  "/get-all-assigning-cities/:provine/:district",
   authMiddleware,
   distributionEp.getAllAssigningCities
 );
