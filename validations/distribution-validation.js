@@ -43,3 +43,8 @@ exports.getAllDistributionOfficersSchema = Joi.object({
 exports.getRoleShema = Joi.object({
     role: Joi.string().required(),
 })
+
+exports.assignCityToDistributedCcenterShema = Joi.object({
+    cityId: Joi.number().integer().positive().required(),
+    centerId: Joi.number().integer().positive().required()
+})
