@@ -1697,41 +1697,37 @@ exports.getAllCenterPageAW = (
       // If we also have a search term, use AND instead of WHERE
       if (searchItem) {
         const searchQuery = `%${searchItem}%`;
-        countSql += " AND (C.regCode LIKE ? OR C.centerName LIKE ?)";
-        sql += " AND (C.regCode LIKE ? OR C.centerName LIKE ?)";
-        searchParams.push(searchQuery, searchQuery);
+        countSql += " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
+        sql += " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
+        searchParams.push(searchQuery, searchQuery, searchQuery);
       }
 
       if (district) {
         countSql += " AND C.district LIKE ? ";
         sql += " AND C.district LIKE ? ";
-        // countParams.push(district);
         searchParams.push(district);
       }
 
       if (province) {
         countSql += " AND C.province LIKE ? ";
         sql += " AND C.province LIKE ? ";
-        // countParams.push(district);
         searchParams.push(province);
       }
     } else {
       let whereClause = " WHERE 1=1";
 
       if (searchItem) {
-        // Only searchItem, no companyId
         const searchQuery = `%${searchItem}%`;
-        whereClause += " AND C.regCode LIKE ? OR C.centerName LIKE ?";
+        whereClause += " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
         countSql += whereClause;
         sql += whereClause;
-        searchParams.push(searchQuery, searchQuery);
+        searchParams.push(searchQuery, searchQuery, searchQuery);
       }
 
       if (district) {
         whereClause += " AND C.district LIKE ? ";
         countSql += whereClause;
         sql += whereClause;
-        // countParams.push(district);
         searchParams.push(district);
       }
 
@@ -1739,7 +1735,6 @@ exports.getAllCenterPageAW = (
         whereClause += " AND C.province LIKE ? ";
         countSql += whereClause;
         sql += whereClause;
-        // countParams.push(district);
         searchParams.push(province);
       }
     }
