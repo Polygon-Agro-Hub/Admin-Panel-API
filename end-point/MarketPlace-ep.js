@@ -2164,8 +2164,8 @@ exports.getInvoiceDetails = async (req, res) => {
     const [familyPackItems, additionalItems, billingDetails] =
       await Promise.all([
         MarketPlaceDao.getFamilyPackItemsDAO(processOrderId),
-        MarketPlaceDao.getAdditionalItemsDAO(processOrderId),
-        MarketPlaceDao.getBillingDetailsDAO(processOrderId),
+        MarketPlaceDao.getAdditionalItemsDAO(invoiceDetails.orderId),
+        MarketPlaceDao.getBillingDetailsDAO(invoiceDetails.orderId ),
       ]);
 
     // Get pickup center details if delivery method is pickup
