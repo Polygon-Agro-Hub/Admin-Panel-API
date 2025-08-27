@@ -171,4 +171,23 @@ router.get(
   distributionEp.getForCreateId
 );
 
+router.get(
+  "/get-all-assigning-cities/:provine/:district",
+  authMiddleware,
+  distributionEp.getAllAssigningCities
+);
+
+
+router.post(
+  "/assign-city-to-distributed-center",
+  authMiddleware,
+  distributionEp.assignCityToDistributedCcenter
+);
+
+router.post(
+  "/remove-assign-city-to-distributed-center",
+  authMiddleware,
+  distributionEp.removeAssignCityToDistributedCcenter
+);
+
 module.exports = router;

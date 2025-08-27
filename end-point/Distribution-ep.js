@@ -244,7 +244,7 @@ exports.createDistributionHead = async (req, res) => {
     }
 
 
-const isExistingPhone1 = await DistributionDao.checkPhoneExist(officerData.phoneNumber01);
+    const isExistingPhone1 = await DistributionDao.checkPhoneExist(officerData.phoneNumber01);
     if (isExistingPhone1) {
       return res.status(500).json({ error: "Mobile number 1 already exists" });
     }
@@ -553,39 +553,39 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
     }
 
     // Check for phone number duplication in another record
-// Check for phone number duplication in another record
-const phoneNumberMap = {
-  phoneNumber01: updateData.phoneNumber01,
-  phoneNumber02: updateData.phoneNumber02,
-};
+    // Check for phone number duplication in another record
+    const phoneNumberMap = {
+      phoneNumber01: updateData.phoneNumber01,
+      phoneNumber02: updateData.phoneNumber02,
+    };
 
-const existingPhones = [];
+    const existingPhones = [];
 
-for (const [field, phone] of Object.entries(phoneNumberMap)) {
-  if (!phone) continue;
+    for (const [field, phone] of Object.entries(phoneNumberMap)) {
+      if (!phone) continue;
 
-  const phoneExists = await DistributionDao.checkPhoneExistExceptId(phone, id);
-  if (phoneExists) {
-    existingPhones.push(field);
-  }
-}
+      const phoneExists = await DistributionDao.checkPhoneExistExceptId(phone, id);
+      if (phoneExists) {
+        existingPhones.push(field);
+      }
+    }
 
-if (existingPhones.length > 0) {
-  let errorMessage = '';
+    if (existingPhones.length > 0) {
+      let errorMessage = '';
 
-  if (existingPhones.length === 2) {
-    errorMessage = 'Both Mobile Number - 1 and Mobile Number - 2 already exist for other users';
-  } else if (existingPhones[0] === 'phoneNumber01') {
-    errorMessage = 'Mobile Number - 1 already exists for another user';
-  } else {
-    errorMessage = 'Mobile Number - 2 already exists for another user';
-  }
+      if (existingPhones.length === 2) {
+        errorMessage = 'Both Mobile Number - 1 and Mobile Number - 2 already exist for other users';
+      } else if (existingPhones[0] === 'phoneNumber01') {
+        errorMessage = 'Mobile Number - 1 already exists for another user';
+      } else {
+        errorMessage = 'Mobile Number - 2 already exists for another user';
+      }
 
-  return res.status(409).json({
-    success: false,
-    error: errorMessage,
-  });
-}
+      return res.status(409).json({
+        success: false,
+        error: errorMessage,
+      });
+    }
 
 
     const result = await DistributionDao.UpdateDistributionHeadDao(id, updateData);
@@ -771,7 +771,7 @@ exports.updateDistributionCentreDetails = async (req, res) => {
     });
   } catch (err) {
     console.error("Error updating distribution centre details:", err);
-    
+
     if (err.isJoi) {
       return res.status(400).json({
         success: false,
@@ -870,7 +870,7 @@ exports.getAllDistributionOfficers = async (req, res) => {
 
     console.log(centerStatus, status)
 
-    
+
     const result = await DistributionDao.getAllDistributionOfficers(
       page,
       limit,
@@ -1134,8 +1134,8 @@ exports.createDistributionOfficer = async (req, res) => {
 
     let profileImageUrl = null; // Default to null if no image is provided
     const lastId = await DistributionDao.getDCIDforCreateEmpIdDao(officerData.jobRole);
-    console.log("LastId",lastId);
-    
+    console.log("LastId", lastId);
+
 
     // Check if an image file is provided
     if (req.body.file) {
@@ -1263,6 +1263,61 @@ exports.getForCreateId = async (req, res) => {
     }
 
     res.status(200).json({ result: results[0], status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+
+exports.getAllAssigningCities = async (req, res) => {
+  try {
+    const { provine, district } = await DistributionValidation.getAllAssigningCitiesShema.validateAsync(req.params);
+    const centers = await DistributionDao.getAssigningForDistributedCentersDao();
+    const cities = await DistributionDao.getAssigningForCityDao(provine, district);
+
+    res.status(200).json({ centers, cities, status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+
+exports.assignCityToDistributedCcenter = async (req, res) => {
+  try {
+    const data = await DistributionValidation.assignCityToDistributedCcenterShema.validateAsync(req.body);
+    const result = await DistributionDao.assignCityToDistributedCenterDao(data);
+    if (result.affectedRows === 0) {
+      return res.json({ message: "Assig failed or no changes made", status: false });
+    }
+
+    res.status(200).json({ status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+
+exports.removeAssignCityToDistributedCcenter = async (req, res) => {
+  try {
+    const data = await DistributionValidation.assignCityToDistributedCcenterShema.validateAsync(req.body);
+    const result = await DistributionDao.removeAssignCityToDistributedCenterDao(data);
+    if (result.affectedRows === 0) {
+      return res.json({ message: "Assig failed or no changes made", status: false });
+    }
+
+    res.status(200).json({ status: true });
   } catch (err) {
     if (err.isJoi) {
       return res.status(400).json({ error: err.details[0].message });

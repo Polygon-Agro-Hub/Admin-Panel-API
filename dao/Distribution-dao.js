@@ -13,7 +13,7 @@ const uploadFileToS3 = require("../middlewares/s3upload");
 exports.checkExistingDistributionCenter = (checkData) => {
   return new Promise((resolve, reject) => {
     const { name, regCode, contact01, excludeId } = checkData;
-    
+
     let sql = `
       SELECT 
         id,
@@ -28,15 +28,15 @@ exports.checkExistingDistributionCenter = (checkData) => {
       FROM distributedcenter 
       WHERE (centerName = ? OR regCode = ? OR contact01 = ?)
     `;
-    
+
     const values = [name, regCode, contact01, name, regCode, contact01];
-    
+
     // Add exclusion for update operations
     if (excludeId) {
       sql += ` AND id != ?`;
       values.push(excludeId);
     }
-    
+
     sql += ` LIMIT 1`;
 
     collectionofficer.query(sql, values, (err, results) => {
@@ -48,7 +48,7 @@ exports.checkExistingDistributionCenter = (checkData) => {
       if (results.length > 0) {
         const conflict = results[0];
         let message = "";
-        
+
         switch (conflict.conflictType) {
           case 'name':
             message = "A distribution center with this name already exists.";
@@ -1276,7 +1276,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => {});
+    doc.on("end", () => { });
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -1513,7 +1513,7 @@ exports.createDistributionOfficerPersonal = (
 
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
-      if(officerData.jobRole === 'Distribution Center Manager' || officerData.jobRole === 'Distribution Officer'){
+      if (officerData.jobRole === 'Distribution Center Manager' || officerData.jobRole === 'Distribution Officer') {
         officerData.irmId = null;
       }
 
@@ -1623,6 +1623,84 @@ exports.getForCreateId = (role) => {
         const incrementedValue = numericPart + 1;
 
         results[0].empId = incrementedValue.toString().padStart(5, "0");
+      }
+
+      resolve(results);
+    });
+  });
+};
+
+
+exports.getAssigningForDistributedCentersDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        dcc.id,
+        dc.regCode,
+        coc.cityId AS ownCityId
+      FROM distributedcompanycenter dcc
+      JOIN company c ON dcc.companyId = c.id
+      JOIN distributedcenter dc ON dcc.centerId = dc.id
+      LEFT JOIN centerowncity coc ON dcc.id = coc.companyCenterId
+      WHERE c.isDistributed = 1
+      `;
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.log(err);
+        return reject(err);
+      }
+
+      resolve(results);
+    });
+  });
+};
+
+exports.getAssigningForCityDao = (provine, district) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id,
+        city
+      FROM deliverycharge
+      WHERE province = ? AND district = ?
+      `;
+    collectionofficer.query(sql, [provine, district], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      resolve(results);
+    });
+  });
+};
+
+exports.assignCityToDistributedCenterDao = (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO centerowncity (companyCenterId, cityId)
+      VALUES (?, ?)
+      `;
+    collectionofficer.query(sql, [data.centerId, data.cityId], (err, results) => {
+      if (err) {
+        console.log(err);
+        return reject(err);
+      }
+
+      resolve(results);
+    });
+  });
+};
+
+exports.removeAssignCityToDistributedCenterDao = (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      DELETE FROM centerowncity 
+      WHERE companyCenterId = ? AND cityId = ?
+      `;
+    collectionofficer.query(sql, [data.centerId, data.cityId], (err, results) => {
+      if (err) {
+        console.log(err);
+        return reject(err);
       }
 
       resolve(results);

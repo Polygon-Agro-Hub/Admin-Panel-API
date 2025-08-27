@@ -2428,7 +2428,7 @@ exports.getFamilyPackItemsDAO = (orderId) => {
   });
 };
 
-exports.getAdditionalItemsDAO = (processOrderId) => {
+exports.getAdditionalItemsDAO = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT
@@ -2440,18 +2440,14 @@ exports.getAdditionalItemsDAO = (processOrderId) => {
         oai.normalPrice,
         (oai.price * oai.qty) AS amount,
         oai.discount AS itemDiscount,
-        pc.image AS image
+        cv.image AS image
       FROM orderadditionalitems oai
       JOIN marketplaceitems mi ON oai.productId = mi.id
-      JOIN (
-        SELECT cropGroupId, MIN(image) AS image
-        FROM plant_care.cropvariety
-        GROUP BY cropGroupId
-      ) pc ON mi.varietyId = pc.cropGroupId
-      WHERE oai.orderId = (SELECT orderId FROM processorders WHERE id = ?)
+      JOIN plant_care.cropvariety cv ON mi.varietyId = cv.id
+      WHERE oai.orderId = ?
     `;
 
-    marketPlace.query(sql, [processOrderId], (err, results) => {
+    marketPlace.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2460,7 +2456,7 @@ exports.getAdditionalItemsDAO = (processOrderId) => {
   });
 };
 
-exports.getBillingDetailsDAO = (processOrderId, userId) => {
+exports.getBillingDetailsDAO = (orderId, userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -2476,11 +2472,11 @@ exports.getBillingDetailsDAO = (processOrderId, userId) => {
       FROM orders o
       LEFT JOIN orderhouse oh ON o.id = oh.orderId
       LEFT JOIN orderapartment oa ON o.id = oa.orderId
-      WHERE o.id = (SELECT orderId FROM processorders WHERE id = ?) AND o.userId = ?
+      WHERE o.id = ?
       LIMIT 1
     `;
 
-    marketPlace.query(sql, [processOrderId, userId], (err, results) => {
+    marketPlace.query(sql, [orderId], (err, results) => {
       if (err) {
         return reject(err);
       }
