@@ -3222,3 +3222,24 @@ exports.checkMarketProductExistsDaoEdit = async (varietyId, displayName, exclude
     });
   });
 };
+
+
+exports.changePackageStatusDao = async (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE marketplacepackages
+      SET status = ?
+      WHERE id = ?
+    `;
+
+    const values = [data.status, data.id];
+
+    marketPlace.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};

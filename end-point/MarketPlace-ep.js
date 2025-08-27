@@ -2165,7 +2165,7 @@ exports.getInvoiceDetails = async (req, res) => {
       await Promise.all([
         MarketPlaceDao.getFamilyPackItemsDAO(processOrderId),
         MarketPlaceDao.getAdditionalItemsDAO(invoiceDetails.orderId),
-        MarketPlaceDao.getBillingDetailsDAO(invoiceDetails.orderId ),
+        MarketPlaceDao.getBillingDetailsDAO(invoiceDetails.orderId),
       ]);
 
     // Get pickup center details if delivery method is pickup
@@ -2411,5 +2411,43 @@ exports.marketDashbordDetails = async (req, res) => {
     }
     console.error("Error executing query:", err);
     res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+
+exports.changePackageStatus = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+    console.log(req.body);
+
+    const data = await MarketPriceValidate.changePackageStatusValidation.validateAsync(req.body);
+    console.log(data);
+
+    const result = await MarketPlaceDao.changePackageStatusDao(data);
+    if(result.affectedRows === 0){
+      return res.json({
+        message: "Package Status change failed",
+        status: false,
+      });
+    }
+    console.log("coupen creation success");
+    return res.status(201).json({
+      message: "Package Status change successfully",
+      status: true,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      return res
+        .status(400)
+        .json({ error: err.details[0].message, status: false });
+    }
+
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error: "An error occurred while creating marcket product",
+      status: false,
+    });
   }
 };
