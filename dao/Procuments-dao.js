@@ -987,7 +987,7 @@ exports.getAllMarketplaceItems = (category, userId) => {
         MPI.changeby,
         XL.id AS isExcluded
       FROM marketplaceitems MPI
-      LEFT JOIN excludelist XL ON MPI.id = XL.mpItemId AND XL.userId = ?
+      LEFT JOIN excludelist XL ON XL.mpItemId =  MPI.id AND XL.userId = ?
       WHERE category = 'Retail'
       ORDER BY 
         MPI.displayName
@@ -1002,6 +1002,12 @@ exports.getAllMarketplaceItems = (category, userId) => {
         );
         return reject(err);
       }
+
+      console.log('--------------------results-------------------');
+      console.log(results);
+      console.log('--------------------results-------------------');
+
+      
 
       // Structure the data
       const items = results.map((row) => ({
@@ -1020,7 +1026,7 @@ exports.getAllMarketplaceItems = (category, userId) => {
 
       }));
 
-      console.log(items);
+      // console.log(items);
 
       resolve(items);
     });
