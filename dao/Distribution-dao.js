@@ -9,6 +9,8 @@ const Joi = require("joi");
 const path = require("path");
 const QRCode = require("qrcode");
 const uploadFileToS3 = require("../middlewares/s3upload");
+const PDFDocument = require("pdfkit");
+const nodemailer = require("nodemailer");
 
 exports.checkExistingDistributionCenter = (checkData) => {
   return new Promise((resolve, reject) => {
@@ -50,28 +52,31 @@ exports.checkExistingDistributionCenter = (checkData) => {
         let message = "";
 
         switch (conflict.conflictType) {
-          case 'name':
+          case "name":
             message = "A distribution center with this name already exists.";
             break;
-          case 'regCode':
-            message = "A distribution center with this registration code already exists.";
+          case "regCode":
+            message =
+              "A distribution center with this registration code already exists.";
             break;
-          case 'contact':
-            message = "A distribution center with this contact number already exists.";
+          case "contact":
+            message =
+              "A distribution center with this contact number already exists.";
             break;
           default:
-            message = "A distribution center with these details already exists.";
+            message =
+              "A distribution center with these details already exists.";
         }
 
         resolve({
           exists: true,
           message: message,
-          conflictingRecord: conflict
+          conflictingRecord: conflict,
         });
       } else {
         resolve({
           exists: false,
-          message: null
+          message: null,
         });
       }
     });
@@ -134,8 +139,6 @@ exports.createDistributionCenter = (data) => {
     });
   });
 };
-
-
 
 exports.getAllDistributionCentre = (
   limit,
@@ -578,10 +581,10 @@ exports.checkPhoneExistExceptId = (phone, id) => {
   });
 };
 
-
 exports.GetAllCompanyList = () => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT id, companyNameEnglish FROM company WHERE company.isDistributed = 1";
+    const sql =
+      "SELECT id, companyNameEnglish FROM company WHERE company.isDistributed = 1";
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
@@ -1277,7 +1280,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => { });
+    doc.on("end", () => {});
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -1426,7 +1429,7 @@ exports.getAllCompanyNamesDao = (district) => {
 };
 
 exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
-  console.log('officer', excludeId);
+  console.log("officer", excludeId);
   return new Promise((resolve, reject) => {
     let sql = `SELECT COUNT(*) as count 
                FROM collectionofficer 
@@ -1464,7 +1467,7 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
         if (employee === "Distribution Center Head") {
           return resolve("DCH00001");
         } else if (employee === "Distribution Center Manager") {
-          return resolve("DBM00001");
+          return resolve("DCM00001");
         } else if (employee === "Distribution Officer") {
           return resolve("DIO00001");
         }
@@ -1514,7 +1517,10 @@ exports.createDistributionOfficerPersonal = (
 
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
-      if (officerData.jobRole === 'Distribution Center Manager' || officerData.jobRole === 'Distribution Officer') {
+      if (
+        officerData.jobRole === "Distribution Center Manager" ||
+        officerData.jobRole === "Distribution Officer"
+      ) {
         officerData.irmId = null;
       }
 
@@ -1631,7 +1637,6 @@ exports.getForCreateId = (role) => {
   });
 };
 
-
 exports.getAssigningForDistributedCentersDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1681,14 +1686,18 @@ exports.assignCityToDistributedCenterDao = (data) => {
       INSERT INTO centerowncity (companyCenterId, cityId)
       VALUES (?, ?)
       `;
-    collectionofficer.query(sql, [data.centerId, data.cityId], (err, results) => {
-      if (err) {
-        console.log(err);
-        return reject(err);
-      }
+    collectionofficer.query(
+      sql,
+      [data.centerId, data.cityId],
+      (err, results) => {
+        if (err) {
+          console.log(err);
+          return reject(err);
+        }
 
-      resolve(results);
-    });
+        resolve(results);
+      }
+    );
   });
 };
 
@@ -1698,12 +1707,35 @@ exports.removeAssignCityToDistributedCenterDao = (data) => {
       DELETE FROM centerowncity 
       WHERE companyCenterId = ? AND cityId = ?
       `;
-    collectionofficer.query(sql, [data.centerId, data.cityId], (err, results) => {
+    collectionofficer.query(
+      sql,
+      [data.centerId, data.cityId],
+      (err, results) => {
+        if (err) {
+          console.log(err);
+          return reject(err);
+        }
+
+        resolve(results);
+      }
+    );
+  });
+};
+
+exports.getOfficerByIdMonthly = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            SELECT 
+                co.*
+            FROM 
+                collectionofficer co
+            WHERE 
+                co.id = ?`;
+
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
-        console.log(err);
         return reject(err);
       }
-
       resolve(results);
     });
   });
@@ -1962,6 +1994,122 @@ exports.getDistributionOutForDlvrOrderDao = (id) => {
       }
 
       resolve(results);
+    });
+  });
+};
+
+exports.updateDistributionOfficerDetails = (
+  id,
+  centerId,
+  companyId,
+  irmId,
+  firstNameEnglish,
+  lastNameEnglish,
+  firstNameSinhala,
+  lastNameSinhala,
+  firstNameTamil,
+  lastNameTamil,
+  jobRole,
+  empId,
+  empType,
+  phoneCode01,
+  phoneNumber01,
+  phoneCode02,
+  phoneNumber02,
+  nic,
+  email,
+  houseNumber,
+  streetName,
+  city,
+  district,
+  province,
+  country,
+  languages,
+  accHolderName,
+  accNumber,
+  bankName,
+  branchName,
+  profileImageUrl
+) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+             UPDATE collectionofficer
+                SET centerId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
+                    firstNameTamil = ?, lastNameTamil = ?, jobRole = ?, empId = ?, empType = ?, phoneCode01 = ?, phoneNumber01 = ?, phoneCode02 = ?, phoneNumber02 = ?,
+                    nic = ?, email = ?, houseNumber = ?, streetName = ?, city = ?, district = ?, province = ?, country = ?, languages = ?,
+                    accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?, status = 'Not Approved'
+          `;
+    let values = [
+      centerId,
+      companyId,
+      irmId || null,
+      firstNameEnglish,
+      lastNameEnglish,
+      firstNameSinhala,
+      lastNameSinhala,
+      firstNameTamil,
+      lastNameTamil,
+      jobRole,
+      empId,
+      empType,
+      phoneCode01,
+      phoneNumber01,
+      phoneCode02,
+      phoneNumber02,
+      nic,
+      email,
+      houseNumber,
+      streetName,
+      city,
+      district,
+      province,
+      country,
+      languages,
+      accHolderName,
+      accNumber,
+      bankName,
+      branchName,
+      profileImageUrl,
+    ];
+
+    sql += ` WHERE id = ?`;
+    values.push(id);
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.editCheckNICExist = async (nic, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE nic = ?`;
+    const params = [nic];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.EditCheckEmailExist = async (email, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE email = ?`;
+    const params = [email];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
     });
   });
 };
