@@ -1282,13 +1282,35 @@ exports.removeAssignCityToDistributedCcenter = async (req, res) => {
 
 exports.getDistributedCenterTarget = async (req, res) => {
   try {
-    const {id, status, date, searchText} = await DistributionValidation.getDistributedCenterTargetShema.validateAsync(req.query);
+    const { id, status, date, searchText } = await DistributionValidation.getDistributedCenterTargetShema.validateAsync(req.query);
     console.log("Params:", req.query);
-    
+
     const results = await DistributionDao.getDistributedCenterTargetDao(id, status, date, searchText);
 
     console.log("Successfully retrieved all companies");
-    res.json({status: true, data: results});
+    res.json({ status: true, data: results });
+  } catch (err) {
+    if (err.isJoi) {
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching companies:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching companies" });
+  }
+};
+
+
+exports.getDistributedCenterOfficers = async (req, res) => {
+  try {
+    const { id } = req.query;
+    const data = await DistributionDao.getCenterAndCompanyIdDao(parseInt(id));
+    const result = await DistributionDao.getEachDistributedCenterOfficersDao(data);
+
+    console.log("Successfully retrieved all companies");
+    res.json({ status: true, data: result });
   } catch (err) {
     if (err.isJoi) {
       console.error("Validation error:", err.details[0].message);

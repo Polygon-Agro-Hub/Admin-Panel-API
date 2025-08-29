@@ -196,4 +196,10 @@ router.get(
   distributionEp.getDistributedCenterTarget
 );
 
+router.get(
+  "/get-distribution-officers",
+  authMiddleware,
+  distributionEp.getDistributedCenterOfficers
+);
+
 module.exports = router;

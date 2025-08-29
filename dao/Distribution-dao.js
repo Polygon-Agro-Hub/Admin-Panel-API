@@ -1851,3 +1851,50 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
     });
   });
 };
+
+
+exports.getEachDistributedCenterOfficersDao = (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id,
+        firstNameEnglish,
+        lastNameEnglish,
+        jobRole,
+        empId,
+        status,
+        phoneCode01,
+        phoneNumber01,
+        nic
+      FROM collectionofficer 
+      WHERE companyId = ? AND centerId = ? AND jobRole IN ('Distribution Center Manager', 'Distribution Officer')
+      `;
+    collectionofficer.query(sql, [data.companyId, data.centerId], (err, results) => {
+      if (err) {
+        console.log(err);
+        return reject(err);
+      }
+
+      resolve(results);
+    });
+  });
+};
+
+
+exports.getCenterAndCompanyIdDao = (companyCenteerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT centerId, companyId
+      FROM distributedcompanycenter 
+      WHERE id = ?
+      `;
+    collectionofficer.query(sql, [companyCenteerId], (err, results) => {
+      if (err) {
+        console.log(err);
+        return reject(err);
+      }
+
+      resolve(results[0] || null);
+    });
+  });
+};
