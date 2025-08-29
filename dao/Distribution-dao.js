@@ -9,6 +9,8 @@ const Joi = require("joi");
 const path = require("path");
 const QRCode = require("qrcode");
 const uploadFileToS3 = require("../middlewares/s3upload");
+const PDFDocument = require("pdfkit");
+const nodemailer = require("nodemailer");
 
 exports.checkExistingDistributionCenter = (checkData) => {
   return new Promise((resolve, reject) => {
@@ -1464,7 +1466,7 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
         if (employee === "Distribution Center Head") {
           return resolve("DCH00001");
         } else if (employee === "Distribution Center Manager") {
-          return resolve("DBM00001");
+          return resolve("DCM00001");
         } else if (employee === "Distribution Officer") {
           return resolve("DIO00001");
         }
