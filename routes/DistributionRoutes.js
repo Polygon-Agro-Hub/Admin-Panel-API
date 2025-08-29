@@ -190,4 +190,23 @@ router.post(
   distributionEp.removeAssignCityToDistributedCcenter
 );
 
+router.get(
+  "/get-center-target",
+  authMiddleware,
+  distributionEp.getDistributedCenterTarget
+);
+
+router.get(
+  "/get-distribution-officers",
+  authMiddleware,
+  distributionEp.getDistributedCenterOfficers
+);
+
+router.get(
+  "/get-center-out-for-dlvry-orders",
+  authMiddleware,
+  distributionEp.getDistributionOutForDlvrOrder
+);
+
+
 module.exports = router;
