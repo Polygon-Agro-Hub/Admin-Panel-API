@@ -156,6 +156,7 @@ exports.getAllDistributionCentre = (
     let sql = `
         SELECT 
             dc.id,
+            dcc.id AS companyCenerId,
             dc.centerName,
             dc.code1,
             dc.contact01,
@@ -1709,66 +1710,142 @@ exports.removeAssignCityToDistributedCenterDao = (data) => {
 };
 
 
-exports.getDistributedCenterTargetDao = async (id) => {
+exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => {
   return new Promise((resolve, reject) => {
-    const sql = `
+    const sqlParams = [id];
+    let sql = `
      WITH package_item_counts AS (
-    SELECT 
-        op.orderId,
-        COUNT(*) AS totalItems,
-        SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems,
-        CASE
-            WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 AND COUNT(*) > 0 THEN 'Pending'
-            WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) > 0 
-                 AND SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
-            WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
-            ELSE 'Unknown'
-        END AS packageStatus
-    FROM market_place.orderpackageitems opi
-    JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
-    GROUP BY op.orderId
-),
-additional_items_counts AS (
-    SELECT 
-        orderId,
-        COUNT(*) AS totalAdditionalItems,
-        SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
-        CASE
-            WHEN COUNT(*) = 0 THEN 'Unknown'
-            WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
-            WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
-                 AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
-            WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
-            ELSE 'Unknown'
-        END AS additionalItemsStatus
-    FROM market_place.orderadditionalitems
-    GROUP BY orderId
-)
+        SELECT 
+            op.orderId,
+            COUNT(*) AS totalItems,
+            SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems,
+            CASE
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 AND COUNT(*) > 0 THEN 'Pending'
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                     AND SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
+                ELSE 'Unknown'
+            END AS packageStatus
+        FROM market_place.orderpackageitems opi
+        JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
+        GROUP BY op.orderId
+    ),
+    additional_items_counts AS (
+        SELECT 
+            orderId,
+            COUNT(*) AS totalAdditionalItems,
+            SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
+            CASE
+                WHEN COUNT(*) = 0 THEN 'Unknown'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                     AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+                ELSE 'Unknown'
+            END AS additionalItemsStatus
+        FROM market_place.orderadditionalitems
+        GROUP BY orderId
+    )
 
-SELECT 
-    po.invNo, 
-    co.firstNameEnglish, 
-    co.lastNameEnglish, 
-    o.sheduleDate, 
-    dti.isComplete,
-    COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
-    COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus
-FROM distributedtarget dt
-JOIN distributedtargetitems dti ON dt.id = dti.targetId
-JOIN collectionofficer co ON dt.userId = co.id
-JOIN market_place.processorders po ON dti.orderId = po.id
-JOIN market_place.orders o ON po.orderId = o.id
-LEFT JOIN package_item_counts pic ON pic.orderId = po.id
-LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
-WHERE (o.sheduleDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)) 
-   OR (o.sheduleDate < CURDATE() AND dt.complete != dt.target)
-GROUP BY po.invNo, co.firstNameEnglish, co.lastNameEnglish, o.sheduleDate, dti.isComplete,
-         pic.packageStatus, aic.additionalItemsStatus
+    SELECT 
+        po.invNo, 
+        co.firstNameEnglish, 
+        co.lastNameEnglish, 
+        o.sheduleDate, 
+        dti.isComplete,
+        COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
+        COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus
+    FROM distributedtarget dt
+    JOIN distributedtargetitems dti ON dt.id = dti.targetId
+    JOIN collectionofficer co ON dt.userId = co.id
+    JOIN market_place.processorders po ON dti.orderId = po.id
+    JOIN market_place.orders o ON po.orderId = o.id
+    LEFT JOIN package_item_counts pic ON pic.orderId = po.id
+    LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+    WHERE dt.companycenterId = ?
     `;
-    collectionofficer.query(sql, [id], (err, results) => {
+
+    // Add center ID filter if provided
+    // if (id) {
+    //   sql += ` AND dt.centerId = ?`;
+    //   sqlParams.push(id);
+    // }
+
+    // === Add Status Filter ===
+    if (status && status.trim() !== '') {
+      if (status === 'Pending') {
+        sql += `
+          AND (
+            (pic.packageStatus = 'Pending' AND (aic.additionalItemsStatus = 'Unknown' OR aic.additionalItemsStatus IS NULL)) OR
+            (pic.packageStatus = 'Unknown' AND aic.additionalItemsStatus = 'Pending') OR
+            (pic.packageStatus IS NULL AND aic.additionalItemsStatus = 'Pending') OR
+            (pic.packageStatus = 'Pending' AND aic.additionalItemsStatus = 'Pending')
+          )
+        `;
+      } else if (status === 'Opened') {
+        sql += `
+          AND (
+            pic.packageStatus = 'Opened' OR
+            aic.additionalItemsStatus = 'Opened'
+          )
+        `;
+      } else if (status === 'Completed') {
+        sql += `
+          AND (
+            (pic.packageStatus = 'Completed' AND (aic.additionalItemsStatus = 'Unknown' OR aic.additionalItemsStatus IS NULL)) OR
+            (pic.packageStatus = 'Unknown' AND aic.additionalItemsStatus = 'Completed') OR
+            (pic.packageStatus IS NULL AND aic.additionalItemsStatus = 'Completed') OR
+            (pic.packageStatus = 'Completed' AND aic.additionalItemsStatus = 'Completed')
+          )
+        `;
+      }
+    }
+
+    // Add date filter
+    if (date && date.trim() !== '') {
+      sql += ` AND DATE(o.sheduleDate) = DATE(?)`;
+      sqlParams.push(date);
+    }
+
+    // Add search text filter - Fixed the LIKE operator
+    if (searchText && searchText.trim() !== '') {
+      sql += ` AND po.invNo LIKE ?`;
+      sqlParams.push(`%${searchText.trim()}%`);
+    }
+
+    if(!date && !status && !searchText){
+      sql += `
+     AND ((o.sheduleDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY))  
+       OR (o.sheduleDate < CURDATE() AND dt.complete != dt.target))
+      `
+    }
+
+    // Add ORDER BY for consistent results
+    sql += `
+    GROUP BY 
+      po.invNo, 
+      co.firstNameEnglish, 
+      co.lastNameEnglish, 
+      o.sheduleDate, 
+      dti.isComplete,
+      pic.packageStatus, 
+      aic.additionalItemsStatus
+    ORDER BY 
+      o.sheduleDate ASC,
+      po.invNo ASC
+    `;
+
+    // Add logging for debugging
+    console.log('SQL Query:', sql);
+    console.log('SQL Parameters:', sqlParams);
+    console.log('Filter Parameters:', { id, status, date, searchText });
+
+    collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
+        console.error('Database query error:', err);
         reject(err);
       } else {
+        console.log(`Query returned ${results.length} results`);
         resolve(results);
       }
     });

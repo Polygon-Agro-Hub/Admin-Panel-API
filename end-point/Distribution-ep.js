@@ -1282,8 +1282,10 @@ exports.removeAssignCityToDistributedCcenter = async (req, res) => {
 
 exports.getDistributedCenterTarget = async (req, res) => {
   try {
-    // const { id } = req.params;
-    const results = await DistributionDao.getDistributedCenterTargetDao();
+    const {id, status, date, searchText} = await DistributionValidation.getDistributedCenterTargetShema.validateAsync(req.query);
+    console.log("Params:", req.query);
+    
+    const results = await DistributionDao.getDistributedCenterTargetDao(id, status, date, searchText);
 
     console.log("Successfully retrieved all companies");
     res.json({status: true, data: results});

@@ -53,3 +53,10 @@ exports.getAllAssigningCitiesShema = Joi.object({
     provine: Joi.string().required(),
     district: Joi.string().required(),
 })
+
+exports.getDistributedCenterTargetShema = Joi.object({
+    id: Joi.number().integer().positive().required(),
+    date: Joi.date().iso().optional(),
+    status: Joi.string().optional(),
+    searchText: Joi.string().optional()
+})
