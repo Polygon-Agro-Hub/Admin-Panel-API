@@ -63,7 +63,14 @@ exports.getDistributedCenterTargetShema = Joi.object({
 
 exports.getDistributedCenterOfficersShema = Joi.object({
     id: Joi.number().integer().positive().required(),
-    role: Joi.date().iso().optional(),
+    role: Joi.string().optional(),
+    status: Joi.string().optional(),
+    searchText: Joi.string().optional()
+})
+
+exports.getDistributionOutForDlvrOrderShema = Joi.object({
+    id: Joi.number().integer().positive().required(),
+    date: Joi.date().iso().optional(),
     status: Joi.string().optional(),
     searchText: Joi.string().optional()
 })

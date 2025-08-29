@@ -1915,3 +1915,53 @@ exports.getCenterAndCompanyIdDao = (companyCenteerId) => {
     });
   });
 };
+
+
+exports.getDistributionOutForDlvrOrderDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sqlParams = [id];
+    let sql = `
+        SELECT 
+        po.id,
+            po.invNo,
+            cof.firstNameEnglish,
+            cof.lastNameEnglish,
+            o.sheduleDate,
+            po.outDlvrDate,
+            CASE 
+                WHEN po.outDlvrDate IS NULL THEN 'Pending'
+                WHEN po.outDlvrDate <= o.sheduleDate THEN 'On Time'
+                ELSE 'Late'
+            END AS outDlvrStatus
+        FROM distributedtarget dt
+        JOIN distributedtargetitems dti ON dt.id = dti.targetId
+        JOIN market_place.processorders po ON dti.orderId = po.id
+        JOIN market_place.orders o ON po.orderId = o.id
+        JOIN collectionofficer cof ON po.outBy = cof.id
+        WHERE po.status = 'Out For Delivery' AND dt.companycenterId = ?    `;
+
+    // if (status) {
+    //   sql += ` AND status = ? `;
+    //   sqlParams.push(status);
+    // }
+
+    // if (searchText) {
+    //   sql += ` AND (firstNameEnglish LIKE ? OR lastNameEnglish LIKE ? OR empId LIKE ? ) `;
+    //   sqlParams.push(`%${searchText}%`, `%${searchText}%`, `%${searchText}%`);
+    // }
+
+    // if (role) {
+    //   sql += ` AND jobRole = ? `;
+    //   sqlParams.push(role);
+    // }
+
+    collectionofficer.query(sql, sqlParams, (err, results) => {
+      if (err) {
+        console.log(err);
+        return reject(err);
+      }
+
+      resolve(results);
+    });
+  });
+};

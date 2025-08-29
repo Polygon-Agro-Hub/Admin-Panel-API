@@ -202,4 +202,11 @@ router.get(
   distributionEp.getDistributedCenterOfficers
 );
 
+router.get(
+  "/get-center-out-for-dlvry-orders",
+  authMiddleware,
+  distributionEp.getDistributionOutForDlvrOrder
+);
+
+
 module.exports = router;
