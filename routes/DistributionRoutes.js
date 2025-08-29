@@ -190,4 +190,17 @@ router.post(
   distributionEp.removeAssignCityToDistributedCcenter
 );
 
+router.get(
+  "/officer-details-monthly/:id",
+  // authMiddleware,
+  distributionEp.getOfficerByIdMonthly
+);
+
+router.put(
+  "/update-distribution-officer-details/:id",
+  authMiddleware,
+  upload.single("image"),
+  distributionEp.updateDistributionOfficerDetails
+);
+
 module.exports = router;

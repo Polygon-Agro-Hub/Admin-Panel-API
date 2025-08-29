@@ -1326,3 +1326,159 @@ exports.removeAssignCityToDistributedCcenter = async (req, res) => {
     res.status(500).send("An error occurred while fetching data.");
   }
 };
+
+exports.getOfficerByIdMonthly = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const officerData = await DistributionDao.getOfficerByIdMonthly(id);
+
+    if (!officerData) {
+      return res.status(404).json({ error: "Distribution Officer not found" });
+    }
+
+    console.log(
+      "Successfully fetched distribution officer, company, and bank details"
+    );
+    res.json({ officerData });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+exports.updateDistributionOfficerDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  const { id } = req.params;
+
+  try {
+    const officerData = JSON.parse(req.body.officerData);
+    console.log('officer data',officerData)
+    const qrCode = await DistributionDao.getQrImage(id);
+
+    const isExistingNIC = await DistributionDao.editCheckNICExist(officerData.nic, id);
+    if (isExistingNIC) {
+      return res.status(400).json({ error: "NIC already exists" });
+    }
+
+    const isExistingEmail = await DistributionDao.EditCheckEmailExist(officerData.email, id);
+    if (isExistingEmail) {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+
+    const isExistingPhoneNumber01 = await DistributionDao.checkPhoneNumberExist(officerData.phoneNumber01, id);
+    if (isExistingPhoneNumber01) {
+      return res.status(400).json({ error: "Primary phone number already exists" });
+    }
+
+    if (officerData.phoneNumber02) {
+      const isExistingPhoneNumber02 = await DistributionDao.checkPhoneNumberExist(officerData.phoneNumber02, id);
+      if (isExistingPhoneNumber02) {
+        return res.status(400).json({ error: "Secondary phone number already exists" });
+      }
+    }
+
+    let profileImageUrl = null;
+
+    if (req.body.file) {
+      console.log("Received");
+      // Delete existing QR code or profile image from S3 if it exists
+      if (qrCode.image) {
+        await deleteFromS3(qrCode.image);
+      }
+
+      const base64String = req.body.file.split(",")[1]; // Extract the Base64 content
+      const mimeType = req.body.file.match(/data:(.*?);base64,/)[1]; // Extract MIME type
+      const fileBuffer = Buffer.from(base64String, "base64"); // Decode Base64 to buffer
+
+      const fileExtension = mimeType.split("/")[1]; // Extract file extension from MIME type
+      const fileName = `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}.${fileExtension}`;
+
+      profileImageUrl = await uploadFileToS3(
+        fileBuffer,
+        fileName,
+        "collectionofficer/image"
+      );
+    } else {
+      profileImageUrl = qrCode.image; // Retain existing image if no new file is provided
+    }
+
+    const {
+      centerId,
+      companyId,
+      irmId,
+      firstNameEnglish,
+      lastNameEnglish,
+      firstNameSinhala,
+      lastNameSinhala,
+      firstNameTamil,
+      lastNameTamil,
+      jobRole,
+      empId,
+      empType,
+      phoneCode01,
+      phoneNumber01,
+      phoneCode02,
+      phoneNumber02,
+      nic,
+      email,
+      houseNumber,
+      streetName,
+      city,
+      district,
+      province,
+      country,
+      languages,
+      accHolderName,
+      accNumber,
+      bankName,
+      branchName,
+    } = officerData;
+    console.log(empId);
+
+    await DistributionDao.updateDistributionOfficerDetails(
+      id,
+      centerId,
+      companyId,
+      irmId,
+      firstNameEnglish,
+      lastNameEnglish,
+      firstNameSinhala,
+      lastNameSinhala,
+      firstNameTamil,
+      lastNameTamil,
+      jobRole,
+      empId,
+      empType,
+      phoneCode01,
+      phoneNumber01,
+      phoneCode02,
+      phoneNumber02,
+      nic,
+      email,
+      houseNumber,
+      streetName,
+      city,
+      district,
+      province,
+      country,
+      languages,
+      accHolderName,
+      accNumber,
+      bankName,
+      branchName,
+      profileImageUrl
+    );
+
+    res.json({ message: "Collection officer details updated successfully" });
+  } catch (err) {
+    console.error("Error updating collection officer details:", err);
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    res.status(500).json({ error: "Failed to update collection officer details" });
+  }
+};
