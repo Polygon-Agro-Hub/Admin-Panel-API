@@ -1707,3 +1707,70 @@ exports.removeAssignCityToDistributedCenterDao = (data) => {
     });
   });
 };
+
+
+exports.getDistributedCenterTargetDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+     WITH package_item_counts AS (
+    SELECT 
+        op.orderId,
+        COUNT(*) AS totalItems,
+        SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems,
+        CASE
+            WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 AND COUNT(*) > 0 THEN 'Pending'
+            WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                 AND SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+            WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
+            ELSE 'Unknown'
+        END AS packageStatus
+    FROM market_place.orderpackageitems opi
+    JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
+    GROUP BY op.orderId
+),
+additional_items_counts AS (
+    SELECT 
+        orderId,
+        COUNT(*) AS totalAdditionalItems,
+        SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
+        CASE
+            WHEN COUNT(*) = 0 THEN 'Unknown'
+            WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
+            WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                 AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+            WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+            ELSE 'Unknown'
+        END AS additionalItemsStatus
+    FROM market_place.orderadditionalitems
+    GROUP BY orderId
+)
+
+SELECT 
+    po.invNo, 
+    co.firstNameEnglish, 
+    co.lastNameEnglish, 
+    o.sheduleDate, 
+    dti.isComplete,
+    COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
+    COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus
+FROM distributedtarget dt
+JOIN distributedtargetitems dti ON dt.id = dti.targetId
+JOIN collectionofficer co ON dt.userId = co.id
+JOIN market_place.processorders po ON dti.orderId = po.id
+JOIN market_place.orders o ON po.orderId = o.id
+LEFT JOIN package_item_counts pic ON pic.orderId = po.id
+LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+WHERE (o.sheduleDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)) 
+   OR (o.sheduleDate < CURDATE() AND dt.complete != dt.target)
+GROUP BY po.invNo, co.firstNameEnglish, co.lastNameEnglish, o.sheduleDate, dti.isComplete,
+         pic.packageStatus, aic.additionalItemsStatus
+    `;
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};

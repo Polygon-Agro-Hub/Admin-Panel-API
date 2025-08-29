@@ -190,4 +190,10 @@ router.post(
   distributionEp.removeAssignCityToDistributedCcenter
 );
 
+router.get(
+  "/get-center-target",
+  authMiddleware,
+  distributionEp.getDistributedCenterTarget
+);
+
 module.exports = router;

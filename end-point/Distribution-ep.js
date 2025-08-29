@@ -462,54 +462,6 @@ exports.getDistributionHeadDetailsById = async (req, res) => {
   }
 };
 
-// exports.updateCollectionOfficerDetails = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const updateData = req.body;
-
-//     if (!id) {
-//       return res.status(400).json({
-//         success: false,
-//         error: "Distribution Head ID is required",
-//       });
-//     }
-
-//     if (!updateData || Object.keys(updateData).length === 0) {
-//       return res.status(400).json({
-//         success: false,
-//         error: "Update data is required",
-//       });
-//     }
-
-//     const result = await DistributionDao.UpdateDistributionHeadDao(
-//       id,
-//       updateData
-//     );
-
-//     if (result.affectedRows === 0) {
-//       return res.status(404).json({
-//         success: false,
-//         error: "Distribution Head not found or no changes made",
-//       });
-//     }
-
-//     console.log("Successfully updated Distribution Head details");
-//     res.json({
-//       success: true,
-//       message: "Distribution Head details updated successfully",
-//       data: {
-//         id: id,
-//         affectedRows: result.affectedRows,
-//       },
-//     });
-//   } catch (err) {
-//     console.error("Error updating distribution head details:", err);
-//     res.status(500).json({
-//       success: false,
-//       error: "An error occurred while updating distribution head details",
-//     });
-//   }
-// };
 
 exports.updateCollectionOfficerDetails = async (req, res) => {
   try {
@@ -1324,5 +1276,26 @@ exports.removeAssignCityToDistributedCcenter = async (req, res) => {
     }
     console.error("Error executing query:", err);
     res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+
+exports.getDistributedCenterTarget = async (req, res) => {
+  try {
+    // const { id } = req.params;
+    const results = await DistributionDao.getDistributedCenterTargetDao();
+
+    console.log("Successfully retrieved all companies");
+    res.json({status: true, data: results});
+  } catch (err) {
+    if (err.isJoi) {
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching companies:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching companies" });
   }
 };
