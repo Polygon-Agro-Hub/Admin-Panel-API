@@ -1305,9 +1305,10 @@ exports.getDistributedCenterTarget = async (req, res) => {
 
 exports.getDistributedCenterOfficers = async (req, res) => {
   try {
-    const { id } = req.query;
+    const { id, status, role, searchText } = await DistributionValidation.getDistributedCenterOfficersShema.validateAsync(req.query);
+
     const data = await DistributionDao.getCenterAndCompanyIdDao(parseInt(id));
-    const result = await DistributionDao.getEachDistributedCenterOfficersDao(data);
+    const result = await DistributionDao.getEachDistributedCenterOfficersDao(data, status, role, searchText);
 
     console.log("Successfully retrieved all companies");
     res.json({ status: true, data: result });

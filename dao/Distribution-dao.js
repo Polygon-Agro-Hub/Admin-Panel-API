@@ -1813,7 +1813,7 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
       sqlParams.push(`%${searchText.trim()}%`);
     }
 
-    if(!date && !status && !searchText){
+    if (!date && !status && !searchText) {
       sql += `
      AND ((o.sheduleDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY))  
        OR (o.sheduleDate < CURDATE() AND dt.complete != dt.target))
@@ -1853,9 +1853,10 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
 };
 
 
-exports.getEachDistributedCenterOfficersDao = (data) => {
+exports.getEachDistributedCenterOfficersDao = (data, status, role, searchText) => {
   return new Promise((resolve, reject) => {
-    const sql = `
+    const sqlParams = [data.companyId, data.centerId];
+    let sql = `
       SELECT 
         id,
         firstNameEnglish,
@@ -1869,7 +1870,23 @@ exports.getEachDistributedCenterOfficersDao = (data) => {
       FROM collectionofficer 
       WHERE companyId = ? AND centerId = ? AND jobRole IN ('Distribution Center Manager', 'Distribution Officer')
       `;
-    collectionofficer.query(sql, [data.companyId, data.centerId], (err, results) => {
+
+    if (status) {
+      sql += ` AND status = ? `;
+      sqlParams.push(status);
+    }
+
+    if (searchText) {
+      sql += ` AND (firstNameEnglish LIKE ? OR lastNameEnglish LIKE ? OR empId LIKE ? ) `;
+      sqlParams.push(`%${searchText}%`, `%${searchText}%`, `%${searchText}%`);
+    }
+
+    if (role) {
+      sql += ` AND jobRole = ? `;
+      sqlParams.push(role);
+    }
+
+    collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.log(err);
         return reject(err);

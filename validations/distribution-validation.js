@@ -60,3 +60,10 @@ exports.getDistributedCenterTargetShema = Joi.object({
     status: Joi.string().optional(),
     searchText: Joi.string().optional()
 })
+
+exports.getDistributedCenterOfficersShema = Joi.object({
+    id: Joi.number().integer().positive().required(),
+    role: Joi.date().iso().optional(),
+    status: Joi.string().optional(),
+    searchText: Joi.string().optional()
+})
