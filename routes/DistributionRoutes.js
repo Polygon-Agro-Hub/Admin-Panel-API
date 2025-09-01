@@ -222,4 +222,10 @@ router.put(
   distributionEp.updateDistributionOfficerDetails
 );
 
+router.get(
+  "/officer-daily-distribution-target/:id",
+  authMiddleware,
+  distributionEp.getOfficerDailyDistributionTarget
+);
+
 module.exports = router;

@@ -2113,3 +2113,26 @@ exports.EditCheckEmailExist = async (email, excludeId = null) => {
     });
   });
 };
+
+
+exports.getOfficerDailyDistributionTargetDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+      	dt.id,
+      	dt.target,
+      	dt.complete,
+      	cof.empId,
+      	cof.firstNameEnglish,
+      	cof.lastNameEnglish
+      FROM distributedtarget dt
+      JOIN collectionofficer cof ON dt.userId = cof.id
+      WHERE dt.companycenterId = ?
+    `;
+    const params = [id];
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
