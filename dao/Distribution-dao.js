@@ -1978,11 +1978,6 @@ exports.getDistributionOutForDlvrOrderDao = (id) => {
         JOIN collectionofficer cof ON po.outBy = cof.id
         WHERE po.status = 'Out For Delivery' AND dt.companycenterId = ?    `;
 
-    // if (status) {
-    //   sql += ` AND status = ? `;
-    //   sqlParams.push(status);
-    // }
-
     // if (searchText) {
     //   sql += ` AND (firstNameEnglish LIKE ? OR lastNameEnglish LIKE ? OR empId LIKE ? ) `;
     //   sqlParams.push(`%${searchText}%`, `%${searchText}%`, `%${searchText}%`);
