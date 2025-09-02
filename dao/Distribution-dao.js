@@ -1955,7 +1955,7 @@ exports.getCenterAndCompanyIdDao = (companyCenteerId) => {
 };
 
 
-exports.getDistributionOutForDlvrOrderDao = (id) => {
+exports.getDistributionOutForDlvrOrderDao = (id, searchText) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [id];
     let sql = `
@@ -1978,10 +1978,11 @@ exports.getDistributionOutForDlvrOrderDao = (id) => {
         JOIN collectionofficer cof ON po.outBy = cof.id
         WHERE po.status = 'Out For Delivery' AND dt.companycenterId = ?    `;
 
-    // if (searchText) {
-    //   sql += ` AND (firstNameEnglish LIKE ? OR lastNameEnglish LIKE ? OR empId LIKE ? ) `;
-    //   sqlParams.push(`%${searchText}%`, `%${searchText}%`, `%${searchText}%`);
-    // }
+    // Add search functionality for invNo
+    if (searchText) {
+      sql += ` AND po.invNo LIKE ? `;
+      sqlParams.push(`%${searchText}%`);
+    }
 
     // if (role) {
     //   sql += ` AND jobRole = ? `;

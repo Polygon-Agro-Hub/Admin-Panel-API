@@ -1337,9 +1337,9 @@ exports.getDistributionOutForDlvrOrder = async (req, res) => {
   try {
     const { id, status, date, searchText } = await DistributionValidation.getDistributionOutForDlvrOrderShema.validateAsync(req.query);
 
-    const result = await DistributionDao.getDistributionOutForDlvrOrderDao(id);
+    const result = await DistributionDao.getDistributionOutForDlvrOrderDao(id, searchText);
 
-    console.log("Successfully retrieved all companies");
+    console.log("Successfully retrieved distribution out for delivery orders");
     res.json({ status: true, data: result });
   } catch (err) {
     if (err.isJoi) {
@@ -1347,10 +1347,10 @@ exports.getDistributionOutForDlvrOrder = async (req, res) => {
       return res.status(400).json({ error: err.details[0].message });
     }
 
-    console.error("Error fetching companies:", err);
+    console.error("Error fetching distribution orders:", err);
     res
       .status(500)
-      .json({ error: "An error occurred while fetching companies" });
+      .json({ error: "An error occurred while fetching distribution orders" });
   }
 };
 
