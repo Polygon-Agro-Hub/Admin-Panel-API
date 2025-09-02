@@ -1955,7 +1955,7 @@ exports.getCenterAndCompanyIdDao = (companyCenteerId) => {
 };
 
 
-exports.getDistributionOutForDlvrOrderDao = (id, searchText) => {
+exports.getDistributionOutForDlvrOrderDao = (id, searchText, filterDate) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [id];
     let sql = `
@@ -1984,10 +1984,11 @@ exports.getDistributionOutForDlvrOrderDao = (id, searchText) => {
       sqlParams.push(`%${searchText}%`);
     }
 
-    // if (role) {
-    //   sql += ` AND jobRole = ? `;
-    //   sqlParams.push(role);
-    // }
+    // Add date filter for specific outDlvrDate
+    if (filterDate) {
+      sql += ` AND DATE(po.outDlvrDate) = ? `;
+      sqlParams.push(filterDate);
+    }
 
     collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {

@@ -1337,7 +1337,7 @@ exports.getDistributionOutForDlvrOrder = async (req, res) => {
   try {
     const { id, status, date, searchText } = await DistributionValidation.getDistributionOutForDlvrOrderShema.validateAsync(req.query);
 
-    const result = await DistributionDao.getDistributionOutForDlvrOrderDao(id, searchText);
+    const result = await DistributionDao.getDistributionOutForDlvrOrderDao(id, searchText, date);
 
     console.log("Successfully retrieved distribution out for delivery orders");
     res.json({ status: true, data: result });
