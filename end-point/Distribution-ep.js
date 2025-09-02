@@ -1286,7 +1286,13 @@ exports.getDistributedCenterTarget = async (req, res) => {
     const { id, status, date, searchText } = await DistributionValidation.getDistributedCenterTargetShema.validateAsync(req.query);
     console.log("Params:", req.query);
 
-    const results = await DistributionDao.getDistributedCenterTargetDao(id, status, date, searchText);
+    // Convert date to proper format if it's a Date object
+    let formattedDate = date;
+    if (date instanceof Date) {
+      formattedDate = date.toISOString().split('T')[0];
+    }
+
+    const results = await DistributionDao.getDistributedCenterTargetDao(id, status, formattedDate, searchText);
 
     console.log("Successfully retrieved all companies");
     res.json({ status: true, data: results });

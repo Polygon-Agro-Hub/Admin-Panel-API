@@ -1797,12 +1797,6 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
     WHERE dt.companycenterId = ?
     `;
 
-    // Add center ID filter if provided
-    // if (id) {
-    //   sql += ` AND dt.centerId = ?`;
-    //   sqlParams.push(id);
-    // }
-
     // === Add Status Filter ===
     if (status && status.trim() !== '') {
       if (status === 'Pending') {
@@ -1833,13 +1827,25 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
       }
     }
 
-    // Add date filter
-    if (date && date.trim() !== '') {
-      sql += ` AND DATE(o.sheduleDate) = DATE(?)`;
-      sqlParams.push(date);
+    // Add date filter - FIXED: Handle both string and Date objects
+    if (date) {
+      let dateValue;
+      
+      // Handle different date formats
+      if (typeof date === 'string') {
+        dateValue = date.trim();
+      } else if (date instanceof Date) {
+        // Convert Date object to YYYY-MM-DD format
+        dateValue = date.toISOString().split('T')[0];
+      }
+      
+      if (dateValue && dateValue !== '') {
+        sql += ` AND DATE(o.sheduleDate) = DATE(?)`;
+        sqlParams.push(dateValue);
+      }
     }
 
-    // Add search text filter - Fixed the LIKE operator
+    // Add search text filter
     if (searchText && searchText.trim() !== '') {
       sql += ` AND po.invNo LIKE ?`;
       sqlParams.push(`%${searchText.trim()}%`);
