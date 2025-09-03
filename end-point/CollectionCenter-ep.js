@@ -1311,3 +1311,98 @@ exports.downloadAllCenterPayments = async (req, res) => {
     return res.status(500).json({ error: "An error occurred while fetching collection officers" });
   }
 };
+
+
+exports.getCenterTarget = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  
+  try {
+    const { centerId, page, limit, status, searchText } = await ValidateSchema.getCenterTargetSchema.validateAsync(req.query);
+
+    const companyCenterId = await CollectionCenterDao.getCompanyCenterIDDao(1, centerId);
+    if (companyCenterId === null) {
+      res.json({ items: [], message: "No center found" })
+    }
+
+    console.log(companyCenterId);
+
+    const { resultTarget } = await CollectionCenterDao.getCenterTargetDAO(companyCenterId, status, searchText, centerId);
+    console.log('this is', resultTarget);
+    return res.status(200).json({
+      items: resultTarget
+    });
+    
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+    console.error("Error fetching crop names and verity:", error);
+    return res.status(500).json({ error: "An error occurred while fetching crop names and verity" });
+  }
+};
+
+
+exports.downloadCurrentTarget = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  try {
+
+    const { centerId, status, searchText } = await ValidateSchema.downloadCurrentTargetSchema.validateAsync(req.query);
+    const companyCenterId = await CollectionCenterDao.getCompanyCenterIDDao(1, centerId);
+    if (companyCenterId === null) {
+      res.json({ items: [], message: "No center found" })
+    }
+
+    const { resultTarget } = await CollectionCenterDao.downloadCurrentTargetDAO(companyCenterId, status, searchText);
+    const formattedData = resultTarget.flatMap(item => [
+      {
+        'Crop Name': item.cropNameEnglish,
+        'Variety Name': item.varietyNameEnglish,
+        'Grade': item.grade,
+        'Target (kg)': item.target,
+        'Complete (kg)': item.complete,
+        'Status': item.status,
+        'End Date': item.date,
+
+      },
+
+    ]);
+
+
+    // Create a worksheet and workbook
+    const worksheet = XLSX.utils.json_to_sheet(formattedData);
+
+    worksheet['!cols'] = [
+      { wch: 25 }, // GRN
+      { wch: 15 }, // Amount
+      { wch: 20 }, // Center Reg Code
+      { wch: 25 }, // Center Name
+      { wch: 18 }, // Farmer NIC
+      { wch: 25 }, // Farmer Name
+      { wch: 15 }, // Farmer Contact
+
+    ];
+
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Current Center Target Template');
+
+    // Write the workbook to a buffer
+    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    // Set headers for file download
+    res.setHeader('Content-Disposition', 'attachment; filename="Current Center Target Template.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    // Send the file to the client
+    res.send(excelBuffer);
+
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching Current Center Target:", error);
+    return res.status(500).json({ error: "An error occurred while fetching Current Center Target" });
+  }
+};

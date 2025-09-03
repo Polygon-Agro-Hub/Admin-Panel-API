@@ -1961,3 +1961,184 @@ exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) =
     });
   });
 };
+
+
+exports.getCompanyCenterIDDao = (companyId, centerId) => {
+    return new Promise((resolve, reject) => {
+        let dataSql = `
+            SELECT id FROM companycenter WHERE companyId = ? AND centerId = ?
+        `;
+        const dataParams = [companyId, centerId];
+        collectionofficer.query(dataSql, dataParams, (err, results) => {
+            if (err) {
+                return reject(err);
+            }
+            if (results.length === 0) {
+                return resolve(null);
+            }
+            resolve(results[0].id);
+        });
+    });
+};
+
+
+exports.getCenterTargetDAO = (companyCenterId, status, searchText) => {
+    return new Promise((resolve, reject) => {
+        let targetSql = `
+        SELECT
+            dt.id, 
+            dt.companyCenterId, 
+            cv.varietyNameEnglish, 
+            cg.cropNameEnglish, 
+            dt.grade, 
+            dt.target, 
+            dt.complete,
+            dt.date,
+            coc.regCode
+        FROM collection_officer.dailytarget dt
+        LEFT JOIN plant_care.cropvariety cv ON dt.varietyId = cv.id
+        LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+        LEFT JOIN collection_officer.companycenter cc ON dt.companyCenterId = cc.id
+        LEFT JOIN collection_officer.collectioncenter coc ON cc.centerId = coc.id
+        WHERE dt.companyCenterId = ? AND DATE(dt.date) = CURDATE()
+        `;
+
+        const sqlParams = [companyCenterId];
+
+        // Add status filter if provided
+        if (status) {
+            const statusLower = status.toLowerCase();
+            if (statusLower === 'completed') {
+                targetSql += " AND dt.complete = dt.target";
+            } else if (statusLower === 'exceeded') {
+                targetSql += " AND dt.complete > dt.target";
+            } else if (statusLower === 'pending') {
+                targetSql += " AND COALESCE(dt.complete, 0.00) < dt.target";
+            }
+        }
+
+        // Add search filter if provided
+        if (searchText) {
+            const searchCondition = ` AND (
+                cv.varietyNameEnglish LIKE ?
+                OR cg.cropNameEnglish LIKE ?
+                OR dt.target LIKE ?
+                OR dt.complete LIKE ?
+            )`;
+            targetSql += searchCondition;
+            const searchValue = `%${searchText}%`;
+            sqlParams.push(searchValue, searchValue, searchValue, searchValue);
+        }
+
+        // Execute data query
+        collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
+            if (dataErr) {
+                console.error('Error in data query:', dataErr);
+                return reject(dataErr);
+            }
+
+            // Process results to add status field
+            const resultTarget = dataResults.map(row => {
+                const target = parseFloat(row.target ?? 0.00);
+                const complete = parseFloat(row.complete ?? 0.00);
+
+                let status;
+                if (complete > target) {
+                    status = 'Exceeded';
+                } else if (complete == target) {
+                    status = 'Completed';
+                } else if (complete < target) {
+                    status = 'Pending';
+                }
+
+
+                return {
+                    ...row,
+                    target: target.toFixed(2),
+                    complete: complete.toFixed(2),
+                    status: status
+                };
+            });
+            resolve({ resultTarget });
+        });
+    });
+};
+
+
+exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
+    return new Promise((resolve, reject) => {
+        let targetSql = `
+        SELECT 
+            dt.id, 
+            dt.companyCenterId, 
+            cv.varietyNameEnglish, 
+            cg.cropNameEnglish, 
+            dt.grade, 
+            dt.target, 
+            dt.complete,
+            dt.date 
+        FROM collection_officer.dailytarget dt
+        LEFT JOIN plant_care.cropvariety cv ON dt.varietyId = cv.id
+        LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+        WHERE dt.companyCenterId = ? AND DATE(dt.date) = CURDATE()
+        `;
+
+        const sqlParams = [companyCenterId];
+
+        // Add status filter if provided
+        if (status) {
+            const statusLower = status.toLowerCase();
+            if (statusLower === 'completed') {
+                targetSql += " AND dt.complete = dt.target";
+            } else if (statusLower === 'pending') {
+                targetSql += " AND COALESCE(dt.complete, 0.00) < dt.target";
+            } else if (statusLower === 'exceeded') {
+                targetSql += " AND dt.complete > dt.target";
+            }
+        }
+
+        // Add search filter if provided
+        if (searchText) {
+            const searchCondition = ` AND (
+                cv.varietyNameEnglish LIKE ?
+                OR cg.cropNameEnglish LIKE ?
+                OR dt.target LIKE ?
+                OR dt.complete LIKE ?
+            )`;
+            targetSql += searchCondition;
+            const searchValue = `%${searchText}%`;
+            sqlParams.push(searchValue, searchValue, searchValue, searchValue);
+        }
+
+        // Execute data query
+        collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
+            if (dataErr) {
+                console.error('Error in data query:', dataErr);
+                return reject(dataErr);
+            }
+
+            // Process results to add status field
+            const resultTarget = dataResults.map(row => {
+                const target = parseFloat(row.target ?? 0.00);
+                const complete = parseFloat(row.complete ?? 0.00);
+
+                let status;
+                if (complete > target) {
+                    status = 'Exceeded';
+                } else if (complete < target) {
+                    status = 'Pending';
+                } else if (complete == target) {
+                    status = 'Completed';
+                }
+
+                return {
+                    ...row,
+                    target: target.toFixed(2),
+                    complete: complete.toFixed(2),
+                    status: status
+                };
+            });
+            resolve({ resultTarget });
+        });
+    });
+};

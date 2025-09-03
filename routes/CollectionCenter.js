@@ -216,4 +216,16 @@ router.get(
   CollectionCenterEp.downloadAllCenterPayments
 )
 
+router.get(
+  "/get-center-target",
+  authMiddleware,
+  CollectionCenterEp.getCenterTarget
+)
+
+router.get(
+  "/download-current-target-report",
+  authMiddleware,
+  CollectionCenterEp.downloadCurrentTarget
+)
+
 module.exports = router;
