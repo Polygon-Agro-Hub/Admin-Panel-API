@@ -553,9 +553,6 @@ exports.getForCreateId = async (req, res) => {
   }
 };
 
-const fs = require('fs');
-const path = require('path');
-
 exports.createCompany = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -598,51 +595,6 @@ exports.createCompany = async (req, res) => {
       });
     }
 
-    // Function to handle base64 image conversion
-    const saveBase64Image = (base64String, fileNamePrefix) => {
-      if (!base64String) return null;
-      
-      try {
-        // Check if it's a base64 string
-        if (typeof base64String !== 'string' || !base64String.includes('base64')) {
-          return base64String; // Return as is if not base64
-        }
-        
-        // Extract the image type and data from the base64 string
-        const matches = base64String.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
-        if (!matches || matches.length !== 3) {
-          return base64String; // Return as is if invalid format
-        }
-        
-        const imageType = matches[1];
-        const imageData = matches[2];
-        const buffer = Buffer.from(imageData, 'base64');
-        
-        // Create directory if it doesn't exist
-        const uploadDir = path.join(__dirname, '../uploads/company-images');
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        
-        // Generate unique filename
-        const fileName = `${fileNamePrefix}-${Date.now()}.${imageType}`;
-        const filePath = path.join(uploadDir, fileName);
-        
-        // Save the file
-        fs.writeFileSync(filePath, buffer);
-        
-        // Return the relative path to store in database
-        return `/uploads/company-images/${fileName}`;
-      } catch (error) {
-        console.error(`Error saving ${fileNamePrefix} image:`, error);
-        return null;
-      }
-    };
-
-    // Process logo and favicon
-    const logoPath = saveBase64Image(logo, 'logo');
-    const faviconPath = saveBase64Image(favicon, 'favicon');
-
     const newsId = await CollectionCenterDao.createCompany(
       regNumber,
       companyNameEnglish,
@@ -663,8 +615,8 @@ exports.createCompany = async (req, res) => {
       foConCode,
       foConNum,
       foEmail,
-      logoPath, // Now passing the file path instead of base64
-      faviconPath, // Now passing the file path instead of base64
+      logo,
+      favicon,
       companyType
     );
 
