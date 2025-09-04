@@ -1136,7 +1136,16 @@ exports.getAllDistributionOfficers = (
       );
     }
 
-    dataSql += " ORDER BY coff.createdAt DESC";
+    // Modified ORDER BY clause: DCM first, then Distribution Officers, then by EMP ID
+    dataSql += ` 
+      ORDER BY 
+        CASE 
+          WHEN coff.jobRole = 'Distribution Center Manager' THEN 1 
+          WHEN coff.jobRole = 'Distribution Officer' THEN 2 
+          ELSE 3 
+        END,
+        coff.empId ASC
+    `;
 
     // Add pagination to the data query
     dataSql += " LIMIT ? OFFSET ?";
