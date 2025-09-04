@@ -582,8 +582,8 @@ exports.createCompany = async (req, res) => {
       foConCode,
       foConNum,
       foEmail,
-      logo,
-      favicon,
+      logo: logoBase64, // Expecting base64 string
+      favicon: faviconBase64, // Expecting base64 string
     } = req.body;
 
     const checkCompanyName =
@@ -594,6 +594,59 @@ exports.createCompany = async (req, res) => {
         message: "Company Name Exists",
       });
     }
+
+    // Generate unique filenames
+    const generateFileName = (prefix, originalName = '') => {
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 15);
+      const extension = originalName.split('.').pop() || 'png';
+      return `${prefix}_${timestamp}_${random}.${extension}`;
+    };
+
+    // Convert base64 to file information (without saving to disk)
+    const processBase64Image = (base64String, fileType) => {
+      if (!base64String) return null;
+      
+      try {
+        // Extract MIME type and data from base64 string
+        const matches = base64String.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        
+        if (!matches || matches.length !== 3) {
+          throw new Error('Invalid base64 string');
+        }
+
+        const mimeType = matches[1];
+        const buffer = Buffer.from(matches[2], 'base64');
+        
+        // Generate a filename based on MIME type
+        const extension = mimeType.split('/')[1] || 'png';
+        const filename = generateFileName(fileType, `file.${extension}`);
+        
+        return {
+          filename: filename,
+          originalname: filename,
+          mimetype: mimeType,
+          size: buffer.length,
+          buffer: buffer
+        };
+      } catch (error) {
+        console.error(`Error processing ${fileType}:`, error);
+        return null;
+      }
+    };
+
+    // Process logo and favicon
+    const logoFile = processBase64Image(logoBase64, 'logo');
+    const faviconFile = processBase64Image(faviconBase64, 'favicon');
+
+    // Generate URLs (you can customize this based on your storage strategy)
+    const generateFileUrl = (filename) => {
+      if (!filename) return null;
+      return `${req.protocol}://${req.get("host")}/uploads/${filename}`;
+    };
+
+    const logoUrl = logoFile ? generateFileUrl(logoFile.filename) : null;
+    const faviconUrl = faviconFile ? generateFileUrl(faviconFile.filename) : null;
 
     const newsId = await CollectionCenterDao.createCompany(
       regNumber,
@@ -615,8 +668,8 @@ exports.createCompany = async (req, res) => {
       foConCode,
       foConNum,
       foEmail,
-      logo,
-      favicon,
+      logoUrl, // Pass the generated URL instead of base64
+      faviconUrl, // Pass the generated URL instead of base64
       companyType
     );
 
@@ -628,7 +681,6 @@ exports.createCompany = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-      // Validation error
       return res.status(400).json({ error: err.details[0].message });
     }
 
