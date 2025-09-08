@@ -441,7 +441,6 @@ exports.getAllCollectionOfficers = (
     }
 
     if (centerStatus) {
-      // Convert centerStatus to corresponding numeric value
       let claimStatusValue;
       if (centerStatus === "Claimed") {
         claimStatusValue = 1;
@@ -451,7 +450,6 @@ exports.getAllCollectionOfficers = (
 
       console.log("this is claimstatus value", claimStatusValue);
 
-      // Apply filter only if it's a valid value
       if (claimStatusValue !== undefined) {
         countSql += " AND coff.claimStatus = ? ";
         dataSql += " AND coff.claimStatus = ? ";
@@ -481,7 +479,6 @@ exports.getAllCollectionOfficers = (
       dataParams.push(centerId);
     }
 
-    // Apply search filters for NIC or related fields
     if (searchNIC) {
       const searchCondition = `
                 AND (
@@ -520,7 +517,13 @@ exports.getAllCollectionOfficers = (
       );
     }
 
-    dataSql += " ORDER BY coff.createdAt DESC";
+    // Modified ORDER BY to prioritize CCMs and sort by empId ASC, then others by createdAt DESC
+    dataSql += `
+      ORDER BY 
+        CASE WHEN coff.jobRole = 'Collection Center Manager' THEN 0 ELSE 1 END,
+        CASE WHEN coff.jobRole = 'Collection Center Manager' THEN coff.empId END ASC,
+        CASE WHEN coff.jobRole = 'Collection Officer' THEN coff.createdAt END DESC
+    `;
 
     // Add pagination to the data query
     dataSql += " LIMIT ? OFFSET ?";
@@ -547,7 +550,6 @@ exports.getAllCollectionOfficers = (
     });
   });
 };
-
 // exports.getAllCollectionOfficersStatus = (
 //   page,
 //   limit,

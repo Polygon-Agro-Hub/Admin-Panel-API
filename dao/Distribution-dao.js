@@ -914,11 +914,11 @@ exports.DeleteDistributionCenter = (id) => {
 };
 
 exports.generateRegCode = (province, district, city, callback) => {
-  // Generate the prefix based on province and district
+  // Generate the prefix based on province and district with "P" after province initial
   const prefix =
-    province.slice(0, 2).toUpperCase() +
-    district.slice(0, 1).toUpperCase() +
-    city.slice(0, 1).toUpperCase();
+    province.charAt(0).toUpperCase() + 'P' +
+    district.charAt(0).toUpperCase() +
+    city.charAt(0).toUpperCase();
 
   // SQL query to get the latest regCode
   const query = `SELECT regCode FROM distributedcenter WHERE regCode LIKE ? ORDER BY regCode DESC LIMIT 1`;
@@ -944,6 +944,7 @@ exports.generateRegCode = (province, district, city, callback) => {
     callback(null, newRegCode);
   });
 };
+
 
 exports.GetDistributionCenterByName = (name) => {
   return new Promise((resolve, reject) => {
