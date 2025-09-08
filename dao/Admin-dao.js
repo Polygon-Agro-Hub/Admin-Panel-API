@@ -3433,3 +3433,36 @@ exports.deleteOngoingCultivationsById = (id) => {
     });
   });
 };
+
+
+exports.getFarmerStaffDao = (id, role) => {
+  const sqlParams = [id]
+  let sql = `
+    SELECT
+      id,
+      firstName,
+      lastName,
+      phoneCode,
+      phoneNumber,
+      role,
+      nic,
+      image
+    FROM farmstaff
+    WHERE ownerId = ? 
+    `;
+
+  if (role){
+    sql += ` AND role = ? `
+    sqlParams.push(role)
+  }
+
+    return new Promise((resolve, reject) => {
+      plantcare.query(sql, sqlParams, (err, results) => {
+        if (err) {
+          reject("Error deleting cultivation crops by ID: " + err);
+        } else {
+          resolve(results);
+        }
+      });
+    });
+};

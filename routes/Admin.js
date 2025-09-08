@@ -343,4 +343,9 @@ router.delete(
   AdminEp.deleteOngoingCultivationsById
 );
 
+router.get(
+  "/get-all-farmer-staff",
+  authMiddleware,
+  AdminEp.getFarmerStaff
+);
 module.exports = router;

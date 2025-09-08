@@ -434,6 +434,7 @@ exports.createfeedback = Joi.object({
   feedbackTamil: Joi.required(),
 });
 
-exports.deleteAdminUserSchema = Joi.object({
-  id: Joi.number().integer().required().label("Admin User ID"),
+exports.getFarmerStaffShema = Joi.object({
+  id: Joi.number().integer().positive().required(),
+  role: Joi.string().optional(),
 });
