@@ -463,6 +463,7 @@ exports.getOrderPackageItemsById = async (req, res) => {
     }
 
     const orderPackages = await procumentDao.getOrderPackagesByOrderId(orderId);
+    const additionalItems = await procumentDao.getAllOrderAdditionalItemsDao(orderId);
 
     console.log('orderPackages', orderPackages)
 
@@ -493,6 +494,7 @@ exports.getOrderPackageItemsById = async (req, res) => {
           })),
         })),
       },
+      additionalItems,
       message: "Order package items retrieved successfully",
     };
 

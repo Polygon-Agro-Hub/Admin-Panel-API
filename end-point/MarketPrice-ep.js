@@ -247,13 +247,13 @@ exports.getAllCropName = async (req, res) => {
 
 exports.getAllMarketPriceAgro = async (req, res) => {
   try {
-    const {crop, grade, search, centerId, companyId } = req.query;
+    const {crop, grade, search, centerId } = req.query;
 
     // Calculate offset
     // const offset = (page - 1) * limit;
 
     // Fetch data from DAO
-    const { results, total } = await marketPriceDao.getAllMarketPriceAgroDAO(crop, grade, search, centerId, companyId);
+    const { results, total } = await marketPriceDao.getAllMarketPriceAgroDAO(crop, grade, search, centerId, 1);
 
     console.log("Successfully fetched market prices for AgroWorld");
     return res.status(200).json({ results, total });
