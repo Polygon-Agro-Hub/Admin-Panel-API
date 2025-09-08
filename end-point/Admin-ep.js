@@ -1476,6 +1476,18 @@ exports.createAdmin = async (req, res) => {
       validatedBody.userName
     );
 
+    if (existingUser[0].userName === validatedBody.userName) {
+      return res.status(400).json({
+        error: "An admin with the same username already exists.",
+      });
+    }
+
+    if (existingUser[0].mail === validatedBody.mail) {
+      return res.status(400).json({
+        error: "An admin with the same email already exists.",
+      });
+    }
+
     if (existingUser.length > 0) {
       return res.status(400).json({
         error: "An admin with the same email or username already exists.",
@@ -2968,5 +2980,27 @@ exports.deleteOngoingCultivationsById = async (req, res) => {
     return res
       .status(500)
       .json({ error: "An error occurred while deleting ongoing cultivation" });
+  }
+};
+
+
+
+exports.getFarmerStaff = async (req, res) => {
+  try {
+    const { id, role } = await ValidateSchema.getFarmerStaffShema.validateAsync(req.query);
+    console.log(role);
+    
+    const result = await adminDao.getFarmerStaffDao(id, role);
+
+    console.log("Successfully fetched feedback list");
+    res.json({
+      result,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
   }
 };
