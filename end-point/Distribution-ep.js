@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs/dist/bcrypt");
 const DistributionDao = require("../dao/Distribution-dao");
 const uploadFileToS3 = require("../middlewares/s3upload");
 const DistributionValidation = require("../validations/distribution-validation");
+const deleteFromS3 = require("../middlewares/s3delete");
 
 exports.createDistributionCenter = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;

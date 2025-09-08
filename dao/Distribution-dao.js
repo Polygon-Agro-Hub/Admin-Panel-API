@@ -584,7 +584,7 @@ exports.checkPhoneExistExceptId = (phone, id) => {
 exports.GetAllCompanyList = () => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, companyNameEnglish FROM company WHERE company.isDistributed = 1";
+      "SELECT id, companyNameEnglish FROM company WHERE company.isDistributed = 1 ORDER BY companyNameEnglish ASC";
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
@@ -1137,7 +1137,16 @@ exports.getAllDistributionOfficers = (
       );
     }
 
-    dataSql += " ORDER BY coff.createdAt DESC";
+    // Modified ORDER BY clause: DCM first, then Distribution Officers, then by EMP ID
+    dataSql += ` 
+      ORDER BY 
+        CASE 
+          WHEN coff.jobRole = 'Distribution Center Manager' THEN 1 
+          WHEN coff.jobRole = 'Distribution Officer' THEN 2 
+          ELSE 3 
+        END,
+        coff.empId ASC
+    `;
 
     // Add pagination to the data query
     dataSql += " LIMIT ? OFFSET ?";
@@ -1593,6 +1602,7 @@ exports.GetDistributionCentersByCompanyIdDAO = (companyId) => {
       FROM distributedcenter dc
       JOIN distributedcompanycenter dcc ON dc.id = dcc.centerId
       WHERE dcc.companyId = ?
+      ORDER BY dc.centerName ASC
     `;
     collectionofficer.query(sql, [companyId], (err, results) => {
       if (err) {
@@ -1650,6 +1660,7 @@ exports.getAssigningForDistributedCentersDao = () => {
       JOIN distributedcenter dc ON dcc.centerId = dc.id
       LEFT JOIN centerowncity coc ON dcc.id = coc.companyCenterId
       WHERE c.isDistributed = 1
+      ORDER BY dc.regCode ASC
       `;
     collectionofficer.query(sql, (err, results) => {
       if (err) {
