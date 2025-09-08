@@ -1659,6 +1659,7 @@ exports.getAssigningForDistributedCentersDao = () => {
       JOIN distributedcenter dc ON dcc.centerId = dc.id
       LEFT JOIN centerowncity coc ON dcc.id = coc.companyCenterId
       WHERE c.isDistributed = 1
+      ORDER BY dc.regCode ASC
       `;
     collectionofficer.query(sql, (err, results) => {
       if (err) {
