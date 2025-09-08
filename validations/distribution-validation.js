@@ -78,3 +78,9 @@ exports.getDistributionOutForDlvrOrderShema = Joi.object({
 exports.getOfficerDailyDistributionTargetShema = Joi.object({
     id: Joi.number().integer().positive().required()
 })
+
+exports.dcmGetparmasIdSchema = Joi.object({
+    officerId: Joi.number().integer().required(),
+    searchText: Joi.string().allow('').optional(),
+    status: Joi.string().allow('').optional(),
+});

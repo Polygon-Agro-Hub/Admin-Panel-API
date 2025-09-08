@@ -228,4 +228,9 @@ router.get(
   distributionEp.getOfficerDailyDistributionTarget
 );
 
+router.get('/get-selected-officer-targets', 
+    authMiddleware,
+    distributionEp.dcmGetSelectedOfficerTargets
+);
+
 module.exports = router;
