@@ -1601,6 +1601,7 @@ exports.GetDistributionCentersByCompanyIdDAO = (companyId) => {
       FROM distributedcenter dc
       JOIN distributedcompanycenter dcc ON dc.id = dcc.centerId
       WHERE dcc.companyId = ?
+      ORDER BY dc.centerName ASC
     `;
     collectionofficer.query(sql, [companyId], (err, results) => {
       if (err) {
