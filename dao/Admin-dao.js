@@ -48,6 +48,7 @@ exports.getAllAdminUsers = (limit, offset, role, search) => {
       SELECT COUNT(DISTINCT AU.id) as total 
       FROM adminusers AU 
       JOIN adminroles AR ON AU.role = AR.id
+      JOIN adminposition AP ON AU.position = AP.id
     `;
 
     const dataParms = [];
@@ -1704,7 +1705,7 @@ exports.getAllUserTaskByCropId = (cropId, userId, limit, offset) => {
       GROUP BY slavecropcalendardays.id
       ORDER BY slavecropcalendardays.taskIndex
       `;
-      // LIMIT ? OFFSET ?
+    // LIMIT ? OFFSET ?
 
     const values = [cropId, userId, limit, offset];
 
