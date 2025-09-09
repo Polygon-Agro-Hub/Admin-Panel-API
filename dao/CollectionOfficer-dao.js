@@ -202,7 +202,7 @@ exports.createCollectionOfficerPersonal = (
 
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
-      if(officerData.jobRole === 'Collection Center Manager' || officerData.jobRole === 'Collection Center Head'){
+      if (officerData.jobRole === 'Collection Center Manager' || officerData.jobRole === 'Collection Center Head') {
         officerData.irmId = null;
       }
 
@@ -900,7 +900,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => {});
+    doc.on("end", () => { });
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -2340,5 +2340,43 @@ exports.getCCIDforCreateEmpIdDao = (employee) => {
   });
 };
 
+exports.getFarmerInvoiceDetailsDao = (invNo) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+        SELECT RFP.id, U.firstName, U.lastName, U.phoneNumber, U.NICnumber, U.houseNo, U.streetName, U.city, U.district, UB.accNumber, UB.accHolderName, UB.bankName, UB.branchName, RFP.createdAt, CO.QRcode AS officerQr, U.farmerQr, RFP.invNo 
+        FROM farmerpaymentscrops FPC, registeredfarmerpayments RFP, plant_care.users U, collectionofficer CO, plant_care.userbankdetails UB 
+        WHERE FPC.registerFarmerId = RFP.id AND RFP.userId = U.id AND U.id = UB.userId AND RFP.collectionOfficerId = CO.id AND RFP.invNo = ?
+            LIMIT 1
+            `;
 
+
+    collectionofficer.query(sql, [invNo], (err, results) => {
+      if (err) {
+
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+
+exports.getFarmerCropsInvoiceDetailsDao = (invNo) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+        SELECT RFP.id, CG.cropNameEnglish, CV.varietyNameEnglish, FPC.gradeAprice, FPC.gradeBprice, FPC.gradeCprice, FPC.gradeAquan, FPC.gradeBquan, FPC.gradeCquan
+        FROM registeredfarmerpayments RFP, farmerpaymentscrops FPC, plant_care.cropvariety CV, plant_care.cropgroup CG
+        WHERE FPC.registerFarmerId = RFP.id AND FPC.cropId = CV.id AND CV.cropGroupId = CG.id AND RFP.invNo = ?
+            `;
+
+
+    collectionofficer.query(sql, [invNo], (err, results) => {
+      if (err) {
+
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
 
