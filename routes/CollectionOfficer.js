@@ -174,150 +174,152 @@ router.get(
 
 
 router.get('/download-purchase-report', async (req, res) => {
-    try {
+  try {
 
-      const {centerId, startDate, endDate, search} = req.query;
-      // Fetch data from the database
-      const data = await collectionofficerDao.downloadPurchaseReport( 
-        centerId,
-        startDate,
-        endDate, 
-        search);
-  
-      // Format data for Excel
-      const formattedData = data.flatMap(item => [
-        {
-          'GRN': item.grnNumber,
-          'Amount': item.amount,
-          'Centre Reg Code': item.regCode,
-          'Centre Name': item.centerName,
-          'Farmer NIC': item.nic,
-          'Farmer Name': item.firstName + ' ' + item.lastName,
-          'Farmer contact': item.phoneNumber,
-          'Account holder name': item.accHolderName,
-          'Account Number': item.accNumber,
-          'Bank Name': item.bankName,
-          'Branch Name': item.branchName,
-          'Officer EMP ID': item.empId,
-          'Collected time': item.createdAt,
-          'Collected Date': item.createdDate
+    const { centerId, startDate, endDate, search } = req.query;
+    // Fetch data from the database
+    const data = await collectionofficerDao.downloadPurchaseReport(
+      centerId,
+      startDate,
+      endDate,
+      search);
 
-        },
-        
-      ]);
-      
-  
-      // Create a worksheet and workbook
-      const worksheet = XLSX.utils.json_to_sheet(formattedData);
+    // Format data for Excel
+    const formattedData = data.flatMap(item => [
+      {
+        'GRN': item.grnNumber,
+        'Amount': item.amount,
+        'Centre Reg Code': item.regCode,
+        'Centre Name': item.centerName,
+        'Farmer NIC': item.nic,
+        'Farmer Name': item.firstName + ' ' + item.lastName,
+        'Farmer contact': item.phoneNumber,
+        'Account holder name': item.accHolderName,
+        'Account Number': item.accNumber,
+        'Bank Name': item.bankName,
+        'Branch Name': item.branchName,
+        'Officer EMP ID': item.empId,
+        'Collected time': item.createdAt,
+        'Collected Date': item.createdDate
 
-      worksheet['!cols'] = [
-        { wch: 25 }, // GRN
-        { wch: 15}, // Amount
-        { wch: 20 }, // Center Reg Code
-        { wch: 25 }, // Center Name
-        { wch: 18 }, // Farmer NIC
-        { wch: 25 }, // Farmer Name
-        { wch: 15 }, // Farmer Contact
-        { wch: 25 }, // Account Holder Name
-        { wch: 20 }, // Account Number
-        { wch: 20 }, // Bank Name
-        { wch: 20 }, // Branch Name
-        { wch: 15 }, // Officer EMP ID
-        { wch: 15 },  // Collected Time
-        { wch: 15 }  // Collected Time
-      ];
+      },
+
+    ]);
 
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Market Price Template');
-  
-      // Write the workbook to a buffer
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-  
-      // Set headers for file download
-      res.setHeader('Content-Disposition', 'attachment; filename="Market Price Template.xlsx"');
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      
-      // Send the file to the client
-      res.send(excelBuffer);
-    } catch (err) {
-      console.error('Error generating Excel file:', err);
-      res.status(500).send('An error occurred while generating the file.');
-    }
-  });
+    // Create a worksheet and workbook
+    const worksheet = XLSX.utils.json_to_sheet(formattedData);
+
+    worksheet['!cols'] = [
+      { wch: 25 }, // GRN
+      { wch: 15 }, // Amount
+      { wch: 20 }, // Center Reg Code
+      { wch: 25 }, // Center Name
+      { wch: 18 }, // Farmer NIC
+      { wch: 25 }, // Farmer Name
+      { wch: 15 }, // Farmer Contact
+      { wch: 25 }, // Account Holder Name
+      { wch: 20 }, // Account Number
+      { wch: 20 }, // Bank Name
+      { wch: 20 }, // Branch Name
+      { wch: 15 }, // Officer EMP ID
+      { wch: 15 },  // Collected Time
+      { wch: 15 }  // Collected Time
+    ];
 
 
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Market Price Template');
 
+    // Write the workbook to a buffer
+    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 
-  router.get(
-    "/get-collection-report",
-    // authMiddleware,
-    CollectionOfficerEp.getCollectionReport
-  );
+    // Set headers for file download
+    res.setHeader('Content-Disposition', 'attachment; filename="Market Price Template.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    // Send the file to the client
+    res.send(excelBuffer);
+  } catch (err) {
+    console.error('Error generating Excel file:', err);
+    res.status(500).send('An error occurred while generating the file.');
+  }
+});
 
 
 
 
+router.get(
+  "/get-collection-report",
+  // authMiddleware,
+  CollectionOfficerEp.getCollectionReport
+);
+
+router.get('/download-collection-report', async (req, res) => {
+  try {
+
+    const { centerId, startDate, endDate, search } = req.query;
+    // Fetch data from the database
+    const data = await collectionofficerDao.downloadCollectionReport(
+      centerId,
+      startDate,
+      endDate,
+      search);
+
+    // Format data for Excel
+    const formattedData = data.flatMap(item => [
+      {
+        'Reg Code': item.regCode,
+        'Centre Name': item.centerName,
+        'Crop Name': item.cropGroupName,
+        'Variety Name': item.varietyName,
+        'Grade A (Kg)': item.gradeAquan,
+        'Grade B (Kg)': item.gradeBquan,
+        'Grade C (Kg)': item.gradeCquan,
+        'Total (Kg)': item.amount
+      },
+
+    ]);
 
 
-  router.get('/download-collection-report', async (req, res) => {
-    try {
+    // Create a worksheet and workbook
+    const worksheet = XLSX.utils.json_to_sheet(formattedData);
 
-      const {centerId, startDate, endDate, search} = req.query;
-      // Fetch data from the database
-      const data = await collectionofficerDao.downloadCollectionReport( 
-        centerId,
-        startDate,
-        endDate, 
-        search);
-  
-      // Format data for Excel
-      const formattedData = data.flatMap(item => [
-        {
-          'Reg Code': item.regCode,
-          'Centre Name': item.centerName,
-          'Crop Name': item.cropGroupName,
-          'Variety Name': item.varietyName,
-          'Grade A (Kg)': item.gradeAquan,
-          'Grade B (Kg)': item.gradeBquan,
-          'Grade C (Kg)': item.gradeCquan,
-          'Total (Kg)': item.amount
-        },
-        
-      ]);
-      
-  
-      // Create a worksheet and workbook
-      const worksheet = XLSX.utils.json_to_sheet(formattedData);
-
-      worksheet['!cols'] = [
-        { wch: 25 }, // regCode
-        { wch: 15}, // centerName
-        { wch: 20 }, // cropGroupName
-        { wch: 25 }, // varietyName
-        { wch: 18 }, // gradeAquan
-        { wch: 25 }, // gradeBquan
-        { wch: 15 }, // gradeCquan
-        { wch: 25 }, // amount
-      ];
+    worksheet['!cols'] = [
+      { wch: 25 }, // regCode
+      { wch: 15 }, // centerName
+      { wch: 20 }, // cropGroupName
+      { wch: 25 }, // varietyName
+      { wch: 18 }, // gradeAquan
+      { wch: 25 }, // gradeBquan
+      { wch: 15 }, // gradeCquan
+      { wch: 25 }, // amount
+    ];
 
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Market Price Template');
-  
-      // Write the workbook to a buffer
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-  
-      // Set headers for file download
-      res.setHeader('Content-Disposition', 'attachment; filename="Market Price Template.xlsx"');
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      
-      // Send the file to the client
-      res.send(excelBuffer);
-    } catch (err) {
-      console.error('Error generating Excel file:', err);
-      res.status(500).send('An error occurred while generating the file.');
-    }
-  });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Market Price Template');
+
+    // Write the workbook to a buffer
+    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    // Set headers for file download
+    res.setHeader('Content-Disposition', 'attachment; filename="Market Price Template.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    // Send the file to the client
+    res.send(excelBuffer);
+  } catch (err) {
+    console.error('Error generating Excel file:', err);
+    res.status(500).send('An error occurred while generating the file.');
+  }
+});
+
+
+router.get(
+  "/get-farmer-report-invoice-details/:invNo",
+  authMiddleware,
+  CollectionOfficerEp.getFarmerReportInvoice
+)
 
 module.exports = router;

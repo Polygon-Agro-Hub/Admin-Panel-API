@@ -1196,3 +1196,31 @@ exports.getCollectionReport = async (req, res) => {
   }
 };
 
+
+exports.getFarmerReportInvoice = async (req, res) => {
+  try {
+    const { invNo } = await collectionofficerValidate.invNoParmsSchema.validateAsync(req.params);
+
+    const UserResult = await collectionofficerDao.getFarmerInvoiceDetailsDao(invNo);
+    const CropResult = await collectionofficerDao.getFarmerCropsInvoiceDetailsDao(invNo);
+
+    if (UserResult.length === 0 || CropResult.length === 0) {
+      return res.json({ message: "No report items found", status: false });
+    }
+
+    res.json({ user: UserResult[0], crops: CropResult, status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching report:", err);
+    res.status(500).json({ error: "An error occurred while fetching news" });
+  }
+};
+
+
+
+
