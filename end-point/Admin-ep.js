@@ -2150,7 +2150,7 @@ exports.addNewTaskU = async (req, res) => {
   const onCulscropID = req.params.onCulscropID;
   const indexId = parseInt(req.params.indexId);
   console.log(req.params);
-  
+
 
   try {
     const task = req.body;
@@ -2991,7 +2991,7 @@ exports.getFarmerStaff = async (req, res) => {
   try {
     const { id, role } = await ValidateSchema.getFarmerStaffShema.validateAsync(req.query);
     console.log(role);
-    
+
     const result = await adminDao.getFarmerStaffDao(id, role);
 
     console.log("Successfully fetched feedback list");
@@ -3034,11 +3034,12 @@ exports.updateFarmOwner = async (req, res) => {
   try {
     const ownerId = req.params.id;
     const data = req.body;
+    const userId = req.user.userId; // Assuming req.user is populated by authentication middleware
 
     // Optional: validate data here using Joi
     // await ValidateSchema.updateFarmOwnerSchema.validateAsync(data);
 
-    const result = await adminDao.updateFarmOwnerByIdDao(ownerId, data);
+    const result = await adminDao.updateFarmOwnerByIdDao(ownerId, data, userId);
     res.json({
       message: "Farm staff updated successfully",
       result

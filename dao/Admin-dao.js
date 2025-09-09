@@ -3436,37 +3436,43 @@ exports.deleteOngoingCultivationsById = (id) => {
 };
 
 
-exports.getFarmerStaffDao = (id, role) => {
-  const sqlParams = [id]
+exports.getFarmerStaffDao = (ownerId, role) => {
+  const sqlParams = [ownerId];
+
   let sql = `
     SELECT
-      id,
-      firstName,
-      lastName,
-      phoneCode,
-      phoneNumber,
-      role,
-      nic,
-      image
-    FROM farmstaff
-    WHERE ownerId = ? 
-    `;
+      f.id,
+      f.firstName,
+      f.lastName,
+      f.phoneCode,
+      f.phoneNumber,
+      f.role,
+      f.nic,
+      f.image,
+      f.modifyBy,
+      a.userName AS modifiedByUserName
+    FROM farmstaff f
+    LEFT JOIN agro_world_admin.adminusers a
+      ON f.modifyBy = a.id
+    WHERE f.ownerId = ?
+  `;
 
-  if (role){
-    sql += ` AND role = ? `
-    sqlParams.push(role)
+  if (role) {
+    sql += ` AND f.role = ?`;
+    sqlParams.push(role);
   }
 
-    return new Promise((resolve, reject) => {
-      plantcare.query(sql, sqlParams, (err, results) => {
-        if (err) {
-          reject("Error deleting cultivation crops by ID: " + err);
-        } else {
-          resolve(results);
-        }
-      });
+  return new Promise((resolve, reject) => {
+    plantcare.query(sql, sqlParams, (err, results) => {
+      if (err) {
+        reject("Error fetching farm staff: " + err);
+      } else {
+        resolve(results);
+      }
     });
+  });
 };
+
 
 exports.getFarmOwnerByIdDao = (ownerId) => {
   const sql = `
@@ -3495,7 +3501,7 @@ exports.getFarmOwnerByIdDao = (ownerId) => {
   });
 };
 
-exports.updateFarmOwnerByIdDao = (ownerId, data) => {
+exports.updateFarmOwnerByIdDao = (ownerId, data, userId) => {
   const { firstName, lastName, phoneCode, phoneNumber, nic, role } = data;
 
   const sql = `
@@ -3506,11 +3512,12 @@ exports.updateFarmOwnerByIdDao = (ownerId, data) => {
       phoneCode = ?,
       phoneNumber = ?,
       nic = ?,
-      role = ?
+      role = ?,
+      modifyBy = ?
     WHERE id = ?
   `;
 
-  const params = [firstName, lastName, phoneCode, phoneNumber, nic, role, ownerId];
+  const params = [firstName, lastName, phoneCode, phoneNumber, nic, role, userId, ownerId ];
 
   return new Promise((resolve, reject) => {
     plantcare.query(sql, params, (err, results) => {
