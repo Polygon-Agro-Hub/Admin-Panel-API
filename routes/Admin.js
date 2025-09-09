@@ -348,4 +348,12 @@ router.get(
   authMiddleware,
   AdminEp.getFarmerStaff
 );
+
+router.get(
+  "/get-farm-owner",
+  authMiddleware,
+  AdminEp.getFarmOwner
+);
+
+router.put('/update-farm-owner/:id', authMiddleware,  AdminEp.updateFarmOwner);
 module.exports = router;

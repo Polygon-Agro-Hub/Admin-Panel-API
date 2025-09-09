@@ -3004,3 +3004,45 @@ exports.getFarmerStaff = async (req, res) => {
     res.status(500).send("An error occurred while fetching data.");
   }
 };
+
+exports.getFarmOwner = async (req, res) => {
+  try {
+    // Validate query parameter
+    const { id } = await ValidateSchema.getFarmOwnerSchema.validateAsync(req.query);
+
+    // Fetch owner details from DAO
+    const owner = await adminDao.getFarmOwnerByIdDao(id);
+
+    if (!owner) {
+      return res.status(404).json({ error: "Farm owner not found" });
+    }
+
+    console.log("Successfully fetched farm owner details");
+    res.json({ result: owner });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching farm owner data.");
+  }
+};
+
+exports.updateFarmOwner = async (req, res) => {
+  try {
+    const ownerId = req.params.id;
+    const data = req.body;
+
+    // Optional: validate data here using Joi
+    // await ValidateSchema.updateFarmOwnerSchema.validateAsync(data);
+
+    const result = await adminDao.updateFarmOwnerByIdDao(ownerId, data);
+    res.json({
+      message: "Farm staff updated successfully",
+      result
+    });
+  } catch (err) {
+    console.error("Error updating farm staff:", err);
+    res.status(500).json({ error: "An error occurred while updating farm staff." });
+  }
+};
