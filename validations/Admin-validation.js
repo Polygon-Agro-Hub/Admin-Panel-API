@@ -12,7 +12,9 @@ exports.getAllAdminUsersSchema = Joi.object({
   role: Joi.number().integer().optional(),
   search: Joi.string().optional(),
 });
-
+exports.getFarmOwnerSchema = Joi.object({
+  id: Joi.number().required()
+});
 exports.adminCreateUserSchema = Joi.object({
   firstName: Joi.string().required(),
   lastName: Joi.string().required(),

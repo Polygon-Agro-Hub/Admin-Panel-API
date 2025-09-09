@@ -3467,3 +3467,58 @@ exports.getFarmerStaffDao = (id, role) => {
       });
     });
 };
+
+exports.getFarmOwnerByIdDao = (ownerId) => {
+  const sql = `
+    SELECT
+      id,
+      firstName,
+      lastName,
+      phoneCode,
+      phoneNumber,
+      nic,
+      role
+    
+    FROM farmstaff
+    WHERE id = ?
+  `;
+
+  return new Promise((resolve, reject) => {
+    plantcare.query(sql, [ownerId], (err, results) => {
+      if (err) {
+        reject("Error fetching farm owner by ID: " + err);
+      } else {
+        // Return the first record (should only be one)
+        resolve(results[0] || null);
+      }
+    });
+  });
+};
+
+exports.updateFarmOwnerByIdDao = (ownerId, data) => {
+  const { firstName, lastName, phoneCode, phoneNumber, nic, role } = data;
+
+  const sql = `
+    UPDATE farmstaff
+    SET
+      firstName = ?,
+      lastName = ?,
+      phoneCode = ?,
+      phoneNumber = ?,
+      nic = ?,
+      role = ?
+    WHERE id = ?
+  `;
+
+  const params = [firstName, lastName, phoneCode, phoneNumber, nic, role, ownerId];
+
+  return new Promise((resolve, reject) => {
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        reject("Error updating farm owner: " + err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
