@@ -2336,6 +2336,7 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
       SELECT
         o.id AS orderId,
         o.centerId,
+        o.orderApp,
         o.delivaryMethod AS deliveryMethod,
         o.discount AS orderDiscount,
         o.createdAt AS invoiceDate,
