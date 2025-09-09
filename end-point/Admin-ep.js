@@ -2149,6 +2149,8 @@ exports.addNewTaskU = async (req, res) => {
   const cropId = req.params.cropId;
   const onCulscropID = req.params.onCulscropID;
   const indexId = parseInt(req.params.indexId);
+  console.log(req.params);
+  
 
   try {
     const task = req.body;

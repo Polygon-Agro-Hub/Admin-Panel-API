@@ -1692,6 +1692,7 @@ exports.getAllUserTaskByCropId = (cropId, userId, limit, offset) => {
           slavecropcalendardays.videoLinkSinhala,
           slavecropcalendardays.videoLinkTamil,
           slavecropcalendardays.status,
+          slavecropcalendardays.onCulscropID,
           GROUP_CONCAT(taskimages.image SEPARATOR ', ') AS imageUploads
       FROM 
           slavecropcalendardays
