@@ -268,6 +268,12 @@ exports.getAllCollectionOfficersStatus = async (req, res) => {
       );
 
     const { page, limit, nic, centerName } = validatedQuery;
+    console.log("------------------");
+    console.log(centerName);
+    console.log("------------------");
+
+    
+    
 
     // Call the DAO to get all collection officers
     const result = await collectionofficerDao.getAllCollectionOfficersStatus(
@@ -1209,6 +1215,26 @@ exports.getFarmerReportInvoice = async (req, res) => {
     }
 
     res.json({ user: UserResult[0], crops: CropResult, status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching report:", err);
+    res.status(500).json({ error: "An error occurred while fetching news" });
+  }
+};
+
+
+
+exports.getCollectionCenterForReport = async (req, res) => {
+  try {
+    const result = await collectionofficerDao.getCollectionCenterForReportDao();
+
+
+    res.json({ data:result, status: true });
   } catch (err) {
     if (err.isJoi) {
       // Validation error

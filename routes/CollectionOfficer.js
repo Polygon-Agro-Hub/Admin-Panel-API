@@ -322,4 +322,10 @@ router.get(
   CollectionOfficerEp.getFarmerReportInvoice
 )
 
+router.get(
+  "/collection-officer/centers",
+  authMiddleware,
+  CollectionOfficerEp.getCollectionCenterForReport
+)
+
 module.exports = router;

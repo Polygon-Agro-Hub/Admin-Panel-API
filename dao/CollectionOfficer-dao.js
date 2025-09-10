@@ -708,11 +708,11 @@ exports.getAllCollectionOfficersStatus = (
     const dataParams = [];
 
     // Apply filter for centerName only if non-empty
-    if (centerName && centerName.trim()) {
-      countSql += " AND CC.centerName = ?";
-      dataSql += " AND CC.centerName = ?";
-      countParams.push(centerName.trim());
-      dataParams.push(centerName.trim());
+    if (centerName) {
+      countSql += " AND CC.centerName LIKE ?";
+      dataSql += " AND CC.centerName LIKE ?";
+      countParams.push(`%${centerName}%`);
+      dataParams.push(`%${centerName}%`);
     }
 
     // Apply search filters for NIC or related fields
@@ -2380,3 +2380,26 @@ exports.getFarmerCropsInvoiceDetailsDao = (invNo) => {
   });
 };
 
+
+exports.getCollectionCenterForReportDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT cen.centerName
+      FROM company c
+      JOIN companycenter cc ON c.id = cc.companyId
+      JOIN collectioncenter cen ON cc.centerId = cen.id
+      WHERE c.isCollection = 1
+      GROUP BY cen.centerName
+      ORDER BY cen.centerName
+    `;
+
+
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
