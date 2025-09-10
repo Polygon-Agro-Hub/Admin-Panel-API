@@ -2552,7 +2552,7 @@ exports.insertUserXLSXData = (data) => {
           .required(),
         "NIC Number": Joi.alternatives()
           .try(
-            Joi.string().pattern(/^(19\d{9}|\d{9}[vV])$/),
+            Joi.string(),
             Joi.number().integer().min(10000000000).max(199999999999)
           )
           .required(),
@@ -2664,188 +2664,6 @@ exports.insertUserXLSXData = (data) => {
   });
 };
 
-exports.insertUserXLSXDatatest = (data) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // Define validation schema
-      const schema = Joi.object({
-        "First Name": Joi.string().trim().min(2).max(50).required(),
-        "Last Name": Joi.string().trim().min(2).max(50).required(),
-        "Phone Number": Joi.alternatives()
-          .try(
-            Joi.string().pattern(/^\+94\d{9}$/),
-            Joi.number().integer().min(94000000000).max(94999999999)
-          )
-          .required(),
-        "NIC Number": Joi.alternatives()
-          .try(
-            Joi.string().pattern(/^(19\d{9}|\d{9}[vV])$/),
-            Joi.number().integer().min(10000000000).max(199999999999)
-          )
-          .required(),
-        Membership: Joi.required(),
-        District: Joi.required(),
-      }).required();
-
-      // Validate all data
-      const validatedData = [];
-      for (let i = 0; i < data.length; i++) {
-        const { error, value } = schema.validate(data[i]);
-        if (error) {
-          reject(
-            new Error(
-              `Validation error in row ${i + 1}: ${error.details[0].message}`
-            )
-          );
-          return;
-        }
-        validatedData.push(value);
-      }
-
-      // Check for existing users
-      const existingUsers = await new Promise((resolve, reject) => {
-        const phones = validatedData.map((row) =>
-          String(row["Phone Number"]).startsWith("+")
-            ? row["Phone Number"]
-            : `+${row["Phone Number"]}`
-        );
-        const nics = validatedData.map((row) => String(row["NIC Number"]));
-
-        const sql = `
-          SELECT firstName, lastName, phoneNumber, NICnumber 
-          FROM users 
-          WHERE phoneNumber IN (?) OR NICnumber IN (?)
-        `;
-
-        plantcare.query(sql, [phones, nics], (err, results) => {
-          if (err) reject(err);
-          else resolve(results);
-        });
-      });
-
-      if (existingUsers.length > 0) {
-        // Filter out existing users
-        const existingPhones = new Set(
-          existingUsers.map((user) => user.phoneNumber)
-        );
-        const existingNICs = new Set(
-          existingUsers.map((user) => user.NICnumber)
-        );
-
-        const newUsers = validatedData.filter((user) => {
-          const phone = String(user["Phone Number"]).startsWith("+")
-            ? user["Phone Number"]
-            : `+${user["Phone Number"]}`;
-          const nic = String(user["NIC Number"]);
-          return !existingPhones.has(phone) && !existingNICs.has(nic);
-        });
-
-        // Insert only new users
-        if (newUsers.length > 0) {
-          const sql = `
-            INSERT INTO users 
-            (firstName, lastName, phoneNumber, NICnumber,membership, district) 
-            VALUES ?
-          `;
-
-          const values = newUsers.map((row) => [
-            row["First Name"],
-            row["Last Name"],
-            String(row["Phone Number"]).startsWith("+")
-              ? row["Phone Number"]
-              : `+${row["Phone Number"]}`,
-            String(row["NIC Number"]),
-            row["Membership"],
-            row["District"],
-          ]);
-
-          await new Promise((resolve, reject) => {
-            plantcare.query(sql, [values], (err, result) => {
-              if (err) reject(err);
-              else resolve(result);
-            });
-          });
-        }
-
-        resolve({
-          message: "Partial data inserted. Some users already exist.",
-          existingUsers: existingUsers,
-          totalRows: data.length,
-          insertedRows: newUsers.length,
-        });
-      } else {
-        // Insert all users if none exist
-        const sql = `
-          INSERT INTO users 
-          (firstName, lastName, phoneNumber, NICnumber) 
-          VALUES ?
-        `;
-
-        const values = validatedData.map((row) => [
-          row["First Name"],
-          row["Last Name"],
-          String(row["Phone Number"]).startsWith("+")
-            ? row["Phone Number"]
-            : `+${row["Phone Number"]}`,
-          String(row["NIC Number"]),
-        ]);
-
-        const result = await new Promise((resolve, reject) => {
-          plantcare.query(sql, [values], (err, result) => {
-            if (err) reject(err);
-            else resolve(result);
-          });
-        });
-
-        resolve({
-          message: "All data validated and inserted successfully",
-          totalRows: data.length,
-          insertedRows: result.affectedRows,
-        });
-      }
-    } catch (error) {
-      reject(error);
-    }
-  });
-};
-
-// exports.getUserFeedbackDetails = () => {
-//   return new Promise((resolve, reject) => {
-//     const sql = `
-// SELECT
-//     du.firstName,
-//     du.lastName,
-//     du.createdAt AS deletedUserCreatedAt,
-//     GROUP_CONCAT(fl.orderNumber ORDER BY fl.orderNumber ASC) AS orderNumbers,
-//     GROUP_CONCAT(fl.feedbackEnglish ORDER BY fl.orderNumber ASC) AS feedbacks
-// FROM
-//     userfeedback uf
-// JOIN
-//     deleteduser du ON uf.deletedUserId = du.id
-// JOIN
-//     feedbacklist fl ON uf.feedbackId = fl.id
-// GROUP BY
-//     du.firstName, du.lastName, du.createdAt
-// ORDER BY
-//     du.createdAt;
-
-//     `;
-
-//     console.log("Executing full SQL query:", sql);
-
-//     plantcare.query(sql, (err, results) => {
-//       if (err) {
-//         console.error("Error details:", err); // Log the full error details
-//         return reject(
-//           new Error("An error occurred while fetching user feedback details")
-//         );
-//       }
-
-//       console.log("Query Results:", results); // Log the results for debugging
-//       resolve(results); // Resolve the promise with the results
-//     });
-//   });
-// };
 
 exports.getUserFeedbackDetails = (page, limit) => {
   return new Promise((resolve, reject) => {
@@ -3517,7 +3335,7 @@ exports.updateFarmOwnerByIdDao = (ownerId, data, userId) => {
     WHERE id = ?
   `;
 
-  const params = [firstName, lastName, phoneCode, phoneNumber, nic, role, userId, ownerId ];
+  const params = [firstName, lastName, phoneCode, phoneNumber, nic, role, userId, ownerId];
 
   return new Promise((resolve, reject) => {
     plantcare.query(sql, params, (err, results) => {
