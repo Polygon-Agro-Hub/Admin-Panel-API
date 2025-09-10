@@ -1691,7 +1691,8 @@ exports.getAllCenterNamesDao = (district) => {
     const sql = `
             SELECT CC.id, CC.regCode, CC.centerName
             FROM collectioncenter CC, companycenter COMC, company COM
-            WHERE CC.id = COMC.centerId AND COMC.companyId = COM.id AND COM.isCollection = 1;
+            WHERE CC.id = COMC.centerId AND COMC.companyId = COM.id AND COM.isCollection = 1
+            ORDER BY CC.centerName ASC;
         `;
     collectionofficer.query(sql, [district], (err, results) => {
       if (err) {
