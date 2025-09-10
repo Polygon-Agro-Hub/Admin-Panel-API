@@ -3466,3 +3466,54 @@ exports.getFarmerStaffDao = (id, role) => {
       });
     });
 };
+
+
+
+exports.getUserFarmDetailsDao = (userId) => {
+  const sqlParams = [userId];
+  let sql = `
+    SELECT
+      u.id as userId,
+      u.firstName,
+      u.lastName,
+      u.phoneNumber,
+      u.NICnumber,
+      u.profileImage,
+      u.membership,
+      u.activeStatus,
+      u.houseNo,
+      u.streetName,
+      u.city as userCity,
+      u.district as userDistrict,
+      u.route,
+      u.language,
+      f.id as farmId,
+      f.farmName,
+      f.farmIndex,
+      f.extentha,
+      f.extentac,
+      f.extentp,
+      f.district as farmDistrict,
+      f.plotNo,
+      f.street as farmStreet,
+      f.city as farmCity,
+      f.staffCount,
+      f.appUserCount,
+      f.imageId,
+      f.isBlock,
+      f.createdAt as farmCreatedAt
+    FROM users u
+    LEFT JOIN farms f ON u.id = f.userId
+    WHERE u.id = ?
+  `;
+
+  return new Promise((resolve, reject) => {
+    plantcare.query(sql, sqlParams, (err, results) => {
+      if (err) {
+        reject("Error fetching user farm details: " + err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};

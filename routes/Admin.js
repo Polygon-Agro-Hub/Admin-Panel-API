@@ -348,4 +348,12 @@ router.get(
   authMiddleware,
   AdminEp.getFarmerStaff
 );
+
+router.get(
+  "/get-all-farmer-farms",
+  authMiddleware,
+  AdminEp.getUserFarmDetails
+);
+
+
 module.exports = router;
