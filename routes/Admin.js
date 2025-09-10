@@ -356,4 +356,12 @@ router.get(
 );
 
 router.put('/update-farm-owner/:id', authMiddleware,  AdminEp.updateFarmOwner);
+
+router.get(
+  "/get-all-farmer-farms",
+  authMiddleware,
+  AdminEp.getUserFarmDetails
+);
+
+
 module.exports = router;
