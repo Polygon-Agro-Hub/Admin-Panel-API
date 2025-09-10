@@ -2877,3 +2877,52 @@ exports.getUserFarmDetails = async (req, res) => {
     res.status(500).send("An error occurred while fetching data.");
   }
 };
+
+
+
+exports.getFarmsByUser = async (req, res) => {
+  try {
+    // Validate query params (pagination, search, userId)
+    const queryParams =
+      await ValidateSchema.getFarmsByUserSchema.validateAsync(req.query);
+
+    const page = queryParams.page;
+    const limit = queryParams.limit;
+    const offset = (page - 1) * limit;
+    const searchItem = queryParams.search || "";
+    const userId = queryParams.userId; // farmer id (required)
+
+    // Call DAO to fetch farms
+    const { total, items } = await adminDao.getAllFarmsWithCultivations(
+      userId,
+      searchItem,
+      limit,
+      offset
+    );
+
+    res.json({
+      total,
+      items,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching farms:", err);
+    res.status(500).send("An error occurred while fetching farms.");
+  }
+};
+
+exports.deleteFarm = async (req, res) => {
+  try {
+    const { farmId } = req.params;
+
+    const result = await adminDao.deleteFarmById(farmId);
+
+    res.json(result);
+  } catch (err) {
+    console.error("Error deleting farm:", err);
+    res.status(500).send("An error occurred while deleting the farm.");
+  }
+};

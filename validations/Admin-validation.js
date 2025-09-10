@@ -21,7 +21,12 @@ exports.adminCreateUserSchema = Joi.object({
   phoneNumber: Joi.string().required(),
   NICnumber: Joi.string().required(),
 });
-
+exports.adminCreateUserSchema = Joi.object({
+  firstName: Joi.string().required(),
+  lastName: Joi.string().required(),
+  phoneNumber: Joi.string().required(),
+  NICnumber: Joi.string().required(),
+});
 exports.getAllUsersSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(10),
@@ -440,3 +445,9 @@ exports.getFarmerStaffShema = Joi.object({
   id: Joi.number().integer().positive().required(),
   role: Joi.string().optional(),
 });
+exports.getFarmsByUserSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+  search: Joi.string().allow("", null),
+  userId: Joi.number().integer().required(),
+}).options({ convert: true }); // <- important

@@ -363,5 +363,18 @@ router.get(
   AdminEp.getUserFarmDetails
 );
 
+router.get(
+  "/get-farms-by-user",
+  authMiddleware,
+  AdminEp.getFarmsByUser
+);
+
+// Delete a farm by ID
+router.delete(
+  "/delete-farm/:farmId",
+  authMiddleware,
+  AdminEp.deleteFarm
+);
+
 
 module.exports = router;

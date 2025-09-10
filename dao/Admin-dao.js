@@ -556,7 +556,7 @@ exports.editMarketPrice = (id, data) => {
 
 exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
   return new Promise((resolve, reject) => {
-    // Count query now uses DISTINCT to count unique cultivations
+    // Count query
     let countSql = `
       SELECT COUNT(DISTINCT OC.id) as total 
       FROM ongoingcultivations OC
@@ -564,18 +564,20 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
       LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
     `;
 
-    // Data query remains similar but with explicit JOINs for clarity
+    // Data query with farm count
     let dataSql = `
       SELECT 
         OC.id AS cultivationId, 
-        U.id,
+        U.id AS userId,
         U.firstName, 
         U.lastName, 
         U.NICnumber,
-        COUNT(OCC.cropCalendar) AS CropCount
+        COUNT(OCC.cropCalendar) AS CropCount,
+        COUNT(DISTINCT F.id) AS FarmCount
       FROM ongoingcultivations OC
       LEFT JOIN users U ON OC.userId = U.id
       LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+      LEFT JOIN farms F ON F.userId = U.id
     `;
 
     const countParams = [];
@@ -619,7 +621,6 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
         resolve({
           total,
           items: dataResults,
-          // Optional: include total crops count if needed
           totalCrops: dataResults.reduce(
             (sum, item) => sum + item.CropCount,
             0
@@ -3395,6 +3396,110 @@ exports.getUserFarmDetailsDao = (userId) => {
       } else {
         resolve(results);
       }
+    });
+  });
+};
+
+exports.getAllFarmsWithCultivations = (userId, searchItem) => {
+  return new Promise((resolve, reject) => {
+    let params = [];
+    let searchSql = "";
+
+    if (searchItem) {
+      searchSql = `
+        AND (
+          U.NICnumber LIKE ? OR
+          U.firstName LIKE ? OR
+          U.lastName LIKE ? OR
+          F.farmName LIKE ?
+        )
+      `;
+      const searchQuery = `%${searchItem}%`;
+      params.push(searchQuery, searchQuery, searchQuery, searchQuery);
+    }
+
+    // Filter by specific user
+    if (userId) {
+      searchSql += " AND U.id = ? ";
+      params.push(userId);
+    }
+
+    const sql = `
+      SELECT 
+        F.id AS farmId,
+        F.farmName,
+        F.farmIndex,
+        F.staffCount,
+        F.district AS farmDistrict,
+        F.createdAt AS farmCreatedAt,
+        U.id AS userId,
+        U.firstName,
+        U.lastName,
+        U.NICnumber,
+        COUNT(DISTINCT OC.id) AS cultivationCount
+      FROM farms F
+      LEFT JOIN users U ON F.userId = U.id
+      LEFT JOIN ongoingcultivations OC ON OC.userId = U.id
+      WHERE 1=1 ${searchSql}
+      GROUP BY F.id, U.id
+      ORDER BY F.createdAt DESC
+    `;
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+
+      // Group farms by user
+      const usersMap = {};
+      results.forEach(row => {
+        if (!usersMap[row.userId]) {
+          usersMap[row.userId] = {
+            userId: row.userId,
+            firstName: row.firstName,
+            lastName: row.lastName,
+            NICnumber: row.NICnumber,
+            farms: [],
+          };
+        }
+
+        usersMap[row.userId].farms.push({
+          farmId: row.farmId,
+          farmName: row.farmName,
+          farmIndex: row.farmIndex,
+          staffCount: row.staffCount,
+          farmDistrict: row.farmDistrict,
+          farmCreatedAt: row.farmCreatedAt,
+          cultivationCount: row.cultivationCount, // updated
+        });
+      });
+
+      const items = Object.values(usersMap);
+
+      resolve({
+        totalUsers: items.length,
+        items,
+      });
+    });
+  });
+};
+
+
+// Delete a farm by farmId
+exports.deleteFarmById = (farmId) => {
+  return new Promise((resolve, reject) => {
+    if (!farmId) {
+      return reject(new Error("Farm ID is required"));
+    }
+
+    const sql = `DELETE FROM farms WHERE id = ?`;
+
+    plantcare.query(sql, [farmId], (err, result) => {
+      if (err) return reject(err);
+
+      if (result.affectedRows === 0) {
+        return resolve({ success: false, message: "No farm found with the given ID" });
+      }
+
+      resolve({ success: true, message: `Farm with ID ${farmId} deleted successfully` });
     });
   });
 };
