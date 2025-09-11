@@ -143,7 +143,7 @@ router.get(
 );
 
 router.get(
-  "/get-ongoing-cultivation-by-id/:id",
+  "/get-ongoing-cultivation-by-id/:cultivationId/:userId",
   authMiddleware,
   AdminEp.getOngoingCultivationsById
 );
