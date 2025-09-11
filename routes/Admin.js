@@ -163,7 +163,7 @@ router.post(
 );
 
 router.get(
-  "/get-fixed-assets/:id/:category",
+  "/get-fixed-assets/:id/:category/:farmId",
   authMiddleware,
   AdminEp.getFixedAssetsByCategory
 );
