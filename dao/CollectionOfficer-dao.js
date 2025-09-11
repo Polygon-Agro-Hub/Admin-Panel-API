@@ -1709,7 +1709,7 @@ ORDER BY CC.centerName ASC;
 exports.getAllCenterManagerDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT id, firstNameEnglish, lastNameEnglish
+      SELECT id, firstNameEnglish, lastNameEnglish, empId
       FROM collectionofficer
       WHERE jobRole = 'Collection Center Manager' 
         AND companyId = 1 
@@ -1724,23 +1724,6 @@ exports.getAllCenterManagerDao = (centerId) => {
       }
       
       resolve(results || []);
-    });
-  });
-};
-
-exports.getAllCenterManagerDao = () => {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT id, firstNameEnglish, lastNameEnglish
-      FROM collectionofficer
-      WHERE jobRole = 'Collection Center Manager';
-    `;
-
-    collectionofficer.query(sql, (err, results) => {
-      if (err) {
-        return reject(err); // Reject promise if an error occurs
-      }
-      resolve(results); // Resolve the promise with the query results
     });
   });
 };
