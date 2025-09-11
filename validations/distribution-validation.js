@@ -1,12 +1,12 @@
 const Joi = require("joi");
 
 exports.getDistributionCenterDetailsSchema = Joi.object({
-  centerName: Joi.string().required(), // Changed from name
-  companyId: Joi.number().integer().required(), // Changed from company
-  contact01: Joi.string().required(), // Changed from contact1
-  code1: Joi.string().required(), // Changed from contact1Code
-  contact02: Joi.string().optional().allow(null, ""), // Changed from contact2
-  code2: Joi.string().optional().allow(null, ""), // Changed from contact2Code
+  name: Joi.string().required(), // Changed from name
+  company: Joi.number().integer().required(), // Changed from company
+  contact1: Joi.string().required(), // Changed from contact1
+  contact1Code: Joi.string().required(), // Changed from contact1Code
+  contact2: Joi.string().optional().allow(null, ""), // Changed from contact2
+  contact2Code: Joi.string().optional().allow(null, ""), // Changed from contact2Code
   latitude: Joi.string().required(),
   longitude: Joi.string().required(),
   email: Joi.string().email().required(),
