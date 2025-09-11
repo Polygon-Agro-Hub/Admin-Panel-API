@@ -695,7 +695,7 @@ exports.getOngoingCultivationsById = (id) => {
   });
 };
 
-exports.getFixedAssetsByCategory = (userId, category) => {
+exports.getFixedAssetsByCategory = (userId, category, farmId) => {
   const validCategories = {
     "Building and Infrastructures": `
             SELECT 
@@ -711,7 +711,7 @@ exports.getFixedAssetsByCategory = (userId, category) => {
             JOIN 
                 buildingfixedasset ON fixedasset.id = buildingfixedasset.fixedAssetId
             WHERE 
-                fixedasset.userId = ?;
+                fixedasset.userId = ? AND fixedasset.farmId = ?;
         `,
     Land: `
             SELECT 
@@ -728,7 +728,7 @@ exports.getFixedAssetsByCategory = (userId, category) => {
             JOIN 
                 landfixedasset ON fixedasset.id = landfixedasset.fixedAssetId
             WHERE 
-                fixedasset.userId = ?;
+                fixedasset.userId = ? AND fixedasset.farmId = ?;
         `,
     "Machinery and Vehicles": `
             SELECT
@@ -749,7 +749,7 @@ exports.getFixedAssetsByCategory = (userId, category) => {
             LEFT JOIN
                 machtoolsfixedassetwarranty ON machtoolsfixedasset.id = machtoolsfixedassetwarranty.machToolsId
             WHERE 
-                fixedasset.userId = ? AND fixedasset.category = 'Machine and Vehicles';
+                fixedasset.userId = ? AND fixedasset.farmId = ? AND fixedasset.category = 'Machine and Vehicles';
         `,
     "Tools and Equipments": `
             SELECT
@@ -770,7 +770,7 @@ exports.getFixedAssetsByCategory = (userId, category) => {
             LEFT JOIN
                 machtoolsfixedassetwarranty ON machtoolsfixedasset.id = machtoolsfixedassetwarranty.machToolsId
             WHERE 
-                fixedasset.userId = ? AND fixedasset.category = 'Tools';
+                fixedasset.userId = ? AND fixedasset.farmId = ? AND fixedasset.category = 'Tools';
         `,
   };
 
@@ -781,7 +781,7 @@ exports.getFixedAssetsByCategory = (userId, category) => {
   }
 
   return new Promise((resolve, reject) => {
-    plantcare.query(sql, [userId], (err, results) => {
+    plantcare.query(sql, [userId, farmId], (err, results) => {
       if (err) {
         reject("Error fetching assets: " + err);
       } else {
