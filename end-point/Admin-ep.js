@@ -874,13 +874,12 @@ exports.getFixedAssetsByCategory = async (req, res) => {
 
   try {
     // Validate the request params (id and category)
-    const { id, category } =
-      await ValidateSchema.getFixedAssetsByCategorySchema.validateAsync(
-        req.params
-      );
+    const { id,farmId, category } = req.params;
+    
+    console.log("id, category ,farmId",id, category ,farmId);
 
     // Fetch assets by category from DAO
-    const results = await adminDao.getFixedAssetsByCategory(id, category);
+    const results = await adminDao.getFixedAssetsByCategory(id, category,farmId);
 
     console.log("Successfully retrieved assets");
     res.status(200).json(results);
