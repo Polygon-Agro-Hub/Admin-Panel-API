@@ -1706,17 +1706,24 @@ ORDER BY CC.centerName ASC;
   });
 };
 
-exports.getAllCenterManagerDao = () => {
+exports.getAllCenterManagerDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT id, centerName
-            FROM collectioncenter
-        `;
-    collectionofficer.query(sql, (err, results) => {
+      SELECT id, firstNameEnglish, lastNameEnglish
+      FROM collectionofficer
+      WHERE jobRole = 'Collection Center Manager' 
+        AND companyId = 1 
+        AND status = 'Approved' 
+        AND centerId = ?
+    `;
+    
+    collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        console.error('Database error in getAllCenterManagerDao:', err);
+        return reject(new Error('Failed to fetch center managers'));
       }
-      resolve(results); // Resolve the promise with the query results
+      
+      resolve(results || []);
     });
   });
 };
