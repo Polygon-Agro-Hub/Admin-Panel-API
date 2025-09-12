@@ -179,6 +179,7 @@ exports.getOngoingCultivationsByIdSchema = Joi.object({
 
 exports.getFixedAssetsByCategorySchema = Joi.object({
   id: Joi.number().integer().required().label("User ID"),
+  farmId: Joi.number().integer().required().label("Farm ID"),
   category: Joi.string()
     .valid(
       "Building and Infrastructures",
@@ -188,7 +189,7 @@ exports.getFixedAssetsByCategorySchema = Joi.object({
     )
     .required()
     .label("Category"),
-});
+}).options({ convert: true });
 
 exports.getCurrentAssetsByCategorySchema = Joi.object({
   id: Joi.number().integer().required().label("User ID"),

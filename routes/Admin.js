@@ -143,7 +143,7 @@ router.get(
 );
 
 router.get(
-  "/get-ongoing-cultivation-by-id/:id",
+  "/get-ongoing-cultivation-by-id/:cultivationId/:userId",
   authMiddleware,
   AdminEp.getOngoingCultivationsById
 );
@@ -163,7 +163,7 @@ router.post(
 );
 
 router.get(
-  "/get-fixed-assets/:id/:category",
+  "/get-fixed-assets/:id/:category/:farmId",
   authMiddleware,
   AdminEp.getFixedAssetsByCategory
 );
