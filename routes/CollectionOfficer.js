@@ -147,7 +147,7 @@ router.get(
 );
 
 router.get(
-  "/collection-officer/get-all-collection-manager-names",
+  "/collection-officer/get-all-collection-manager-names/:centerId",
   authMiddleware,
   CollectionOfficerEp.getAllCollectionManagerNames
 );

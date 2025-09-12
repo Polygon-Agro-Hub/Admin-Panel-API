@@ -99,10 +99,10 @@ exports.getAllCropNameDAO = () => {
 //     });
 //   });
 // };
-exports.checkMarketProductExistsDao = async (varietyId, displayName) => {
+exports.checkMarketProductExistsDao = async (varietyId, displayName, category) => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT * FROM marketplaceitems WHERE varietyId = ? OR displayName = ?";
-    const values = [varietyId, displayName];
+    const sql = "SELECT * FROM marketplaceitems WHERE category = ? AND (varietyId = ? OR displayName = ?)";
+    const values = [category, varietyId, displayName];
 
     marketPlace.query(sql, values, (err, results) => {
       if (err) {
@@ -174,7 +174,8 @@ exports.getMarketplaceItems = (
   offset,
   searchItem,
   displayTypeValue,
-  categoryValue
+  categoryValue,
+  discountFilter // Add new parameter
 ) => {
   return new Promise((resolve, reject) => {
     let whereConditions = [];
@@ -211,10 +212,17 @@ exports.getMarketplaceItems = (
       dataParams.push(displayTypeValue);
     }
 
+    // Add category condition if provided
     if (categoryValue) {
       whereConditions.push("m.category = ?");
       countParams.push(categoryValue);
       dataParams.push(categoryValue);
+    }
+
+    // Add discount filter condition if provided
+    if (discountFilter === 'zero') {
+      whereConditions.push("m.discount = 0");
+      // No parameters to add for this condition
     }
 
     // Combine WHERE conditions if any exist
