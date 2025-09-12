@@ -654,46 +654,88 @@ exports.getOngoingCultivationsWithUserDetails = () => {
   });
 };
 
-exports.getOngoingCultivationsById = (id) => {
+// exports.getOngoingCultivationsById = (farmId, userId) => {
+//   const sql = `
+//     SELECT DISTINCT
+//       ongoingcultivationscrops.id AS ongoingcultivationscropsid, 
+//       ongoingcultivationscrops.ongoingCultivationId,
+//       ongoingcultivationscrops.cropCalendar,
+//       ongoingcultivationscrops.startedAt,
+//       (ongoingcultivationscrops.extentac + ongoingcultivationscrops.extentha * 2.47105 +  ongoingcultivationscrops.extentp / 160 )  AS extentac,
+//       cropgroup.cropNameEnglish AS cropName,
+//       cropvariety.varietyNameEnglish AS variety,
+//       cropcalender.method AS cultivationMethod,
+//       cropcalender.natOfCul AS natureOfCultivation,
+//       cropcalender.cropDuration AS cropDuration,
+//       ongoingcultivationscrops.longitude,
+//       ongoingcultivationscrops.latitude,
+//       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id) AS totalTasks,
+//       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id AND status = 'completed') AS completedTasks
+//     FROM 
+//       ongoingcultivationscrops
+//     JOIN 
+//       cropcalender ON ongoingcultivationscrops.cropCalendar = cropcalender.id
+//     JOIN 
+//       cropvariety ON cropcalender.cropVarietyId = cropvariety.id
+//     JOIN 
+//       cropgroup ON cropvariety.cropGroupId = cropgroup.id
+//     LEFT JOIN 
+//       slavecropcalendardays ON slavecropcalendardays.onCulscropID = ongoingcultivationscrops.id 
+//     WHERE
+//       ongoingcultivationscrops.ongoingCultivationId = ?`;
+
+//   return new Promise((resolve, reject) => {
+//     plantcare.query(sql, [farmId], (err, results) => {  // <-- use farmId here
+//       if (err) {
+//         reject("Error fetching cultivation crops by ID: " + err);
+//       } else {
+//         resolve(results);
+//       }
+//     });
+//   });
+// };
+
+exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
   const sql = `
     SELECT DISTINCT
-      ongoingcultivationscrops.id AS ongoingcultivationscropsid, 
-      ongoingcultivationscrops.ongoingCultivationId,
-      ongoingcultivationscrops.cropCalendar,
-      ongoingcultivationscrops.startedAt,
-      (ongoingcultivationscrops.extentac + ongoingcultivationscrops.extentha * 2.47105 +  ongoingcultivationscrops.extentp / 160 )  AS extentac,
-      cropgroup.cropNameEnglish AS cropName,
-      cropvariety.varietyNameEnglish AS variety,
-      cropcalender.method AS cultivationMethod,
-      cropcalender.natOfCul AS natureOfCultivation,
-      cropcalender.cropDuration AS cropDuration,
-      ongoingcultivationscrops.longitude,
-      ongoingcultivationscrops.latitude,
-      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id) AS totalTasks,
-      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id AND status = 'completed') AS completedTasks
+      occ.id AS ongoingcultivationscropsid,
+      occ.ongoingCultivationId,
+      occ.cropCalendar,
+      occ.startedAt,
+      (occ.extentac + occ.extentha * 2.47105 + occ.extentp / 160) AS extentac,
+      cg.cropNameEnglish AS cropName,
+      cv.varietyNameEnglish AS variety,
+      cc.method AS cultivationMethod,
+      cc.natOfCul AS natureOfCultivation,
+      cc.cropDuration AS cropDuration,
+      occ.longitude,
+      occ.latitude,
+      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
+      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks
     FROM 
-      ongoingcultivationscrops
+      ongoingcultivationscrops occ
     JOIN 
-      cropcalender ON ongoingcultivationscrops.cropCalendar = cropcalender.id
+      ongoingcultivations oc ON occ.ongoingCultivationId = oc.id
     JOIN 
-      cropvariety ON cropcalender.cropVarietyId = cropvariety.id
+      cropcalender cc ON occ.cropCalendar = cc.id
     JOIN 
-      cropgroup ON cropvariety.cropGroupId = cropgroup.id
-    LEFT JOIN 
-      slavecropcalendardays ON slavecropcalendardays.onCulscropID = ongoingcultivationscrops.id 
+      cropvariety cv ON cc.cropVarietyId = cv.id
+    JOIN 
+      cropgroup cg ON cv.cropGroupId = cg.id
     WHERE
-      ongoingcultivationscrops.ongoingCultivationId = ?`;
+      occ.farmId = ? AND oc.userId = ?`;  // filter by farmId and userId
 
   return new Promise((resolve, reject) => {
-    plantcare.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [farmId, userId], (err, results) => {
       if (err) {
-        reject("Error fetching cultivation crops by ID: " + err);
+        reject("Error fetching cultivation crops by farmId: " + err);
       } else {
         resolve(results);
       }
     });
   });
 };
+
 
 exports.getFixedAssetsByCategory = (userId, category, farmId) => {
   const validCategories = {
@@ -3513,6 +3555,87 @@ exports.getUserFarmDetailsDao = (userId) => {
   });
 };
 
+// exports.getAllFarmsWithCultivations = (userId, searchItem) => {
+//   return new Promise((resolve, reject) => {
+//     let params = [];
+//     let searchSql = "";
+
+//     if (searchItem) {
+//       searchSql = `
+//         AND (
+//           U.NICnumber LIKE ? OR
+//           U.firstName LIKE ? OR
+//           U.lastName LIKE ? OR
+//           F.farmName LIKE ?
+//         )
+//       `;
+//       const searchQuery = `%${searchItem}%`;
+//       params.push(searchQuery, searchQuery, searchQuery, searchQuery);
+//     }
+
+//     // Filter by specific user
+//     if (userId) {
+//       searchSql += " AND U.id = ? ";
+//       params.push(userId);
+//     }
+
+//     const sql = `
+//       SELECT 
+//         F.id AS farmId,
+//         F.farmName,
+//         F.farmIndex,
+//         F.staffCount,
+//         F.district AS farmDistrict,
+//         F.createdAt AS farmCreatedAt,
+//         U.id AS userId,
+//         U.firstName,
+//         U.lastName,
+//         U.NICnumber,
+//         COUNT(DISTINCT OC.id) AS cultivationCount
+//       FROM farms F
+//       LEFT JOIN users U ON F.userId = U.id
+//       LEFT JOIN ongoingcultivations OC ON OC.userId = U.id
+//       WHERE 1=1 ${searchSql}
+//       GROUP BY F.id, U.id
+//       ORDER BY F.createdAt DESC
+//     `;
+
+//     plantcare.query(sql, params, (err, results) => {
+//       if (err) return reject(err);
+
+//       // Group farms by user
+//       const usersMap = {};
+//       results.forEach(row => {
+//         if (!usersMap[row.userId]) {
+//           usersMap[row.userId] = {
+//             userId: row.userId,
+//             firstName: row.firstName,
+//             lastName: row.lastName,
+//             NICnumber: row.NICnumber,
+//             farms: [],
+//           };
+//         }
+
+//         usersMap[row.userId].farms.push({
+//           farmId: row.farmId,
+//           farmName: row.farmName,
+//           farmIndex: row.farmIndex,
+//           staffCount: row.staffCount,
+//           farmDistrict: row.farmDistrict,
+//           farmCreatedAt: row.farmCreatedAt,
+//           cultivationCount: row.cultivationCount, // updated
+//         });
+//       });
+
+//       const items = Object.values(usersMap);
+
+//       resolve({
+//         totalUsers: items.length,
+//         items,
+//       });
+//     });
+//   });
+// };
 exports.getAllFarmsWithCultivations = (userId, searchItem) => {
   return new Promise((resolve, reject) => {
     let params = [];
@@ -3531,7 +3654,6 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
       params.push(searchQuery, searchQuery, searchQuery, searchQuery);
     }
 
-    // Filter by specific user
     if (userId) {
       searchSql += " AND U.id = ? ";
       params.push(userId);
@@ -3549,10 +3671,13 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
         U.firstName,
         U.lastName,
         U.NICnumber,
-        COUNT(DISTINCT OC.id) AS cultivationCount
+        COUNT(DISTINCT OCC.id) AS cultivationCount
       FROM farms F
       LEFT JOIN users U ON F.userId = U.id
       LEFT JOIN ongoingcultivations OC ON OC.userId = U.id
+      LEFT JOIN ongoingcultivationscrops OCC 
+        ON OCC.ongoingCultivationId = OC.id 
+        AND OCC.farmId = F.id
       WHERE 1=1 ${searchSql}
       GROUP BY F.id, U.id
       ORDER BY F.createdAt DESC
@@ -3561,7 +3686,6 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
     plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
 
-      // Group farms by user
       const usersMap = {};
       results.forEach(row => {
         if (!usersMap[row.userId]) {
@@ -3581,15 +3705,13 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
           staffCount: row.staffCount,
           farmDistrict: row.farmDistrict,
           farmCreatedAt: row.farmCreatedAt,
-          cultivationCount: row.cultivationCount, // updated
+          cultivationCount: row.cultivationCount,
         });
       });
 
-      const items = Object.values(usersMap);
-
       resolve({
-        totalUsers: items.length,
-        items,
+        totalUsers: Object.keys(usersMap).length,
+        items: Object.values(usersMap),
       });
     });
   });

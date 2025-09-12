@@ -850,13 +850,10 @@ exports.getOngoingCultivationsById = async (req, res) => {
 
   try {
     // Validate the request params (ID)
-    const { id } =
-      await ValidateSchema.getOngoingCultivationsByIdSchema.validateAsync(
-        req.params
-      );
+   const {cultivationId, userId} = req.params
 
     // Fetch cultivation crops data from DAO
-    const results = await adminDao.getOngoingCultivationsById(id);
+    const results = await adminDao.getOngoingCultivationsByFarmId(cultivationId, userId);
 
     console.log("Successfully fetched cultivation crops by ID");
     res.status(200).json(results);
