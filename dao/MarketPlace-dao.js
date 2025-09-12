@@ -99,10 +99,10 @@ exports.getAllCropNameDAO = () => {
 //     });
 //   });
 // };
-exports.checkMarketProductExistsDao = async (varietyId, displayName) => {
+exports.checkMarketProductExistsDao = async (varietyId, displayName, category) => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT * FROM marketplaceitems WHERE varietyId = ? OR displayName = ?";
-    const values = [varietyId, displayName];
+    const sql = "SELECT * FROM marketplaceitems WHERE category = ? AND (varietyId = ? OR displayName = ?)";
+    const values = [category, varietyId, displayName];
 
     marketPlace.query(sql, values, (err, results) => {
       if (err) {
