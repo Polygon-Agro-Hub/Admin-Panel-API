@@ -53,7 +53,6 @@ exports.checkNICExist = async (nic, excludeId = null) => {
   });
 };
 
-
 exports.checkEmailExist = async (email, excludeId = null) => {
   return new Promise((resolve, reject) => {
     let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE email = ?`;
@@ -71,7 +70,7 @@ exports.checkEmailExist = async (email, excludeId = null) => {
 
 // Check if phone number exists, excluding the current officer
 exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
-  console.log('officer', excludeId);
+  console.log("officer", excludeId);
   return new Promise((resolve, reject) => {
     let sql = `SELECT COUNT(*) as count 
                FROM collectionofficer 
@@ -87,7 +86,6 @@ exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
     });
   });
 };
-
 
 // exports.createCollectionOfficerPersonal = (officerData, profileImageUrl) => {
 //   return new Promise(async (resolve, reject) => {
@@ -173,7 +171,6 @@ exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
 //   });
 // };
 
-
 exports.createCollectionOfficerPersonal = (
   officerData,
   profileImageUrl,
@@ -202,7 +199,10 @@ exports.createCollectionOfficerPersonal = (
 
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
-      if (officerData.jobRole === 'Collection Center Manager' || officerData.jobRole === 'Collection Center Head') {
+      if (
+        officerData.jobRole === "Collection Center Manager" ||
+        officerData.jobRole === "Collection Center Head"
+      ) {
         officerData.irmId = null;
       }
 
@@ -900,7 +900,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => { });
+    doc.on("end", () => {});
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -1690,9 +1690,12 @@ exports.getAllCenterNamesDao = (district) => {
   return new Promise((resolve, reject) => {
     const sql = `
             SELECT CC.id, CC.regCode, CC.centerName
-            FROM collectioncenter CC, companycenter COMC, company COM
-            WHERE CC.id = COMC.centerId AND COMC.companyId = COM.id AND COM.isCollection = 1
-            ORDER BY CC.centerName ASC;
+FROM collectioncenter CC, companycenter COMC, company COM
+WHERE CC.id = COMC.centerId 
+  AND COMC.companyId = COM.id 
+  AND COM.isCollection = 1 
+  AND COM.id = 1 GROUP BY CC.id, CC.regCode, CC.centerName
+ORDER BY CC.centerName ASC;
         `;
     collectionofficer.query(sql, [district], (err, results) => {
       if (err) {
@@ -1703,34 +1706,24 @@ exports.getAllCenterNamesDao = (district) => {
   });
 };
 
-exports.getAllCenterManagerDao = () => {
+exports.getAllCenterManagerDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT id, centerName
-            FROM collectioncenter
-        `;
-    collectionofficer.query(sql, (err, results) => {
-      if (err) {
-        return reject(err); // Reject promise if an error occurs
-      }
-      resolve(results); // Resolve the promise with the query results
-    });
-  });
-};
-
-exports.getAllCenterManagerDao = () => {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT id, firstNameEnglish, lastNameEnglish
+      SELECT id, firstNameEnglish, lastNameEnglish, empId
       FROM collectionofficer
-      WHERE jobRole = 'Collection Center Manager';
+      WHERE jobRole = 'Collection Center Manager' 
+        AND companyId = 1 
+        AND status = 'Approved' 
+        AND centerId = ?
     `;
-
-    collectionofficer.query(sql, (err, results) => {
+    
+    collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        console.error('Database error in getAllCenterManagerDao:', err);
+        return reject(new Error('Failed to fetch center managers'));
       }
-      resolve(results); // Resolve the promise with the query results
+      
+      resolve(results || []);
     });
   });
 };
@@ -2350,17 +2343,14 @@ exports.getFarmerInvoiceDetailsDao = (invNo) => {
             LIMIT 1
             `;
 
-
     collectionofficer.query(sql, [invNo], (err, results) => {
       if (err) {
-
         return reject(err);
       }
       resolve(results);
     });
   });
 };
-
 
 exports.getFarmerCropsInvoiceDetailsDao = (invNo) => {
   return new Promise((resolve, reject) => {
@@ -2370,17 +2360,14 @@ exports.getFarmerCropsInvoiceDetailsDao = (invNo) => {
         WHERE FPC.registerFarmerId = RFP.id AND FPC.cropId = CV.id AND CV.cropGroupId = CG.id AND RFP.invNo = ?
             `;
 
-
     collectionofficer.query(sql, [invNo], (err, results) => {
       if (err) {
-
         return reject(err);
       }
       resolve(results);
     });
   });
 };
-
 
 exports.getCollectionCenterForReportDao = () => {
   return new Promise((resolve, reject) => {
@@ -2394,10 +2381,8 @@ exports.getCollectionCenterForReportDao = () => {
       ORDER BY cen.centerName
     `;
 
-
     collectionofficer.query(sql, (err, results) => {
       if (err) {
-
         return reject(err);
       }
       resolve(results);

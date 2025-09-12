@@ -1046,20 +1046,48 @@ exports.getAllCenterNames = async (req, res) => {
 exports.getAllCollectionManagerNames = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
+  
   try {
-    const results = await collectionofficerDao.getAllCenterManagerDao();
-
-    console.log("Successfully retrieved reports");
-    res.status(200).json(results);
-  } catch (error) {
-    if (error.isJoi) {
-      return res.status(400).json({ error: error.details[0].message });
+    const centerId = req.query.centerId || req.params.centerId || req.body.centerId;
+    
+    if (!centerId) {
+      return res.status(400).json({ error: "centerId is required" });
     }
 
-    console.error("Error retrieving district reports:", error);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while fetching the reports" });
+    const numericCenterId = parseInt(centerId);
+    if (isNaN(numericCenterId)) {
+      return res.status(400).json({ error: "centerId must be a valid number" });
+    }
+
+    const results = await collectionofficerDao.getAllCenterManagerDao(numericCenterId);
+
+    console.log("Successfully retrieved collection managers");
+    res.status(200).json({
+      success: true,
+      data: results,
+      count: results.length
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ 
+        success: false,
+        error: error.details[0].message 
+      });
+    }
+
+    console.error("Error retrieving collection managers:", error);
+    
+    if (error.message === 'Valid centerId is required') {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while fetching collection managers"
+    });
   }
 };
 
