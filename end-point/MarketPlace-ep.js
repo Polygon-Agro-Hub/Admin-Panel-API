@@ -156,20 +156,21 @@ exports.getMarketplaceItems = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
-    const { page, limit, search, displayTypeValue, categoryValue } = req.query;
+    const { page, limit, search, displayTypeValue, categoryValue, discountFilter } = req.query;
     const parsedLimit = parseInt(limit, 10) || 10;
     const parsedPage = parseInt(page, 10) || 1;
     const offset = (parsedPage - 1) * parsedLimit;
 
-    // If displayTypeValue is URL encoded, it will be automatically decoded by Express
     console.log("Display Type Value:", displayTypeValue);
+    console.log("Discount Filter:", discountFilter);
 
     const { total, items } = await MarketPlaceDao.getMarketplaceItems(
       parsedLimit,
       offset,
       search,
-      displayTypeValue, // This should now contain the correct value
-      categoryValue
+      displayTypeValue,
+      categoryValue,
+      discountFilter // Pass the discount filter
     );
 
     console.log("Successfully fetched marketplace items");

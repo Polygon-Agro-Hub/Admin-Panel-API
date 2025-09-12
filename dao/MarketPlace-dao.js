@@ -174,7 +174,8 @@ exports.getMarketplaceItems = (
   offset,
   searchItem,
   displayTypeValue,
-  categoryValue
+  categoryValue,
+  discountFilter // Add new parameter
 ) => {
   return new Promise((resolve, reject) => {
     let whereConditions = [];
@@ -211,10 +212,17 @@ exports.getMarketplaceItems = (
       dataParams.push(displayTypeValue);
     }
 
+    // Add category condition if provided
     if (categoryValue) {
       whereConditions.push("m.category = ?");
       countParams.push(categoryValue);
       dataParams.push(categoryValue);
+    }
+
+    // Add discount filter condition if provided
+    if (discountFilter === 'zero') {
+      whereConditions.push("m.discount = 0");
+      // No parameters to add for this condition
     }
 
     // Combine WHERE conditions if any exist
