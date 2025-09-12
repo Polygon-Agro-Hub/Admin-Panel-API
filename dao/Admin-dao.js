@@ -701,6 +701,7 @@ exports.getFixedAssetsByCategory = (userId, category, farmId) => {
             SELECT 
                 fixedasset.id AS fixedassetId,
                 fixedasset.category AS fixedassetcategory,
+                buildingfixedasset.id AS buildingfixedassetId,
                 buildingfixedasset.type,
                 buildingfixedasset.floorArea,
                 buildingfixedasset.ownership,
@@ -787,6 +788,118 @@ exports.getFixedAssetsByCategory = (userId, category, farmId) => {
       } else {
         resolve(results);
       }
+    });
+  });
+};
+
+exports.getBuildingOwnershipDetails = (buildingAssetId) => {
+  return new Promise((resolve, reject) => {
+    // First, get the building details including ownership type
+    const getBuildingQuery = `
+      SELECT 
+        bf.id as buildingAssetId,
+        bf.ownership,
+        bf.type,
+        bf.floorArea,
+        bf.generalCondition,
+        bf.district
+      FROM 
+        buildingfixedasset bf
+      WHERE 
+        bf.id = ?;
+    `;
+
+    plantcare.query(getBuildingQuery, [buildingAssetId], (err, buildingResults) => {
+      if (err) {
+        reject("Error fetching building details: " + err);
+        return;
+      }
+
+      if (buildingResults.length === 0) {
+        reject("Building not found");
+        return;
+      }
+
+      const building = buildingResults[0];
+      const ownership = building.ownership;
+
+      // Define ownership-specific queries
+      const ownershipQueries = {
+        "Own Building (with title ownership)": `
+          SELECT 
+            oof.id,
+            oof.buildingAssetId,
+            oof.landAssetId,
+            oof.issuedDate,
+            oof.estimateValue
+          FROM 
+            ownershipownerfixedasset oof
+          WHERE 
+            oof.buildingAssetId = ?;
+        `,
+        "Leased Building": `
+          SELECT 
+            olf.id,
+            olf.buildingAssetId,
+            olf.landAssetId,
+            olf.startDate,
+            olf.durationYears,
+            olf.durationMonths,
+            olf.leastAmountAnnually
+          FROM 
+            ownershipleastfixedasset olf
+          WHERE 
+            olf.buildingAssetId = ?;
+        `,
+        "Permit Building": `
+          SELECT 
+            opf.id,
+            opf.buildingAssetId,
+            opf.landAssetId,
+            opf.issuedDate,
+            opf.permitFeeAnnually
+          FROM 
+            ownershippermitfixedasset opf
+          WHERE 
+            opf.buildingAssetId = ?;
+        `,
+        "Shared / No Ownership": `
+          SELECT 
+            osf.id,
+            osf.buildingAssetId,
+            osf.landAssetId,
+            osf.paymentAnnually
+          FROM 
+            ownershipsharedfixedasset osf
+          WHERE 
+            osf.buildingAssetId = ?;
+        `
+      };
+
+      const ownershipQuery = ownershipQueries[ownership];
+
+      if (!ownershipQuery) {
+        // If no specific ownership query, return just building details
+        resolve({
+          buildingDetails: building,
+          ownershipDetails: null,
+          ownershipType: ownership
+        });
+        return;
+      }
+
+      // Execute the ownership-specific query
+      plantcare.query(ownershipQuery, [buildingAssetId], (err, ownershipResults) => {
+        if (err) {
+          reject("Error fetching ownership details: " + err);
+        } else {
+          resolve({
+            buildingDetails: building,
+            ownershipDetails: ownershipResults.length > 0 ? ownershipResults[0] : null,
+            ownershipType: ownership
+          });
+        }
+      });
     });
   });
 };

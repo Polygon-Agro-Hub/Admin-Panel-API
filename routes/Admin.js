@@ -168,6 +168,8 @@ router.get(
   AdminEp.getFixedAssetsByCategory
 );
 
+router.get('/get-fixed-assets/building-ownership/:buildingAssetId', authMiddleware, AdminEp.getBuildingOwnershipDetails);
+
 router.get(
   "/get-current-assets-view/:id/:category",
   authMiddleware,
