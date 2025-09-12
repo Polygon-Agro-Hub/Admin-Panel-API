@@ -929,6 +929,36 @@ exports.getBuildingOwnershipDetails = async (req, res) => {
   }
 };
 
+exports.getLandOwnershipDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    // Validate the request params
+    const { landAssetId } = req.params;
+    
+    console.log("landAssetId:", landAssetId);
+
+    // Validate landAssetId is a number
+    if (!landAssetId || isNaN(landAssetId)) {
+      return res.status(400).json({ error: "Invalid land asset ID. Must be a valid number." });
+    }
+
+    // Fetch land ownership details from DAO
+    const results = await adminDao.getLandOwnershipDetails(parseInt(landAssetId));
+
+    console.log("Successfully retrieved land ownership details");
+    res.status(200).json(results);
+  } catch (err) {
+    if (err === "Land not found") {
+      return res.status(404).json({ error: "Land not found." });
+    }
+
+    console.error("Error fetching land ownership details:", err);
+    res.status(500).json({ error: "An error occurred while fetching land ownership details." });
+  }
+};
+
 exports.getCurrentAssetsByCategory = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Request URL:", fullUrl);

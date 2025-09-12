@@ -169,6 +169,8 @@ router.get(
 );
 
 router.get('/get-fixed-assets/building-ownership/:buildingAssetId', authMiddleware, AdminEp.getBuildingOwnershipDetails);
+router.get('/get-fixed-assets/land-ownership/:landAssetId', authMiddleware, AdminEp.getLandOwnershipDetails);
+
 
 router.get(
   "/get-current-assets-view/:id/:category",

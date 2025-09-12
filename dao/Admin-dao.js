@@ -718,6 +718,7 @@ exports.getFixedAssetsByCategory = (userId, category, farmId) => {
             SELECT 
                 fixedasset.id AS fixedassetId,
                 fixedasset.category AS fixedassetcategory,
+                landfixedasset.id AS buildingfixedassetId,
                 landfixedasset.extentha,
                 landfixedasset.extentac,
                 landfixedasset.extentp,
@@ -895,6 +896,161 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
         } else {
           resolve({
             buildingDetails: building,
+            ownershipDetails: ownershipResults.length > 0 ? ownershipResults[0] : null,
+            ownershipType: ownership
+          });
+        }
+      });
+    });
+  });
+};
+
+exports.getLandOwnershipDetails = (landAssetId) => {
+  return new Promise((resolve, reject) => {
+    // First, get the land details including ownership type
+    const getLandQuery = `
+      SELECT 
+        lf.id as landAssetId,
+        lf.fixedAssetId,
+        lf.ownership,
+        lf.extentha,
+        lf.extentac,
+        lf.extentp,
+        lf.district,
+        lf.landFenced,
+        lf.perennialCrop
+      FROM 
+        landfixedasset lf
+      WHERE 
+        lf.id = ?;
+    `;
+
+    plantcare.query(getLandQuery, [landAssetId], (err, landResults) => {
+      if (err) {
+        reject("Error fetching land details: " + err);
+        return;
+      }
+
+      if (landResults.length === 0) {
+        reject("Land not found");
+        return;
+      }
+
+      const land = landResults[0];
+      const ownership = land.ownership;
+
+      // Calculate total extent
+      const extentha = land.extentha || 0;
+      const extentac = land.extentac || 0;
+      const extentp = land.extentp || 0;
+      
+      // Convert everything to a common unit (acres) for calculation
+      // 1 hectare = 2.47105 acres
+      // 1 perch = 0.00625 acres
+      const totalExtentInAcres = (extentha * 2.47105) + extentac + (extentp * 0.00625);
+      
+      // Convert back to hectares and perches for display if needed
+      const totalExtentInHectares = totalExtentInAcres / 2.47105;
+      
+      // Format the total extent as a string
+      const totalExtent = `${totalExtentInHectares.toFixed(4)} ha / ${totalExtentInAcres.toFixed(4)} ac`;
+
+      // Define ownership-specific queries for land
+      const ownershipQueries = {
+        "Own": `
+          SELECT 
+            oof.id,
+            oof.buildingAssetId,
+            oof.landAssetId,
+            oof.issuedDate,
+            oof.estimateValue
+          FROM 
+            ownershipownerfixedasset oof
+          WHERE 
+            oof.landAssetId = ?;
+        `,
+        "Lease": `
+          SELECT 
+            olf.id,
+            olf.buildingAssetId,
+            olf.landAssetId,
+            olf.startDate,
+            olf.durationYears,
+            olf.durationMonths,
+            olf.leastAmountAnnually
+          FROM 
+            ownershipleastfixedasset olf
+          WHERE 
+            olf.landAssetId = ?;
+        `,
+        "Permited": `
+          SELECT 
+            opf.id,
+            opf.buildingAssetId,
+            opf.landAssetId,
+            opf.issuedDate,
+            opf.permitFeeAnnually
+          FROM 
+            ownershippermitfixedasset opf
+          WHERE 
+            opf.landAssetId = ?;
+        `,
+        "Shared": `
+          SELECT 
+            osf.id,
+            osf.buildingAssetId,
+            osf.landAssetId,
+            osf.paymentAnnually
+          FROM 
+            ownershipsharedfixedasset osf
+          WHERE 
+            osf.landAssetId = ?;
+        `
+      };
+
+      const ownershipQuery = ownershipQueries[ownership];
+
+      if (!ownershipQuery) {
+        // If no specific ownership query, return just land details with calculated extent
+        resolve({
+          landDetails: {
+            landAssetId: land.landAssetId,
+            ownership: land.ownership,
+            extentha: land.extentha,
+            extentac: land.extentac,
+            extentp: land.extentp,
+            totalExtent: totalExtent,
+            totalExtentInAcres: totalExtentInAcres,
+            totalExtentInHectares: totalExtentInHectares,
+            district: land.district,
+            landFenced: land.landFenced,
+            perennialCrop: land.perennialCrop
+          },
+          ownershipDetails: null,
+          ownershipType: ownership
+        });
+        return;
+      }
+
+      // Execute the ownership-specific query
+      plantcare.query(ownershipQuery, [landAssetId], (err, ownershipResults) => {
+        if (err) {
+          reject("Error fetching ownership details: " + err);
+        } else {
+          resolve({
+            landDetails: {
+              landAssetId: land.landAssetId,
+              ownership: land.ownership,
+              extentha: land.extentha,
+              extentac: land.extentac,
+              extentp: land.extentp,
+              totalExtent: totalExtent,
+              totalExtentInAcres: totalExtentInAcres,
+              totalExtentInHectares: totalExtentInHectares,
+              district: land.district,
+              landFenced: land.landFenced,
+              perennialCrop: land.perennialCrop
+            },
             ownershipDetails: ownershipResults.length > 0 ? ownershipResults[0] : null,
             ownershipType: ownership
           });
@@ -3500,6 +3656,7 @@ exports.getUserFarmDetailsDao = (userId) => {
     FROM users u
     LEFT JOIN farms f ON u.id = f.userId
     WHERE u.id = ?
+    ORDER BY f.farmIndex, f.createdAt
   `;
 
   return new Promise((resolve, reject) => {
@@ -3507,7 +3664,57 @@ exports.getUserFarmDetailsDao = (userId) => {
       if (err) {
         reject("Error fetching user farm details: " + err);
       } else {
-        resolve(results);
+        // Structure the data: user info + array of farms
+        const structuredData = {
+          user: null,
+          farms: []
+        };
+
+        if (results.length > 0) {
+          // Extract user info from first row (same for all rows)
+          const firstRow = results[0];
+          structuredData.user = {
+            id: firstRow.userId,
+            firstName: firstRow.firstName,
+            lastName: firstRow.lastName,
+            phoneNumber: firstRow.phoneNumber,
+            NICnumber: firstRow.NICnumber,
+            profileImage: firstRow.profileImage,
+            membership: firstRow.membership,
+            activeStatus: firstRow.activeStatus,
+            houseNo: firstRow.houseNo,
+            streetName: firstRow.streetName,
+            city: firstRow.userCity,
+            district: firstRow.userDistrict,
+            route: firstRow.route,
+            language: firstRow.language
+          };
+
+          // Extract all farms
+          results.forEach(row => {
+            if (row.farmId) { // Only add if farm exists
+              structuredData.farms.push({
+                id: row.farmId,
+                farmName: row.farmName,
+                farmIndex: row.farmIndex,
+                extentha: row.extentha,
+                extentac: row.extentac,
+                extentp: row.extentp,
+                district: row.farmDistrict,
+                plotNo: row.plotNo,
+                street: row.farmStreet,
+                city: row.farmCity,
+                staffCount: row.staffCount,
+                appUserCount: row.appUserCount,
+                imageId: row.imageId,
+                isBlock: row.isBlock,
+                createdAt: row.farmCreatedAt
+              });
+            }
+          });
+        }
+
+        resolve(structuredData);
       }
     });
   });
