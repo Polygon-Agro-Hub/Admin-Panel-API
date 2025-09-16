@@ -710,6 +710,8 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
       cc.cropDuration AS cropDuration,
       occ.longitude,
       occ.latitude,
+      u.firstName AS userFirstName,
+      u.lastName AS userLastName,
       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks
     FROM 
@@ -717,13 +719,15 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
     JOIN 
       ongoingcultivations oc ON occ.ongoingCultivationId = oc.id
     JOIN 
+      users u ON oc.userId = u.id
+    JOIN 
       cropcalender cc ON occ.cropCalendar = cc.id
     JOIN 
       cropvariety cv ON cc.cropVarietyId = cv.id
     JOIN 
       cropgroup cg ON cv.cropGroupId = cg.id
     WHERE
-      occ.farmId = ? AND oc.userId = ?`;  // filter by farmId and userId
+      occ.farmId = ? AND oc.userId = ?`;
 
   return new Promise((resolve, reject) => {
     plantcare.query(sql, [farmId, userId], (err, results) => {
@@ -3761,6 +3765,33 @@ exports.getUserFarmDetailsDao = (userId) => {
     });
   });
 };
+
+
+exports.deleteFarmDao = (farmId) => {
+  return new Promise((resolve, reject) => {
+    plantcare.query(
+      `DELETE scd FROM slavecropcalendardays scd
+       JOIN farmstaff fs ON scd.completedStaffId = fs.id
+       WHERE fs.farmId = ?`, 
+      [farmId],
+      (err) => {
+        if (err) return reject(err);
+
+        // Now delete farmstaff rows
+        plantcare.query(`DELETE FROM farmstaff WHERE farmId = ?`, [farmId], (err) => {
+          if (err) return reject(err);
+
+          // Finally delete the farm
+          plantcare.query(`DELETE FROM farms WHERE id = ?`, [farmId], (err, result) => {
+            if (err) reject(err);
+            else resolve({ message: "Farm and related data deleted successfully", affectedRows: result.affectedRows });
+          });
+        });
+      }
+    );
+  });
+};
+
 
 // exports.getAllFarmsWithCultivations = (userId, searchItem) => {
 //   return new Promise((resolve, reject) => {

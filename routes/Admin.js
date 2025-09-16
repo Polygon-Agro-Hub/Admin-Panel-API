@@ -367,6 +367,8 @@ router.get(
   AdminEp.getUserFarmDetails
 );
 
+router.delete("/delete-farm",  authMiddleware, AdminEp.deleteFarms);
+
 router.get(
   "/get-farms-by-user",
   authMiddleware,

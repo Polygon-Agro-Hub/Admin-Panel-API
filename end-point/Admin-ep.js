@@ -2935,6 +2935,29 @@ exports.getUserFarmDetails = async (req, res) => {
 };
 
 
+exports.deleteFarms = async (req, res) => {
+  try {
+    const { farmId } = req.query;
+
+    if (!farmId) {
+      return res.status(400).json({ error: "farmId is required" });
+    }
+
+    const result = await adminDao.deleteFarmDao(farmId);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Farm not found" });
+    }
+
+    console.log("Successfully deleted farm:", farmId);
+    res.json({ message: "Farm deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting farm:", err);
+    res.status(500).send("An error occurred while deleting the farm.");
+  }
+};
+
+
 
 exports.getFarmsByUser = async (req, res) => {
   try {
