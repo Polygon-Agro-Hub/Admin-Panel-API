@@ -789,7 +789,13 @@ exports.getFixedAssetsByCategory = (userId, category, farmId) => {
                 machtoolsfixedasset.unitPrice,
                 machtoolsfixedasset.totalPrice,
                 machtoolsfixedasset.warranty,
-                COALESCE(machtoolsfixedassetwarranty.warrantystatus, 'No data') AS warrantystatus
+                CASE 
+                    WHEN machtoolsfixedasset.warranty = 'no' THEN 'No data'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate IS NULL THEN 'No data'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate > NOW() THEN 'Under warranty'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate <= NOW() THEN 'Expired'
+                    ELSE 'No data'
+                END AS warrantystatus
             FROM
                 fixedasset
             JOIN
@@ -810,7 +816,13 @@ exports.getFixedAssetsByCategory = (userId, category, farmId) => {
                 machtoolsfixedasset.unitPrice,
                 machtoolsfixedasset.totalPrice,
                 machtoolsfixedasset.warranty,
-                COALESCE(machtoolsfixedassetwarranty.warrantystatus, 'No data') AS warrantystatus
+                CASE 
+                    WHEN machtoolsfixedasset.warranty = 'no' THEN 'No data'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate IS NULL THEN 'No data'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate > NOW() THEN 'Under warranty'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate <= NOW() THEN 'Expired'
+                    ELSE 'No data'
+                END AS warrantystatus
             FROM
                 fixedasset
             JOIN
@@ -985,21 +997,10 @@ exports.getLandOwnershipDetails = (landAssetId) => {
       const land = landResults[0];
       const ownership = land.ownership;
 
-      // Calculate total extent
+      // Get extent values without calculation
       const extentha = land.extentha || 0;
       const extentac = land.extentac || 0;
       const extentp = land.extentp || 0;
-      
-      // Convert everything to a common unit (acres) for calculation
-      // 1 hectare = 2.47105 acres
-      // 1 perch = 0.00625 acres
-      const totalExtentInAcres = (extentha * 2.47105) + extentac + (extentp * 0.00625);
-      
-      // Convert back to hectares and perches for display if needed
-      const totalExtentInHectares = totalExtentInAcres / 2.47105;
-      
-      // Format the total extent as a string
-      const totalExtent = `${totalExtentInHectares.toFixed(4)} ha / ${totalExtentInAcres.toFixed(4)} ac`;
 
       // Define ownership-specific queries for land
       const ownershipQueries = {
@@ -1057,17 +1058,14 @@ exports.getLandOwnershipDetails = (landAssetId) => {
       const ownershipQuery = ownershipQueries[ownership];
 
       if (!ownershipQuery) {
-        // If no specific ownership query, return just land details with calculated extent
+        // If no specific ownership query, return just land details with separate extent values
         resolve({
           landDetails: {
             landAssetId: land.landAssetId,
             ownership: land.ownership,
-            extentha: land.extentha,
-            extentac: land.extentac,
-            extentp: land.extentp,
-            totalExtent: totalExtent,
-            totalExtentInAcres: totalExtentInAcres,
-            totalExtentInHectares: totalExtentInHectares,
+            extentha: extentha,
+            extentac: extentac,
+            extentp: extentp,
             district: land.district,
             landFenced: land.landFenced,
             perennialCrop: land.perennialCrop
@@ -1087,12 +1085,9 @@ exports.getLandOwnershipDetails = (landAssetId) => {
             landDetails: {
               landAssetId: land.landAssetId,
               ownership: land.ownership,
-              extentha: land.extentha,
-              extentac: land.extentac,
-              extentp: land.extentp,
-              totalExtent: totalExtent,
-              totalExtentInAcres: totalExtentInAcres,
-              totalExtentInHectares: totalExtentInHectares,
+              extentha: extentha,
+              extentac: extentac,
+              extentp: extentp,
               district: land.district,
               landFenced: land.landFenced,
               perennialCrop: land.perennialCrop
