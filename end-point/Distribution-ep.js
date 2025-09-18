@@ -681,6 +681,7 @@ exports.updateDistributionCentreDetails = async (req, res) => {
       name: data.name,
       regCode: data.regCode,
       contact01: data.contact1,
+      email:data.email,
       excludeId: id // Exclude current center from check
     });
 
