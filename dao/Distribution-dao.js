@@ -14,7 +14,7 @@ const nodemailer = require("nodemailer");
 
 exports.checkExistingDistributionCenter = (checkData) => {
   return new Promise((resolve, reject) => {
-    const { name, regCode, contact01, excludeId } = checkData;
+    const { name, regCode, contact01, email, excludeId } = checkData;
 
     let sql = `
       SELECT 
@@ -26,12 +26,13 @@ exports.checkExistingDistributionCenter = (checkData) => {
           WHEN centerName = ? THEN 'name'
           WHEN regCode = ? THEN 'regCode'
           WHEN contact01 = ? THEN 'contact'
+          WHEN email = ? THEN 'email'
         END as conflictType
       FROM distributedcenter 
-      WHERE (centerName = ? OR regCode = ? OR contact01 = ?)
+      WHERE (centerName = ? OR regCode = ? OR contact01 = ? OR email = ?)
     `;
 
-    const values = [name, regCode, contact01, name, regCode, contact01];
+    const values = [name, regCode, contact01, email, name, regCode, contact01, email];
 
     // Add exclusion for update operations
     if (excludeId) {
@@ -59,9 +60,13 @@ exports.checkExistingDistributionCenter = (checkData) => {
             message =
               "A distribution center with this registration code already exists.";
             break;
+          case "email":
+            message =
+              "Email already exists.";
+            break;
           case "contact":
             message =
-              "A distribution center with this contact number already exists.";
+              "Mobile Number already exists.";
             break;
           default:
             message =
