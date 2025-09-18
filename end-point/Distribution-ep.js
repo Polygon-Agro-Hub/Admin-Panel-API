@@ -22,6 +22,7 @@ exports.createDistributionCenter = async (req, res) => {
       name: data.name,
       regCode: data.regCode,
       contact01: data.contact1,
+      email:data.email,
       excludeId: null // For create operation, no ID to exclude
     });
 
@@ -680,6 +681,7 @@ exports.updateDistributionCentreDetails = async (req, res) => {
       name: data.name,
       regCode: data.regCode,
       contact01: data.contact1,
+      email:data.email,
       excludeId: id // Exclude current center from check
     });
 
