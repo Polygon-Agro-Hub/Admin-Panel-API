@@ -323,6 +323,7 @@ exports.getAllMarketplaceComplaintsWholesale = () => {
         mu.firstName,
         mu.lastName,
         mu.phonecode AS phonecode,
+        mu.companyName AS companyName,
         mu.phoneNumber AS phone,
         CONCAT(mu.phonecode, '-', mu.phoneNumber) AS ContactNumber,
         mc.refId AS refNo,
