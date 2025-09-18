@@ -857,6 +857,15 @@ exports.updateCompany = async (req, res) => {
       favicon,
     } = req.body;
     // Call DAO function to update the company record
+
+    const cehckRegNum = await CollectionCenterDao.checkCompanyRegNumberDao(regNumber, id);
+    if(cehckRegNum.length > 0 ){
+      return res.json({
+        message: "Registraion number allrady exist.",
+        status: false,
+      });
+    }
+
     const result = await CollectionCenterDao.updateCompany(
       id,
       regNumber,

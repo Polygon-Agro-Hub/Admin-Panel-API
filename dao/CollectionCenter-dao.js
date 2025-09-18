@@ -2142,3 +2142,30 @@ exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
         });
     });
 };
+
+
+exports.checkCompanyRegNumberDao = (regNumber, id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+         SELECT *
+         FROM company
+         WHERE regNumber = ?
+      `;
+      const sqlParams = [regNumber]
+
+      if(id){
+        sql+= ` AND id != ? `
+        sqlParams.push(id);
+      }
+    collectionofficer.query(
+      sql,
+      sqlParams,
+      (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(results);
+      }
+    );
+  });
+};

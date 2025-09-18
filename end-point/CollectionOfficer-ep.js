@@ -1048,7 +1048,7 @@ exports.getAllCollectionManagerNames = async (req, res) => {
   console.log(fullUrl);
   
   try {
-    const centerId = req.query.centerId || req.params.centerId || req.body.centerId;
+    const centerId = req.params.centerId ;
     
     if (!centerId) {
       return res.status(400).json({ error: "centerId is required" });
