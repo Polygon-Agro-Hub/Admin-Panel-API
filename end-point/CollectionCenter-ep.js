@@ -586,12 +586,26 @@ exports.createCompany = async (req, res) => {
       favicon: faviconBase64, // Expecting base64 string
     } = req.body;
 
-    const checkCompanyName =
-      await CollectionCenterDao.checkCompanyDisplayNameDao(companyNameEnglish);
-    if (checkCompanyName) {
+    // Check if company name or registration number already exists
+    const checkCompany = await CollectionCenterDao.checkCompanyDisplayNameDao(
+      companyNameEnglish, 
+      regNumber,
+      null // null for id since this is a create operation
+    );
+
+    if (checkCompany.exists) {
+      let message = "Company already exists";
+      if (checkCompany.nameExists && checkCompany.regNumberExists) {
+        message = "Company Name and Registration Number already exist";
+      } else if (checkCompany.nameExists) {
+        message = "Company Name already exists";
+      } else if (checkCompany.regNumberExists) {
+        message = "Registration Number already exists";
+      }
+      
       return res.json({
         status: false,
-        message: "Company Name Exists",
+        message: message
       });
     }
 
