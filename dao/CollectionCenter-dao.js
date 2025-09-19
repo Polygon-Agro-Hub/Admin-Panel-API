@@ -1108,20 +1108,29 @@ exports.getCompanyDAO = (id) => {
   });
 };
 
-exports.checkCompanyDisplayNameDao = async (companyNameEnglish, id) => {
+exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) => {
   return new Promise((resolve, reject) => {
-    let sql = "SELECT * FROM company WHERE companyNameEnglish = ?";
-    const sqlParams = [companyNameEnglish];
+    let sql = "SELECT * FROM company WHERE (companyNameEnglish = ? OR regNumber = ?)";
+    const sqlParams = [companyNameEnglish, regNumber];
 
     if (id) {
-      sql += "AND id !=?";
+      sql += " AND id != ?";
       sqlParams.push(id);
     }
+    
     collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
         reject(err);
       } else {
-        resolve(results.length > 0);
+        // Check if either companyNameEnglish or regNumber already exists
+        const nameExists = results.some(result => result.companyNameEnglish === companyNameEnglish);
+        const regNumberExists = results.some(result => result.regNumber === regNumber);
+        
+        resolve({
+          exists: results.length > 0,
+          nameExists,
+          regNumberExists
+        });
       }
     });
   });
