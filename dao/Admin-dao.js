@@ -2249,15 +2249,14 @@ exports.getAllTaskIdDao = (cropId) => {
 };
 
 exports.addNewTaskDao = (task, indexId, cropId) => {
-  // console.log("Dao Task: ", task);
-
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO cropcalendardays ( cropId, taskIndex, taskTypeEnglish, taskTypeSinhala, taskTypeTamil, taskCategoryEnglish, taskCategorySinhala, taskCategoryTamil, taskEnglish, taskSinhala, taskTamil, taskDescriptionEnglish, taskDescriptionSinhala, taskDescriptionTamil, reqImages, imageLink, videoLinkEnglish, videoLinkSinhala, videoLinkTamil) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      "INSERT INTO cropcalendardays ( cropId, taskIndex, days, taskTypeEnglish, taskTypeSinhala, taskTypeTamil, taskCategoryEnglish, taskCategorySinhala, taskCategoryTamil, taskEnglish, taskSinhala, taskTamil, taskDescriptionEnglish, taskDescriptionSinhala, taskDescriptionTamil, reqImages, imageLink, videoLinkEnglish, videoLinkSinhala, videoLinkTamil) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     const values = [
       cropId,
       indexId,
+      task.days,   // <-- use this instead of undefined 'days'
       task.taskTypeEnglish,
       task.taskTypeSinhala,
       task.taskTypeTamil,
@@ -2277,8 +2276,7 @@ exports.addNewTaskDao = (task, indexId, cropId) => {
       task.videoLinkTamil,
     ];
 
-    // Ensure that the values array length matches the expected column count
-    if (values.length !== 19) {
+    if (values.length !== 20) {
       return reject(
         new Error("Mismatch between column count and value count.")
       );
@@ -2293,6 +2291,7 @@ exports.addNewTaskDao = (task, indexId, cropId) => {
     });
   });
 };
+
 
 exports.addNewReplyDao = (chatId, replyId, replyMessage) => {
   console.log("Dao Reply: ", replyMessage);
