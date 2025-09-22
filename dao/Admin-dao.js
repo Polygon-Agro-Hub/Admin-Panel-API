@@ -710,6 +710,7 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
       cc.cropDuration AS cropDuration,
       occ.longitude,
       occ.latitude,
+      occ.modifyBy,
       u.firstName AS userFirstName,
       u.lastName AS userLastName,
       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
