@@ -850,7 +850,7 @@ exports.getOngoingCultivationsById = async (req, res) => {
 
   try {
     // Validate the request params (ID)
-   const {cultivationId, userId} = req.params
+    const { cultivationId, userId } = req.params
 
     // Fetch cultivation crops data from DAO
     const results = await adminDao.getOngoingCultivationsByFarmId(cultivationId, userId);
@@ -874,12 +874,12 @@ exports.getFixedAssetsByCategory = async (req, res) => {
 
   try {
     // Validate the request params (id and category)
-    const { id,farmId, category } = req.params;
-    
-    console.log("id, category ,farmId",id, category ,farmId);
+    const { id, farmId, category } = req.params;
+
+    console.log("id, category ,farmId", id, category, farmId);
 
     // Fetch assets by category from DAO
-    const results = await adminDao.getFixedAssetsByCategory(id, category,farmId);
+    const results = await adminDao.getFixedAssetsByCategory(id, category, farmId);
 
     console.log("Successfully retrieved assets");
     res.status(200).json(results);
@@ -903,7 +903,7 @@ exports.getBuildingOwnershipDetails = async (req, res) => {
   try {
     // Validate the request params
     const { buildingAssetId } = req.params;
-    
+
     console.log("buildingAssetId:", buildingAssetId);
 
     // Validate buildingAssetId is a number
@@ -933,7 +933,7 @@ exports.getLandOwnershipDetails = async (req, res) => {
   try {
     // Validate the request params
     const { landAssetId } = req.params;
-    
+
     console.log("landAssetId:", landAssetId);
 
     // Validate landAssetId is a number
@@ -2199,13 +2199,17 @@ exports.addNewTaskU = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   console.log("Request URL:", fullUrl);
-  console.log("Add new task data:", req.body);
+  console.log("Add new task data:", req.params);
+  // if(true) return;
+
 
   const userId = req.params.userId;
   const cropId = req.params.cropId;
   const onCulscropID = req.params.onCulscropID;
   const indexId = parseInt(req.params.indexId);
   console.log(req.params);
+  const ongCultivationId = req.query.ongCultivationId
+  const adminUserId = req.user.userId
 
 
   try {
@@ -2236,6 +2240,8 @@ exports.addNewTaskU = async (req, res) => {
       cropId,
       onCulscropID
     );
+
+    const trackResult = await adminDao.tracktaskAddOngoingCultivation(adminUserId, ongCultivationId);
 
     if (addedTaskResult.insertId > 0) {
       res
@@ -2918,7 +2924,7 @@ exports.updateFarmOwner = async (req, res) => {
 exports.getUserFarmDetails = async (req, res) => {
   try {
     const { userId } = req.query;
-    
+
     const result = await adminDao.getUserFarmDetailsDao(userId);
 
     console.log("Successfully fetched user farm details");
