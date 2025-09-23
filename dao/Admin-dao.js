@@ -567,7 +567,8 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
     // Data query with farm count
     let dataSql = `
       SELECT 
-        OC.id AS cultivationId, 
+        OC.id AS cultivationId,
+        OCC.id AS ongCultivationId,
         U.id AS userId,
         U.firstName, 
         U.lastName, 
@@ -599,7 +600,7 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
     }
 
     dataSql += `
-      GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber 
+      GROUP BY OC.id, OCC.id, U.id, U.firstName, U.lastName, U.NICnumber 
       ORDER BY OC.createdAt DESC 
       LIMIT ? OFFSET ?
     `;
@@ -3968,6 +3969,33 @@ exports.deleteFarmById = (farmId) => {
       }
 
       resolve({ success: true, message: `Farm with ID ${farmId} deleted successfully` });
+    });
+  });
+};
+
+
+exports.tracktaskAddOngoingCultivation = (userId, id) => {
+  return new Promise((resolve, reject) => {
+    const sql =`
+      UPDATE ongoingcultivationscrops
+      SET modifyBy = ?
+      WHERE id = ?
+    `;
+
+    const values = [
+      userId,
+      id
+    ];
+
+    // Ensure that the values array length matches the expected column count
+
+
+    plantcare.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
     });
   });
 };
