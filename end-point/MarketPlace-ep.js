@@ -494,49 +494,20 @@ exports.editMarketProduct = async (req, res) => {
     console.log(req.body);
     const data = req.body;
 
-    const checkProduct = await MarketPlaceDao.checkMarketProductExistsDaoEdit(
-      data.varietyId,
-      data.cropName,
-      id
-    );
-
-    console.log('request', checkProduct);
-
-    // Handle validation cases
-    if (checkProduct.bothExist) {
-      return res.status(400).json({
-        error: "A product with the same display name and variety already exists. Please enter unique values.",
-        status: false
-      });
-    }
-
-    if (checkProduct.varietyExists) {
-      return res.status(400).json({
-        error: "A product with the same variety already exists. Please select a different variety.",
-        status: false
-      });
-    }
-
-    if (checkProduct.nameExists) {
-      return res.status(400).json({
-        error: "A product with the same display name already exists. Please use a different display name.",
-        status: false
-      });
-    }
-
+    // Directly update the product without checking for existing varietyId or displayName
     const result = await MarketPlaceDao.updateMarketProductDao(req.body, id);
     console.log(result);
     if (result.affectedRows === 0) {
       return res.json({
-        message: "marcket product update unsuccessfully",
+        message: "market product update unsuccessful",
         result: result,
         status: false,
       });
     }
 
-    console.log("marcket product creation success");
+    console.log("market product update success");
     res.status(201).json({
-      message: "marcket product updated successfully",
+      message: "market product updated successfully",
       result: result,
       status: true,
     });
@@ -550,12 +521,11 @@ exports.editMarketProduct = async (req, res) => {
 
     console.error("Error executing query:", err);
     return res.status(500).json({
-      error: "An error occurred while updating marcket product",
+      error: "An error occurred while updating market product",
       status: false,
     });
   }
 };
-
 exports.getAllMarketplacePackages = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Request URL:", fullUrl);

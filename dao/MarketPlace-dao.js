@@ -549,6 +549,8 @@ exports.getProductById = async (id) => {
   });
 };
 
+
+
 exports.updateMarketProductDao = async (product, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -564,36 +566,37 @@ exports.updateMarketProductDao = async (product, id) => {
         displayType = ?,
         category = ?,
         discount = ?,
-        maxQuantity = ?
-        WHERE id = ?
-      `;
+        maxQuantity = ?,
+        varietyId = ?
+      WHERE id = ?
+    `;
     const values = [
-      product.cropName,
-      product.normalPrice,
-      product.salePrice,
-      product.promo,
-      product.unitType,
-      product.startValue,
-      product.changeby,
-      product.tags,
-      product.displaytype,
-      product.category,
-      product.discount,
-      product.category === "WholeSale" ? product.maxQuantity : null,
-      id,
+      product.cropName || null,
+      parseFloat(product.normalPrice) || 0,
+      parseFloat(product.discountedPrice) || 0,
+      product.promo ? 1 : 0,
+      product.unitType || null,
+      parseFloat(product.startValue) || 0,
+      parseFloat(product.changeby) || 0,
+      product.tags || '',
+      product.displaytype || '',
+      product.category || null,
+      parseFloat(product.discount) || 0,
+      product.category === 'WholeSale' ? parseFloat(product.maxQuantity) : null,
+      parseInt(product.varietyId) || null,
+      parseInt(id),
     ];
 
     marketPlace.query(sql, values, (err, results) => {
       if (err) {
+        console.error('SQL Error:', err);
         reject(err);
       } else {
         resolve(results);
       }
     });
   });
-};
-
-exports.getAllMarketplacePackagesDAO = (searchText, date) => {
+};exports.getAllMarketplacePackagesDAO = (searchText, date) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [];
     let sql = `
