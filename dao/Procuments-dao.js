@@ -756,6 +756,7 @@ SELECT
     o.id AS orderId,
     mpp.id AS packageId,
     op.id AS orderpkgId,
+    op.qty AS packageQty,
     mpp.displayName,
     CAST(mpp.productPrice AS DECIMAL(10,2)) AS productPrice,
     df.id AS definePkgId,
@@ -1201,7 +1202,8 @@ exports.getOrderPackagesByOrderId = (orderId) => {
           m.displayName as productDisplayName,
           pt.id as productTypeId,
           pt.typeName,
-          pt.shortCode
+          pt.shortCode,
+          op.qty AS packageQty
         FROM 
           processorders po
         JOIN 
@@ -1249,6 +1251,7 @@ exports.getOrderPackagesByOrderId = (orderId) => {
               packageId: row.packageId,
               displayName: row.displayName,
               productPrice: row.productPrice,
+              packageQty: row.packageQty,
               productTypes: [],
             };
             response.packages.push(currentPackage);

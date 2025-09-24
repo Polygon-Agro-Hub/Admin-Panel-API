@@ -482,6 +482,7 @@ exports.getOrderPackageItemsById = async (req, res) => {
           packageId: pkg.packageId,
           displayName: pkg.displayName,
           productPrice: pkg.productPrice,
+          packageQty: pkg.packageQty,
           productTypes: pkg.productTypes.map((type) => ({
             id: type.id,
             productTypeId: type.productTypeId, // Added productTypeId
