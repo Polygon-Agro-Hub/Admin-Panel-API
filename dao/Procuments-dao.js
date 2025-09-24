@@ -1308,6 +1308,103 @@ exports.updateOrderPackageItemsDao = async (product) => {
   });
 };
 
+// exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, searchTerm) => {
+//   return new Promise((resolve, reject) => {
+//     const offset = (page - 1) * limit;
+//     const params = [];
+//     const countParams = [];
+
+//     let dataSql = `
+//         SELECT 
+//         o.fullTotal AS total,
+//         o.sheduleDate,
+//         o.orderApp,
+//         po.id AS processOrderId,
+//         po.invNo,
+//         po.status,
+//         po.createdAt,
+//         po.createdAt AS processCreatedAt,
+//         op.packingStatus,
+//         au.userName
+//         FROM processorders po
+//         JOIN orders o  ON po.orderId = o.id
+//         JOIN orderpackage op ON op.orderId = po.id
+//         LEFT JOIN agro_world_admin.adminusers au ON po.dispatchOfficer = au.id
+//         WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
+//       `;
+//     countSql = `
+//       SELECT 
+//         COUNT(DISTINCT po.id) AS total
+//         FROM processorders po
+//         JOIN orders o  ON po.orderId = o.id
+//         JOIN orderpackage op ON op.orderId = po.id
+//         WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
+//       `;
+
+//     if (dateFilter) {
+//       console.log("Date Filter:", dateFilter);
+
+//       dataSql += ` AND DATE(o.sheduleDate) = ? `;
+//       countSql += ` AND DATE(o.sheduleDate) = ? `;
+//       params.push(dateFilter);
+//       countParams.push(dateFilter);
+//     }
+
+//     if (searchTerm) {
+//       dataSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ? OR mu.firstName LIKE ? OR mu.lastName LIKE ?)`;
+//       countSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ? OR mu.firstName LIKE ? OR mu.lastName LIKE ?)`;
+//       const searchPattern = `%${searchTerm}%`;
+//       params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+//       countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+//     }
+
+//     dataSql += ` 
+//                 GROUP BY
+//                   o.fullTotal,
+//                   o.sheduleDate,
+//                   o.orderApp,
+//                   po.id,
+//                   po.invNo,
+//                   po.status,
+//                   op.packingStatus,
+//                   op.createdAt,
+//                   au.userName
+//                  ORDER BY op.createdAt DESC
+//                  LIMIT ? OFFSET ?
+//                 `;
+
+//     params.push(parseInt(limit), parseInt(offset));
+
+//     console.log("Executing Count Query...");
+//     // console.log(dataSql);
+
+//     marketPlace.query(countSql, countParams, (countErr, countResults) => {
+//       if (countErr) {
+//         console.error("Count query error:", countErr);
+//         return reject(countErr);
+//       }
+
+//       console.log(countResults);
+
+//       const total = countResults[0]?.total || 0;
+
+//       console.log("Executing Data Query...");
+//       marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+//         if (dataErr) {
+//           console.error("Data query error:", dataErr);
+//           return reject(dataErr);
+//         }
+//         console.log(dataResults);
+
+//         resolve({
+//           items: dataResults,
+//           total,
+//         });
+//       });
+//     });
+//   });
+// };
+
 exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, searchTerm) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
@@ -1315,35 +1412,33 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     const countParams = [];
 
     let dataSql = `
-        SELECT 
-        o.fullTotal AS total,
-        o.sheduleDate,
-        o.orderApp,
-        po.id AS processOrderId,
-        po.invNo,
-        po.status,
-        po.createdAt,
-        po.createdAt AS processCreatedAt,
-        op.packingStatus,
-        au.userName
+        SELECT DISTINCT
+          po.id AS processOrderId,
+          o.fullTotal AS total,
+          o.sheduleDate,
+          o.orderApp,
+          po.invNo,
+          po.status,
+          po.createdAt,
+          po.createdAt AS processCreatedAt,
+          op.packingStatus,
+          au.userName
         FROM processorders po
-        JOIN orders o  ON po.orderId = o.id
+        JOIN orders o ON po.orderId = o.id
         JOIN orderpackage op ON op.orderId = po.id
         LEFT JOIN agro_world_admin.adminusers au ON po.dispatchOfficer = au.id
         WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
-    countSql = `
-      SELECT 
-        COUNT(DISTINCT po.id) AS total
-        FROM processorders po
-        JOIN orders o  ON po.orderId = o.id
-        JOIN orderpackage op ON op.orderId = po.id
-        WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
+      
+    let countSql = `
+      SELECT COUNT(DISTINCT po.id) AS total
+      FROM processorders po
+      JOIN orders o ON po.orderId = o.id
+      JOIN orderpackage op ON op.orderId = po.id
+      WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
 
     if (dateFilter) {
-      console.log("Date Filter:", dateFilter);
-
       dataSql += ` AND DATE(o.sheduleDate) = ? `;
       countSql += ` AND DATE(o.sheduleDate) = ? `;
       params.push(dateFilter);
@@ -1351,40 +1446,23 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     }
 
     if (searchTerm) {
-      dataSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ? OR mu.firstName LIKE ? OR mu.lastName LIKE ?)`;
-      countSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ? OR mu.firstName LIKE ? OR mu.lastName LIKE ?)`;
+      dataSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ?)`;
+      countSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ?)`;
       const searchPattern = `%${searchTerm}%`;
-      params.push(searchPattern, searchPattern, searchPattern, searchPattern);
-      countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+      params.push(searchPattern, searchPattern);
+      countParams.push(searchPattern, searchPattern);
     }
 
-    dataSql += ` 
-                GROUP BY
-                  o.fullTotal,
-                  o.sheduleDate,
-                  o.orderApp,
-                  po.id,
-                  po.invNo,
-                  po.status,
-                  op.packingStatus,
-                  op.createdAt,
-                  au.userName
-                 ORDER BY op.createdAt DESC
-                 LIMIT ? OFFSET ?
-                `;
-
+    dataSql += ` ORDER BY po.createdAt DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), parseInt(offset));
 
     console.log("Executing Count Query...");
-    // console.log(dataSql);
 
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Count query error:", countErr);
         return reject(countErr);
       }
-
-      console.log(countResults);
 
       const total = countResults[0]?.total || 0;
 
@@ -1394,7 +1472,6 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
           console.error("Data query error:", dataErr);
           return reject(dataErr);
         }
-        console.log(dataResults);
 
         resolve({
           items: dataResults,
