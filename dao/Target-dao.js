@@ -121,7 +121,9 @@ exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
           DT.grade,
           DT.target,
           DT.id,
-          CC.varietyId 
+          CC.varietyId,
+          DT.assignBy,
+          DT.assignTime
       FROM 
           centercrops CC
       LEFT JOIN 
@@ -164,7 +166,20 @@ exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
         return reject(err);
       }
 
-      console.log('results', results)
+      let latestAssignTime;
+      let latestAssignBy
+      if (results.length > 0) {
+        // Sort by assignTime descending (latest first)
+        results.sort((a, b) => new Date(b.assignTime) - new Date(a.assignTime));
+      
+        // Get the latest item's assignBy and assignTime
+        latestAssignBy = results[0].assignBy;
+        latestAssignTime = results[0].assignTime;
+      
+        console.log("Latest assignBy:", latestAssignBy);
+        console.log("Latest assignTime:", latestAssignTime);
+      }
+      
 
         const aggregatedResults = {};
 
@@ -202,7 +217,7 @@ exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
           (item) => item.idA === null && item.idB === null && item.idC === null
         );
 
-        resolve({ data: finalResults, isNew });
+        resolve({ data: finalResults, isNew, latestAssignBy });
 
     });
   });
@@ -421,6 +436,24 @@ exports.removeCenterCropsDao = (companyCenterId, cropId) => {
         return reject(err);
       }
 
+      resolve(results);
+    });
+  });
+};
+
+exports.getOfficerData = (assignBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            SELECT firstNameEnglish, lastNameEnglish 
+            FROM collection_officer.collectionofficer
+            WHERE id = ? 
+        `;
+    const values = [assignBy];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
       resolve(results);
     });
   });
