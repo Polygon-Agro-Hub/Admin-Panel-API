@@ -52,14 +52,18 @@ exports.getSavedCenterCrops = async (req, res) => {
 
   try {
     const companyId = 1;
-    const { id, date } =
+    const { id } =
       await TargetValidate.getSavedCenterCropsSchema.validateAsync(req.params);
-    const { searchText } =
+    const { page, date, searchText } =
       await TargetValidate.getSavedCenterCropsQuaryParam.validateAsync(
         req.query
       );
 
-    console.log(id, date);
+    if (date === null) {
+       date = ''
+    }
+
+    console.log('ep', 'id', id,'date', date, 'searchText', searchText);
 
     const companyCenterId = await TargetDAO.getCompanyCenterIDDao(
       companyId,
