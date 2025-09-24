@@ -39,7 +39,7 @@ router.delete(
   AdminEp.deleteAdminUser
 );
 
-router.post("/edit-admin-user/:id", authMiddleware, AdminEp.editAdminUser);
+router.post("/update-admin/:id", authMiddleware, AdminEp.editAdminUser);
 
 router.get("/get-admin-by-id/:id", authMiddleware, AdminEp.getAdminById);
 
