@@ -103,7 +103,56 @@ router.get(
 router.post(
   '/update-pack-additiona-items', 
   authMiddleware,
-  DispatchEP.updatePackAdditionItems);
+  DispatchEP.updatePackAdditionItems
+);
+
+router.get(
+  '/marketplace-premade-package', 
+  authMiddleware,
+  DispatchEP.getMarketPlacePremadePackages
+);
+
+router.get(
+  '/marketplace-premade-package-items/:id', 
+  authMiddleware,
+  DispatchEP.getMarketPlacePremadePackagesItems
+);
+
+router.get(
+  '/marketplace-custome-package', 
+  authMiddleware,
+  DispatchEP.getMarketPlaceCustomePackages
+);
+
+router.get(
+  '/get-package-for-dispatch/:id/:orderId', 
+  authMiddleware,
+  DispatchEP.getPackageForDispatch
+);
+
+router.patch(
+  '/dispatch-package', 
+  authMiddleware,
+  DispatchEP.dispatchPackage
+);
+
+router.get(
+  '/get-additional-items-for-dispatch/:id', 
+  authMiddleware,
+  DispatchEP.getAdditionalItemsForDispatch
+);
+
+router.patch(
+  '/dispatch-additional-items', 
+  authMiddleware,
+  DispatchEP.dispatchAdditonalPackage
+);
+
+router.patch(
+  '/replace-dispatch-package-items', 
+  authMiddleware,
+  DispatchEP.replaceDispatchPackageItems
+);
 
 
 

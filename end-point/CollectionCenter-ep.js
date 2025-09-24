@@ -582,18 +582,85 @@ exports.createCompany = async (req, res) => {
       foConCode,
       foConNum,
       foEmail,
-      logo,
-      favicon,
+      logo: logoBase64, // Expecting base64 string
+      favicon: faviconBase64, // Expecting base64 string
     } = req.body;
 
-    const checkCompanyName =
-      await CollectionCenterDao.checkCompanyDisplayNameDao(companyNameEnglish);
-    if (checkCompanyName) {
+    // Check if company name or registration number already exists
+    const checkCompany = await CollectionCenterDao.checkCompanyDisplayNameDao(
+      companyNameEnglish, 
+      regNumber,
+      null // null for id since this is a create operation
+    );
+
+    if (checkCompany.exists) {
+      let message = "Company already exists";
+      if (checkCompany.nameExists && checkCompany.regNumberExists) {
+        message = "Company Name and Registration Number already exist";
+      } else if (checkCompany.nameExists) {
+        message = "Company Name already exists";
+      } else if (checkCompany.regNumberExists) {
+        message = "Registration Number already exists";
+      }
+      
       return res.json({
         status: false,
-        message: "Company Name Exists",
+        message: message
       });
     }
+
+    // Generate unique filenames
+    const generateFileName = (prefix, originalName = '') => {
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 15);
+      const extension = originalName.split('.').pop() || 'png';
+      return `${prefix}_${timestamp}_${random}.${extension}`;
+    };
+
+    // Convert base64 to file information (without saving to disk)
+    const processBase64Image = (base64String, fileType) => {
+      if (!base64String) return null;
+      
+      try {
+        // Extract MIME type and data from base64 string
+        const matches = base64String.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        
+        if (!matches || matches.length !== 3) {
+          throw new Error('Invalid base64 string');
+        }
+
+        const mimeType = matches[1];
+        const buffer = Buffer.from(matches[2], 'base64');
+        
+        // Generate a filename based on MIME type
+        const extension = mimeType.split('/')[1] || 'png';
+        const filename = generateFileName(fileType, `file.${extension}`);
+        
+        return {
+          filename: filename,
+          originalname: filename,
+          mimetype: mimeType,
+          size: buffer.length,
+          buffer: buffer
+        };
+      } catch (error) {
+        console.error(`Error processing ${fileType}:`, error);
+        return null;
+      }
+    };
+
+    // Process logo and favicon
+    const logoFile = processBase64Image(logoBase64, 'logo');
+    const faviconFile = processBase64Image(faviconBase64, 'favicon');
+
+    // Generate URLs (you can customize this based on your storage strategy)
+    const generateFileUrl = (filename) => {
+      if (!filename) return null;
+      return `${req.protocol}://${req.get("host")}/uploads/${filename}`;
+    };
+
+    const logoUrl = logoFile ? generateFileUrl(logoFile.filename) : null;
+    const faviconUrl = faviconFile ? generateFileUrl(faviconFile.filename) : null;
 
     const newsId = await CollectionCenterDao.createCompany(
       regNumber,
@@ -615,8 +682,8 @@ exports.createCompany = async (req, res) => {
       foConCode,
       foConNum,
       foEmail,
-      logo,
-      favicon,
+      logoUrl, // Pass the generated URL instead of base64
+      faviconUrl, // Pass the generated URL instead of base64
       companyType
     );
 
@@ -628,7 +695,6 @@ exports.createCompany = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-      // Validation error
       return res.status(400).json({ error: err.details[0].message });
     }
 
@@ -805,6 +871,15 @@ exports.updateCompany = async (req, res) => {
       favicon,
     } = req.body;
     // Call DAO function to update the company record
+
+    const cehckRegNum = await CollectionCenterDao.checkCompanyRegNumberDao(regNumber, id);
+    if(cehckRegNum.length > 0 ){
+      return res.json({
+        message: "Registraion number allrady exist.",
+        status: false,
+      });
+    }
+
     const result = await CollectionCenterDao.updateCompany(
       id,
       regNumber,
@@ -947,19 +1022,19 @@ exports.getCenterDashbord = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const officerCount =
-      await CollectionCenterDao.getCenterNameAndOficerCountDao(id);
+    const officerCount = await CollectionCenterDao.getCenterNameAndOficerCountDao(id);
     const transCount = await CollectionCenterDao.getTransactionCountDao(id);
-    const transAmountCount =
-      await CollectionCenterDao.getTransactionAmountCountDao(id);
-    const resentCollection = await CollectionCenterDao.getReseantCollectionDao(
-      id
-    );
+    const transAmountCount = await CollectionCenterDao.getTransactionAmountCountDao(id);
+    const resentCollection = await CollectionCenterDao.getReseantCollectionDao(id);
     console.log("resentCollection", resentCollection);
     const totExpences = await CollectionCenterDao.getTotExpencesDao(id);
     const difExpences = await CollectionCenterDao.differenceBetweenExpences(id);
 
     const limitedResentCollection = resentCollection.slice(0, 5);
+
+   console.log(transAmountCount);
+   
+    
 
     console.log("Successfully fetched gatogory");
     return res.status(200).json({
@@ -1309,5 +1384,100 @@ exports.downloadAllCenterPayments = async (req, res) => {
 
     console.error("Error fetching collection officers:", error);
     return res.status(500).json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
+
+exports.getCenterTarget = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  
+  try {
+    const { centerId, page, limit, status, searchText } = await ValidateSchema.getCenterTargetSchema.validateAsync(req.query);
+
+    const companyCenterId = await CollectionCenterDao.getCompanyCenterIDDao(1, centerId);
+    if (companyCenterId === null) {
+      res.json({ items: [], message: "No center found" })
+    }
+
+    console.log(companyCenterId);
+
+    const { resultTarget } = await CollectionCenterDao.getCenterTargetDAO(companyCenterId, status, searchText, centerId);
+    console.log('this is', resultTarget);
+    return res.status(200).json({
+      items: resultTarget
+    });
+    
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+    console.error("Error fetching crop names and verity:", error);
+    return res.status(500).json({ error: "An error occurred while fetching crop names and verity" });
+  }
+};
+
+
+exports.downloadCurrentTarget = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  try {
+
+    const { centerId, status, searchText } = await ValidateSchema.downloadCurrentTargetSchema.validateAsync(req.query);
+    const companyCenterId = await CollectionCenterDao.getCompanyCenterIDDao(1, centerId);
+    if (companyCenterId === null) {
+      res.json({ items: [], message: "No center found" })
+    }
+
+    const { resultTarget } = await CollectionCenterDao.downloadCurrentTargetDAO(companyCenterId, status, searchText);
+    const formattedData = resultTarget.flatMap(item => [
+      {
+        'Crop Name': item.cropNameEnglish,
+        'Variety Name': item.varietyNameEnglish,
+        'Grade': item.grade,
+        'Target (kg)': item.target,
+        'Complete (kg)': item.complete,
+        'Status': item.status,
+        'End Date': item.date,
+
+      },
+
+    ]);
+
+
+    // Create a worksheet and workbook
+    const worksheet = XLSX.utils.json_to_sheet(formattedData);
+
+    worksheet['!cols'] = [
+      { wch: 25 }, // GRN
+      { wch: 15 }, // Amount
+      { wch: 20 }, // Center Reg Code
+      { wch: 25 }, // Center Name
+      { wch: 18 }, // Farmer NIC
+      { wch: 25 }, // Farmer Name
+      { wch: 15 }, // Farmer Contact
+
+    ];
+
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Current Center Target Template');
+
+    // Write the workbook to a buffer
+    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    // Set headers for file download
+    res.setHeader('Content-Disposition', 'attachment; filename="Current Center Target Template.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    // Send the file to the client
+    res.send(excelBuffer);
+
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching Current Center Target:", error);
+    return res.status(500).json({ error: "An error occurred while fetching Current Center Target" });
   }
 };

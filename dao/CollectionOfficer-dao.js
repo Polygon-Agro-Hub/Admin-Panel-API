@@ -53,7 +53,6 @@ exports.checkNICExist = async (nic, excludeId = null) => {
   });
 };
 
-
 exports.checkEmailExist = async (email, excludeId = null) => {
   return new Promise((resolve, reject) => {
     let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE email = ?`;
@@ -71,9 +70,11 @@ exports.checkEmailExist = async (email, excludeId = null) => {
 
 // Check if phone number exists, excluding the current officer
 exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
-  console.log('officer',excludeId)
+  console.log("officer", excludeId);
   return new Promise((resolve, reject) => {
-    let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE phoneNumber01 = ? OR phoneNumber02 = ?`;
+    let sql = `SELECT COUNT(*) as count 
+               FROM collectionofficer 
+               WHERE (phoneNumber01 = ? OR phoneNumber02 = ?)`;
     const params = [phoneNumber, phoneNumber];
     if (excludeId) {
       sql += ` AND id != ?`;
@@ -170,7 +171,6 @@ exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
 //   });
 // };
 
-
 exports.createCollectionOfficerPersonal = (
   officerData,
   profileImageUrl,
@@ -199,6 +199,12 @@ exports.createCollectionOfficerPersonal = (
 
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
+      if (
+        officerData.jobRole === "Collection Center Manager" ||
+        officerData.jobRole === "Collection Center Head"
+      ) {
+        officerData.irmId = null;
+      }
 
       const sql = `
                 INSERT INTO collectionofficer (
@@ -435,7 +441,6 @@ exports.getAllCollectionOfficers = (
     }
 
     if (centerStatus) {
-      // Convert centerStatus to corresponding numeric value
       let claimStatusValue;
       if (centerStatus === "Claimed") {
         claimStatusValue = 1;
@@ -445,7 +450,6 @@ exports.getAllCollectionOfficers = (
 
       console.log("this is claimstatus value", claimStatusValue);
 
-      // Apply filter only if it's a valid value
       if (claimStatusValue !== undefined) {
         countSql += " AND coff.claimStatus = ? ";
         dataSql += " AND coff.claimStatus = ? ";
@@ -475,7 +479,6 @@ exports.getAllCollectionOfficers = (
       dataParams.push(centerId);
     }
 
-    // Apply search filters for NIC or related fields
     if (searchNIC) {
       const searchCondition = `
                 AND (
@@ -514,7 +517,13 @@ exports.getAllCollectionOfficers = (
       );
     }
 
-    dataSql += " ORDER BY coff.createdAt DESC";
+    // Modified ORDER BY to prioritize CCMs and sort by empId ASC, then others by createdAt DESC
+    dataSql += `
+      ORDER BY 
+        CASE WHEN coff.jobRole = 'Collection Center Manager' THEN 0 ELSE 1 END,
+        CASE WHEN coff.jobRole = 'Collection Center Manager' THEN coff.empId END ASC,
+        CASE WHEN coff.jobRole = 'Collection Officer' THEN coff.createdAt END DESC
+    `;
 
     // Add pagination to the data query
     dataSql += " LIMIT ? OFFSET ?";
@@ -541,7 +550,6 @@ exports.getAllCollectionOfficers = (
     });
   });
 };
-
 // exports.getAllCollectionOfficersStatus = (
 //   page,
 //   limit,
@@ -700,11 +708,11 @@ exports.getAllCollectionOfficersStatus = (
     const dataParams = [];
 
     // Apply filter for centerName only if non-empty
-    if (centerName && centerName.trim()) {
-      countSql += " AND CC.centerName = ?";
-      dataSql += " AND CC.centerName = ?";
-      countParams.push(centerName.trim());
-      dataParams.push(centerName.trim());
+    if (centerName) {
+      countSql += " AND CC.centerName LIKE ?";
+      dataSql += " AND CC.centerName LIKE ?";
+      countParams.push(`%${centerName}%`);
+      dataParams.push(`%${centerName}%`);
     }
 
     // Apply search filters for NIC or related fields
@@ -900,7 +908,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(20)
       .fillColor("#071a51")
-      .text("Welcome to AgroWorld (Pvt) Ltd - Registration Confirmation", {
+      .text("Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation", {
         align: "center",
       });
 
@@ -927,7 +935,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(12)
       .text(
-        "You have successfully created an account with AgroWorld (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
+        "You have successfully created an account with PolygonAgro (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
         {
           align: "justify",
         }
@@ -943,7 +951,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(12)
       .text(
-        "If you have any questions or need assistance, feel free to reach out to our support team at info@agroworld.lk",
+        "If you have any questions or need assistance, feel free to reach out to our support team at polygonagro.inf@gmail.com",
         {
           align: "justify",
         }
@@ -957,14 +965,14 @@ exports.SendGeneratedPasswordDao = async (
 
     doc.moveDown();
     doc.fontSize(12).text(`Best Regards,`);
-    doc.fontSize(12).text(`The AgroWorld Team`);
-    doc.fontSize(12).text(`AgroWorld (Pvt) Ltd. | All rights reserved.`);
+    doc.fontSize(12).text(`The PolygonAgro Team`);
+    doc.fontSize(12).text(`PolygonAgro (Pvt) Ltd. | All rights reserved.`);
     doc.moveDown();
     doc.fontSize(12).text(`Address: No:14,`);
     doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
     doc.fontSize(12).text(`            Colombo 01.`);
     doc.moveDown();
-    doc.fontSize(12).text(`Email: info@agroworld.lk`);
+    doc.fontSize(12).text(`Email: polygonagro.inf@gmail.com`);
 
     doc.end();
 
@@ -1003,7 +1011,7 @@ exports.SendGeneratedPasswordDao = async (
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to AgroWorld (Pvt) Ltd - Registration Confirmation",
+      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
       text: `Dear ${firstNameEnglish},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {
@@ -1682,8 +1690,12 @@ exports.getAllCenterNamesDao = (district) => {
   return new Promise((resolve, reject) => {
     const sql = `
             SELECT CC.id, CC.regCode, CC.centerName
-            FROM collectioncenter CC, companycenter COMC, company COM
-            WHERE CC.id = COMC.centerId AND COMC.companyId = COM.id AND COM.isCollection = 1;
+FROM collectioncenter CC, companycenter COMC, company COM
+WHERE CC.id = COMC.centerId 
+  AND COMC.companyId = COM.id 
+  AND COM.isCollection = 1 
+  AND COM.id = 1 GROUP BY CC.id, CC.regCode, CC.centerName
+ORDER BY CC.centerName ASC;
         `;
     collectionofficer.query(sql, [district], (err, results) => {
       if (err) {
@@ -1694,34 +1706,24 @@ exports.getAllCenterNamesDao = (district) => {
   });
 };
 
-exports.getAllCenterManagerDao = () => {
+exports.getAllCenterManagerDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT id, centerName
-            FROM collectioncenter
-        `;
-    collectionofficer.query(sql, (err, results) => {
-      if (err) {
-        return reject(err); // Reject promise if an error occurs
-      }
-      resolve(results); // Resolve the promise with the query results
-    });
-  });
-};
-
-exports.getAllCenterManagerDao = () => {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT id, firstNameEnglish, lastNameEnglish
+      SELECT id, firstNameEnglish, lastNameEnglish, empId
       FROM collectionofficer
-      WHERE jobRole = 'Collection Center Manager';
+      WHERE jobRole = 'Collection Center Manager' 
+        AND companyId = 1 
+        AND status = 'Approved' 
+        AND centerId = ?
     `;
-
-    collectionofficer.query(sql, (err, results) => {
+    
+    collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        console.error('Database error in getAllCenterManagerDao:', err);
+        return reject(new Error('Failed to fetch center managers'));
       }
-      resolve(results); // Resolve the promise with the query results
+      
+      resolve(results || []);
     });
   });
 };
@@ -2332,20 +2334,58 @@ exports.getCCIDforCreateEmpIdDao = (employee) => {
   });
 };
 
-exports.getAllCenterNamesDao = () => {
+exports.getFarmerInvoiceDetailsDao = (invNo) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+        SELECT RFP.id, U.firstName, U.lastName, U.phoneNumber, U.NICnumber, U.houseNo, U.streetName, U.city, U.district, UB.accNumber, UB.accHolderName, UB.bankName, UB.branchName, RFP.createdAt, CO.QRcode AS officerQr, U.farmerQr, RFP.invNo 
+        FROM farmerpaymentscrops FPC, registeredfarmerpayments RFP, plant_care.users U, collectionofficer CO, plant_care.userbankdetails UB 
+        WHERE FPC.registerFarmerId = RFP.id AND RFP.userId = U.id AND U.id = UB.userId AND RFP.collectionOfficerId = CO.id AND RFP.invNo = ?
+            LIMIT 1
+            `;
+
+    collectionofficer.query(sql, [invNo], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getFarmerCropsInvoiceDetailsDao = (invNo) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT centerName
-      FROM collectioncenter
+        SELECT RFP.id, CG.cropNameEnglish, CV.varietyNameEnglish, FPC.gradeAprice, FPC.gradeBprice, FPC.gradeCprice, FPC.gradeAquan, FPC.gradeBquan, FPC.gradeCquan
+        FROM registeredfarmerpayments RFP, farmerpaymentscrops FPC, plant_care.cropvariety CV, plant_care.cropgroup CG
+        WHERE FPC.registerFarmerId = RFP.id AND FPC.cropId = CV.id AND CV.cropGroupId = CG.id AND RFP.invNo = ?
+            `;
+
+    collectionofficer.query(sql, [invNo], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getCollectionCenterForReportDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT cen.centerName
+      FROM company c
+      JOIN companycenter cc ON c.id = cc.companyId
+      JOIN collectioncenter cen ON cc.centerId = cen.id
+      WHERE c.isCollection = 1
+      GROUP BY cen.centerName
+      ORDER BY cen.centerName
     `;
 
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
-
       resolve(results);
     });
   });
 };
-

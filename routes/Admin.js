@@ -143,7 +143,7 @@ router.get(
 );
 
 router.get(
-  "/get-ongoing-cultivation-by-id/:id",
+  "/get-ongoing-cultivation-by-id/:cultivationId/:userId",
   authMiddleware,
   AdminEp.getOngoingCultivationsById
 );
@@ -163,10 +163,14 @@ router.post(
 );
 
 router.get(
-  "/get-fixed-assets/:id/:category",
+  "/get-fixed-assets/:id/:category/:farmId",
   authMiddleware,
   AdminEp.getFixedAssetsByCategory
 );
+
+router.get('/get-fixed-assets/building-ownership/:buildingAssetId', authMiddleware, AdminEp.getBuildingOwnershipDetails);
+router.get('/get-fixed-assets/land-ownership/:landAssetId', authMiddleware, AdminEp.getLandOwnershipDetails);
+
 
 router.get(
   "/get-current-assets-view/:id/:category",
@@ -342,5 +346,41 @@ router.delete(
   authMiddleware,
   AdminEp.deleteOngoingCultivationsById
 );
+
+router.get(
+  "/get-all-farmer-staff",
+  authMiddleware,
+  AdminEp.getFarmerStaff
+);
+
+router.get(
+  "/get-farm-owner",
+  authMiddleware,
+  AdminEp.getFarmOwner
+);
+
+router.put('/update-farm-owner/:id', authMiddleware,  AdminEp.updateFarmOwner);
+
+router.get(
+  "/get-all-farmer-farms",
+  authMiddleware,
+  AdminEp.getUserFarmDetails
+);
+
+router.delete("/delete-farm",  authMiddleware, AdminEp.deleteFarms);
+
+router.get(
+  "/get-farms-by-user",
+  authMiddleware,
+  AdminEp.getFarmsByUser
+);
+
+// Delete a farm by ID
+router.delete(
+  "/delete-farm/:farmId",
+  authMiddleware,
+  AdminEp.deleteFarm
+);
+
 
 module.exports = router;

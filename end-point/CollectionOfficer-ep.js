@@ -84,58 +84,56 @@ exports.createCollectionOfficer = async (req, res) => {
   try {
     const officerData = JSON.parse(req.body.officerData);
 
-    const isExistingNIC = await collectionofficerDao.checkNICExist(
-      officerData.nic
-    );
-    const isExistingEmail = await collectionofficerDao.checkEmailExist(
-      officerData.email
-    );
+    let validationErrors = [];
 
+    // NIC validation
+    const isExistingNIC = await collectionofficerDao.checkNICExist(officerData.nic);
     if (isExistingNIC) {
-      return res.status(500).json({
-        error: "NIC already exists",
-      });
+      validationErrors.push("NIC");
     }
 
+    // Email validation
+    const isExistingEmail = await collectionofficerDao.checkEmailExist(officerData.email);
     if (isExistingEmail) {
-      return res.status(500).json({
-        error: "Email already exists",
-      });
+      validationErrors.push("Email");
     }
 
-
+    // Phone number 1 validation
     const isExistingPhoneNumber01 = await collectionofficerDao.checkPhoneNumberExist(officerData.phoneNumber01);
     if (isExistingPhoneNumber01) {
-      return res.status(500).json({
-        error: "Primary phone number already exists",
-      });
+      validationErrors.push("PhoneNumber01");
     }
 
+    // Phone number 2 validation (optional)
     if (officerData.phoneNumber02) {
       const isExistingPhoneNumber02 = await collectionofficerDao.checkPhoneNumberExist(officerData.phoneNumber02);
       if (isExistingPhoneNumber02) {
-        return res.status(500).json({
-          error: "Secondary phone number already exists",
-        });
+        validationErrors.push("PhoneNumber02");
       }
     }
 
-    let profileImageUrl = null; // Default to null if no image is provided
-    const lastId = await collectionofficerDao.getCCIDforCreateEmpIdDao(officerData.jobRole);
-    console.log("LastId",lastId);
-    
+    // If any errors, return them all at once
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        errors: validationErrors,   // e.g. ["Email", "PhoneNumber01"]
+        status: false
+      });
+    }
 
-    // Check if an image file is provided
+    // === continue with file upload logic ===
+    let profileImageUrl = null;
+    const lastId = await collectionofficerDao.getCCIDforCreateEmpIdDao(officerData.jobRole);
+    console.log("LastId", lastId);
+
     if (req.body.file) {
       try {
-        const base64String = req.body.file.split(",")[1]; // Extract the Base64 content
-        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1]; // Extract MIME type
-        const fileBuffer = Buffer.from(base64String, "base64"); // Decode Base64 to buffer
+        const base64String = req.body.file.split(",")[1];
+        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
+        const fileBuffer = Buffer.from(base64String, "base64");
 
-        const fileExtension = mimeType.split("/")[1]; // Extract file extension from MIME type
+        const fileExtension = mimeType.split("/")[1];
         const fileName = `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}.${fileExtension}`;
 
-        // Upload image to S3
         profileImageUrl = await uploadFileToS3(
           fileBuffer,
           fileName,
@@ -143,19 +141,15 @@ exports.createCollectionOfficer = async (req, res) => {
         );
       } catch (err) {
         console.error("Error processing image file:", err);
-        return res
-          .status(400)
-          .json({ error: "Invalid file format or file upload error" });
+        return res.status(400).json({ error: "Invalid file format or file upload error" });
       }
     }
 
-    // Save officer data (without image if no image is uploaded)
-    const resultsPersonal =
-      await collectionofficerDao.createCollectionOfficerPersonal(
-        officerData,
-        profileImageUrl,
-        lastId
-      );
+    const resultsPersonal = await collectionofficerDao.createCollectionOfficerPersonal(
+      officerData,
+      profileImageUrl,
+      lastId
+    );
 
     console.log("Collection Officer created successfully");
     return res.status(201).json({
@@ -174,6 +168,7 @@ exports.createCollectionOfficer = async (req, res) => {
     });
   }
 };
+
 
 //get all collection officer
 exports.getAllCollectionOfficers = async (req, res) => {
@@ -268,6 +263,12 @@ exports.getAllCollectionOfficersStatus = async (req, res) => {
       );
 
     const { page, limit, nic, centerName } = validatedQuery;
+    console.log("------------------");
+    console.log(centerName);
+    console.log("------------------");
+
+    
+    
 
     // Call the DAO to get all collection officers
     const result = await collectionofficerDao.getAllCollectionOfficersStatus(
@@ -598,6 +599,7 @@ exports.getOfficerById = async (req, res) => {
   }
 };
 
+
 exports.updateCollectionOfficerDetails = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
@@ -605,124 +607,92 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
 
   try {
     const officerData = JSON.parse(req.body.officerData);
-    console.log('officer data',officerData)
-    const qrCode = await collectionofficerDao.getQrImage(id);
+    console.log('officer data', officerData);
 
+    let validationErrors = [];
+
+    // Check duplicates
     const isExistingNIC = await collectionofficerDao.checkNICExist(officerData.nic, id);
-    if (isExistingNIC) {
-      return res.status(400).json({ error: "NIC already exists" });
-    }
+    if (isExistingNIC) validationErrors.push('NIC');
 
     const isExistingEmail = await collectionofficerDao.checkEmailExist(officerData.email, id);
-    if (isExistingEmail) {
-      return res.status(400).json({ error: "Email already exists" });
-    }
+    if (isExistingEmail) validationErrors.push('Email');
 
     const isExistingPhoneNumber01 = await collectionofficerDao.checkPhoneNumberExist(officerData.phoneNumber01, id);
-    if (isExistingPhoneNumber01) {
-      return res.status(400).json({ error: "Primary phone number already exists" });
-    }
+    if (isExistingPhoneNumber01) validationErrors.push('PhoneNumber01');
 
     if (officerData.phoneNumber02) {
       const isExistingPhoneNumber02 = await collectionofficerDao.checkPhoneNumberExist(officerData.phoneNumber02, id);
-      if (isExistingPhoneNumber02) {
-        return res.status(400).json({ error: "Secondary phone number already exists" });
-      }
+      if (isExistingPhoneNumber02) validationErrors.push('PhoneNumber02');
     }
 
+    // If any validation errors, send all at once
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        errors: validationErrors,
+        status: false
+      });
+    }
+
+    // === Image upload logic ===
     let profileImageUrl = null;
+    const qrCode = await collectionofficerDao.getQrImage(id);
 
     if (req.body.file) {
       console.log("Received");
-      // Delete existing QR code or profile image from S3 if it exists
       if (qrCode.image) {
         await deleteFromS3(qrCode.image);
       }
 
-      const base64String = req.body.file.split(",")[1]; // Extract the Base64 content
-      const mimeType = req.body.file.match(/data:(.*?);base64,/)[1]; // Extract MIME type
-      const fileBuffer = Buffer.from(base64String, "base64"); // Decode Base64 to buffer
+      const base64String = req.body.file.split(",")[1];
+      const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
+      const fileBuffer = Buffer.from(base64String, "base64");
 
-      const fileExtension = mimeType.split("/")[1]; // Extract file extension from MIME type
+      const fileExtension = mimeType.split("/")[1];
       const fileName = `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}.${fileExtension}`;
 
-      profileImageUrl = await uploadFileToS3(
-        fileBuffer,
-        fileName,
-        "collectionofficer/image"
-      );
+      profileImageUrl = await uploadFileToS3(fileBuffer, fileName, "collectionofficer/image");
     } else {
-      profileImageUrl = qrCode.image; // Retain existing image if no new file is provided
+      profileImageUrl = qrCode.image;
     }
 
-    const {
-      centerId,
-      companyId,
-      irmId,
-      firstNameEnglish,
-      lastNameEnglish,
-      firstNameSinhala,
-      lastNameSinhala,
-      firstNameTamil,
-      lastNameTamil,
-      jobRole,
-      empId,
-      empType,
-      phoneCode01,
-      phoneNumber01,
-      phoneCode02,
-      phoneNumber02,
-      nic,
-      email,
-      houseNumber,
-      streetName,
-      city,
-      district,
-      province,
-      country,
-      languages,
-      accHolderName,
-      accNumber,
-      bankName,
-      branchName,
-    } = officerData;
-    console.log(empId);
-
+    // === Update officer details ===
     await collectionofficerDao.updateOfficerDetails(
       id,
-      centerId,
-      companyId,
-      irmId,
-      firstNameEnglish,
-      lastNameEnglish,
-      firstNameSinhala,
-      lastNameSinhala,
-      firstNameTamil,
-      lastNameTamil,
-      jobRole,
-      empId,
-      empType,
-      phoneCode01,
-      phoneNumber01,
-      phoneCode02,
-      phoneNumber02,
-      nic,
-      email,
-      houseNumber,
-      streetName,
-      city,
-      district,
-      province,
-      country,
-      languages,
-      accHolderName,
-      accNumber,
-      bankName,
-      branchName,
+      officerData.centerId,
+      officerData.companyId,
+      officerData.irmId,
+      officerData.firstNameEnglish,
+      officerData.lastNameEnglish,
+      officerData.firstNameSinhala,
+      officerData.lastNameSinhala,
+      officerData.firstNameTamil,
+      officerData.lastNameTamil,
+      officerData.jobRole,
+      officerData.empId,
+      officerData.empType,
+      officerData.phoneCode01,
+      officerData.phoneNumber01,
+      officerData.phoneCode02,
+      officerData.phoneNumber02,
+      officerData.nic,
+      officerData.email,
+      officerData.houseNumber,
+      officerData.streetName,
+      officerData.city,
+      officerData.district,
+      officerData.province,
+      officerData.country,
+      officerData.languages,
+      officerData.accHolderName,
+      officerData.accNumber,
+      officerData.bankName,
+      officerData.branchName,
       profileImageUrl
     );
 
-    res.json({ message: "Collection officer details updated successfully" });
+    res.json({ message: "Collection officer details updated successfully", status: true });
+
   } catch (err) {
     console.error("Error updating collection officer details:", err);
     if (err.isJoi) {
@@ -731,6 +701,141 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
     res.status(500).json({ error: "Failed to update collection officer details" });
   }
 };
+
+
+// exports.updateCollectionOfficerDetails = async (req, res) => {
+//   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+//   console.log(fullUrl);
+//   const { id } = req.params;
+
+//   try {
+//     const officerData = JSON.parse(req.body.officerData);
+//     console.log('officer data',officerData)
+//     const qrCode = await collectionofficerDao.getQrImage(id);
+
+//     const isExistingNIC = await collectionofficerDao.checkNICExist(officerData.nic, id);
+//     if (isExistingNIC) {
+//       return res.status(400).json({ error: "NIC already exists" });
+//     }
+
+//     const isExistingEmail = await collectionofficerDao.checkEmailExist(officerData.email, id);
+//     if (isExistingEmail) {
+//       return res.status(400).json({ error: "Email already exists" });
+//     }
+
+//     const isExistingPhoneNumber01 = await collectionofficerDao.checkPhoneNumberExist(officerData.phoneNumber01, id);
+//     if (isExistingPhoneNumber01) {
+//       return res.status(400).json({ error: "Primary phone number already exists" });
+//     }
+
+//     if (officerData.phoneNumber02) {
+//       const isExistingPhoneNumber02 = await collectionofficerDao.checkPhoneNumberExist(officerData.phoneNumber02, id);
+//       if (isExistingPhoneNumber02) {
+//         return res.status(400).json({ error: "Secondary phone number already exists" });
+//       }
+//     }
+
+//     let profileImageUrl = null;
+
+//     if (req.body.file) {
+//       console.log("Received");
+//       // Delete existing QR code or profile image from S3 if it exists
+//       if (qrCode.image) {
+//         await deleteFromS3(qrCode.image);
+//       }
+
+//       const base64String = req.body.file.split(",")[1]; // Extract the Base64 content
+//       const mimeType = req.body.file.match(/data:(.*?);base64,/)[1]; // Extract MIME type
+//       const fileBuffer = Buffer.from(base64String, "base64"); // Decode Base64 to buffer
+
+//       const fileExtension = mimeType.split("/")[1]; // Extract file extension from MIME type
+//       const fileName = `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}.${fileExtension}`;
+
+//       profileImageUrl = await uploadFileToS3(
+//         fileBuffer,
+//         fileName,
+//         "collectionofficer/image"
+//       );
+//     } else {
+//       profileImageUrl = qrCode.image; // Retain existing image if no new file is provided
+//     }
+
+//     const {
+//       centerId,
+//       companyId,
+//       irmId,
+//       firstNameEnglish,
+//       lastNameEnglish,
+//       firstNameSinhala,
+//       lastNameSinhala,
+//       firstNameTamil,
+//       lastNameTamil,
+//       jobRole,
+//       empId,
+//       empType,
+//       phoneCode01,
+//       phoneNumber01,
+//       phoneCode02,
+//       phoneNumber02,
+//       nic,
+//       email,
+//       houseNumber,
+//       streetName,
+//       city,
+//       district,
+//       province,
+//       country,
+//       languages,
+//       accHolderName,
+//       accNumber,
+//       bankName,
+//       branchName,
+//     } = officerData;
+//     console.log(empId);
+
+//     await collectionofficerDao.updateOfficerDetails(
+//       id,
+//       centerId,
+//       companyId,
+//       irmId,
+//       firstNameEnglish,
+//       lastNameEnglish,
+//       firstNameSinhala,
+//       lastNameSinhala,
+//       firstNameTamil,
+//       lastNameTamil,
+//       jobRole,
+//       empId,
+//       empType,
+//       phoneCode01,
+//       phoneNumber01,
+//       phoneCode02,
+//       phoneNumber02,
+//       nic,
+//       email,
+//       houseNumber,
+//       streetName,
+//       city,
+//       district,
+//       province,
+//       country,
+//       languages,
+//       accHolderName,
+//       accNumber,
+//       bankName,
+//       branchName,
+//       profileImageUrl
+//     );
+
+//     res.json({ message: "Collection officer details updated successfully" });
+//   } catch (err) {
+//     console.error("Error updating collection officer details:", err);
+//     if (err.isJoi) {
+//       return res.status(400).json({ error: err.details[0].message });
+//     }
+//     res.status(500).json({ error: "Failed to update collection officer details" });
+//   }
+// };
 
 exports.getOfficerByIdMonthly = async (req, res) => {
   try {
@@ -1040,20 +1145,48 @@ exports.getAllCenterNames = async (req, res) => {
 exports.getAllCollectionManagerNames = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
+  
   try {
-    const results = await collectionofficerDao.getAllCenterManagerDao();
-
-    console.log("Successfully retrieved reports");
-    res.status(200).json(results);
-  } catch (error) {
-    if (error.isJoi) {
-      return res.status(400).json({ error: error.details[0].message });
+    const centerId = req.params.centerId ;
+    
+    if (!centerId) {
+      return res.status(400).json({ error: "centerId is required" });
     }
 
-    console.error("Error retrieving district reports:", error);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while fetching the reports" });
+    const numericCenterId = parseInt(centerId);
+    if (isNaN(numericCenterId)) {
+      return res.status(400).json({ error: "centerId must be a valid number" });
+    }
+
+    const results = await collectionofficerDao.getAllCenterManagerDao(numericCenterId);
+
+    console.log("Successfully retrieved collection managers");
+    res.status(200).json({
+      success: true,
+      data: results,
+      count: results.length
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ 
+        success: false,
+        error: error.details[0].message 
+      });
+    }
+
+    console.error("Error retrieving collection managers:", error);
+    
+    if (error.message === 'Valid centerId is required') {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while fetching collection managers"
+    });
   }
 };
 
@@ -1196,18 +1329,51 @@ exports.getCollectionReport = async (req, res) => {
   }
 };
 
-exports.getAllCenterNames = async (req, res) => {
+
+exports.getFarmerReportInvoice = async (req, res) => {
   try {
-    const centers = await collectionofficerDao.getAllCenterNamesDao();
-    res.status(200).json({
-      success: true,
-      data: centers,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch center names',
-      error: error.message,
-    });
+    const { invNo } = await collectionofficerValidate.invNoParmsSchema.validateAsync(req.params);
+
+    const UserResult = await collectionofficerDao.getFarmerInvoiceDetailsDao(invNo);
+    const CropResult = await collectionofficerDao.getFarmerCropsInvoiceDetailsDao(invNo);
+
+    if (UserResult.length === 0 || CropResult.length === 0) {
+      return res.json({ message: "No report items found", status: false });
+    }
+
+    res.json({ user: UserResult[0], crops: CropResult, status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching report:", err);
+    res.status(500).json({ error: "An error occurred while fetching news" });
   }
 };
+
+
+
+exports.getCollectionCenterForReport = async (req, res) => {
+  try {
+    const result = await collectionofficerDao.getCollectionCenterForReportDao();
+
+
+    res.json({ data:result, status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching report:", err);
+    res.status(500).json({ error: "An error occurred while fetching news" });
+  }
+};
+
+
+
+

@@ -48,6 +48,7 @@ exports.getAllAdminUsers = (limit, offset, role, search) => {
       SELECT COUNT(DISTINCT AU.id) as total 
       FROM adminusers AU 
       JOIN adminroles AR ON AU.role = AR.id
+      JOIN adminposition AP ON AU.position = AP.id
     `;
 
     const dataParms = [];
@@ -555,26 +556,29 @@ exports.editMarketPrice = (id, data) => {
 
 exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
   return new Promise((resolve, reject) => {
-    // Count query now uses DISTINCT to count unique cultivations
+    // Count query
     let countSql = `
       SELECT COUNT(DISTINCT OC.id) as total 
       FROM ongoingcultivations OC
-      JOIN users U ON OC.userId = U.id
-      JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+      LEFT JOIN users U ON OC.userId = U.id
+      LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
     `;
 
-    // Data query remains similar but with explicit JOINs for clarity
+    // Data query with farm count
     let dataSql = `
       SELECT 
-        OC.id AS cultivationId, 
-        U.id,
+        OC.id AS cultivationId,
+        OCC.id AS ongCultivationId,
+        U.id AS userId,
         U.firstName, 
         U.lastName, 
         U.NICnumber,
-        COUNT(OCC.cropCalendar) AS CropCount
+        COUNT(OCC.cropCalendar) AS CropCount,
+        COUNT(DISTINCT F.id) AS FarmCount
       FROM ongoingcultivations OC
-      JOIN users U ON OC.userId = U.id
-      JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+      LEFT JOIN users U ON OC.userId = U.id
+      LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+      LEFT JOIN farms F ON F.userId = U.id
     `;
 
     const countParams = [];
@@ -596,7 +600,7 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
     }
 
     dataSql += `
-      GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber 
+      GROUP BY OC.id, OCC.id, U.id, U.firstName, U.lastName, U.NICnumber 
       ORDER BY OC.createdAt DESC 
       LIMIT ? OFFSET ?
     `;
@@ -618,7 +622,6 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
         resolve({
           total,
           items: dataResults,
-          // Optional: include total crops count if needed
           totalCrops: dataResults.reduce(
             (sum, item) => sum + item.CropCount,
             0
@@ -652,40 +655,86 @@ exports.getOngoingCultivationsWithUserDetails = () => {
   });
 };
 
-exports.getOngoingCultivationsById = (id) => {
+// exports.getOngoingCultivationsById = (farmId, userId) => {
+//   const sql = `
+//     SELECT DISTINCT
+//       ongoingcultivationscrops.id AS ongoingcultivationscropsid, 
+//       ongoingcultivationscrops.ongoingCultivationId,
+//       ongoingcultivationscrops.cropCalendar,
+//       ongoingcultivationscrops.startedAt,
+//       (ongoingcultivationscrops.extentac + ongoingcultivationscrops.extentha * 2.47105 +  ongoingcultivationscrops.extentp / 160 )  AS extentac,
+//       cropgroup.cropNameEnglish AS cropName,
+//       cropvariety.varietyNameEnglish AS variety,
+//       cropcalender.method AS cultivationMethod,
+//       cropcalender.natOfCul AS natureOfCultivation,
+//       cropcalender.cropDuration AS cropDuration,
+//       ongoingcultivationscrops.longitude,
+//       ongoingcultivationscrops.latitude,
+//       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id) AS totalTasks,
+//       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id AND status = 'completed') AS completedTasks
+//     FROM 
+//       ongoingcultivationscrops
+//     JOIN 
+//       cropcalender ON ongoingcultivationscrops.cropCalendar = cropcalender.id
+//     JOIN 
+//       cropvariety ON cropcalender.cropVarietyId = cropvariety.id
+//     JOIN 
+//       cropgroup ON cropvariety.cropGroupId = cropgroup.id
+//     LEFT JOIN 
+//       slavecropcalendardays ON slavecropcalendardays.onCulscropID = ongoingcultivationscrops.id 
+//     WHERE
+//       ongoingcultivationscrops.ongoingCultivationId = ?`;
+
+//   return new Promise((resolve, reject) => {
+//     plantcare.query(sql, [farmId], (err, results) => {  // <-- use farmId here
+//       if (err) {
+//         reject("Error fetching cultivation crops by ID: " + err);
+//       } else {
+//         resolve(results);
+//       }
+//     });
+//   });
+// };
+
+exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
   const sql = `
     SELECT DISTINCT
-      ongoingcultivationscrops.id AS ongoingcultivationscropsid, 
-      ongoingcultivationscrops.ongoingCultivationId,
-      ongoingcultivationscrops.cropCalendar,
-      ongoingcultivationscrops.startedAt,
-      ongoingcultivationscrops.extentac,
-      cropgroup.cropNameEnglish AS cropName,
-      cropvariety.varietyNameEnglish AS variety,
-      cropcalender.method AS cultivationMethod,
-      cropcalender.natOfCul AS natureOfCultivation,
-      cropcalender.cropDuration AS cropDuration,
-      ongoingcultivationscrops.longitude,
-      ongoingcultivationscrops.latitude,
-      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id) AS totalTasks,
-      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id AND status = 'completed') AS completedTasks
+      occ.id AS ongoingcultivationscropsid,
+      occ.ongoingCultivationId,
+      occ.cropCalendar,
+      occ.startedAt,
+      (occ.extentac + occ.extentha * 2.47105 + occ.extentp / 160) AS extentac,
+      cg.cropNameEnglish AS cropName,
+      cv.varietyNameEnglish AS variety,
+      cc.method AS cultivationMethod,
+      cc.natOfCul AS natureOfCultivation,
+      cc.cropDuration AS cropDuration,
+      occ.longitude,
+      occ.latitude,
+      occ.modifyBy,
+      u.firstName AS userFirstName,
+      u.lastName AS userLastName,
+      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
+      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks
     FROM 
-      ongoingcultivationscrops
+      ongoingcultivationscrops occ
     JOIN 
-      cropcalender ON ongoingcultivationscrops.cropCalendar = cropcalender.id
+      ongoingcultivations oc ON occ.ongoingCultivationId = oc.id
     JOIN 
-      cropvariety ON cropcalender.cropVarietyId = cropvariety.id
+      users u ON oc.userId = u.id
     JOIN 
-      cropgroup ON cropvariety.cropGroupId = cropgroup.id
-    LEFT JOIN 
-      slavecropcalendardays ON slavecropcalendardays.onCulscropID = ongoingcultivationscrops.id 
+      cropcalender cc ON occ.cropCalendar = cc.id
+    JOIN 
+      cropvariety cv ON cc.cropVarietyId = cv.id
+    JOIN 
+      cropgroup cg ON cv.cropGroupId = cg.id
     WHERE
-      ongoingcultivationscrops.ongoingCultivationId = ?`;
+      occ.farmId = ? AND oc.userId = ?`;
 
   return new Promise((resolve, reject) => {
-    plantcare.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [farmId, userId], (err, results) => {
       if (err) {
-        reject("Error fetching cultivation crops by ID: " + err);
+        reject("Error fetching cultivation crops by farmId: " + err);
       } else {
         resolve(results);
       }
@@ -693,12 +742,14 @@ exports.getOngoingCultivationsById = (id) => {
   });
 };
 
-exports.getFixedAssetsByCategory = (userId, category) => {
+
+exports.getFixedAssetsByCategory = (userId, category, farmId) => {
   const validCategories = {
     "Building and Infrastructures": `
             SELECT 
                 fixedasset.id AS fixedassetId,
                 fixedasset.category AS fixedassetcategory,
+                buildingfixedasset.id AS buildingfixedassetId,
                 buildingfixedasset.type,
                 buildingfixedasset.floorArea,
                 buildingfixedasset.ownership,
@@ -709,12 +760,13 @@ exports.getFixedAssetsByCategory = (userId, category) => {
             JOIN 
                 buildingfixedasset ON fixedasset.id = buildingfixedasset.fixedAssetId
             WHERE 
-                fixedasset.userId = ?;
+                fixedasset.userId = ? AND fixedasset.farmId = ?;
         `,
     Land: `
             SELECT 
                 fixedasset.id AS fixedassetId,
                 fixedasset.category AS fixedassetcategory,
+                landfixedasset.id AS buildingfixedassetId,
                 landfixedasset.extentha,
                 landfixedasset.extentac,
                 landfixedasset.extentp,
@@ -726,7 +778,7 @@ exports.getFixedAssetsByCategory = (userId, category) => {
             JOIN 
                 landfixedasset ON fixedasset.id = landfixedasset.fixedAssetId
             WHERE 
-                fixedasset.userId = ?;
+                fixedasset.userId = ? AND fixedasset.farmId = ?;
         `,
     "Machinery and Vehicles": `
             SELECT
@@ -739,7 +791,13 @@ exports.getFixedAssetsByCategory = (userId, category) => {
                 machtoolsfixedasset.unitPrice,
                 machtoolsfixedasset.totalPrice,
                 machtoolsfixedasset.warranty,
-                COALESCE(machtoolsfixedassetwarranty.warrantystatus, 'No data') AS warrantystatus
+                CASE 
+                    WHEN machtoolsfixedasset.warranty = 'no' THEN 'No data'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate IS NULL THEN 'No data'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate > NOW() THEN 'Under warranty'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate <= NOW() THEN 'Expired'
+                    ELSE 'No data'
+                END AS warrantystatus
             FROM
                 fixedasset
             JOIN
@@ -747,7 +805,7 @@ exports.getFixedAssetsByCategory = (userId, category) => {
             LEFT JOIN
                 machtoolsfixedassetwarranty ON machtoolsfixedasset.id = machtoolsfixedassetwarranty.machToolsId
             WHERE 
-                fixedasset.userId = ? AND fixedasset.category = 'Machine and Vehicles';
+                fixedasset.userId = ? AND fixedasset.farmId = ? AND fixedasset.category = 'Machine and Vehicles';
         `,
     "Tools and Equipments": `
             SELECT
@@ -760,7 +818,13 @@ exports.getFixedAssetsByCategory = (userId, category) => {
                 machtoolsfixedasset.unitPrice,
                 machtoolsfixedasset.totalPrice,
                 machtoolsfixedasset.warranty,
-                COALESCE(machtoolsfixedassetwarranty.warrantystatus, 'No data') AS warrantystatus
+                CASE 
+                    WHEN machtoolsfixedasset.warranty = 'no' THEN 'No data'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate IS NULL THEN 'No data'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate > NOW() THEN 'Under warranty'
+                    WHEN machtoolsfixedasset.warranty = 'yes' AND machtoolsfixedassetwarranty.expireDate <= NOW() THEN 'Expired'
+                    ELSE 'No data'
+                END AS warrantystatus
             FROM
                 fixedasset
             JOIN
@@ -768,7 +832,7 @@ exports.getFixedAssetsByCategory = (userId, category) => {
             LEFT JOIN
                 machtoolsfixedassetwarranty ON machtoolsfixedasset.id = machtoolsfixedassetwarranty.machToolsId
             WHERE 
-                fixedasset.userId = ? AND fixedasset.category = 'Tools';
+                fixedasset.userId = ? AND fixedasset.farmId = ? AND fixedasset.category = 'Tools';
         `,
   };
 
@@ -779,12 +843,262 @@ exports.getFixedAssetsByCategory = (userId, category) => {
   }
 
   return new Promise((resolve, reject) => {
-    plantcare.query(sql, [userId], (err, results) => {
+    plantcare.query(sql, [userId, farmId], (err, results) => {
       if (err) {
         reject("Error fetching assets: " + err);
       } else {
         resolve(results);
       }
+    });
+  });
+};
+
+exports.getBuildingOwnershipDetails = (buildingAssetId) => {
+  return new Promise((resolve, reject) => {
+    // First, get the building details including ownership type
+    const getBuildingQuery = `
+      SELECT 
+        bf.id as buildingAssetId,
+        bf.ownership,
+        bf.type,
+        bf.floorArea,
+        bf.generalCondition,
+        bf.district
+      FROM 
+        buildingfixedasset bf
+      WHERE 
+        bf.id = ?;
+    `;
+
+    plantcare.query(getBuildingQuery, [buildingAssetId], (err, buildingResults) => {
+      if (err) {
+        reject("Error fetching building details: " + err);
+        return;
+      }
+
+      if (buildingResults.length === 0) {
+        reject("Building not found");
+        return;
+      }
+
+      const building = buildingResults[0];
+      const ownership = building.ownership;
+
+      // Define ownership-specific queries
+      const ownershipQueries = {
+        "Own Building (with title ownership)": `
+          SELECT 
+            oof.id,
+            oof.buildingAssetId,
+            oof.landAssetId,
+            oof.issuedDate,
+            oof.estimateValue
+          FROM 
+            ownershipownerfixedasset oof
+          WHERE 
+            oof.buildingAssetId = ?;
+        `,
+        "Leased Building": `
+          SELECT 
+            olf.id,
+            olf.buildingAssetId,
+            olf.landAssetId,
+            olf.startDate,
+            olf.durationYears,
+            olf.durationMonths,
+            olf.leastAmountAnnually
+          FROM 
+            ownershipleastfixedasset olf
+          WHERE 
+            olf.buildingAssetId = ?;
+        `,
+        "Permit Building": `
+          SELECT 
+            opf.id,
+            opf.buildingAssetId,
+            opf.landAssetId,
+            opf.issuedDate,
+            opf.permitFeeAnnually
+          FROM 
+            ownershippermitfixedasset opf
+          WHERE 
+            opf.buildingAssetId = ?;
+        `,
+        "Shared / No Ownership": `
+          SELECT 
+            osf.id,
+            osf.buildingAssetId,
+            osf.landAssetId,
+            osf.paymentAnnually
+          FROM 
+            ownershipsharedfixedasset osf
+          WHERE 
+            osf.buildingAssetId = ?;
+        `
+      };
+
+      const ownershipQuery = ownershipQueries[ownership];
+
+      if (!ownershipQuery) {
+        // If no specific ownership query, return just building details
+        resolve({
+          buildingDetails: building,
+          ownershipDetails: null,
+          ownershipType: ownership
+        });
+        return;
+      }
+
+      // Execute the ownership-specific query
+      plantcare.query(ownershipQuery, [buildingAssetId], (err, ownershipResults) => {
+        if (err) {
+          reject("Error fetching ownership details: " + err);
+        } else {
+          resolve({
+            buildingDetails: building,
+            ownershipDetails: ownershipResults.length > 0 ? ownershipResults[0] : null,
+            ownershipType: ownership
+          });
+        }
+      });
+    });
+  });
+};
+
+exports.getLandOwnershipDetails = (landAssetId) => {
+  return new Promise((resolve, reject) => {
+    // First, get the land details including ownership type
+    const getLandQuery = `
+      SELECT 
+        lf.id as landAssetId,
+        lf.fixedAssetId,
+        lf.ownership,
+        lf.extentha,
+        lf.extentac,
+        lf.extentp,
+        lf.district,
+        lf.landFenced,
+        lf.perennialCrop
+      FROM 
+        landfixedasset lf
+      WHERE 
+        lf.id = ?;
+    `;
+
+    plantcare.query(getLandQuery, [landAssetId], (err, landResults) => {
+      if (err) {
+        reject("Error fetching land details: " + err);
+        return;
+      }
+
+      if (landResults.length === 0) {
+        reject("Land not found");
+        return;
+      }
+
+      const land = landResults[0];
+      const ownership = land.ownership;
+
+      // Get extent values without calculation
+      const extentha = land.extentha || 0;
+      const extentac = land.extentac || 0;
+      const extentp = land.extentp || 0;
+
+      // Define ownership-specific queries for land
+      const ownershipQueries = {
+        "Own": `
+          SELECT 
+            oof.id,
+            oof.buildingAssetId,
+            oof.landAssetId,
+            oof.issuedDate,
+            oof.estimateValue
+          FROM 
+            ownershipownerfixedasset oof
+          WHERE 
+            oof.landAssetId = ?;
+        `,
+        "Lease": `
+          SELECT 
+            olf.id,
+            olf.buildingAssetId,
+            olf.landAssetId,
+            olf.startDate,
+            olf.durationYears,
+            olf.durationMonths,
+            olf.leastAmountAnnually
+          FROM 
+            ownershipleastfixedasset olf
+          WHERE 
+            olf.landAssetId = ?;
+        `,
+        "Permited": `
+          SELECT 
+            opf.id,
+            opf.buildingAssetId,
+            opf.landAssetId,
+            opf.issuedDate,
+            opf.permitFeeAnnually
+          FROM 
+            ownershippermitfixedasset opf
+          WHERE 
+            opf.landAssetId = ?;
+        `,
+        "Shared": `
+          SELECT 
+            osf.id,
+            osf.buildingAssetId,
+            osf.landAssetId,
+            osf.paymentAnnually
+          FROM 
+            ownershipsharedfixedasset osf
+          WHERE 
+            osf.landAssetId = ?;
+        `
+      };
+
+      const ownershipQuery = ownershipQueries[ownership];
+
+      if (!ownershipQuery) {
+        // If no specific ownership query, return just land details with separate extent values
+        resolve({
+          landDetails: {
+            landAssetId: land.landAssetId,
+            ownership: land.ownership,
+            extentha: extentha,
+            extentac: extentac,
+            extentp: extentp,
+            district: land.district,
+            landFenced: land.landFenced,
+            perennialCrop: land.perennialCrop
+          },
+          ownershipDetails: null,
+          ownershipType: ownership
+        });
+        return;
+      }
+
+      // Execute the ownership-specific query
+      plantcare.query(ownershipQuery, [landAssetId], (err, ownershipResults) => {
+        if (err) {
+          reject("Error fetching ownership details: " + err);
+        } else {
+          resolve({
+            landDetails: {
+              landAssetId: land.landAssetId,
+              ownership: land.ownership,
+              extentha: extentha,
+              extentac: extentac,
+              extentp: extentp,
+              district: land.district,
+              landFenced: land.landFenced,
+              perennialCrop: land.perennialCrop
+            },
+            ownershipDetails: ownershipResults.length > 0 ? ownershipResults[0] : null,
+            ownershipType: ownership
+          });
+        }
+      });
     });
   });
 };
@@ -1691,6 +2005,7 @@ exports.getAllUserTaskByCropId = (cropId, userId, limit, offset) => {
           slavecropcalendardays.videoLinkSinhala,
           slavecropcalendardays.videoLinkTamil,
           slavecropcalendardays.status,
+          slavecropcalendardays.onCulscropID,
           GROUP_CONCAT(taskimages.image SEPARATOR ', ') AS imageUploads
       FROM 
           slavecropcalendardays
@@ -1703,7 +2018,8 @@ exports.getAllUserTaskByCropId = (cropId, userId, limit, offset) => {
           AND slavecropcalendardays.userId = ? 
       GROUP BY slavecropcalendardays.id
       ORDER BY slavecropcalendardays.taskIndex
-      LIMIT ? OFFSET ?`;
+      `;
+    // LIMIT ? OFFSET ?
 
     const values = [cropId, userId, limit, offset];
 
@@ -1935,15 +2251,14 @@ exports.getAllTaskIdDao = (cropId) => {
 };
 
 exports.addNewTaskDao = (task, indexId, cropId) => {
-  // console.log("Dao Task: ", task);
-
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO cropcalendardays ( cropId, taskIndex, taskTypeEnglish, taskTypeSinhala, taskTypeTamil, taskCategoryEnglish, taskCategorySinhala, taskCategoryTamil, taskEnglish, taskSinhala, taskTamil, taskDescriptionEnglish, taskDescriptionSinhala, taskDescriptionTamil, reqImages, imageLink, videoLinkEnglish, videoLinkSinhala, videoLinkTamil) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      "INSERT INTO cropcalendardays ( cropId, taskIndex, days, taskTypeEnglish, taskTypeSinhala, taskTypeTamil, taskCategoryEnglish, taskCategorySinhala, taskCategoryTamil, taskEnglish, taskSinhala, taskTamil, taskDescriptionEnglish, taskDescriptionSinhala, taskDescriptionTamil, reqImages, imageLink, videoLinkEnglish, videoLinkSinhala, videoLinkTamil) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     const values = [
       cropId,
       indexId,
+      task.days,   // <-- use this instead of undefined 'days'
       task.taskTypeEnglish,
       task.taskTypeSinhala,
       task.taskTypeTamil,
@@ -1963,8 +2278,7 @@ exports.addNewTaskDao = (task, indexId, cropId) => {
       task.videoLinkTamil,
     ];
 
-    // Ensure that the values array length matches the expected column count
-    if (values.length !== 19) {
+    if (values.length !== 20) {
       return reject(
         new Error("Mismatch between column count and value count.")
       );
@@ -1979,6 +2293,7 @@ exports.addNewTaskDao = (task, indexId, cropId) => {
     });
   });
 };
+
 
 exports.addNewReplyDao = (chatId, replyId, replyMessage) => {
   console.log("Dao Reply: ", replyMessage);
@@ -2549,7 +2864,7 @@ exports.insertUserXLSXData = (data) => {
           .required(),
         "NIC Number": Joi.alternatives()
           .try(
-            Joi.string().pattern(/^(19\d{9}|\d{9}[vV])$/),
+            Joi.string(),
             Joi.number().integer().min(10000000000).max(199999999999)
           )
           .required(),
@@ -2661,188 +2976,6 @@ exports.insertUserXLSXData = (data) => {
   });
 };
 
-exports.insertUserXLSXDatatest = (data) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // Define validation schema
-      const schema = Joi.object({
-        "First Name": Joi.string().trim().min(2).max(50).required(),
-        "Last Name": Joi.string().trim().min(2).max(50).required(),
-        "Phone Number": Joi.alternatives()
-          .try(
-            Joi.string().pattern(/^\+94\d{9}$/),
-            Joi.number().integer().min(94000000000).max(94999999999)
-          )
-          .required(),
-        "NIC Number": Joi.alternatives()
-          .try(
-            Joi.string().pattern(/^(19\d{9}|\d{9}[vV])$/),
-            Joi.number().integer().min(10000000000).max(199999999999)
-          )
-          .required(),
-        Membership: Joi.required(),
-        District: Joi.required(),
-      }).required();
-
-      // Validate all data
-      const validatedData = [];
-      for (let i = 0; i < data.length; i++) {
-        const { error, value } = schema.validate(data[i]);
-        if (error) {
-          reject(
-            new Error(
-              `Validation error in row ${i + 1}: ${error.details[0].message}`
-            )
-          );
-          return;
-        }
-        validatedData.push(value);
-      }
-
-      // Check for existing users
-      const existingUsers = await new Promise((resolve, reject) => {
-        const phones = validatedData.map((row) =>
-          String(row["Phone Number"]).startsWith("+")
-            ? row["Phone Number"]
-            : `+${row["Phone Number"]}`
-        );
-        const nics = validatedData.map((row) => String(row["NIC Number"]));
-
-        const sql = `
-          SELECT firstName, lastName, phoneNumber, NICnumber 
-          FROM users 
-          WHERE phoneNumber IN (?) OR NICnumber IN (?)
-        `;
-
-        plantcare.query(sql, [phones, nics], (err, results) => {
-          if (err) reject(err);
-          else resolve(results);
-        });
-      });
-
-      if (existingUsers.length > 0) {
-        // Filter out existing users
-        const existingPhones = new Set(
-          existingUsers.map((user) => user.phoneNumber)
-        );
-        const existingNICs = new Set(
-          existingUsers.map((user) => user.NICnumber)
-        );
-
-        const newUsers = validatedData.filter((user) => {
-          const phone = String(user["Phone Number"]).startsWith("+")
-            ? user["Phone Number"]
-            : `+${user["Phone Number"]}`;
-          const nic = String(user["NIC Number"]);
-          return !existingPhones.has(phone) && !existingNICs.has(nic);
-        });
-
-        // Insert only new users
-        if (newUsers.length > 0) {
-          const sql = `
-            INSERT INTO users 
-            (firstName, lastName, phoneNumber, NICnumber,membership, district) 
-            VALUES ?
-          `;
-
-          const values = newUsers.map((row) => [
-            row["First Name"],
-            row["Last Name"],
-            String(row["Phone Number"]).startsWith("+")
-              ? row["Phone Number"]
-              : `+${row["Phone Number"]}`,
-            String(row["NIC Number"]),
-            row["Membership"],
-            row["District"],
-          ]);
-
-          await new Promise((resolve, reject) => {
-            plantcare.query(sql, [values], (err, result) => {
-              if (err) reject(err);
-              else resolve(result);
-            });
-          });
-        }
-
-        resolve({
-          message: "Partial data inserted. Some users already exist.",
-          existingUsers: existingUsers,
-          totalRows: data.length,
-          insertedRows: newUsers.length,
-        });
-      } else {
-        // Insert all users if none exist
-        const sql = `
-          INSERT INTO users 
-          (firstName, lastName, phoneNumber, NICnumber) 
-          VALUES ?
-        `;
-
-        const values = validatedData.map((row) => [
-          row["First Name"],
-          row["Last Name"],
-          String(row["Phone Number"]).startsWith("+")
-            ? row["Phone Number"]
-            : `+${row["Phone Number"]}`,
-          String(row["NIC Number"]),
-        ]);
-
-        const result = await new Promise((resolve, reject) => {
-          plantcare.query(sql, [values], (err, result) => {
-            if (err) reject(err);
-            else resolve(result);
-          });
-        });
-
-        resolve({
-          message: "All data validated and inserted successfully",
-          totalRows: data.length,
-          insertedRows: result.affectedRows,
-        });
-      }
-    } catch (error) {
-      reject(error);
-    }
-  });
-};
-
-// exports.getUserFeedbackDetails = () => {
-//   return new Promise((resolve, reject) => {
-//     const sql = `
-// SELECT
-//     du.firstName,
-//     du.lastName,
-//     du.createdAt AS deletedUserCreatedAt,
-//     GROUP_CONCAT(fl.orderNumber ORDER BY fl.orderNumber ASC) AS orderNumbers,
-//     GROUP_CONCAT(fl.feedbackEnglish ORDER BY fl.orderNumber ASC) AS feedbacks
-// FROM
-//     userfeedback uf
-// JOIN
-//     deleteduser du ON uf.deletedUserId = du.id
-// JOIN
-//     feedbacklist fl ON uf.feedbackId = fl.id
-// GROUP BY
-//     du.firstName, du.lastName, du.createdAt
-// ORDER BY
-//     du.createdAt;
-
-//     `;
-
-//     console.log("Executing full SQL query:", sql);
-
-//     plantcare.query(sql, (err, results) => {
-//       if (err) {
-//         console.error("Error details:", err); // Log the full error details
-//         return reject(
-//           new Error("An error occurred while fetching user feedback details")
-//         );
-//       }
-
-//       console.log("Query Results:", results); // Log the results for debugging
-//       resolve(results); // Resolve the promise with the results
-//     });
-//   });
-// };
 
 exports.getUserFeedbackDetails = (page, limit) => {
   return new Promise((resolve, reject) => {
@@ -3425,6 +3558,441 @@ exports.deleteOngoingCultivationsById = (id) => {
     plantcare.query(sql, [id], (err, results) => {
       if (err) {
         reject("Error deleting cultivation crops by ID: " + err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+
+exports.getFarmerStaffDao = (ownerId, role) => {
+  const sqlParams = [ownerId];
+
+  let sql = `
+    SELECT
+      f.id,
+      f.firstName,
+      f.lastName,
+      f.phoneCode,
+      f.phoneNumber,
+      f.role,
+      f.nic,
+      f.image,
+      f.modifyBy,
+      a.userName AS modifiedByUserName
+    FROM farmstaff f
+    LEFT JOIN agro_world_admin.adminusers a
+      ON f.modifyBy = a.id
+    WHERE f.ownerId = ?
+  `;
+
+  if (role) {
+    sql += ` AND f.role = ?`;
+    sqlParams.push(role);
+  }
+
+  return new Promise((resolve, reject) => {
+    plantcare.query(sql, sqlParams, (err, results) => {
+      if (err) {
+        reject("Error fetching farm staff: " + err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+
+exports.getFarmOwnerByIdDao = (ownerId) => {
+  const sql = `
+    SELECT
+      id,
+      firstName,
+      lastName,
+      phoneCode,
+      phoneNumber,
+      nic,
+      role
+    
+    FROM farmstaff
+    WHERE id = ?
+  `;
+
+  return new Promise((resolve, reject) => {
+    plantcare.query(sql, [ownerId], (err, results) => {
+      if (err) {
+        reject("Error fetching farm owner by ID: " + err);
+      } else {
+        // Return the first record (should only be one)
+        resolve(results[0] || null);
+      }
+    });
+  });
+};
+
+exports.updateFarmOwnerByIdDao = (ownerId, data, userId) => {
+  const { firstName, lastName, phoneCode, phoneNumber, nic, role } = data;
+
+  const sql = `
+    UPDATE farmstaff
+    SET
+      firstName = ?,
+      lastName = ?,
+      phoneCode = ?,
+      phoneNumber = ?,
+      nic = ?,
+      role = ?,
+      modifyBy = ?
+    WHERE id = ?
+  `;
+
+  const params = [firstName, lastName, phoneCode, phoneNumber, nic, role, userId, ownerId];
+
+  return new Promise((resolve, reject) => {
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        reject("Error updating farm owner: " + err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+
+
+exports.getUserFarmDetailsDao = (userId) => {
+  const sqlParams = [userId];
+  let sql = `
+    SELECT
+      u.id as userId,
+      u.firstName,
+      u.lastName,
+      u.phoneNumber,
+      u.NICnumber,
+      u.profileImage,
+      u.membership,
+      u.activeStatus,
+      u.houseNo,
+      u.streetName,
+      u.city as userCity,
+      u.district as userDistrict,
+      u.route,
+      u.language,
+      f.id as farmId,
+      f.farmName,
+      f.farmIndex,
+      f.extentha,
+      f.extentac,
+      f.extentp,
+      f.district as farmDistrict,
+      f.plotNo,
+      f.street as farmStreet,
+      f.city as farmCity,
+      f.staffCount,
+      f.appUserCount,
+      f.imageId,
+      f.isBlock,
+      f.createdAt as farmCreatedAt
+    FROM users u
+    LEFT JOIN farms f ON u.id = f.userId
+    WHERE u.id = ?
+    ORDER BY f.farmIndex, f.createdAt
+  `;
+
+  return new Promise((resolve, reject) => {
+    plantcare.query(sql, sqlParams, (err, results) => {
+      if (err) {
+        reject("Error fetching user farm details: " + err);
+      } else {
+        // Structure the data: user info + array of farms
+        const structuredData = {
+          user: null,
+          farms: []
+        };
+
+        if (results.length > 0) {
+          // Extract user info from first row (same for all rows)
+          const firstRow = results[0];
+          structuredData.user = {
+            id: firstRow.userId,
+            firstName: firstRow.firstName,
+            lastName: firstRow.lastName,
+            phoneNumber: firstRow.phoneNumber,
+            NICnumber: firstRow.NICnumber,
+            profileImage: firstRow.profileImage,
+            membership: firstRow.membership,
+            activeStatus: firstRow.activeStatus,
+            houseNo: firstRow.houseNo,
+            streetName: firstRow.streetName,
+            city: firstRow.userCity,
+            district: firstRow.userDistrict,
+            route: firstRow.route,
+            language: firstRow.language
+          };
+
+          // Extract all farms
+          results.forEach(row => {
+            if (row.farmId) { // Only add if farm exists
+              structuredData.farms.push({
+                id: row.farmId,
+                farmName: row.farmName,
+                farmIndex: row.farmIndex,
+                extentha: row.extentha,
+                extentac: row.extentac,
+                extentp: row.extentp,
+                district: row.farmDistrict,
+                plotNo: row.plotNo,
+                street: row.farmStreet,
+                city: row.farmCity,
+                staffCount: row.staffCount,
+                appUserCount: row.appUserCount,
+                imageId: row.imageId,
+                isBlock: row.isBlock,
+                createdAt: row.farmCreatedAt
+              });
+            }
+          });
+        }
+
+        resolve(structuredData);
+      }
+    });
+  });
+};
+
+
+exports.deleteFarmDao = (farmId) => {
+  return new Promise((resolve, reject) => {
+    plantcare.query(
+      `DELETE scd FROM slavecropcalendardays scd
+       JOIN farmstaff fs ON scd.completedStaffId = fs.id
+       WHERE fs.farmId = ?`, 
+      [farmId],
+      (err) => {
+        if (err) return reject(err);
+
+        // Now delete farmstaff rows
+        plantcare.query(`DELETE FROM farmstaff WHERE farmId = ?`, [farmId], (err) => {
+          if (err) return reject(err);
+
+          // Finally delete the farm
+          plantcare.query(`DELETE FROM farms WHERE id = ?`, [farmId], (err, result) => {
+            if (err) reject(err);
+            else resolve({ message: "Farm and related data deleted successfully", affectedRows: result.affectedRows });
+          });
+        });
+      }
+    );
+  });
+};
+
+
+// exports.getAllFarmsWithCultivations = (userId, searchItem) => {
+//   return new Promise((resolve, reject) => {
+//     let params = [];
+//     let searchSql = "";
+
+//     if (searchItem) {
+//       searchSql = `
+//         AND (
+//           U.NICnumber LIKE ? OR
+//           U.firstName LIKE ? OR
+//           U.lastName LIKE ? OR
+//           F.farmName LIKE ?
+//         )
+//       `;
+//       const searchQuery = `%${searchItem}%`;
+//       params.push(searchQuery, searchQuery, searchQuery, searchQuery);
+//     }
+
+//     // Filter by specific user
+//     if (userId) {
+//       searchSql += " AND U.id = ? ";
+//       params.push(userId);
+//     }
+
+//     const sql = `
+//       SELECT 
+//         F.id AS farmId,
+//         F.farmName,
+//         F.farmIndex,
+//         F.staffCount,
+//         F.district AS farmDistrict,
+//         F.createdAt AS farmCreatedAt,
+//         U.id AS userId,
+//         U.firstName,
+//         U.lastName,
+//         U.NICnumber,
+//         COUNT(DISTINCT OC.id) AS cultivationCount
+//       FROM farms F
+//       LEFT JOIN users U ON F.userId = U.id
+//       LEFT JOIN ongoingcultivations OC ON OC.userId = U.id
+//       WHERE 1=1 ${searchSql}
+//       GROUP BY F.id, U.id
+//       ORDER BY F.createdAt DESC
+//     `;
+
+//     plantcare.query(sql, params, (err, results) => {
+//       if (err) return reject(err);
+
+//       // Group farms by user
+//       const usersMap = {};
+//       results.forEach(row => {
+//         if (!usersMap[row.userId]) {
+//           usersMap[row.userId] = {
+//             userId: row.userId,
+//             firstName: row.firstName,
+//             lastName: row.lastName,
+//             NICnumber: row.NICnumber,
+//             farms: [],
+//           };
+//         }
+
+//         usersMap[row.userId].farms.push({
+//           farmId: row.farmId,
+//           farmName: row.farmName,
+//           farmIndex: row.farmIndex,
+//           staffCount: row.staffCount,
+//           farmDistrict: row.farmDistrict,
+//           farmCreatedAt: row.farmCreatedAt,
+//           cultivationCount: row.cultivationCount, // updated
+//         });
+//       });
+
+//       const items = Object.values(usersMap);
+
+//       resolve({
+//         totalUsers: items.length,
+//         items,
+//       });
+//     });
+//   });
+// };
+exports.getAllFarmsWithCultivations = (userId, searchItem) => {
+  return new Promise((resolve, reject) => {
+    let params = [];
+    let searchSql = "";
+
+    if (searchItem) {
+      searchSql = `
+        AND (
+          U.NICnumber LIKE ? OR
+          U.firstName LIKE ? OR
+          U.lastName LIKE ? OR
+          F.farmName LIKE ?
+        )
+      `;
+      const searchQuery = `%${searchItem}%`;
+      params.push(searchQuery, searchQuery, searchQuery, searchQuery);
+    }
+
+    if (userId) {
+      searchSql += " AND U.id = ? ";
+      params.push(userId);
+    }
+
+    const sql = `
+      SELECT 
+        F.id AS farmId,
+        F.farmName,
+        F.farmIndex,
+        F.staffCount,
+        F.district AS farmDistrict,
+        F.createdAt AS farmCreatedAt,
+        U.id AS userId,
+        U.firstName,
+        U.lastName,
+        U.NICnumber,
+        COUNT(DISTINCT OCC.id) AS cultivationCount
+      FROM farms F
+      LEFT JOIN users U ON F.userId = U.id
+      LEFT JOIN ongoingcultivations OC ON OC.userId = U.id
+      LEFT JOIN ongoingcultivationscrops OCC 
+        ON OCC.ongoingCultivationId = OC.id 
+        AND OCC.farmId = F.id
+      WHERE 1=1 ${searchSql}
+      GROUP BY F.id, U.id
+      ORDER BY F.createdAt DESC
+    `;
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+
+      const usersMap = {};
+      results.forEach(row => {
+        if (!usersMap[row.userId]) {
+          usersMap[row.userId] = {
+            userId: row.userId,
+            firstName: row.firstName,
+            lastName: row.lastName,
+            NICnumber: row.NICnumber,
+            farms: [],
+          };
+        }
+
+        usersMap[row.userId].farms.push({
+          farmId: row.farmId,
+          farmName: row.farmName,
+          farmIndex: row.farmIndex,
+          staffCount: row.staffCount,
+          farmDistrict: row.farmDistrict,
+          farmCreatedAt: row.farmCreatedAt,
+          cultivationCount: row.cultivationCount,
+        });
+      });
+
+      resolve({
+        totalUsers: Object.keys(usersMap).length,
+        items: Object.values(usersMap),
+      });
+    });
+  });
+};
+
+
+// Delete a farm by farmId
+exports.deleteFarmById = (farmId) => {
+  return new Promise((resolve, reject) => {
+    if (!farmId) {
+      return reject(new Error("Farm ID is required"));
+    }
+
+    const sql = `DELETE FROM farms WHERE id = ?`;
+
+    plantcare.query(sql, [farmId], (err, result) => {
+      if (err) return reject(err);
+
+      if (result.affectedRows === 0) {
+        return resolve({ success: false, message: "No farm found with the given ID" });
+      }
+
+      resolve({ success: true, message: `Farm with ID ${farmId} deleted successfully` });
+    });
+  });
+};
+
+
+exports.tracktaskAddOngoingCultivation = (userId, id) => {
+  return new Promise((resolve, reject) => {
+    const sql =`
+      UPDATE ongoingcultivationscrops
+      SET modifyBy = ?
+      WHERE id = ?
+    `;
+
+    const values = [
+      userId,
+      id
+    ];
+
+    // Ensure that the values array length matches the expected column count
+
+
+    plantcare.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
       } else {
         resolve(results);
       }

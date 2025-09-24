@@ -507,7 +507,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     doc
       .fontSize(20)
       .fillColor("#071a51")
-      .text("Welcome to AgroWorld (Pvt) Ltd - Registration Confirmation", {
+      .text("Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation", {
         align: "center",
       });
 
@@ -534,7 +534,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     doc
       .fontSize(12)
       .text(
-        "You have successfully created an account with AgroWorld (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
+        "You have successfully created an account with PolygonAgro (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
         {
           align: "justify",
         }
@@ -550,7 +550,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     doc
       .fontSize(12)
       .text(
-        "If you have any questions or need assistance, feel free to reach out to our support team at info@agroworld.lk",
+        "If you have any questions or need assistance, feel free to reach out to our support team at polygonagro.inf@gmail.com",
         {
           align: "justify",
         }
@@ -564,14 +564,14 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
 
     doc.moveDown();
     doc.fontSize(12).text(`Best Regards,`);
-    doc.fontSize(12).text(`The AgroWorld Team`);
-    doc.fontSize(12).text(`AgroWorld (Pvt) Ltd. | All rights reserved.`);
+    doc.fontSize(12).text(`The PolygonAgro Team`);
+    doc.fontSize(12).text(`PolygonAgro (Pvt) Ltd. | All rights reserved.`);
     doc.moveDown();
     doc.fontSize(12).text(`Address: No:14,`);
     doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
     doc.fontSize(12).text(`            Colombo 01.`);
     doc.moveDown();
-    doc.fontSize(12).text(`Email: info@agroworld.lk`);
+    doc.fontSize(12).text(`Email: polygonagro.inf@gmail.com`);
 
     doc.end();
 
@@ -609,7 +609,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to AgroWorld (Pvt) Ltd - Registration Confirmation",
+      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
       text: `Dear ${firstName},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {

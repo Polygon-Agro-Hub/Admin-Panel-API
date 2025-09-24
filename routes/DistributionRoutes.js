@@ -110,4 +110,127 @@ router.get(
   distributionEp.checkDistributionCenterNameExists
 );
 
+router.get(
+  "/get-all-distribution-officers",
+  authMiddleware,
+  distributionEp.getAllDistributionOfficers
+);
+
+router.get(
+  "/get-all-distributed-center-names",
+  authMiddleware,
+  distributionEp.getAllDistributedCenterNames
+);
+
+router.get(
+  "/get-all-distribution-manager-names",
+  authMiddleware,
+  distributionEp.getAllDistributionManagerNames
+);
+
+router.delete(
+  "/delete-distribution-officer/:id",
+  authMiddleware,
+  distributionEp.deleteDistributionOfficer
+);
+
+router.get(
+  "/update-status/:id/:status",
+  authMiddleware,
+  distributionEp.UpdateStatusAndSendPassword
+);
+
+router.get(
+  "/get-all-company-names",
+  authMiddleware,
+  distributionEp.getAllCompanyNames
+);
+
+router.post(
+  "/create-distribution-officer",
+  authMiddleware,
+  upload.single("image"),
+  distributionEp.createDistributionOfficer
+);
+
+router.get(
+  "/get-all-distribution-center-by-company/:companyId",
+  authMiddleware,
+  distributionEp.getAllDistributionCenterByCompany
+);
+
+router.get(
+  "/get-all-distribution-manager-list/:companyId/:centerId",
+  authMiddleware,
+  distributionEp.getAllDistributionManagerList
+);
+
+router.get(
+  "/get-last-emp-id/:role",
+  authMiddleware,
+  distributionEp.getForCreateId
+);
+
+router.get(
+  "/get-all-assigning-cities/:provine/:district",
+  authMiddleware,
+  distributionEp.getAllAssigningCities
+);
+
+
+router.post(
+  "/assign-city-to-distributed-center",
+  authMiddleware,
+  distributionEp.assignCityToDistributedCcenter
+);
+
+router.post(
+  "/remove-assign-city-to-distributed-center",
+  authMiddleware,
+  distributionEp.removeAssignCityToDistributedCcenter
+);
+
+router.get(
+  "/get-center-target",
+  authMiddleware,
+  distributionEp.getDistributedCenterTarget
+);
+
+router.get(
+  "/get-distribution-officers",
+  authMiddleware,
+  distributionEp.getDistributedCenterOfficers
+);
+
+router.get(
+  "/get-center-out-for-dlvry-orders",
+  authMiddleware,
+  distributionEp.getDistributionOutForDlvrOrder
+);
+
+
+router.get(
+  "/officer-details-monthly/:id",
+  // authMiddleware,
+  distributionEp.getOfficerByIdMonthly
+);
+
+router.put(
+  "/update-distribution-officer-details/:id",
+  authMiddleware,
+  upload.single("image"),
+  distributionEp.updateDistributionOfficerDetails
+);
+
+router.get(
+  "/officer-daily-distribution-target/:id",
+  authMiddleware,
+  distributionEp.getOfficerDailyDistributionTarget
+);
+
+router.get('/get-selected-officer-targets', 
+    authMiddleware,
+    distributionEp.dcmGetSelectedOfficerTargets
+);
+
 module.exports = router;

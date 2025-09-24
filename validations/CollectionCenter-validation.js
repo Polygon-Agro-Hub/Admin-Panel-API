@@ -50,7 +50,7 @@ exports.getAllCenterPaymentsSchema = Joi.object({
     toDate: Joi.string().allow('').optional(),
     centerId: Joi.number().integer().required(),
     searchText: Joi.string().allow('').optional(),
-    
+
 });
 
 exports.downloadAllCenterPaymentsSchema = Joi.object({
@@ -58,4 +58,22 @@ exports.downloadAllCenterPaymentsSchema = Joi.object({
     toDate: Joi.string().allow('').optional(),
     centerId: Joi.number().integer().required(),
     searchText: Joi.string().allow('').optional(),
+});
+
+
+exports.getCenterTargetSchema = Joi.object({
+    centerId: Joi.number().integer().min(1).default(1).optional(),
+    page: Joi.number().integer().min(1).default(1).optional(),
+    limit: Joi.number().integer().min(1).max(100).default(10).optional(),
+    status: Joi.string().allow('').optional(),
+    searchText: Joi.string().allow('').optional(),
+
+});
+
+
+exports.downloadCurrentTargetSchema = Joi.object({
+    centerId: Joi.number().integer().min(1).default(1).optional(),
+    status: Joi.string().allow('').optional(),
+    searchText: Joi.string().allow('').optional(),
+
 });

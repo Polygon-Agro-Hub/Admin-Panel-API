@@ -589,26 +589,26 @@ exports.getAllOrdersWithProcessInfo = (
 
     let dataSql = `
          SELECT 
-        o.*,
-        po.id AS processOrderId,
-        po.invNo,
-        po.transactionId,
-        po.paymentMethod,
-        po.isPaid,
-        po.amount,
-        po.status,
-        po.reportStatus,
-        po.createdAt AS processCreatedAt,
-        op.packingStatus
+          o.fullTotal AS total,
+          o.sheduleDate,
+          o.orderApp,
+          po.id AS processOrderId,
+          po.invNo,
+          po.status,
+          po.createdAt,
+          op.packingStatus,
+          op.createdAt AS packageCreatedAt
         FROM processorders po, orders o, orderpackage op
         WHERE op.packingStatus = 'Todo' AND po.status = 'Processing' AND po.orderId = o.id AND po.id = op.orderId 
       `;
-    countSql = `
-      SELECT 
-        COUNT(po.id) AS total
-        FROM processorders po, orders o, orderpackage op
-        WHERE op.packingStatus = 'Todo' AND po.status = 'Processing' AND po.orderId = o.id AND po.id = op.orderId
-      `;
+
+    let countSql = `
+      SELECT COUNT(DISTINCT po.id) AS total
+      FROM processorders po, orders o, orderpackage op
+      WHERE op.packingStatus = 'Todo' AND po.status = 'Processing' AND po.orderId = o.id AND po.id = op.orderId
+    `;
+
+    // Apply filters to both queries
     if (statusFilter) {
       if (statusFilter === "Paid") {
         dataSql += ` AND po.isPaid = 1 `;
@@ -623,8 +623,6 @@ exports.getAllOrdersWithProcessInfo = (
     }
 
     if (dateFilter) {
-      console.log("Date Filter:", dateFilter);
-
       dataSql += ` AND DATE(o.sheduleDate) = ? `;
       countSql += ` AND DATE(o.sheduleDate) = ? `;
       params.push(dateFilter);
@@ -632,8 +630,6 @@ exports.getAllOrdersWithProcessInfo = (
     }
 
     if (dateFilter1) {
-      console.log("Date Filter:", dateFilter1);
-
       dataSql += ` AND DATE(po.createdAt) = ? `;
       countSql += ` AND DATE(po.createdAt) = ? `;
       params.push(dateFilter1);
@@ -641,23 +637,28 @@ exports.getAllOrdersWithProcessInfo = (
     }
 
     if (searchText) {
-      console.log("searchText", searchText);
-
       dataSql += ` AND po.invNo LIKE ? `;
       countSql += ` AND po.invNo LIKE ? `;
       params.push(`%${searchText}%`);
       countParams.push(`%${searchText}%`);
     }
 
-    dataSql += ` 
+    // Add GROUP BY and ORDER BY only to data query
+    dataSql += ` GROUP BY
+                  o.fullTotal,
+                  o.sheduleDate,
+                  o.orderApp,
+                  po.id,
+                  po.invNo,
+                  po.status,
+                  op.packingStatus,
+                  op.createdAt
                  ORDER BY op.createdAt DESC
                  LIMIT ? OFFSET ?
                 `;
 
     params.push(parseInt(limit), parseInt(offset));
 
-    console.log("Executing Count Query...");
-    // console.log(dataSql);
 
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
@@ -667,7 +668,6 @@ exports.getAllOrdersWithProcessInfo = (
 
       const total = countResults[0]?.total || 0;
 
-      console.log("Executing Data Query...");
       marketPlace.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Data query error:", dataErr);
@@ -701,55 +701,55 @@ exports.getOrderDetailsById = (orderId) => {
   console.log(`[getOrderDetailsById] Fetching details for orderId: ${orderId}`);
 
   return new Promise((resolve, reject) => {
-//     const sql = `
-      
-//     SELECT 
-//     po.invNo,
-//     po.id AS processOrderId,
-//     o.id AS orderId,
-//     mpp.id AS packageId,
-//     op.id AS orderpkgId,
-//     mpp.displayName,
-//     CAST(mpp.productPrice AS DECIMAL(10,2)) AS productPrice,
-//     df.id AS definePkgId,
-//     CAST(df.price AS DECIMAL(10,2)) AS definePkgPrice,
-//     JSON_ARRAYAGG(
-//         JSON_OBJECT(
-//             'itemId', dfi.id,
-//             'productTypeId', dfi.productType,
-//             'productTypeShortCode', pt.shortCode,
-//             'productId', dfi.productId,
-//             'productName', mpi.displayName,
-//             'qty', dfi.qty,
-//             'price', dfi.price,
-//             'dicountedPrice', mpi.discountedPrice 
-//         )
-//     ) AS items
-// FROM 
-//     market_place.processorders po
-// JOIN 
-//     market_place.orders o ON po.orderId = o.id
-// LEFT JOIN 
-//     market_place.orderpackage op ON po.id = op.orderId
-// LEFT JOIN 
-//     market_place.marketplacepackages mpp ON op.packageId = mpp.id
-// LEFT JOIN 
-//     market_place.definepackage df ON mpp.id = df.packageId
-// LEFT JOIN
-//     market_place.definepackageitems dfi ON df.id = dfi.definePackageId
-// JOIN 
-//     market_place.producttypes pt ON pt.id = dfi.productType
-// JOIN 
-//     market_place.marketplaceitems mpi ON mpi.id = dfi.productId
-// WHERE 
-//     po.id = ?
-// GROUP BY 
-//     po.invNo, po.id, o.id, op.id, mpp.id, mpp.displayName, mpp.productPrice, df.id
+    //     const sql = `
+
+    //     SELECT 
+    //     po.invNo,
+    //     po.id AS processOrderId,
+    //     o.id AS orderId,
+    //     mpp.id AS packageId,
+    //     op.id AS orderpkgId,
+    //     mpp.displayName,
+    //     CAST(mpp.productPrice AS DECIMAL(10,2)) AS productPrice,
+    //     df.id AS definePkgId,
+    //     CAST(df.price AS DECIMAL(10,2)) AS definePkgPrice,
+    //     JSON_ARRAYAGG(
+    //         JSON_OBJECT(
+    //             'itemId', dfi.id,
+    //             'productTypeId', dfi.productType,
+    //             'productTypeShortCode', pt.shortCode,
+    //             'productId', dfi.productId,
+    //             'productName', mpi.displayName,
+    //             'qty', dfi.qty,
+    //             'price', dfi.price,
+    //             'dicountedPrice', mpi.discountedPrice 
+    //         )
+    //     ) AS items
+    // FROM 
+    //     market_place.processorders po
+    // JOIN 
+    //     market_place.orders o ON po.orderId = o.id
+    // LEFT JOIN 
+    //     market_place.orderpackage op ON po.id = op.orderId
+    // LEFT JOIN 
+    //     market_place.marketplacepackages mpp ON op.packageId = mpp.id
+    // LEFT JOIN 
+    //     market_place.definepackage df ON mpp.id = df.packageId
+    // LEFT JOIN
+    //     market_place.definepackageitems dfi ON df.id = dfi.definePackageId
+    // JOIN 
+    //     market_place.producttypes pt ON pt.id = dfi.productType
+    // JOIN 
+    //     market_place.marketplaceitems mpi ON mpi.id = dfi.productId
+    // WHERE 
+    //     po.id = ?
+    // GROUP BY 
+    //     po.invNo, po.id, o.id, op.id, mpp.id, mpp.displayName, mpp.productPrice, df.id
 
 
-//     `;
+    //     `;
 
-const sql = `
+    const sql = `
 SELECT 
     po.invNo,
     po.id AS processOrderId,
@@ -807,22 +807,22 @@ GROUP BY
           console.log("Database error:", err);
           return reject(err);
         }
-      
+
         // Convert string to float for both prices
         const parsedResults = results.map(row => ({
           ...row,
           productPrice: parseFloat(row.productPrice),
           definePkgPrice: parseFloat(row.definePkgPrice)
         }));
-      
+
         resolve(parsedResults);
       });
 
-    }catch (error) {
+    } catch (error) {
       console.log("Error in createOrderPackageItemDao:", error);
       reject(error);
     }
-    
+
   });
 };
 
@@ -855,8 +855,8 @@ GROUP BY
 //         po.orderId = ?
 //       ORDER BY
 //         op.id, pt.id
-      
-      
+
+
 //     `;
 
 //     // LEFT JOIN 
@@ -870,7 +870,7 @@ GROUP BY
 //       // LEFT JOIN 
 //       //   producttype pt ON pd.productTypeId = pt.id
 //       // WHERE po.id = ?
-    
+
 
 //     console.log(
 //       `[getOrderDetailsById] SQL Query:`,
@@ -987,14 +987,14 @@ exports.getAllMarketplaceItems = (category, userId) => {
         MPI.changeby,
         XL.id AS isExcluded
       FROM marketplaceitems MPI
-      LEFT JOIN excludelist XL ON MPI.id = XL.mpItemId AND XL.userId = ?
-      WHERE category = ?
+      LEFT JOIN excludelist XL ON XL.mpItemId =  MPI.id AND XL.userId = ?
+      WHERE category = 'Retail'
       ORDER BY 
         MPI.displayName
     `;
 
 
-    marketPlace.query(sql, [userId, category], (err, results) => {
+    marketPlace.query(sql, [userId], (err, results) => {
       if (err) {
         console.error(
           "[getAllMarketplaceItems] Error fetching all marketplace items:",
@@ -1002,6 +1002,12 @@ exports.getAllMarketplaceItems = (category, userId) => {
         );
         return reject(err);
       }
+
+      console.log('--------------------results-------------------');
+      console.log(results);
+      console.log('--------------------results-------------------');
+
+      
 
       // Structure the data
       const items = results.map((row) => ({
@@ -1017,11 +1023,11 @@ exports.getAllMarketplaceItems = (category, userId) => {
         startValue: row.startValue,
         changeby: row.changeby,
         isExcluded: row.isExcluded === null ? false : true,
-        
+
       }));
 
-      console.log(items);
-      
+      // console.log(items);
+
       resolve(items);
     });
   });
@@ -1133,10 +1139,10 @@ exports.updateOrderPackagePackingStatusDao = (orderPackageId, orderId, status) =
       const sql = `
       UPDATE orderpackage 
       SET packingStatus = ?
-      WHERE packageId = ? AND orderId = ?;
+      WHERE orderId = ?;
       `;
 
-      marketPlace.query(sql, [status, orderPackageId, orderId], (err, results) => {
+      marketPlace.query(sql, [status, orderId], (err, results) => {
         if (err) {
           console.log("Database error:", err);
           return reject(err);
@@ -1191,6 +1197,7 @@ exports.getOrderPackagesByOrderId = (orderId) => {
           opi.productId,
           opi.qty,
           opi.price,
+          m.discountedPrice,
           m.displayName as productDisplayName,
           pt.id as productTypeId,
           pt.typeName,
@@ -1225,6 +1232,8 @@ exports.getOrderPackagesByOrderId = (orderId) => {
           return resolve(null);
         }
 
+        console.log('results', results)
+
         // Transform the flat results into the nested structure
         const response = {
           invNo: results[0].invNo,
@@ -1255,7 +1264,7 @@ exports.getOrderPackagesByOrderId = (orderId) => {
               displayName: row.productDisplayName,
               productId: row.productId,
               qty: row.qty,
-              price: row.price,
+              price: row.discountedPrice,
             });
           }
         }
@@ -1303,26 +1312,30 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     const countParams = [];
 
     let dataSql = `
-         SELECT 
-        o.*,
+        SELECT 
+        o.fullTotal AS total,
+        o.sheduleDate,
+        o.orderApp,
         po.id AS processOrderId,
         po.invNo,
-        po.transactionId,
-        po.paymentMethod,
-        po.isPaid,
-        po.amount,
         po.status,
-        po.reportStatus,
+        po.createdAt,
         po.createdAt AS processCreatedAt,
-        op.packingStatus
-        FROM processorders po, orders o, orderpackage op
-        WHERE packingStatus = 'Dispatch' AND po.status = 'Processing'  AND po.orderId = o.id AND po.id = op.orderId 
+        op.packingStatus,
+        au.userName
+        FROM processorders po
+        JOIN orders o  ON po.orderId = o.id
+        JOIN orderpackage op ON op.orderId = po.id
+        LEFT JOIN agro_world_admin.adminusers au ON po.dispatchOfficer = au.id
+        WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
     countSql = `
       SELECT 
-        COUNT(po.id) AS total
-        FROM processorders po, orders o, orderpackage op
-        WHERE packingStatus = 'Dispatch' AND po.status = 'Processing' AND po.orderId = o.id AND po.id = op.orderId
+        COUNT(DISTINCT po.id) AS total
+        FROM processorders po
+        JOIN orders o  ON po.orderId = o.id
+        JOIN orderpackage op ON op.orderId = po.id
+        WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
       `;
 
     if (dateFilter) {
@@ -1335,14 +1348,24 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     }
 
     if (searchTerm) {
-      dataSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ?)`;
-      countSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ?)`;
+      dataSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ? OR mu.firstName LIKE ? OR mu.lastName LIKE ?)`;
+      countSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ? OR mu.firstName LIKE ? OR mu.lastName LIKE ?)`;
       const searchPattern = `%${searchTerm}%`;
-      params.push(searchPattern, searchPattern);
-      countParams.push(searchPattern, searchPattern);
+      params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+      countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
     }
 
     dataSql += ` 
+                GROUP BY
+                  o.fullTotal,
+                  o.sheduleDate,
+                  o.orderApp,
+                  po.id,
+                  po.invNo,
+                  po.status,
+                  op.packingStatus,
+                  op.createdAt,
+                  au.userName
                  ORDER BY op.createdAt DESC
                  LIMIT ? OFFSET ?
                 `;
@@ -1358,6 +1381,8 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
         return reject(countErr);
       }
 
+      console.log(countResults);
+
       const total = countResults[0]?.total || 0;
 
       console.log("Executing Data Query...");
@@ -1366,6 +1391,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
           console.error("Data query error:", dataErr);
           return reject(dataErr);
         }
+        console.log(dataResults);
 
         resolve({
           items: dataResults,
@@ -1390,11 +1416,11 @@ exports.updateDefinePackageItemData = (formattedData) => {
 
     packages.forEach(pkg => {
       const { orderpkgId, packageId, items } = pkg;
-    
+
       // 1. Update packagingStatus to 'Completed'
       const updateStatusSQL = `
         UPDATE market_place.orderpackage
-        SET packingStatus = 'Completed'
+        SET packingStatus = 'Dispatch'
         WHERE packageId = ? AND orderId = ?
       `;
       updatePromises.push(new Promise((resolveInner, rejectInner) => {
@@ -1406,7 +1432,7 @@ exports.updateDefinePackageItemData = (formattedData) => {
           resolveInner(result);
         });
       }));
-    
+
       // 2. Insert items
       items.forEach(item => {
         const insertItemSQL = `
@@ -1414,13 +1440,13 @@ exports.updateDefinePackageItemData = (formattedData) => {
           VALUES (?, ?, ?, ?, ?)
         `;
         const itemParams = [
-          orderpkgId,                        
+          orderpkgId,
           item.productTypeId,
           item.productId,
           item.qty,
-          item.price,                                 
+          item.price,
         ];
-    
+
         updatePromises.push(new Promise((resolveInner, rejectInner) => {
           marketPlace.query(insertItemSQL, itemParams, (err, result) => {
             if (err) {
@@ -1432,7 +1458,7 @@ exports.updateDefinePackageItemData = (formattedData) => {
         }));
       });
     });
-    
+
 
     Promise.all(updatePromises)
       .then(results => {
@@ -1449,73 +1475,6 @@ exports.updateDefinePackageItemData = (formattedData) => {
       });
   });
 };
-
-
-// exports.updateDefinePackageItemData = (formattedData) => {
-//   return new Promise((resolve, reject) => {
-//     const { packages } = formattedData;
-
-//     if (!Array.isArray(packages) || packages.length === 0) {
-//       return reject("No packages to update");
-//     }
-
-//     const updatePromises = [];
-
-//     packages.forEach(pkg => {
-//       const { definePkgId, definePkgPrice, items } = pkg;
-
-//       // 1. Update the price in definepackage table
-//       const updateDefinePackageSQL = `
-//         UPDATE market_place.definepackage
-//         SET price = ?
-//         WHERE id = ?
-//       `;
-//       updatePromises.push(new Promise((resolveInner, rejectInner) => {
-//         marketPlace.query(updateDefinePackageSQL, [definePkgPrice, definePkgId], (err, result) => {
-//           if (err) {
-//             console.error('Error updating definepackage:', err);
-//             return rejectInner(err);
-//           }
-//           resolveInner(result);
-//         });
-//       }));
-
-//       // 2. Update each item in definepackageitems
-//       items.forEach(item => {
-//         const updateItemSQL = `
-//           UPDATE market_place.definepackageitems
-//           SET productId = ?, qty = ?, price = ?
-//           WHERE id = ?
-//         `;
-//         const itemParams = [item.productId, item.qty, item.price, item.itemId];
-
-//         updatePromises.push(new Promise((resolveInner, rejectInner) => {
-//           marketPlace.query(updateItemSQL, itemParams, (err, result) => {
-//             if (err) {
-//               console.error(`Error updating itemId ${item.itemId}:`, err);
-//               return rejectInner(err);
-//             }
-//             resolveInner(result);
-//           });
-//         }));
-//       });
-//     });
-
-//     Promise.all(updatePromises)
-//       .then(results => {
-//         resolve({
-//           message: 'All definepackage and item updates successful',
-//           affectedRows: results.reduce((total, result) => total + (result.affectedRows || 0), 0)
-//         });
-//       })
-//       .catch(error => {
-//         reject({
-//           message: 'One or more updates failed',
-//           error
-//         });
-//       });
-//   });
-// };
 
 
 
@@ -1549,5 +1508,27 @@ exports.productCategoryDao = async () => {
       }
       resolve(results);
     });
+  });
+};
+
+
+exports.trackDispatchOfficerDao = async (userId, orderId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+        UPDATE processorders
+        SET 
+          dispatchOfficer = ?
+        WHERE 
+          id = ?
+      `;
+    marketPlace.query( sql, [userId, orderId], (err, results) => {
+        if (err) {
+          console.log("Erro", err);
+          reject(err);
+        } else {
+          resolve(results);
+        }
+      }
+    );
   });
 };

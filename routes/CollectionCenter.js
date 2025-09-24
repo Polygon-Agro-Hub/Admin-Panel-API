@@ -103,6 +103,10 @@ router.get(
 router.post(
   "/create-company",
   authMiddleware,
+  upload.fields([
+    { name: "logo", maxCount: 1 },
+    { name: "favicon", maxCount: 1 },
+  ]),
   CollectionCenterEp.createCompany
 );
 
@@ -208,12 +212,24 @@ router.get(
   "/get-all-center-payments",
   authMiddleware,
   CollectionCenterEp.getAllCenterPayments
-)
+);
 
 router.get(
   "/download-center-payment-report",
   authMiddleware,
   CollectionCenterEp.downloadAllCenterPayments
+);
+
+router.get(
+  "/get-center-target",
+  authMiddleware,
+  CollectionCenterEp.getCenterTarget
+)
+
+router.get(
+  "/download-current-target-report",
+  authMiddleware,
+  CollectionCenterEp.downloadCurrentTarget
 )
 
 module.exports = router;

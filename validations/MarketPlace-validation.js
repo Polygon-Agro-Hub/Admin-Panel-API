@@ -98,3 +98,8 @@ exports.updateCoupenValidation = Joi.object({
   fixDiscount: Joi.number().min(0).optional().allow(null),
 });
 
+
+exports.changePackageStatusValidation = Joi.object({
+  id: Joi.number().min(0).positive().required(),
+  status: Joi.string().required(),
+});

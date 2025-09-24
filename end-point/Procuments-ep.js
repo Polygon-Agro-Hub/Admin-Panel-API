@@ -110,18 +110,18 @@ exports.getAllOrdersWithProcessInfo = async (req, res) => {
       success: true,
       data: ordersData.items, // Using the original data without transformation
       total: ordersData.total,
-      currentPage: parseInt(page),
-      totalPages: Math.ceil(ordersData.total / limit),
-      packingStatusSummary: {
-        packed: ordersData.items.filter((o) => o.packingStatus === "packed")
-          .length,
-        not_packed: ordersData.items.filter(
-          (o) => o.packingStatus === "not_packed"
-        ).length,
-        // Only count explicit "not_packed" statuses
-        no_status: ordersData.items.filter((o) => !o.packingStatus).length,
-        // Count records with null/undefined packingStatus separately
-      },
+      // currentPage: parseInt(page),
+      // totalPages: Math.ceil(ordersData.total / limit),
+      // packingStatusSummary: {
+      //   packed: ordersData.items.filter((o) => o.packingStatus === "packed")
+      //     .length,
+      //   not_packed: ordersData.items.filter(
+      //     (o) => o.packingStatus === "not_packed"
+      //   ).length,
+      //   // Only count explicit "not_packed" statuses
+      //   no_status: ordersData.items.filter((o) => !o.packingStatus).length,
+      //   // Count records with null/undefined packingStatus separately
+      // },
     });
   } catch (err) {
     console.error("Error fetching orders with process info:", err);
@@ -159,7 +159,7 @@ exports.getOrderDetailsById = async (req, res) => {
 
   try {
     // The DAO now returns properly structured data
-    
+
     const orderDetails = await procumentDao.getOrderDetailsById(id);
     console.log('orderDetails', orderDetails);
     const additionalItems = await procumentDao.getAllOrderAdditionalItemsDao(
@@ -178,7 +178,7 @@ exports.getOrderDetailsById = async (req, res) => {
     const btype = await procumentDao.getOrderTypeDao(id);
     const excludeList = await procumentDao.getExcludeListDao(btype.userId);
     const category = await procumentDao.productCategoryDao();
-    
+
 
 
     console.log(`[getOrderDetailsById] Successfully fetched order details`);
@@ -186,7 +186,7 @@ exports.getOrderDetailsById = async (req, res) => {
       success: true,
       data: orderDetails,
       additionalItems: additionalItems,
-      excludeList:excludeList,
+      excludeList: excludeList,
       category
     });
   } catch (err) {
@@ -292,17 +292,18 @@ exports.createOrderPackageItem = async (req, res) => {
 
 exports.getAllMarketplaceItems = async (req, res) => {
   try {
-    console.log("hello world",req.params.id);
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log(fullUrl);
 
-    console.log('params', req.params.id);
-
-    // const orderId = req.params.id;
-    const orderId = req.params.id; // You shold pass processOrderId from frontend change it Ashan
+    const orderId = req.params.id;
     const btype = await procumentDao.getOrderTypeDao(orderId);
+    console.log('btype', btype);
+
     const marketplaceItems = await procumentDao.getAllMarketplaceItems(
       btype.buyerType,
       btype.userId
     );
+    console.log('marketplaceItems', marketplaceItems);
 
     if (!marketplaceItems || marketplaceItems.length === 0) {
       return res.status(404).json({
@@ -374,7 +375,7 @@ exports.getAllOrdersWithProcessInfoCompleted = async (req, res) => {
       limit,
       dateFilter,
       searchTerm
-      
+
     );
     // console.log("Orders Data:", ordersData);
 
@@ -462,6 +463,7 @@ exports.getOrderPackageItemsById = async (req, res) => {
     }
 
     const orderPackages = await procumentDao.getOrderPackagesByOrderId(orderId);
+    const additionalItems = await procumentDao.getAllOrderAdditionalItemsDao(orderId);
 
     console.log('orderPackages', orderPackages)
 
@@ -492,8 +494,11 @@ exports.getOrderPackageItemsById = async (req, res) => {
           })),
         })),
       },
+      additionalItems,
       message: "Order package items retrieved successfully",
     };
+
+    console.log('formattedResponse', formattedResponse.data.packages[0].productTypes[0].price)
 
     res.json(formattedResponse);
   } catch (err) {
@@ -607,7 +612,12 @@ exports.updateDefinePackageData = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    const { definePackageItems } = req.body;
+    const { definePackageItems, orderId } = req.body;
+    const userId = req.user.userId
+
+    console.log(req.body);
+
+    console.log('definePackageItems', definePackageItems)
 
     if (!Array.isArray(definePackageItems) || definePackageItems.length === 0) {
       return res.status(400).json({
@@ -630,7 +640,7 @@ exports.updateDefinePackageData = async (req, res) => {
           productPrice,
           items
         } = pkg;
-    
+
         return {
           orderpkgId,
           packageId,
@@ -642,12 +652,12 @@ exports.updateDefinePackageData = async (req, res) => {
       })
     };
 
-    console.log(formattedData);
-    
-    
+    console.log('formattedData', formattedData.packages[0].items[1])
 
     const updateResult = await procumentDao.updateDefinePackageItemData(formattedData);
-    console.log(formattedData);
+    
+    const trackResult = await procumentDao.trackDispatchOfficerDao(userId, orderId);
+
 
     res.json({
       success: true,

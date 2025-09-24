@@ -315,6 +315,12 @@ router.get(
   marketPlaceEp.getMarketplacePackageBeforeDate
 );
 
+router.patch(
+  "/change-package-status",
+  authMiddleware,
+  marketPlaceEp.changePackageStatus
+);
+
 
 
 

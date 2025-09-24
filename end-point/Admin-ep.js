@@ -850,13 +850,10 @@ exports.getOngoingCultivationsById = async (req, res) => {
 
   try {
     // Validate the request params (ID)
-    const { id } =
-      await ValidateSchema.getOngoingCultivationsByIdSchema.validateAsync(
-        req.params
-      );
+    const { cultivationId, userId } = req.params
 
     // Fetch cultivation crops data from DAO
-    const results = await adminDao.getOngoingCultivationsById(id);
+    const results = await adminDao.getOngoingCultivationsByFarmId(cultivationId, userId);
 
     console.log("Successfully fetched cultivation crops by ID");
     res.status(200).json(results);
@@ -877,13 +874,12 @@ exports.getFixedAssetsByCategory = async (req, res) => {
 
   try {
     // Validate the request params (id and category)
-    const { id, category } =
-      await ValidateSchema.getFixedAssetsByCategorySchema.validateAsync(
-        req.params
-      );
+    const { id, farmId, category } = req.params;
+
+    console.log("id, category ,farmId", id, category, farmId);
 
     // Fetch assets by category from DAO
-    const results = await adminDao.getFixedAssetsByCategory(id, category);
+    const results = await adminDao.getFixedAssetsByCategory(id, category, farmId);
 
     console.log("Successfully retrieved assets");
     res.status(200).json(results);
@@ -897,6 +893,66 @@ exports.getFixedAssetsByCategory = async (req, res) => {
 
     console.error("Error fetching assets:", err);
     res.status(500).json({ error: "An error occurred while fetching data." });
+  }
+};
+
+exports.getBuildingOwnershipDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    // Validate the request params
+    const { buildingAssetId } = req.params;
+
+    console.log("buildingAssetId:", buildingAssetId);
+
+    // Validate buildingAssetId is a number
+    if (!buildingAssetId || isNaN(buildingAssetId)) {
+      return res.status(400).json({ error: "Invalid building asset ID. Must be a valid number." });
+    }
+
+    // Fetch building ownership details from DAO
+    const results = await adminDao.getBuildingOwnershipDetails(parseInt(buildingAssetId));
+
+    console.log("Successfully retrieved building ownership details");
+    res.status(200).json(results);
+  } catch (err) {
+    if (err === "Building not found") {
+      return res.status(404).json({ error: "Building not found." });
+    }
+
+    console.error("Error fetching building ownership details:", err);
+    res.status(500).json({ error: "An error occurred while fetching building ownership details." });
+  }
+};
+
+exports.getLandOwnershipDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    // Validate the request params
+    const { landAssetId } = req.params;
+
+    console.log("landAssetId:", landAssetId);
+
+    // Validate landAssetId is a number
+    if (!landAssetId || isNaN(landAssetId)) {
+      return res.status(400).json({ error: "Invalid land asset ID. Must be a valid number." });
+    }
+
+    // Fetch land ownership details from DAO
+    const results = await adminDao.getLandOwnershipDetails(parseInt(landAssetId));
+
+    console.log("Successfully retrieved land ownership details");
+    res.status(200).json(results);
+  } catch (err) {
+    if (err === "Land not found") {
+      return res.status(404).json({ error: "Land not found." });
+    }
+
+    console.error("Error fetching land ownership details:", err);
+    res.status(500).json({ error: "An error occurred while fetching land ownership details." });
   }
 };
 
@@ -1476,6 +1532,18 @@ exports.createAdmin = async (req, res) => {
       validatedBody.userName
     );
 
+    if (existingUser[0].userName === validatedBody.userName) {
+      return res.status(400).json({
+        error: "An admin with the same username already exists.",
+      });
+    }
+
+    if (existingUser[0].mail === validatedBody.mail) {
+      return res.status(400).json({
+        error: "An admin with the same email already exists.",
+      });
+    }
+
     if (existingUser.length > 0) {
       return res.status(400).json({
         error: "An admin with the same email or username already exists.",
@@ -1730,36 +1798,6 @@ exports.editTask = async (req, res) => {
   }
 };
 
-// exports.getAllUsersTaskByCropId = async (req, res) => {
-//   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-//   console.log("Request URL:", fullUrl);
-
-//   try {
-//     // Validate request parameters (cropId)
-//     const { cropId } = req.params;
-//     const { userId } = req.params;
-//     const { page, limit } =
-//     await ValidateSchema.getAllCropCalendarSchema.validateAsync(req.query);
-
-//     const offset = (page - 1) * limit;
-
-//     console.log(cropId);
-//     console.log(userId);
-//     const results = await adminDao.getAllUserTaskByCropId(cropId, userId);
-
-//     res.json(results);
-//   } catch (error) {
-//     if (error.isJoi) {
-//       // Handle validation error
-//       return res.status(400).json({ error: error.details[0].message });
-//     }
-
-//     console.error("Error fetching tasks for crop ID:", error);
-//     return res.status(500).json({
-//       error: "An error occurred while fetching tasks for the crop ID",
-//     });
-//   }
-// };
 
 exports.getAllUsersTaskByCropId = async (req, res) => {
   try {
@@ -2161,12 +2199,18 @@ exports.addNewTaskU = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   console.log("Request URL:", fullUrl);
-  console.log("Add new task data:", req.body);
+  console.log("Add new task data:", req.params);
+  // if(true) return;
+
 
   const userId = req.params.userId;
   const cropId = req.params.cropId;
   const onCulscropID = req.params.onCulscropID;
   const indexId = parseInt(req.params.indexId);
+  console.log(req.params);
+  const ongCultivationId = req.query.ongCultivationId
+  const adminUserId = req.user.userId
+
 
   try {
     const task = req.body;
@@ -2197,6 +2241,8 @@ exports.addNewTaskU = async (req, res) => {
       onCulscropID
     );
 
+    const trackResult = await adminDao.tracktaskAddOngoingCultivation(adminUserId, ongCultivationId);
+
     if (addedTaskResult.insertId > 0) {
       res
         .status(201)
@@ -2214,88 +2260,6 @@ exports.addNewTaskU = async (req, res) => {
   }
 };
 
-// exports.uploadUsersXLSX = async (req, res) => {
-//   try {
-//     if (!req.file) {
-//       return res.status(400).json({ error: "No file uploaded." });
-//     }
-
-//     console.log("File details:", {
-//       fieldname: req.file.fieldname,
-//       originalname: req.file.originalname,
-//       encoding: req.file.encoding,
-//       mimetype: req.file.mimetype,
-//       size: req.file.size,
-//       path: req.file.path, // Log the path if it exists
-//       buffer: req.file.buffer ? "Buffer exists" : "Buffer is undefined",
-//     });
-
-//     // Validate file type
-//     const allowedExtensions = [".xlsx", ".xls"];
-//     const fileExtension = path.extname(req.file.originalname).toLowerCase();
-//     if (!allowedExtensions.includes(fileExtension)) {
-//       return res.status(400).json({
-//         error: "Invalid file type. Only XLSX and XLS files are allowed.",
-//       });
-//     }
-
-//     // Read the XLSX file
-//     let workbook;
-//     try {
-//       if (req.file.buffer) {
-//         // If buffer exists, read from buffer
-//         workbook = xlsx.read(req.file.buffer, { type: "buffer" });
-//       } else if (req.file.path) {
-//         // If path exists, read from file
-//         workbook = xlsx.readFile(req.file.path);
-//       } else {
-//         throw new Error("Neither file buffer nor path is available");
-//       }
-//     } catch (error) {
-//       console.error("Error reading XLSX file:", error);
-//       return res.status(400).json({
-//         error:
-//           "Unable to read the uploaded file. Please ensure it's a valid XLSX or XLS file.",
-//       });
-//     }
-
-//     if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
-//       return res
-//         .status(400)
-//         .json({ error: "The uploaded file is empty or invalid." });
-//     }
-
-//     const sheetName = workbook.SheetNames[0];
-//     const worksheet = workbook.Sheets[sheetName];
-//     const data = xlsx.utils.sheet_to_json(worksheet);
-
-//     // Validate data structure
-//     if (data.length === 0) {
-//       return res
-//         .status(400)
-//         .json({ error: "The uploaded file contains no valid data." });
-//     }
-
-//     // console.log("First row of data:", data[0]);
-
-//     // Insert data into the database via DAO
-//     const rowsAffected = await adminDao.insertUserXLSXData(data);
-
-//     // Respond with success
-//     return res.status(200).json({
-//       message: "File uploaded and data inserted successfully",
-//       rowsAffected,
-//     });
-//   } catch (error) {
-//     if (error.isJoi) {
-//       return res.status(400).json({ error: error.details[0].message });
-//     }
-//     console.error("Error processing XLSX file:", error);
-//     return res
-//       .status(500)
-//       .json({ error: "An error occurred while processing the XLSX file." });
-//   }
-// };
 
 exports.uploadUsersXLSX = async (req, res) => {
   try {
@@ -2321,117 +2285,7 @@ exports.uploadUsersXLSX = async (req, res) => {
   }
 };
 
-exports.uploadUsersXLSXtest = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded." });
-    }
 
-    console.log("File details:", {
-      fieldname: req.file.fieldname,
-      originalname: req.file.originalname,
-      encoding: req.file.encoding,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
-      path: req.file.path,
-      buffer: req.file.buffer ? "Buffer exists" : "Buffer is undefined",
-    });
-
-    console.log("Files comes");
-
-    // Validate file type
-    const allowedExtensions = [".xlsx", ".xls"];
-    const fileExtension = path.extname(req.file.originalname).toLowerCase();
-    if (!allowedExtensions.includes(fileExtension)) {
-      return res.status(400).json({
-        error: "Invalid file type. Only XLSX and XLS files are allowed.",
-      });
-    }
-
-    // Read the XLSX file
-    let workbook;
-    try {
-      if (req.file.buffer) {
-        workbook = xlsx.read(req.file.buffer, { type: "buffer" });
-      } else if (req.file.path) {
-        workbook = xlsx.readFile(req.file.path);
-      } else {
-        throw new Error("Neither file buffer nor path is available");
-      }
-    } catch (error) {
-      console.error("Error reading XLSX file:", error);
-      return res.status(400).json({
-        error:
-          "Unable to read the uploaded file. Please ensure it's a valid XLSX or XLS file.",
-      });
-    }
-
-    if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "The uploaded file is empty or invalid." });
-    }
-
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = xlsx.utils.sheet_to_json(worksheet);
-
-    if (data.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "The uploaded file contains no valid data." });
-    }
-
-    console.log("getting data");
-    // Insert data and check for existing users
-    const result = await adminDao.insertUserXLSXData(data);
-
-    console.log("after dao");
-
-    // If there are existing users, generate and send XLSX file
-    if (result.existingUsers && result.existingUsers.length > 0) {
-      // Create a new workbook for existing users
-      const wb = xlsx.utils.book_new();
-      const ws = xlsx.utils.json_to_sheet(result.existingUsers);
-      xlsx.utils.book_append_sheet(wb, ws, "Existing Users");
-
-      // Generate buffer
-      const excelBuffer = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
-
-      // Set headers for file download
-      res.setHeader(
-        "Content-Type",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      );
-      res.setHeader(
-        "Content-Disposition",
-        "attachment; filename=existing_users.xlsx"
-      );
-
-      // Send both the file and JSON response
-      return res.status(200).send({
-        message: "Some users already exist in the database",
-        existingUsers: result.existingUsers,
-        newUsersInserted: result.insertedRows,
-        file: excelBuffer,
-      });
-    }
-
-    // If no existing users, send success response
-    return res.status(200).json({
-      message: "File uploaded and data inserted successfully",
-      rowsAffected: result.insertedRows,
-    });
-  } catch (error) {
-    if (error.isJoi) {
-      return res.status(400).json({ error: error.details[0].message });
-    }
-    console.error("Error processing XLSX file:", error);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while processing the XLSX file." });
-  }
-};
 
 exports.getAllRoles = async (req, res) => {
   try {
@@ -2998,5 +2852,162 @@ exports.deleteOngoingCultivationsById = async (req, res) => {
     return res
       .status(500)
       .json({ error: "An error occurred while deleting ongoing cultivation" });
+  }
+};
+
+
+
+exports.getFarmerStaff = async (req, res) => {
+  try {
+    const { id, role } = await ValidateSchema.getFarmerStaffShema.validateAsync(req.query);
+    console.log(role);
+
+    const result = await adminDao.getFarmerStaffDao(id, role);
+
+    console.log("Successfully fetched feedback list");
+    res.json({
+      result,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+exports.getFarmOwner = async (req, res) => {
+  try {
+    // Validate query parameter
+    const { id } = await ValidateSchema.getFarmOwnerSchema.validateAsync(req.query);
+
+    // Fetch owner details from DAO
+    const owner = await adminDao.getFarmOwnerByIdDao(id);
+
+    if (!owner) {
+      return res.status(404).json({ error: "Farm owner not found" });
+    }
+
+    console.log("Successfully fetched farm owner details");
+    res.json({ result: owner });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching farm owner data.");
+  }
+};
+
+exports.updateFarmOwner = async (req, res) => {
+  try {
+    const ownerId = req.params.id;
+    const data = req.body;
+    const userId = req.user.userId; // Assuming req.user is populated by authentication middleware
+
+    // Optional: validate data here using Joi
+    // await ValidateSchema.updateFarmOwnerSchema.validateAsync(data);
+
+    const result = await adminDao.updateFarmOwnerByIdDao(ownerId, data, userId);
+    res.json({
+      message: "Farm staff updated successfully",
+      result
+    });
+  } catch (err) {
+    console.error("Error updating farm staff:", err);
+    res.status(500).json({ error: "An error occurred while updating farm staff." });
+  }
+};
+
+
+exports.getUserFarmDetails = async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    const result = await adminDao.getUserFarmDetailsDao(userId);
+
+    console.log("Successfully fetched user farm details");
+    res.json({
+      result,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+
+exports.deleteFarms = async (req, res) => {
+  try {
+    const { farmId } = req.query;
+
+    if (!farmId) {
+      return res.status(400).json({ error: "farmId is required" });
+    }
+
+    const result = await adminDao.deleteFarmDao(farmId);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Farm not found" });
+    }
+
+    console.log("Successfully deleted farm:", farmId);
+    res.json({ message: "Farm deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting farm:", err);
+    res.status(500).send("An error occurred while deleting the farm.");
+  }
+};
+
+
+
+exports.getFarmsByUser = async (req, res) => {
+  try {
+    // Validate query params (pagination, search, userId)
+    const queryParams =
+      await ValidateSchema.getFarmsByUserSchema.validateAsync(req.query);
+
+    const page = queryParams.page;
+    const limit = queryParams.limit;
+    const offset = (page - 1) * limit;
+    const searchItem = queryParams.search || "";
+    const userId = queryParams.userId; // farmer id (required)
+
+    // Call DAO to fetch farms
+    const { total, items } = await adminDao.getAllFarmsWithCultivations(
+      userId,
+      searchItem,
+      limit,
+      offset
+    );
+
+    res.json({
+      total,
+      items,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching farms:", err);
+    res.status(500).send("An error occurred while fetching farms.");
+  }
+};
+
+exports.deleteFarm = async (req, res) => {
+  try {
+    const { farmId } = req.params;
+
+    const result = await adminDao.deleteFarmById(farmId);
+
+    res.json(result);
+  } catch (err) {
+    console.error("Error deleting farm:", err);
+    res.status(500).send("An error occurred while deleting the farm.");
   }
 };

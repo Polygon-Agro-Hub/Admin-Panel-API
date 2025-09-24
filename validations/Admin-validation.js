@@ -12,14 +12,21 @@ exports.getAllAdminUsersSchema = Joi.object({
   role: Joi.number().integer().optional(),
   search: Joi.string().optional(),
 });
-
+exports.getFarmOwnerSchema = Joi.object({
+  id: Joi.number().required()
+});
 exports.adminCreateUserSchema = Joi.object({
   firstName: Joi.string().required(),
   lastName: Joi.string().required(),
   phoneNumber: Joi.string().required(),
   NICnumber: Joi.string().required(),
 });
-
+exports.adminCreateUserSchema = Joi.object({
+  firstName: Joi.string().required(),
+  lastName: Joi.string().required(),
+  phoneNumber: Joi.string().required(),
+  NICnumber: Joi.string().required(),
+});
 exports.getAllUsersSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(10),
@@ -172,6 +179,7 @@ exports.getOngoingCultivationsByIdSchema = Joi.object({
 
 exports.getFixedAssetsByCategorySchema = Joi.object({
   id: Joi.number().integer().required().label("User ID"),
+  farmId: Joi.number().integer().required().label("Farm ID"),
   category: Joi.string()
     .valid(
       "Building and Infrastructures",
@@ -181,7 +189,7 @@ exports.getFixedAssetsByCategorySchema = Joi.object({
     )
     .required()
     .label("Category"),
-});
+}).options({ convert: true });
 
 exports.getCurrentAssetsByCategorySchema = Joi.object({
   id: Joi.number().integer().required().label("User ID"),
@@ -434,6 +442,13 @@ exports.createfeedback = Joi.object({
   feedbackTamil: Joi.required(),
 });
 
-exports.deleteAdminUserSchema = Joi.object({
-  id: Joi.number().integer().required().label("Admin User ID"),
+exports.getFarmerStaffShema = Joi.object({
+  id: Joi.number().integer().positive().required(),
+  role: Joi.string().optional(),
 });
+exports.getFarmsByUserSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+  search: Joi.string().allow("", null),
+  userId: Joi.number().integer().required(),
+}).options({ convert: true }); // <- important

@@ -35,29 +35,12 @@ exports.getPreMadePackages = async (req, res) => {
     );
 
     // Add combinedStatus to each item in the response
-    const processedItems = reportData.items.map(item => {
-      let combinedStatus;
-
-      if (item.additionalProductStatus === 'Pending' || item.packageProductStatus === 'Pending') {
-        combinedStatus = 'Pending';
-      } else if (item.additionalProductStatus === 'Opened' || item.packageProductStatus === 'Opened') {
-        combinedStatus = 'Opened';
-      } else {
-        combinedStatus = 'Completed';
-      }
-
-      return {
-        ...item,
-        combinedStatus
-      };
-    });
 
     const finalResponse = {
-      items: processedItems,
+      items: reportData.items,
       total: reportData.total
     };
 
-    console.log('premad', finalResponse);
     res.json(finalResponse);
   } catch (err) {
     console.error("Error fetching daily report:", err);
@@ -73,8 +56,6 @@ exports.getSelectedPackages = async (req, res) => {
   try {
 
     const validatedQuery = await DispatchVali.getPreMadePackages.validateAsync(req.query);
-
-
     const { page, limit, selectedStatus, date, search } = validatedQuery;
 
     // console.log({ selectedStatus, date, search })
@@ -286,9 +267,6 @@ exports.getCustomOrderDetailsById = async (req, res) => {
 };
 
 
-
-
-
 exports.updateCustomPackItems = async (req, res) => {
   try {
     const { invoiceId, updatedItems } = req.body;
@@ -362,8 +340,6 @@ exports.updateCustomAdditionalItemData = async (req, res) => {
 };
 
 
-
-
 exports.getPackageOrderDetailsById = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -395,9 +371,6 @@ exports.getPackageOrderDetailsById = async (req, res) => {
       .json({ error: "An error occurred while fetching the news content" });
   }
 };
-
-
-
 
 
 
@@ -466,3 +439,256 @@ exports.updatePackAdditionItems = async (req, res) => {
   }
 };
 
+
+
+exports.getMarketPlacePremadePackages = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const validatedQuery = await DispatchVali.getPreMadePackages.validateAsync(req.query);
+    const { page, limit, selectedStatus, date, search } = validatedQuery;
+
+    console.log({ selectedStatus, date, search });
+
+    const packageData = await DispatchDao.getMarketPlacePremadePackagesDao(
+      page,
+      limit,
+      selectedStatus,
+      date,
+      search
+    );
+
+    // Add combinedStatus to each item in the response
+
+    const finalResponse = {
+      items: packageData.items,
+      total: packageData.total,
+      status: true
+    };
+
+    res.json(finalResponse);
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+exports.getMarketPlacePremadePackagesItems = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = await DispatchVali.idValidate.validateAsync(req.params);
+
+
+    const packageData = await DispatchDao.getMarketPlacePremadePackagesItemsDao(id);
+    const additionalData = await DispatchDao.getMarketPlacePremadePackagesAdditionalItemsDao(id);
+
+    // Add combinedStatus to each item in the response
+
+
+
+    res.json({ packageData, additionalData });
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+
+exports.getMarketPlaceCustomePackages = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const validatedQuery = await DispatchVali.getPreMadePackages.validateAsync(req.query);
+    const { page, limit, selectedStatus, date, search } = validatedQuery;
+
+    console.log({ selectedStatus, date, search });
+
+    const packageData = await DispatchDao.getMarketPlaceCustomePackagesDao(
+      page,
+      limit,
+      selectedStatus,
+      date,
+      search
+    );
+
+    // Add combinedStatus to each item in the response
+
+    const finalResponse = {
+      items: packageData.items,
+      total: packageData.total,
+      status: true
+    };
+
+    console.log('-----', packageData.total, '---------');
+
+
+    res.json(finalResponse);
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+
+exports.getPackageForDispatch = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id, orderId } = await DispatchVali.getPackageForDispatchParamScema.validateAsync(req.params);
+
+
+    const packageData = await DispatchDao.getPackageForDispatchDao(id);
+    console.log(packageData);
+
+    const btype = await DispatchDao.getDispatchOrderTypeDao(orderId);
+    const marketplaceItems = await DispatchDao.getAllDispatchMarketplaceItems(
+      btype.buyerType,
+      btype.userId
+    );
+
+
+    res.json({ packageData, marketplaceItems });
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+exports.dispatchPackage = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    console.log('dispatch packages');
+
+    const packageArr = await DispatchVali.dispatchPackageSchema.validateAsync(req.body.array);
+    const orderId = req.body.orderId;
+    const isLastOrder = req.body.isLastOrder
+    const userId = req.user.userId
+    console.log(orderId, isLastOrder);
+
+    for (let i = 0; i < packageArr.length; i++) {
+      const packageData = await DispatchDao.dispatchPackageDao(packageArr[i]);
+      if (packageData.affectedRows === 0) {
+        return res.json({
+          message: "Packing Faild",
+          status: false
+        })
+      }
+    }
+
+    if (isLastOrder) {
+      const packResult = await DispatchDao.trackPackagePackDao(userId, orderId);
+      console.log("pack officer->",packResult);
+      
+    }
+
+    res.json({
+      message: "Package pack successfully",
+      status: true
+    });
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+exports.getAdditionalItemsForDispatch = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = await DispatchVali.idValidate.validateAsync(req.params);
+
+    const order = await DispatchDao.getDispatchOrderDetailsDao(id);
+    if (!order) {
+      return res.json({
+        status: false,
+        message: "No items founded"
+      })
+    }
+
+    const packageData = await DispatchDao.getAdditionalItemsForDispatchDao(order.orderId);
+    console.log(packageData);
+
+    // const btype = await DispatchDao.getDispatchOrderTypeDao(orderId);
+    // const marketplaceItems = await DispatchDao.getAllDispatchMarketplaceItems(
+    //   btype.buyerType,
+    //   btype.userId
+    // );
+
+
+    res.json({
+      status: true,
+      orderDetails: order,
+      packageData
+    });
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+
+exports.dispatchAdditonalPackage = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const packageArr = await DispatchVali.dispatchPackageSchema.validateAsync(req.body.array);
+    console.log(packageArr);
+    const orderId = req.body.orderId;
+    const isLastOrder = req.body.isLastOrder
+    const userId = req.user.userId
+
+    for (let i = 0; i < packageArr.length; i++) {
+      const packageData = await DispatchDao.dispatchAdditionalItemsDao(packageArr[i]);
+      if (packageData.affectedRows === 0) {
+        return res.json({
+          message: "Packing Faild",
+          status: false
+        })
+      }
+    }
+
+    if (isLastOrder) {
+      const packResult = await DispatchDao.trackPackagePackDao(userId, orderId);
+      console.log("pack officer->",packResult);
+      
+    }
+
+    res.json({
+      message: "Package pack successfully",
+      status: true
+    });
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+
+exports.replaceDispatchPackageItems = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    // const { id } = await DispatchVali.idValidate.validateAsync(req.params);
+    const oldItem = req.body.oldItem;
+    const newItem = req.body.newItem;
+    console.log(req.body);
+
+    const result = await DispatchDao.replaceDispatchPackageItemsDao(oldItem, newItem);
+    if (result.affectedRows === 0) {
+      return res.json({
+        status: false,
+        message: "Item replce faild try again later."
+      })
+    }
+
+    res.json({
+      status: true,
+      message: "Item replace successfull."
+    });
+  } catch (err) {
+    console.error("Error replaceDispatchPackageItems:", err);
+    res.status(500).send("An error occurred while replaceDispatchPackageItems");
+  }
+};

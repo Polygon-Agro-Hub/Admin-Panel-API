@@ -917,7 +917,7 @@ exports.createCompany = async (
 exports.GetAllCompanyList = () => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, companyNameEnglish FROM company WHERE company.isCollection = true";
+      "SELECT id, companyNameEnglish FROM company WHERE company.isCollection = 1";
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
@@ -1108,20 +1108,29 @@ exports.getCompanyDAO = (id) => {
   });
 };
 
-exports.checkCompanyDisplayNameDao = async (companyNameEnglish, id) => {
+exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) => {
   return new Promise((resolve, reject) => {
-    let sql = "SELECT * FROM company WHERE companyNameEnglish = ?";
-    const sqlParams = [companyNameEnglish];
+    let sql = "SELECT * FROM company WHERE (companyNameEnglish = ? OR regNumber = ?)";
+    const sqlParams = [companyNameEnglish, regNumber];
 
     if (id) {
-      sql += "AND id !=?";
+      sql += " AND id != ?";
       sqlParams.push(id);
     }
+    
     collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
         reject(err);
       } else {
-        resolve(results.length > 0);
+        // Check if either companyNameEnglish or regNumber already exists
+        const nameExists = results.some(result => result.companyNameEnglish === companyNameEnglish);
+        const regNumberExists = results.some(result => result.regNumber === regNumber);
+        
+        resolve({
+          exists: results.length > 0,
+          nameExists,
+          regNumberExists
+        });
       }
     });
   });
@@ -1322,7 +1331,7 @@ exports.getTransactionCountDao = (centerId) => {
     const sql = `
           SELECT COUNT(RFP.id) AS transactionCount
           FROM registeredfarmerpayments RFP, collectionofficer COF
-          WHERE DATE(RFP.createdAt) = '2024-12-31' AND RFP.collectionOfficerId = COF.id AND COF.centerId = ?
+          WHERE DATE(RFP.createdAt) = CURDATE() AND RFP.collectionOfficerId = COF.id AND COF.centerId = ?
           GROUP BY DATE(RFP.createdAt);
 
       `;
@@ -1330,6 +1339,11 @@ exports.getTransactionCountDao = (centerId) => {
       if (err) {
         return reject(err);
       }
+      console.log("Transaction Count Results:", results);
+      if (results.length === 0) {
+        return resolve({ transactionCount: 0 })
+      }
+
       resolve(results[0]);
     });
   });
@@ -1348,6 +1362,9 @@ exports.getTransactionAmountCountDao = (centerId) => {
       if (err) {
         return reject(err);
       }
+      if (results.length === 0) {
+        return resolve({ transAmountCount: 0 })
+      }
       resolve(results[0]);
     });
   });
@@ -1365,8 +1382,7 @@ exports.getReseantCollectionDao = (centerId) => {
           JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
           JOIN plant_care.cropvariety CV ON FPC.cropId = CV.id
           JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
-          WHERE DATE(RFP.createdAt) = '2025-06-11' 
-          AND COF.centerId = ?
+          WHERE COF.centerId = ?
           GROUP BY CG.cropNameEnglish, CV.varietyNameEnglish, DATE(RFP.createdAt)
           ORDER BY DATE(RFP.createdAt)
           LIMIT 5
@@ -1437,6 +1453,11 @@ exports.getTotExpencesDao = (centerId) => {
       if (err) {
         return reject(err);
       }
+      console.log("--------",results);
+      
+      if (results.length === 0 || results[0].totExpences === null) {
+        return resolve({ totExpences: 0.00 })
+      }
       resolve(results[0]);
     });
   });
@@ -1462,20 +1483,14 @@ exports.differenceBetweenExpences = (centerId) => {
         return reject(err);
       }
 
-      let roundedDifExpences = 100;
-
-      if (results.length < 2) {
-        // return reject(new Error("Not enough data to compare two months."));
-        return resolve(roundedDifExpences);
+      let difExpences = 0.00
+      if (results.length >= 2) {
+        difExpences = ((results[0].monthexpences - results[1].monthexpences) / results[0].monthexpences) * 100;
       }
 
-      const difExpences =
-        ((results[0].monthexpences - results[1].monthexpences) /
-          results[0].monthexpences) *
-        100;
-      roundedDifExpences = parseFloat(difExpences.toFixed(2));
+      const roundedDifExpences = parseFloat(difExpences.toFixed(2));
 
-      resolve(roundedDifExpences);
+      resolve(roundedDifExpences);;
     });
   });
 };
@@ -1483,10 +1498,10 @@ exports.differenceBetweenExpences = (centerId) => {
 exports.getCenterNameAndOficerCountDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-         SELECT CC.id, CC.centerName, COUNT(COF.id) AS officerCount
+         SELECT CC.id, CC.centerName, CC.regCode, COUNT(COF.id) AS officerCount
          FROM collectioncenter CC, collectionofficer COF
          WHERE CC.id = ? AND CC.id = COF.centerId AND COF.companyId = 1
-         GROUP BY CC.id, CC.centerName
+         GROUP BY CC.id, CC.centerName, CC.regCode
       `;
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
@@ -1691,41 +1706,37 @@ exports.getAllCenterPageAW = (
       // If we also have a search term, use AND instead of WHERE
       if (searchItem) {
         const searchQuery = `%${searchItem}%`;
-        countSql += " AND (C.regCode LIKE ? OR C.centerName LIKE ?)";
-        sql += " AND (C.regCode LIKE ? OR C.centerName LIKE ?)";
-        searchParams.push(searchQuery, searchQuery);
+        countSql += " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
+        sql += " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
+        searchParams.push(searchQuery, searchQuery, searchQuery);
       }
 
       if (district) {
         countSql += " AND C.district LIKE ? ";
         sql += " AND C.district LIKE ? ";
-        // countParams.push(district);
         searchParams.push(district);
       }
 
       if (province) {
         countSql += " AND C.province LIKE ? ";
         sql += " AND C.province LIKE ? ";
-        // countParams.push(district);
         searchParams.push(province);
       }
     } else {
       let whereClause = " WHERE 1=1";
 
       if (searchItem) {
-        // Only searchItem, no companyId
         const searchQuery = `%${searchItem}%`;
-        whereClause += " AND C.regCode LIKE ? OR C.centerName LIKE ?";
+        whereClause += " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
         countSql += whereClause;
         sql += whereClause;
-        searchParams.push(searchQuery, searchQuery);
+        searchParams.push(searchQuery, searchQuery, searchQuery);
       }
 
       if (district) {
         whereClause += " AND C.district LIKE ? ";
         countSql += whereClause;
         sql += whereClause;
-        // countParams.push(district);
         searchParams.push(district);
       }
 
@@ -1733,7 +1744,6 @@ exports.getAllCenterPageAW = (
         whereClause += " AND C.province LIKE ? ";
         countSql += whereClause;
         sql += whereClause;
-        // countParams.push(district);
         searchParams.push(province);
       }
     }
@@ -1777,10 +1787,10 @@ exports.getAllCenterPageAW = (
 };
 
 exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, searchText) => {
-    return new Promise((resolve, reject) => {
-        const offset = (page - 1) * limit;
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
 
-        let countSql = `
+    let countSql = `
             SELECT COUNT(DISTINCT rfp.invNo) AS total
             FROM collection_officer.registeredfarmerpayments rfp
             LEFT JOIN collection_officer.farmerpaymentscrops fpc ON rfp.id = fpc.registerFarmerId
@@ -1790,7 +1800,7 @@ exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, sear
             WHERE co.centerId = ? AND DATE(rfp.createdAt) BETWEEN ? AND ?
             `;
 
-        let dataSql = `
+    let dataSql = `
             SELECT 
                 rfp.createdAt,
                 rfp.invNo,
@@ -1818,11 +1828,11 @@ exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, sear
             WHERE co.centerId = ? AND DATE(rfp.createdAt) BETWEEN ? AND ?
             `;
 
-        const countParams = [centerId, fromDate, toDate];
-        const dataParams = [centerId, fromDate, toDate];
+    const countParams = [centerId, fromDate, toDate];
+    const dataParams = [centerId, fromDate, toDate];
 
-        if (searchText) {
-            const searchCondition = `
+    if (searchText) {
+      const searchCondition = `
                 AND (
                     rfp.invNo LIKE ?
                     OR rfp.createdAt LIKE ?
@@ -1830,15 +1840,15 @@ exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, sear
                     OR u.NICnumber LIKE ?
                 )
                 `;
-            countSql += searchCondition;
-            dataSql += searchCondition;
-            const searchValue = `%${searchText}%`;
-            countParams.push(searchValue, searchValue, searchValue, searchValue);
-            dataParams.push(searchValue, searchValue, searchValue, searchValue);
-        }
+      countSql += searchCondition;
+      dataSql += searchCondition;
+      const searchValue = `%${searchText}%`;
+      countParams.push(searchValue, searchValue, searchValue, searchValue);
+      dataParams.push(searchValue, searchValue, searchValue, searchValue);
+    }
 
-        // Modified GROUP BY clause to include all non-aggregated columns
-        dataSql += `
+    // Modified GROUP BY clause to include all non-aggregated columns
+    dataSql += `
             GROUP BY 
                 rfp.invNo,
                 rfp.createdAt,
@@ -1848,36 +1858,36 @@ exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, sear
                 u.NICnumber,
                 co.companyId
             `;
-            
-        // Add pagination to the data query
-        dataSql += " LIMIT ? OFFSET ?";
-        dataParams.push(limit, offset);
 
-        // Execute count query
-        collectionofficer.query(countSql, countParams, (countErr, countResults) => {
-            if (countErr) {
-                console.error('Error in count query:', countErr);
-                return reject(countErr);
-            }
+    // Add pagination to the data query
+    dataSql += " LIMIT ? OFFSET ?";
+    dataParams.push(limit, offset);
 
-            const total = countResults[0].total;
+    // Execute count query
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        console.error('Error in count query:', countErr);
+        return reject(countErr);
+      }
 
-            // Execute data query
-            collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
-                if (dataErr) {
-                    console.error('Error in data query:', dataErr);
-                    return reject(dataErr);
-                }
+      const total = countResults[0].total;
 
-                resolve({ items: dataResults, total });
-            });
-        });
+      // Execute data query
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error('Error in data query:', dataErr);
+          return reject(dataErr);
+        }
+
+        resolve({ items: dataResults, total });
+      });
     });
+  });
 };
 
 exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) => {
-    return new Promise((resolve, reject) => {
-        let dataSql = `
+  return new Promise((resolve, reject) => {
+    let dataSql = `
         SELECT 
                 rfp.createdAt,
                 rfp.invNo,
@@ -1915,10 +1925,10 @@ exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) =
             LEFT JOIN plant_care.userbankdetails ub ON u.id = ub.userId
             WHERE co.centerId = ? AND DATE(rfp.createdAt) BETWEEN ? AND ?
         `;
-        const dataParams = [centerId, fromDate, toDate];
+    const dataParams = [centerId, fromDate, toDate];
 
-        if (searchText) {
-            const searchCondition = `
+    if (searchText) {
+      const searchCondition = `
                 AND (
                     rfp.invNo LIKE ?
                     OR rfp.createdAt LIKE ?
@@ -1926,12 +1936,12 @@ exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) =
                     OR u.NICnumber LIKE ?
                 )
             `;
-            dataSql += searchCondition;
-            const searchValue = `%${searchText}%`;
-            dataParams.push(searchValue, searchValue, searchValue, searchValue);
-        }
+      dataSql += searchCondition;
+      const searchValue = `%${searchText}%`;
+      dataParams.push(searchValue, searchValue, searchValue, searchValue);
+    }
 
-        dataSql += ` 
+    dataSql += ` 
             GROUP BY 
                 rfp.invNo,
                 rfp.createdAt,
@@ -1950,13 +1960,221 @@ exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) =
                 co.empId
         `;
 
+    collectionofficer.query(dataSql, dataParams, (err, results) => {
+      if (err) {
+        console.error('Error in download report query:', err);
+        return reject(err);
+      }
+      resolve(results);
+      console.log(results);
+    });
+  });
+};
+
+
+exports.getCompanyCenterIDDao = (companyId, centerId) => {
+    return new Promise((resolve, reject) => {
+        let dataSql = `
+            SELECT id FROM companycenter WHERE companyId = ? AND centerId = ?
+        `;
+        const dataParams = [companyId, centerId];
         collectionofficer.query(dataSql, dataParams, (err, results) => {
             if (err) {
-                console.error('Error in download report query:', err);
                 return reject(err);
             }
-            resolve(results);
-            console.log(results);
+            if (results.length === 0) {
+                return resolve(null);
+            }
+            resolve(results[0].id);
         });
     });
+};
+
+
+exports.getCenterTargetDAO = (companyCenterId, status, searchText) => {
+    return new Promise((resolve, reject) => {
+        let targetSql = `
+        SELECT
+            dt.id, 
+            dt.companyCenterId, 
+            cv.varietyNameEnglish, 
+            cg.cropNameEnglish, 
+            dt.grade, 
+            dt.target, 
+            dt.complete,
+            dt.date,
+            coc.regCode
+        FROM collection_officer.dailytarget dt
+        LEFT JOIN plant_care.cropvariety cv ON dt.varietyId = cv.id
+        LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+        LEFT JOIN collection_officer.companycenter cc ON dt.companyCenterId = cc.id
+        LEFT JOIN collection_officer.collectioncenter coc ON cc.centerId = coc.id
+        WHERE dt.companyCenterId = ? AND DATE(dt.date) = CURDATE()
+        `;
+
+        const sqlParams = [companyCenterId];
+
+        // Add status filter if provided
+        if (status) {
+            const statusLower = status.toLowerCase();
+            if (statusLower === 'completed') {
+                targetSql += " AND dt.complete = dt.target";
+            } else if (statusLower === 'exceeded') {
+                targetSql += " AND dt.complete > dt.target";
+            } else if (statusLower === 'pending') {
+                targetSql += " AND COALESCE(dt.complete, 0.00) < dt.target";
+            }
+        }
+
+        // Add search filter if provided
+        if (searchText) {
+            const searchCondition = ` AND (
+                cv.varietyNameEnglish LIKE ?
+                OR cg.cropNameEnglish LIKE ?
+                OR dt.target LIKE ?
+                OR dt.complete LIKE ?
+            )`;
+            targetSql += searchCondition;
+            const searchValue = `%${searchText}%`;
+            sqlParams.push(searchValue, searchValue, searchValue, searchValue);
+        }
+
+        // Execute data query
+        collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
+            if (dataErr) {
+                console.error('Error in data query:', dataErr);
+                return reject(dataErr);
+            }
+
+            // Process results to add status field
+            const resultTarget = dataResults.map(row => {
+                const target = parseFloat(row.target ?? 0.00);
+                const complete = parseFloat(row.complete ?? 0.00);
+
+                let status;
+                if (complete > target) {
+                    status = 'Exceeded';
+                } else if (complete == target) {
+                    status = 'Completed';
+                } else if (complete < target) {
+                    status = 'Pending';
+                }
+
+
+                return {
+                    ...row,
+                    target: target.toFixed(2),
+                    complete: complete.toFixed(2),
+                    status: status
+                };
+            });
+            resolve({ resultTarget });
+        });
+    });
+};
+
+
+exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
+    return new Promise((resolve, reject) => {
+        let targetSql = `
+        SELECT 
+            dt.id, 
+            dt.companyCenterId, 
+            cv.varietyNameEnglish, 
+            cg.cropNameEnglish, 
+            dt.grade, 
+            dt.target, 
+            dt.complete,
+            dt.date 
+        FROM collection_officer.dailytarget dt
+        LEFT JOIN plant_care.cropvariety cv ON dt.varietyId = cv.id
+        LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+        WHERE dt.companyCenterId = ? AND DATE(dt.date) = CURDATE()
+        `;
+
+        const sqlParams = [companyCenterId];
+
+        // Add status filter if provided
+        if (status) {
+            const statusLower = status.toLowerCase();
+            if (statusLower === 'completed') {
+                targetSql += " AND dt.complete = dt.target";
+            } else if (statusLower === 'pending') {
+                targetSql += " AND COALESCE(dt.complete, 0.00) < dt.target";
+            } else if (statusLower === 'exceeded') {
+                targetSql += " AND dt.complete > dt.target";
+            }
+        }
+
+        // Add search filter if provided
+        if (searchText) {
+            const searchCondition = ` AND (
+                cv.varietyNameEnglish LIKE ?
+                OR cg.cropNameEnglish LIKE ?
+                OR dt.target LIKE ?
+                OR dt.complete LIKE ?
+            )`;
+            targetSql += searchCondition;
+            const searchValue = `%${searchText}%`;
+            sqlParams.push(searchValue, searchValue, searchValue, searchValue);
+        }
+
+        // Execute data query
+        collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
+            if (dataErr) {
+                console.error('Error in data query:', dataErr);
+                return reject(dataErr);
+            }
+
+            // Process results to add status field
+            const resultTarget = dataResults.map(row => {
+                const target = parseFloat(row.target ?? 0.00);
+                const complete = parseFloat(row.complete ?? 0.00);
+
+                let status;
+                if (complete > target) {
+                    status = 'Exceeded';
+                } else if (complete < target) {
+                    status = 'Pending';
+                } else if (complete == target) {
+                    status = 'Completed';
+                }
+
+                return {
+                    ...row,
+                    target: target.toFixed(2),
+                    complete: complete.toFixed(2),
+                    status: status
+                };
+            });
+            resolve({ resultTarget });
+        });
+    });
+};
+
+
+exports.checkCompanyRegNumberDao = (regNumber, id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+         SELECT *
+         FROM company
+         WHERE regNumber = ?
+      `;
+      const sqlParams = [regNumber]
+
+      if(id){
+        sql+= ` AND id != ? `
+        sqlParams.push(id);
+      }
+    collectionofficer.query(
+      sql,
+      sqlParams,
+      (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(results);
+      }
+    );
+  });
 };
