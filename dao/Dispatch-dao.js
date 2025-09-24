@@ -199,11 +199,11 @@ exports.getSelectedPackages = (page, limit, Status, date, search) => {
       }
     }
 
-    if (date) {
-      whereClause += " AND DATE(o.sheduleDate) = ?";
-      params.push(date);
-      countParams.push(date);
-    }
+    // if (date) {
+    //   whereClause += " AND DATE(o.sheduleDate) = ?";
+    //   params.push(date);
+    //   countParams.push(date);
+    // }
 
     if (search) {
       whereClause += ` AND (po.invNo LIKE ?)`;
@@ -1574,7 +1574,8 @@ exports.getMarketPlacePremadePackagesItemsDao = (orderId) => {
           po.id AS processOrderId,
           mp.displayName AS name,
           mp.productPrice AS price,
-          op.id AS packageId
+          op.id AS packageId,
+          op.qty AS packageQty
         FROM processorders po
         LEFT JOIN orderpackage op ON po.id = op.orderId
         LEFT JOIN marketplacepackages mp ON op.packageId = mp.id
@@ -1586,6 +1587,7 @@ exports.getMarketPlacePremadePackagesItemsDao = (orderId) => {
         pd.name,
         pd.price,
         pd.packageId,
+        pd.packageQty,
         COALESCE(pic.totalItems, 0) AS totCount,
         COALESCE(pic.packedItems, 0) AS packCount,
         CASE

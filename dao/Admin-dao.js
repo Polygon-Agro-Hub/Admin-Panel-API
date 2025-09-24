@@ -711,7 +711,7 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
       cc.cropDuration AS cropDuration,
       occ.longitude,
       occ.latitude,
-      occ.modifyBy,
+      au.userName AS modifyBy,
       u.firstName AS userFirstName,
       u.lastName AS userLastName,
       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
@@ -728,6 +728,8 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
       cropvariety cv ON cc.cropVarietyId = cv.id
     JOIN 
       cropgroup cg ON cv.cropGroupId = cg.id
+    LEFT JOIN
+      agro_world_admin.adminusers au ON occ.modifyBy = au.id
     WHERE
       occ.farmId = ? AND oc.userId = ?`;
 
