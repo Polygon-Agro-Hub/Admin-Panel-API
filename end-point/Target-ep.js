@@ -78,14 +78,31 @@ exports.getSavedCenterCrops = async (req, res) => {
     }
 
     const status = true;
-    const result = await TargetDAO.getSavedCenterCropsDao(
+    const preresult = await TargetDAO.getSavedCenterCropsDao(
       companyCenterId,
       date,
       status,
       searchText
     );
 
-    return res.status(200).json({ result, companyCenterId });
+    console.log('preresult', preresult)
+
+    const assignBy = preresult.latestAssignBy;
+
+    const officerData = await TargetDAO.getOfficerData(
+      assignBy
+    );
+
+    const officerName = officerData[0].firstNameEnglish
+
+    console.log('officerData', officerData[0].firstNameEnglish)
+
+    const result = {
+      data: preresult.data,
+      isNew: preresult.isNew
+    };
+
+    return res.status(200).json({ result, companyCenterId, officerName });
   } catch (error) {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message }); // Add return here
