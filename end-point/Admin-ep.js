@@ -1532,19 +1532,22 @@ exports.createAdmin = async (req, res) => {
       validatedBody.userName
     );
 
-    if (existingUser[0].userName === validatedBody.userName) {
-      return res.status(400).json({
-        error: "An admin with the same username already exists.",
-      });
-    }
+    // Check if existingUser array has any elements
+    if (existingUser && existingUser.length > 0) {
+      // Check specific conflicts only if the user exists
+      if (existingUser[0].userName === validatedBody.userName) {
+        return res.status(400).json({
+          error: "An admin with the same username already exists.",
+        });
+      }
 
-    if (existingUser[0].mail === validatedBody.mail) {
-      return res.status(400).json({
-        error: "An admin with the same email already exists.",
-      });
-    }
+      if (existingUser[0].mail === validatedBody.mail) {
+        return res.status(400).json({
+          error: "An admin with the same email already exists.",
+        });
+      }
 
-    if (existingUser.length > 0) {
+      // Generic fallback error
       return res.status(400).json({
         error: "An admin with the same email or username already exists.",
       });
