@@ -89,13 +89,20 @@ exports.getSavedCenterCrops = async (req, res) => {
 
     const assignBy = preresult.latestAssignBy;
 
-    const officerData = await TargetDAO.getOfficerData(
-      assignBy
-    );
+    let officerData = null;
+    let officerName = null;
+      
+    if (assignBy) {
+      officerData = await TargetDAO.getOfficerData(assignBy);
+    
+      if (officerData && officerData.length > 0) {
+        officerName = officerData[0].firstNameEnglish || null;
+      }
+    }
+    
+    console.log("Officer Data:", officerData);
+    console.log("Officer Name:", officerName);
 
-    const officerName = officerData[0].firstNameEnglish
-
-    console.log('officerData', officerData[0].firstNameEnglish)
 
     const result = {
       data: preresult.data,

@@ -112,7 +112,7 @@ const {
 exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
   return new Promise((resolve, reject) => {
     if (!date) {
-      return resolve({ data: [], isNew: true });
+      return resolve({ data: [], isNew: true, latestAssignBy: null });
     }
     let dataSql = `
       SELECT 
