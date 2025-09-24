@@ -64,12 +64,13 @@ exports.getSelectedOfficerTargetSchema = Joi.object({
 });
 
 exports.getSavedCenterCropsSchema = Joi.object({
-  id: Joi.number().integer().required(),
-  date: Joi.date().required(),
+  id: Joi.number().integer().required()
 });
 
 exports.getSavedCenterCropsQuaryParam = Joi.object({
-  searchText: Joi.string().optional(),
+  page: Joi.number().integer().required(),
+  date: Joi.string().optional(),
+  searchText: Joi.string().optional()
 });
 
 exports.updateTargetQtySchema = Joi.object({

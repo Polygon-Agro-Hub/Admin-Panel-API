@@ -111,6 +111,9 @@ const {
 
 exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
   return new Promise((resolve, reject) => {
+    if (!date) {
+      return resolve({ data: [], isNew: true });
+    }
     let dataSql = `
       SELECT 
           CG.cropNameEnglish, 
@@ -128,13 +131,12 @@ exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
     const dataParams = [];
 
     if (state) {
-      const dateParam = new Date(date).toISOString().split("T")[0];
-      dataSql += ` AND DT.date = ? `;
-      dataParams.push(dateParam);
+      console.log('date', date)
+      dataSql += ` AND DATE(DT.date) = ? `;
+      dataParams.push(date);
     } else {
-      const dateParam = new Date(date).toISOString().split("T")[0];
-      dataSql += ` AND DT.date != ? `;
-      dataParams.push(dateParam);
+      dataSql += ` AND DATE(DT.date) != ? `;
+      dataParams.push(date);
     }
 
     dataSql += `
@@ -162,12 +164,8 @@ exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
         return reject(err);
       }
 
-      if (results.length === 0 && state) {
-        // If no results found for the date, try without date filter
-        this.getSavedCenterCropsDao(id, date, false, searchText)
-          .then(resolve)
-          .catch(reject);
-      } else {
+      console.log('results', results)
+
         const aggregatedResults = {};
 
         results.forEach((row) => {
@@ -205,7 +203,7 @@ exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
         );
 
         resolve({ data: finalResults, isNew });
-      }
+
     });
   });
 };
