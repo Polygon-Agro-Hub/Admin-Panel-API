@@ -634,7 +634,7 @@ exports.dispatchAdditonalPackage = async (req, res) => {
   console.log(fullUrl);
   try {
     const packageArr = await DispatchVali.dispatchPackageSchema.validateAsync(req.body.array);
-    console.log(packageArr);
+    console.log(req.body);
     const orderId = req.body.orderId;
     const isLastOrder = req.body.isLastOrder
     const userId = req.user.userId
