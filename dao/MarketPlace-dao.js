@@ -122,6 +122,38 @@ exports.checkMarketProductExistsDao = async (varietyId, displayName, category) =
   });
 };
 
+exports.checkMarketEditProductExistsDao = async (varietyId, displayName, category, id) => {
+  return new Promise((resolve, reject) => {
+    // Exclude current record by id when checking duplicates
+    const sql = `
+      SELECT * 
+      FROM marketplaceitems 
+      WHERE category = ? 
+        AND (varietyId = ? OR displayName = ?)
+        AND id != ?
+    `;
+
+    const values = [category, varietyId, displayName, id];
+
+    marketPlace.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Check separately if conflicts are with varietyId or displayName
+        const varietyExists = results.some(item => item.varietyId === varietyId);
+        const nameExists = results.some(item => item.displayName === displayName);
+
+        resolve({
+          exists: results.length > 0,
+          varietyExists,
+          nameExists
+        });
+      }
+    });
+  });
+};
+
+
 exports.createMarketProductDao = async (product) => {
   return new Promise((resolve, reject) => {
     const sql =
