@@ -875,7 +875,7 @@ exports.updateCompany = async (req, res) => {
     const cehckRegNum = await CollectionCenterDao.checkCompanyRegNumberDao(regNumber, id);
     if(cehckRegNum.length > 0 ){
       return res.json({
-        message: "Registraion number allrady exist.",
+        message: "Registraion number already exist.",
         status: false,
       });
     }

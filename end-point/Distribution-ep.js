@@ -17,21 +17,62 @@ exports.createDistributionCenter = async (req, res) => {
 
     console.log(data);
 
-    // Check for existing records
-    const existingChecks = await DistributionDao.checkExistingDistributionCenter({
-      name: data.name,
-      regCode: data.regCode,
-      contact01: data.contact1,
-      email:data.email,
-      excludeId: null // For create operation, no ID to exclude
-    });
+    let validationErrors = [];
 
-    if (existingChecks.exists) {
-      return res.status(409).json({
-        success: false,
-        error: existingChecks.message
+    // Email validation
+    const isExistingEmail = await DistributionDao.checkEmailExistDC(data.email);
+    if (isExistingEmail) {
+      validationErrors.push("email");
+    }
+
+    const isCompanyName = await DistributionDao.checkCompanyNameExistDC(data.name);
+    if (isCompanyName) {
+      validationErrors.push("name");
+    }
+
+    const isRegCode = await DistributionDao.checkRegCodeExistDC(data.regCode);
+    if (isRegCode) {
+      validationErrors.push("regCode");
+    }
+
+    // Phone number 1 validation
+    const isExistingPhoneNumber01 = await DistributionDao.checkPhoneNumberExistDC(data.contact1);
+    if (isExistingPhoneNumber01) {
+      validationErrors.push("contact01");
+    }
+
+    // Phone number 2 validation (optional)
+    if (data.contact2) {
+      const isExistingPhoneNumber02 = await DistributionDao.checkPhoneNumberExistDC(data.contact2);
+      if (isExistingPhoneNumber02) {
+        validationErrors.push("contact02");
+      }
+    }
+
+    // If any errors, return them all at once
+    if (validationErrors.length > 0) {
+      console.log('validationErrors', validationErrors)
+      return res.status(400).json({
+        errors: validationErrors,   // e.g. ["Email", "PhoneNumber01"]
+        status: false
       });
     }
+
+    // // Check for existing records
+    // const existingChecks = await DistributionDao.checkExistingDistributionCenter({
+    //   name: data.name,
+    //   regCode: data.regCode,
+    //   contact01: data.contact1,
+    //   email:data.email,
+    //   excludeId: null // For create operation, no ID to exclude
+    // });
+
+    // if (existingChecks.exists) {
+    //   return res.status(409).json({
+    //     success: false,
+    //     error: existingChecks.message
+    //   });
+    // }
 
     // Proceed to create
     const result = await DistributionDao.createDistributionCenter(data);
@@ -676,22 +717,72 @@ exports.updateDistributionCentreDetails = async (req, res) => {
     // Validate input with Joi
     const data = await DistributionValidation.getDistributionCenterDetailsSchema.validateAsync(updateData);
 
-    // Check for existing records excluding current center
-    const existingChecks = await DistributionDao.checkExistingDistributionCenter({
-      name: data.name,
-      regCode: data.regCode,
-      contact01: data.contact1,
-      email:data.email,
-      excludeId: id // Exclude current center from check
-    });
+    let validationErrors = [];
 
-    if (existingChecks.exists) {
-      return res.status(409).json({
-        success: false,
-        error: existingChecks.message,
-        conflictingRecord: existingChecks.conflictingRecord
+    // Check duplicates
+
+    const isExistingEmail = await DistributionDao.checkEmailExistDC(data.email, id);
+    if (isExistingEmail) {
+      console.log('isExistingEmail')
+      validationErrors.push('email');
+      console.log('validationErrors', validationErrors)
+    }
+    const isCompanyName = await DistributionDao.checkCompanyNameExistDC(data.name, id);
+    if (isCompanyName) {
+      console.log('isCompanyName')
+      validationErrors.push('name');
+      console.log('validationErrors', validationErrors)
+    } 
+
+    const isRegCode = await DistributionDao.checkRegCodeExistDC(data.regCode, id);
+    if (isRegCode) validationErrors.push('regCode');
+
+    const isExistingPhoneNumber01 = await DistributionDao.checkPhoneNumberExistDC(data.contact1, id);
+    if (isExistingPhoneNumber01) validationErrors.push('contact1');
+
+    if (data.contact2) {
+      const isExistingPhoneNumber02 = await DistributionDao.checkPhoneNumberExistDC(data.contact2, id);
+      if (isExistingPhoneNumber02) validationErrors.push('contact2');
+    }
+
+    // If any validation errors, send all at once
+    if (validationErrors.length > 0) {
+      console.log('validationErrors', validationErrors)
+      return res.status(400).json({
+        errors: validationErrors,
+        status: false
       });
     }
+
+    console.log('validationErrors', validationErrors)
+
+
+    // // Check for existing records excluding current center
+    // const existingChecks = await DistributionDao.checkExistingDistributionCenter({
+    //   name: data.name,
+    //   regCode: data.regCode,
+    //   contact01: data.contact1,
+    //   email:data.email,
+    //   excludeId: id // Exclude current center from check
+    // });
+
+    // console.log('existingChecks', existingChecks)
+
+    // if (existingChecks.exists) {
+    //   return res.status(409).json({
+    //     success: false,
+    //     error: existingChecks.message,
+    //     conflictingRecord: existingChecks.conflictingRecord
+    //   });
+    // }
+
+    // if (existingChecks.exists) {
+    //   return res.status(409).json({
+    //     success: false,
+    //     error: existingChecks.message,
+    //     conflictingRecord: existingChecks.conflictingRecord
+    //   });
+    // }
 
     // Validate required fields
     if (!id) {

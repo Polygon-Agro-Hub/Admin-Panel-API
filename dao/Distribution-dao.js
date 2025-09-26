@@ -54,23 +54,23 @@ exports.checkExistingDistributionCenter = (checkData) => {
 
         switch (conflict.conflictType) {
           case "name":
-            message = "A distribution center with this name already exists.";
+            message = "name";
             break;
           case "regCode":
             message =
-              "A distribution center with this registration code already exists.";
+              "regCode";
             break;
           case "email":
             message =
-              "Email already exists.";
+              "email";
             break;
           case "contact":
             message =
-              "Contact Number already exists.";
+              "contact";
             break;
           default:
             message =
-              "A distribution center with these details already exists.";
+              "default";
         }
 
         resolve({
@@ -2361,3 +2361,69 @@ exports.getCompanyAndCenter = (officerId) => {
     });
   });
 };
+
+
+exports.checkEmailExistDC = async (email, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM distributedcenter WHERE email = ?`;
+    const params = [email];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkCompanyNameExistDC = async (name, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM distributedcenter WHERE centerName = ?`;
+    const params = [name];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkRegCodeExistDC = async (regCode, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM distributedcenter WHERE regCode = ?`;
+    const params = [regCode];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+// Check if phone number exists, excluding the current officer
+exports.checkPhoneNumberExistDC = async (phoneNumber, excludeId = null) => {
+  console.log("officer", excludeId);
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count 
+               FROM distributedcenter 
+               WHERE (contact01 = ? OR contact02 = ?)`;
+    const params = [phoneNumber, phoneNumber];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
