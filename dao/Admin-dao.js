@@ -5,7 +5,7 @@ const {
   marketPlace,
   dash,
 } = require("../startup/database");
-
+const bcrypt = require("bcryptjs");
 const { Upload } = require("@aws-sdk/lib-storage");
 const Joi = require("joi");
 
@@ -743,7 +743,6 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
     });
   });
 };
-
 
 exports.getFixedAssetsByCategory = (userId, category, farmId) => {
   const validCategories = {
@@ -2191,7 +2190,6 @@ exports.getAllPostReplyDao = (postid) => {
 };
 
 // replyDao.js
-
 exports.getReplyCount = () => {
   return new Promise((resolve, reject) => {
     const sql =
@@ -2295,7 +2293,6 @@ exports.addNewTaskDao = (task, indexId, cropId) => {
     });
   });
 };
-
 
 exports.addNewReplyDao = (chatId, replyId, replyMessage) => {
   console.log("Dao Reply: ", replyMessage);
@@ -2978,7 +2975,6 @@ exports.insertUserXLSXData = (data) => {
   });
 };
 
-
 exports.getUserFeedbackDetails = (page, limit) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit; // Calculate the offset for pagination
@@ -3567,7 +3563,6 @@ exports.deleteOngoingCultivationsById = (id) => {
   });
 };
 
-
 exports.getFarmerStaffDao = (ownerId, role) => {
   const sqlParams = [ownerId];
 
@@ -3604,7 +3599,6 @@ exports.getFarmerStaffDao = (ownerId, role) => {
     });
   });
 };
-
 
 exports.getFarmOwnerByIdDao = (ownerId) => {
   const sql = `
@@ -3661,8 +3655,6 @@ exports.updateFarmOwnerByIdDao = (ownerId, data, userId) => {
     });
   });
 };
-
-
 
 exports.getUserFarmDetailsDao = (userId) => {
   const sqlParams = [userId];
@@ -3764,7 +3756,6 @@ exports.getUserFarmDetailsDao = (userId) => {
   });
 };
 
-
 exports.deleteFarmDao = (farmId) => {
   return new Promise((resolve, reject) => {
     plantcare.query(
@@ -3789,7 +3780,6 @@ exports.deleteFarmDao = (farmId) => {
     );
   });
 };
-
 
 // exports.getAllFarmsWithCultivations = (userId, searchItem) => {
 //   return new Promise((resolve, reject) => {
@@ -3953,7 +3943,6 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
   });
 };
 
-
 // Delete a farm by farmId
 exports.deleteFarmById = (farmId) => {
   return new Promise((resolve, reject) => {
@@ -3974,7 +3963,6 @@ exports.deleteFarmById = (farmId) => {
     });
   });
 };
-
 
 exports.tracktaskAddOngoingCultivation = (userId, id) => {
   return new Promise((resolve, reject) => {
@@ -3999,5 +3987,79 @@ exports.tracktaskAddOngoingCultivation = (userId, id) => {
         resolve(results);
       }
     });
+  });
+};
+
+// Find admin by email
+exports.findAdminByEmail = (email) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM adminusers WHERE mail = ?";
+    admin.query(sql, [email], (err, results) => {
+      if (err) reject(err);
+      else resolve(results[0]);
+    });
+  });
+};
+
+// Create or replace password reset token
+exports.createPasswordResetToken = (userId, token, expiresAt) => {
+  return new Promise((resolve, reject) => {
+    // Always delete existing token first
+    const deleteSql = "DELETE FROM adminresetpasswordtoken WHERE userId = ?";
+    admin.query(deleteSql, [userId], (delErr) => {
+      if (delErr) return reject(delErr);
+
+      const insertSql = `
+        INSERT INTO adminresetpasswordtoken (userId, resetPasswordToken, resetPasswordExpires) 
+        VALUES (?, ?, ?)
+      `;
+      admin.query(insertSql, [userId, token, expiresAt], (insErr) => {
+        if (insErr) return reject(insErr);
+        resolve(token);
+      });
+    });
+  });
+};
+
+// Verify reset token
+exports.verifyResetToken = (token) => {
+  return new Promise((resolve, reject) => {
+    const sql = `SELECT u.mail, t.resetPasswordExpires, t.userId 
+                 FROM adminresetpasswordtoken t 
+                 JOIN adminusers u ON t.userId = u.id 
+                 WHERE t.resetPasswordToken = ?`;
+    admin.query(sql, [token], (err, results) => {
+      if (err) return reject(err);
+      if (results.length === 0) return resolve(null);
+
+      const tokenData = results[0];
+      const now = new Date();
+      if (now > new Date(tokenData.resetPasswordExpires)) return resolve(null);
+
+      resolve({ email: tokenData.mail, userId: tokenData.userId });
+    });
+  });
+};
+
+// Reset password
+exports.resetPassword = (userId, newPassword) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      const updateSql = "UPDATE adminusers SET password = ? WHERE id = ?";
+      admin.query(updateSql, [hashedPassword, userId], (updateErr) => {
+        if (updateErr) return reject(updateErr);
+
+        const deleteSql =
+          "DELETE FROM adminresetpasswordtoken WHERE userId = ?";
+        admin.query(deleteSql, [userId], (delErr) => {
+          if (delErr) return reject(delErr);
+          resolve(true);
+        });
+      });
+    } catch (hashErr) {
+      reject(hashErr);
+    }
   });
 };
