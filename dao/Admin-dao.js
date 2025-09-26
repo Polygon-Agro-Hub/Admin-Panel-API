@@ -3970,7 +3970,7 @@ exports.deleteFarmById = (farmId) => {
         return resolve({ success: false, message: "No farm found with the given ID" });
       }
 
-      resolve({ success: true, message: `Farm with ID ${farmId} deleted successfully` });
+      resolve({ success: true, message: `Farm deleted successfully.` });
     });
   });
 };
