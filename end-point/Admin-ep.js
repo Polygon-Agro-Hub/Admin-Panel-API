@@ -9,7 +9,7 @@ const adminDao = require("../dao/Admin-dao");
 const ValidateSchema = require("../validations/Admin-validation");
 const { type } = require("os");
 const bcrypt = require("bcryptjs");
-
+const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require("uuid");
 const uploadFileToS3 = require("../middlewares/s3upload");
 const deleteFromS3 = require("../middlewares/s3delete");
@@ -850,10 +850,13 @@ exports.getOngoingCultivationsById = async (req, res) => {
 
   try {
     // Validate the request params (ID)
-    const { cultivationId, userId } = req.params
+    const { cultivationId, userId } = req.params;
 
     // Fetch cultivation crops data from DAO
-    const results = await adminDao.getOngoingCultivationsByFarmId(cultivationId, userId);
+    const results = await adminDao.getOngoingCultivationsByFarmId(
+      cultivationId,
+      userId
+    );
 
     console.log("Successfully fetched cultivation crops by ID");
     res.status(200).json(results);
@@ -879,7 +882,11 @@ exports.getFixedAssetsByCategory = async (req, res) => {
     console.log("id, category ,farmId", id, category, farmId);
 
     // Fetch assets by category from DAO
-    const results = await adminDao.getFixedAssetsByCategory(id, category, farmId);
+    const results = await adminDao.getFixedAssetsByCategory(
+      id,
+      category,
+      farmId
+    );
 
     console.log("Successfully retrieved assets");
     res.status(200).json(results);
@@ -908,11 +915,15 @@ exports.getBuildingOwnershipDetails = async (req, res) => {
 
     // Validate buildingAssetId is a number
     if (!buildingAssetId || isNaN(buildingAssetId)) {
-      return res.status(400).json({ error: "Invalid building asset ID. Must be a valid number." });
+      return res
+        .status(400)
+        .json({ error: "Invalid building asset ID. Must be a valid number." });
     }
 
     // Fetch building ownership details from DAO
-    const results = await adminDao.getBuildingOwnershipDetails(parseInt(buildingAssetId));
+    const results = await adminDao.getBuildingOwnershipDetails(
+      parseInt(buildingAssetId)
+    );
 
     console.log("Successfully retrieved building ownership details");
     res.status(200).json(results);
@@ -922,7 +933,11 @@ exports.getBuildingOwnershipDetails = async (req, res) => {
     }
 
     console.error("Error fetching building ownership details:", err);
-    res.status(500).json({ error: "An error occurred while fetching building ownership details." });
+    res
+      .status(500)
+      .json({
+        error: "An error occurred while fetching building ownership details.",
+      });
   }
 };
 
@@ -938,11 +953,15 @@ exports.getLandOwnershipDetails = async (req, res) => {
 
     // Validate landAssetId is a number
     if (!landAssetId || isNaN(landAssetId)) {
-      return res.status(400).json({ error: "Invalid land asset ID. Must be a valid number." });
+      return res
+        .status(400)
+        .json({ error: "Invalid land asset ID. Must be a valid number." });
     }
 
     // Fetch land ownership details from DAO
-    const results = await adminDao.getLandOwnershipDetails(parseInt(landAssetId));
+    const results = await adminDao.getLandOwnershipDetails(
+      parseInt(landAssetId)
+    );
 
     console.log("Successfully retrieved land ownership details");
     res.status(200).json(results);
@@ -952,7 +971,11 @@ exports.getLandOwnershipDetails = async (req, res) => {
     }
 
     console.error("Error fetching land ownership details:", err);
-    res.status(500).json({ error: "An error occurred while fetching land ownership details." });
+    res
+      .status(500)
+      .json({
+        error: "An error occurred while fetching land ownership details.",
+      });
   }
 };
 
@@ -1801,7 +1824,6 @@ exports.editTask = async (req, res) => {
   }
 };
 
-
 exports.getAllUsersTaskByCropId = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -2205,15 +2227,13 @@ exports.addNewTaskU = async (req, res) => {
   console.log("Add new task data:", req.params);
   // if(true) return;
 
-
   const userId = req.params.userId;
   const cropId = req.params.cropId;
   const onCulscropID = req.params.onCulscropID;
   const indexId = parseInt(req.params.indexId);
   console.log(req.params);
-  const ongCultivationId = req.query.ongCultivationId
-  const adminUserId = req.user.userId
-
+  const ongCultivationId = req.query.ongCultivationId;
+  const adminUserId = req.user.userId;
 
   try {
     const task = req.body;
@@ -2244,7 +2264,10 @@ exports.addNewTaskU = async (req, res) => {
       onCulscropID
     );
 
-    const trackResult = await adminDao.tracktaskAddOngoingCultivation(adminUserId, ongCultivationId);
+    const trackResult = await adminDao.tracktaskAddOngoingCultivation(
+      adminUserId,
+      ongCultivationId
+    );
 
     if (addedTaskResult.insertId > 0) {
       res
@@ -2262,7 +2285,6 @@ exports.addNewTaskU = async (req, res) => {
       .json({ error: "An error occurred while adding the task" });
   }
 };
-
 
 exports.uploadUsersXLSX = async (req, res) => {
   try {
@@ -2287,8 +2309,6 @@ exports.uploadUsersXLSX = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
-
-
 
 exports.getAllRoles = async (req, res) => {
   try {
@@ -2858,11 +2878,11 @@ exports.deleteOngoingCultivationsById = async (req, res) => {
   }
 };
 
-
-
 exports.getFarmerStaff = async (req, res) => {
   try {
-    const { id, role } = await ValidateSchema.getFarmerStaffShema.validateAsync(req.query);
+    const { id, role } = await ValidateSchema.getFarmerStaffShema.validateAsync(
+      req.query
+    );
     console.log(role);
 
     const result = await adminDao.getFarmerStaffDao(id, role);
@@ -2883,7 +2903,9 @@ exports.getFarmerStaff = async (req, res) => {
 exports.getFarmOwner = async (req, res) => {
   try {
     // Validate query parameter
-    const { id } = await ValidateSchema.getFarmOwnerSchema.validateAsync(req.query);
+    const { id } = await ValidateSchema.getFarmOwnerSchema.validateAsync(
+      req.query
+    );
 
     // Fetch owner details from DAO
     const owner = await adminDao.getFarmOwnerByIdDao(id);
@@ -2915,14 +2937,15 @@ exports.updateFarmOwner = async (req, res) => {
     const result = await adminDao.updateFarmOwnerByIdDao(ownerId, data, userId);
     res.json({
       message: "Farm staff updated successfully",
-      result
+      result,
     });
   } catch (err) {
     console.error("Error updating farm staff:", err);
-    res.status(500).json({ error: "An error occurred while updating farm staff." });
+    res
+      .status(500)
+      .json({ error: "An error occurred while updating farm staff." });
   }
 };
-
 
 exports.getUserFarmDetails = async (req, res) => {
   try {
@@ -2942,7 +2965,6 @@ exports.getUserFarmDetails = async (req, res) => {
     res.status(500).send("An error occurred while fetching data.");
   }
 };
-
 
 exports.deleteFarms = async (req, res) => {
   try {
@@ -2966,13 +2988,12 @@ exports.deleteFarms = async (req, res) => {
   }
 };
 
-
-
 exports.getFarmsByUser = async (req, res) => {
   try {
     // Validate query params (pagination, search, userId)
-    const queryParams =
-      await ValidateSchema.getFarmsByUserSchema.validateAsync(req.query);
+    const queryParams = await ValidateSchema.getFarmsByUserSchema.validateAsync(
+      req.query
+    );
 
     const page = queryParams.page;
     const limit = queryParams.limit;
@@ -3012,5 +3033,94 @@ exports.deleteFarm = async (req, res) => {
   } catch (err) {
     console.error("Error deleting farm:", err);
     res.status(500).send("An error occurred while deleting the farm.");
+  }
+};
+
+// Generate random token
+const generateToken = () => {
+  return CryptoJS.lib.WordArray.random(20).toString(); // Returns hex string
+};
+
+// Forgot Password Controller
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    const user = await adminDao.findAdminByEmail(email);
+    if (!user)
+      return res.status(404).json({
+        message:
+          "It seems you do not have an account with us using this email!",
+      });
+
+    const token = generateToken();
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 minutes
+
+    await adminDao.createPasswordResetToken(user.id, token, expiresAt);
+
+    const resetUrl = `${process.env.FRONTEND_URL}admin/reset-password/${token}`;
+
+    // Configure transporter
+    const transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || "smtp.gmail.com",
+      port: process.env.EMAIL_PORT || 587,
+      secure: false, // Use TLS
+      auth: {
+        user: process.env.EMAIL_USERNAME || "agroworldinf@gmail.com",
+        pass: process.env.EMAIL_PASSWORD || "ddaierninefzzvjt",
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
+
+    const mailOptions = {
+      from: `"Agro World" <${process.env.EMAIL_USERNAME}>`,
+      to: email,
+      subject: "Agro World Password Reset Link",
+      html: `<p>Hello,</p>
+             <p>Click the link below to reset your password (valid for 3 minutes):</p>
+             <a href="${resetUrl}">${resetUrl}</a>`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({
+      message: "Password reset link sent. Please check your email.",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Reset Password Controller
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword)
+      return res.status(400).json({
+        success: false,
+        message: "Token and new password are required",
+      });
+
+    const tokenData = await adminDao.verifyResetToken(token);
+    if (!tokenData)
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired token",
+      });
+
+    await adminDao.resetPassword(tokenData.userId, newPassword);
+
+    res.status(200).json({
+      success: true,
+      message: "Password has been updated successfully",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };

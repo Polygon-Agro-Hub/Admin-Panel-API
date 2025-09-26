@@ -382,5 +382,16 @@ router.delete(
   AdminEp.deleteFarm
 );
 
+// Forgot Password
+router.post(
+  "/forgot-password", 
+  AdminEp.forgotPassword
+);
+
+// Reset password
+router.post(
+  "/reset-password", 
+  AdminEp.resetPassword
+);
 
 module.exports = router;
