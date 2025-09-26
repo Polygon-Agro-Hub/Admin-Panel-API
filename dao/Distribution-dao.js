@@ -66,7 +66,7 @@ exports.checkExistingDistributionCenter = (checkData) => {
             break;
           case "contact":
             message =
-              "Mobile Number already exists.";
+              "Contact Number already exists.";
             break;
           default:
             message =
