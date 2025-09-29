@@ -3064,24 +3064,62 @@ exports.forgotPassword = async (req, res) => {
     // Configure transporter
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST || "smtp.gmail.com",
-      port: process.env.EMAIL_PORT || 587,
-      secure: false, // Use TLS
+      port: process.env.EMAIL_PORT || 465,
+      secure: true, // Use TLS
       auth: {
-        user: process.env.EMAIL_USERNAME || "agroworldinf@gmail.com",
-        pass: process.env.EMAIL_PASSWORD || "ddaierninefzzvjt",
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       },
       tls: {
-        rejectUnauthorized: false,
+        rejectUnauthorized: true,
       },
     });
 
     const mailOptions = {
       from: `"Agro World" <${process.env.EMAIL_USERNAME}>`,
       to: email,
-      subject: "Agro World Password Reset Link",
-      html: `<p>Hello,</p>
-             <p>Click the link below to reset your password (valid for 3 minutes):</p>
-             <a href="${resetUrl}">${resetUrl}</a>`,
+      subject: "Agro World Password Reset Request",
+      html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0;">
+
+      <!-- Purple Header -->
+      <div style="background-color: #3E206D; padding: 15px; text-align: center; border-radius: 6px 6px 0 0;">
+        <h1 style="margin: 0; font-size: 22px; color: #fff;">Polygon Holdings Pvt Ltd</h1>
+      </div>
+
+      <!-- Body -->
+      <div style="padding: 20px; background: #ffffff; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 6px 6px; color: #000;">
+        <h2 style="color: #101010; text-align: left; margin-top: 0;">Password Reset Request</h2>
+
+        <p style="color: #000;">Hello,</p>
+        <p style="color: #000;">
+          We received a request to reset your password for your Agro World account.
+          Click the button below to reset it:
+        </p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" 
+            style="background-color: #3E206D; color: #fff; padding: 12px 25px; 
+                   text-decoration: none; border-radius: 6px; font-size: 16px; 
+                   display: inline-block;">
+            Reset My Password
+          </a>
+        </div>
+
+        <p style="color: #000;">If the button doesn't work, copy and paste this link into your browser:</p>
+
+        <div style="background-color: #f3f4f6; padding: 12px; border-radius: 6px; word-break: break-all; font-size: 14px;">
+          <a href="${resetUrl}" style="color: #3E206D; text-decoration: none;">${resetUrl}</a>
+        </div>
+
+        <p style="margin-top: 30px; color: #000;">
+          Thank you,<br/>
+          <strong>The Polygon Team</strong>
+        </p>
+
+      </div>
+    </div>
+  `,
     };
 
     await transporter.sendMail(mailOptions);
@@ -3122,5 +3160,100 @@ exports.resetPassword = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Resend Password Reset Link Controller
+exports.resendResetLink = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: "Token is required" });
+    }
+
+    // Verify token in DB (ignores expiry)
+    const tokenData = await adminDao.findResetToken(token);
+
+    if (!tokenData) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    // Check if expired
+    if (new Date(tokenData.resetPasswordExpires) > new Date()) {
+      return res
+        .status(400)
+        .json({ message: "Token not expired yet. Please use existing link." });
+    }
+
+    // Get user details
+    const user = await adminDao.findAdminById(tokenData.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Delete old token
+    await adminDao.deletePasswordResetToken(tokenData.userId);
+
+    // Generate new token
+    const newToken = CryptoJS.lib.WordArray.random(20).toString(
+      CryptoJS.enc.Hex
+    );
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 min expiry
+
+    await adminDao.createPasswordResetToken(user.id, newToken, expiresAt);
+
+    const resetUrl = `${process.env.FRONTEND_URL}admin/reset-password/${newToken}`;
+
+    // Send new email
+    const transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || "smtp.gmail.com",
+      port: process.env.EMAIL_PORT || 465,
+      secure: true, // Use TLS
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: true,
+      },
+    });
+
+    const mailOptions = {
+      from: `"Agro World" <${process.env.EMAIL_USERNAME}>`,
+      to: user.mail,
+      subject: "Agro World Password Reset Link (Resent)",
+      html: `
+        <div style="font-family: Arial; max-width: 600px; margin: auto;">
+          <div style="background:#3E206D; padding:15px; text-align:center; border-radius:6px 6px 0 0;">
+            <h1 style="color:#fff;margin:0;">Polygon Holdings Pvt Ltd</h1>
+          </div>
+          <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
+            <h2>Password Reset Request</h2>
+            <p>Hello,</p>
+            <p>You requested a new password reset link. Click below to reset your password:</p>
+            <div style="text-align:center;margin:30px 0;">
+              <a href="${resetUrl}" style="background:#3E206D;color:#fff;padding:12px 25px;text-decoration:none;border-radius:6px;font-size:16px;">
+                Reset My Password
+              </a>
+            </div>
+            <p>If the button doesn’t work, copy and paste this link:</p>
+            <div style="background:#f3f4f6;padding:12px;border-radius:6px;word-break:break-all;">
+              <a href="${resetUrl}" style="color:#3E206D;">${resetUrl}</a>
+            </div>
+            <p style="margin-top:30px;">Thank you,<br/><strong>The Polygon Team</strong></p>
+          </div>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({
+      message: "A new password reset link has been sent to your email.",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 };

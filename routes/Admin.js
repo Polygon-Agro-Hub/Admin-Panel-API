@@ -394,4 +394,10 @@ router.post(
   AdminEp.resetPassword
 );
 
+// Reset password
+router.post(
+  "/resend-reset-password", 
+  AdminEp.resendResetLink
+);
+
 module.exports = router;

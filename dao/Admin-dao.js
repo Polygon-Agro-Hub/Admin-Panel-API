@@ -658,7 +658,7 @@ exports.getOngoingCultivationsWithUserDetails = () => {
 // exports.getOngoingCultivationsById = (farmId, userId) => {
 //   const sql = `
 //     SELECT DISTINCT
-//       ongoingcultivationscrops.id AS ongoingcultivationscropsid, 
+//       ongoingcultivationscrops.id AS ongoingcultivationscropsid,
 //       ongoingcultivationscrops.ongoingCultivationId,
 //       ongoingcultivationscrops.cropCalendar,
 //       ongoingcultivationscrops.startedAt,
@@ -672,16 +672,16 @@ exports.getOngoingCultivationsWithUserDetails = () => {
 //       ongoingcultivationscrops.latitude,
 //       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id) AS totalTasks,
 //       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id AND status = 'completed') AS completedTasks
-//     FROM 
+//     FROM
 //       ongoingcultivationscrops
-//     JOIN 
+//     JOIN
 //       cropcalender ON ongoingcultivationscrops.cropCalendar = cropcalender.id
-//     JOIN 
+//     JOIN
 //       cropvariety ON cropcalender.cropVarietyId = cropvariety.id
-//     JOIN 
+//     JOIN
 //       cropgroup ON cropvariety.cropGroupId = cropgroup.id
-//     LEFT JOIN 
-//       slavecropcalendardays ON slavecropcalendardays.onCulscropID = ongoingcultivationscrops.id 
+//     LEFT JOIN
+//       slavecropcalendardays ON slavecropcalendardays.onCulscropID = ongoingcultivationscrops.id
 //     WHERE
 //       ongoingcultivationscrops.ongoingCultivationId = ?`;
 
@@ -3806,7 +3806,7 @@ exports.deleteFarmDao = (farmId) => {
 //     }
 
 //     const sql = `
-//       SELECT 
+//       SELECT
 //         F.id AS farmId,
 //         F.farmName,
 //         F.farmIndex,
@@ -3956,7 +3956,10 @@ exports.deleteFarmById = (farmId) => {
       if (err) return reject(err);
 
       if (result.affectedRows === 0) {
-        return resolve({ success: false, message: "No farm found with the given ID" });
+        return resolve({
+          success: false,
+          message: "No farm found with the given ID",
+        });
       }
 
       resolve({ success: true, message: `Farm deleted successfully.` });
@@ -3997,6 +4000,17 @@ exports.findAdminByEmail = (email) => {
     admin.query(sql, [email], (err, results) => {
       if (err) reject(err);
       else resolve(results[0]);
+    });
+  });
+};
+
+// Find admin by ID
+exports.findAdminById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM adminusers WHERE id = ?";
+    admin.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
     });
   });
 };
@@ -4060,6 +4074,54 @@ exports.resetPassword = (userId, newPassword) => {
       });
     } catch (hashErr) {
       reject(hashErr);
+    }
+  });
+};
+
+// Find reset token (ignores expiry - for resend flow)
+exports.findResetToken = (token) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT * FROM adminresetpasswordtoken 
+      WHERE resetPasswordToken = ?
+    `;
+    admin.query(sql, [token], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
+// Delete reset token for user
+exports.deletePasswordResetToken = (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = "DELETE FROM adminresetpasswordtoken WHERE userId = ?";
+    admin.query(sql, [userId], (err, result) => {
+      if (err) return reject(err);
+      resolve(result.affectedRows > 0);
+    });
+  });
+};
+
+// Reset password and clear token
+exports.resetPassword = (userId, newPassword) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      const updateSql = "UPDATE adminusers SET password = ? WHERE id = ?";
+      admin.query(updateSql, [hashedPassword, userId], (updateErr) => {
+        if (updateErr) return reject(updateErr);
+
+        const deleteSql =
+          "DELETE FROM adminresetpasswordtoken WHERE userId = ?";
+        admin.query(deleteSql, [userId], (delErr) => {
+          if (delErr) return reject(delErr);
+          resolve(true);
+        });
+      });
+    } catch (err) {
+      reject(err);
     }
   });
 };
