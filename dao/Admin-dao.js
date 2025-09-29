@@ -562,6 +562,7 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
       FROM ongoingcultivations OC
       LEFT JOIN users U ON OC.userId = U.id
       LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+      WHERE 1=1
     `;
 
     // Data query with farm count
@@ -573,12 +574,14 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
         U.firstName, 
         U.lastName, 
         U.NICnumber,
+        U.phoneNumber,
         COUNT(OCC.cropCalendar) AS CropCount,
         COUNT(DISTINCT F.id) AS FarmCount
       FROM ongoingcultivations OC
       LEFT JOIN users U ON OC.userId = U.id
       LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
       LEFT JOIN farms F ON F.userId = U.id
+      WHERE 1=1
     `;
 
     const countParams = [];
@@ -590,17 +593,18 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
         AND (
           U.NICnumber LIKE ? OR 
           U.firstName LIKE ? OR 
-          U.lastName LIKE ?
+          U.lastName LIKE ? OR
+          U.phoneNumber LIKE ?
         )
       `;
       countSql += searchCondition;
       dataSql += searchCondition;
-      countParams.push(searchQuery, searchQuery, searchQuery);
-      dataParams.push(searchQuery, searchQuery, searchQuery);
+      countParams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+      dataParams.push(searchQuery, searchQuery, searchQuery, searchQuery);
     }
 
     dataSql += `
-      GROUP BY OC.id, OCC.id, U.id, U.firstName, U.lastName, U.NICnumber 
+      GROUP BY OC.id, OCC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber
       ORDER BY OC.createdAt DESC 
       LIMIT ? OFFSET ?
     `;
@@ -622,10 +626,7 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
         resolve({
           total,
           items: dataResults,
-          totalCrops: dataResults.reduce(
-            (sum, item) => sum + item.CropCount,
-            0
-          ),
+          totalCrops: dataResults.reduce((sum, item) => sum + item.CropCount, 0),
         });
       });
     });
