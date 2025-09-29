@@ -637,14 +637,42 @@ exports.GetDistributionHeadDetailsByIdDao = (id) => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-        id, companyId, irmId, firstNameEnglish, lastNameEnglish, jobRole, empId, empType,
-        phoneCode01, phoneNumber01, phoneCode02, phoneNumber02, nic, email,
-        houseNumber, streetName, city, district, province, country, languages,
-        accHolderName, accNumber, bankName, branchName, image, status,
-        claimStatus, onlineStatus
+        co.id, 
+        co.companyId, 
+        cc.centerName,  -- ✅ fetched from collectioncenter
+        co.irmId, 
+        co.firstNameEnglish, 
+        co.lastNameEnglish, 
+        co.jobRole, 
+        co.empId, 
+        co.empType,
+        co.phoneCode01, 
+        co.phoneNumber01, 
+        co.phoneCode02, 
+        co.phoneNumber02, 
+        co.nic, 
+        co.email,
+        co.houseNumber, 
+        co.streetName, 
+        co.city, 
+        co.district, 
+        co.province, 
+        co.country, 
+        co.languages,
+        co.accHolderName, 
+        co.accNumber, 
+        co.bankName, 
+        co.branchName, 
+        co.image, 
+        co.status,
+        co.claimStatus, 
+        co.onlineStatus
       FROM 
-        collectionofficer
-      WHERE id = ?
+        collectionofficer co
+      LEFT JOIN 
+        collectioncenter cc 
+      ON co.companyId = cc.id
+      WHERE co.id = ?
     `;
 
     collectionofficer.query(sql, [id], (err, results) => {
@@ -657,6 +685,7 @@ exports.GetDistributionHeadDetailsByIdDao = (id) => {
     });
   });
 };
+
 
 exports.UpdateDistributionHeadDao = (id, updateData) => {
   console.log("id", id);
