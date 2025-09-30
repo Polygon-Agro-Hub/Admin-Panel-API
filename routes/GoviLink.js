@@ -13,6 +13,11 @@ const router = express.Router();
 // );
 
 
+router.post(
+  "/save-officer-service",
+  authMiddleware,
+    GoviLinkEp.saveOfficerService
+);
 
 
 module.exports = router;
