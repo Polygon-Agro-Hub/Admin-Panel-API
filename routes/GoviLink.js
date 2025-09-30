@@ -19,4 +19,9 @@ router.get(
   GoviLinkEp.getCompanyById
 );
 
+router.post(
+  "/save-officer-service",
+  authMiddleware,
+    GoviLinkEp.saveOfficerService
+);
 module.exports = router;
