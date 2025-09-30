@@ -7,17 +7,16 @@ const upload = require("../middlewares/uploadMiddleware");
 
 const router = express.Router();
 
-// router.delete('/delete-news/:id', 
-//     authMiddleware, 
-//     GoviLinkEp.deleteNews
-// );
-
-
 router.post(
-  "/save-officer-service",
+  "/create-company",
   authMiddleware,
-    GoviLinkEp.saveOfficerService
+  GoviLinkEp.createCompany
 );
 
+router.get(
+  "/get-company-by-id/:id",
+  // authMiddleware,
+  GoviLinkEp.getCompanyById
+);
 
 module.exports = router;

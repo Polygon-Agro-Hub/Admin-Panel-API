@@ -207,7 +207,7 @@ exports.getCurrentAssetsByCategorySchema = Joi.object({
 });
 
 exports.deleteAdminUserSchema = Joi.object({
-  id: Joi.number().integer().required().label("Admin User ID"),
+  id: Joi.number().integer().required()
 });
 
 exports.editAdminUserSchema = Joi.object({
