@@ -1582,7 +1582,7 @@ exports.getAllRetailOrderDetails = (
     }
 
     countSql += whereClause;
-    sql += whereClause + " ORDER BY o.createdAt ASC LIMIT ? OFFSET ?";
+    sql += whereClause + " ORDER BY po.createdAt DESC LIMIT ? OFFSET ?";
     const dataParams = [...searchParams, limit, offset];
 
     marketPlace.query(countSql, searchParams, (countErr, countResults) => {
@@ -2705,7 +2705,7 @@ exports.getAllWholesaleOrderDetails = (
     }
 
     countSql += whereClause;
-    sql += whereClause + " ORDER BY o.createdAt ASC LIMIT ? OFFSET ?";
+    sql += whereClause + " ORDER BY po.createdAt DESC LIMIT ? OFFSET ?";
     const dataParams = [...searchParams, limit, offset];
 
     marketPlace.query(countSql, searchParams, (countErr, countResults) => {
