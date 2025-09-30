@@ -3551,7 +3551,7 @@ exports.updateAdminRoleById = (id, role, email) => {
 exports.deleteOngoingCultivationsById = (id) => {
   const sql = `
     DELETE FROM ongoingcultivationscrops
-    WHERE ongoingCultivationId = ?`;
+    WHERE id = ? `;
 
   return new Promise((resolve, reject) => {
     plantcare.query(sql, [id], (err, results) => {
