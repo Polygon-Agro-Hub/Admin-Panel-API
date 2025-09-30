@@ -835,7 +835,7 @@ exports.getCollectionOfficerProvinceReports = (province) => {
       INNER JOIN plant_care.cropvariety cv ON fpc.cropId = cv.id
       INNER JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       INNER JOIN collectioncenter cc ON c.centerId = cc.id
-      WHERE cc.province = ? AND c.companyId = 1
+      
       GROUP BY cg.cropNameEnglish, cc.province
     `;
 
