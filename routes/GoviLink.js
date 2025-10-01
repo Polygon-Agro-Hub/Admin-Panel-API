@@ -24,4 +24,10 @@ router.post(
   authMiddleware,
     GoviLinkEp.saveOfficerService
 );
+
+router.put("/update-officer-service/:id",  authMiddleware,
+    GoviLinkEp.updateOfficerService);
+
+router.get("/get-officer-service-by-id/:id", authMiddleware, GoviLinkEp.getOfficerServiceById);
+
 module.exports = router;

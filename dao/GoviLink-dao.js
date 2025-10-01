@@ -121,3 +121,53 @@ exports.saveOfficerService = (englishName, tamilName, sinhalaName, srvFee) => {
     });
   });
 };
+
+// Update Officer Service by ID
+exports.updateOfficerService = (id, englishName, tamilName, sinhalaName, srvFee) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE plant_care.officerservices
+      SET englishName = ?, tamilName = ?, sinhalaName = ?, srvFee = ?
+      WHERE id = ?
+    `;
+
+    admin.query(sql, [englishName, tamilName, sinhalaName, srvFee, id], (err, result) => {
+      if (err) {
+        reject(err);
+      } else {
+        if (result.affectedRows === 0) {
+          reject(new Error("No officer service found with the given ID"));
+        } else {
+          resolve({
+            message: "Officer service updated successfully",
+            affectedRows: result.affectedRows
+          });
+        }
+      }
+    });
+  });
+};
+
+// Get Officer Service by ID
+exports.getOfficerServiceById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, englishName, tamilName, sinhalaName, srvFee
+      FROM plant_care.officerservices
+      WHERE id = ?
+    `;
+
+    admin.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        if (results.length === 0) {
+          reject(new Error("No officer service found with the given ID"));
+        } else {
+          resolve(results[0]); // return single service
+        }
+      }
+    });
+  });
+};
+
