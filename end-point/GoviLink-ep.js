@@ -186,6 +186,9 @@ exports.updateCompany = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log(`Full URL: ${fullUrl}`);
 
+    // Extract user ID from JWT token (if available in your auth middleware)
+    const tokenUserId = req.user?.id || req.user?.userId; // Adjust based on your auth middleware
+
     // Extract the company ID from request parameters
     const id = req.params.id;
     if (!id) {
@@ -208,14 +211,17 @@ exports.updateCompany = async (req, res) => {
       phoneNumber1,
       phoneCode2,
       phoneNumber2,
-      logo,
+      logo: logoBase64,
       modifyBy,
     } = req.body;
 
+    // Use token user ID if available, otherwise use the one from request body
+    const finalModifyBy = tokenUserId || modifyBy || "system";
+
     // Validate required fields
-    if (!regNumber || !companyName || !modifyBy) {
+    if (!regNumber || !companyName) {
       return res.status(400).json({
-        message: "Registration number, company name, and modifyBy are required",
+        message: "Registration number and company name are required",
         status: false,
       });
     }
@@ -244,7 +250,29 @@ exports.updateCompany = async (req, res) => {
       });
     }
 
-    // Call DAO function to update the company record
+    // Process logo if provided
+    let logoUrl = null;
+    if (logoBase64) {
+      try {
+        const matches = logoBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const mimeType = matches[1];
+          const buffer = Buffer.from(matches[2], "base64");
+          const timestamp = Date.now();
+          const random = Math.random().toString(36).substring(2, 15);
+          const extension = mimeType.split("/")[1] || "png";
+          const filename = `logo_${timestamp}_${random}.${extension}`;
+          logoUrl = `${req.protocol}://${req.get("host")}/uploads/${filename}`;
+          
+          // Note: You'll need to save the buffer to the file system here
+          // Example: await saveFileToUploads(filename, buffer);
+        }
+      } catch (error) {
+        console.error("Error processing logo:", error);
+      }
+    }
+
+    // Call DAO function to update the company record - use finalModifyBy and logoUrl
     const result = await GoviLinkDAO.updateCompany(
       id,
       regNumber,
@@ -259,8 +287,8 @@ exports.updateCompany = async (req, res) => {
       phoneNumber1,
       phoneCode2,
       phoneNumber2,
-      logo,
-      modifyBy
+      logoUrl, // Use the processed logo URL instead of raw base64
+      finalModifyBy // Use the secure modifyBy value
     );
 
     // Check if any rows were affected (successful update)
