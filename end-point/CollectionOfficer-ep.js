@@ -1271,8 +1271,8 @@ exports.getAllCentersForPurchaseReport = async (req, res) => {
       if (error.isJoi) {
           return res.status(400).json({ error: error.details[0].message });
       }
-      console.error("Error fetching collection centers:", error);
-      return res.status(500).json({ error: "An error occurred while fetching collection centers" });
+      console.error("Error fetching collection centres:", error);
+      return res.status(500).json({ error: "An error occurred while fetching collection centres" });
   }
 };
 

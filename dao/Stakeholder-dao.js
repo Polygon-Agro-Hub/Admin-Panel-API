@@ -67,8 +67,8 @@ exports.getCollectionOfficersByPosition = () => {
     const sql = `
             SELECT 
                 CASE 
-                   WHEN jobRole = 'Collection Center Head' AND companyId = '1' AND status = 'Approved' THEN 'CCH'
-                    WHEN jobRole = 'Collection Center Manager' AND companyId = '1' AND status = 'Approved' THEN 'CCM'
+                   WHEN jobRole = 'Collection Centre Head' AND companyId = '1' AND status = 'Approved' THEN 'CCH'
+                    WHEN jobRole = 'Collection Centre Manager' AND companyId = '1' AND status = 'Approved' THEN 'CCM'
                     WHEN jobRole = 'Collection Officer' AND companyId = '1' AND status = 'Approved' THEN 'COO'
                     WHEN jobRole = 'Customer Officer' AND companyId = '1' AND status = 'Approved' THEN 'CUO'
                 END AS job,

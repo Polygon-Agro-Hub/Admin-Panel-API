@@ -337,3 +337,46 @@ exports.deleteCompany = async (req, res) => {
       .json({ error: "An error occurred while deleting the company" });
   }
 };
+
+
+exports.updateOfficerService = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    const { id } = req.params; // get ID from frontend URL
+    const { englishName, tamilName, sinhalaName, srvFee } = req.body;
+
+    // Validation (basic check)
+    if (!englishName || !tamilName || !sinhalaName) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Update via DAO
+    const result = await GoviLinkDAO.updateOfficerService(
+      id,
+      englishName,
+      tamilName,
+      sinhalaName,
+      srvFee
+    );
+
+    console.log(`Officer service with ID ${id} updated successfully`);
+    res.status(200).json(result);
+  } catch (err) {
+    console.error("Error updating officer service:", err);
+    res.status(500).json({ error: "An error occurred while updating data." });
+  }
+};
+
+exports.getOfficerServiceById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const service = await GoviLinkDAO.getOfficerServiceById(id);
+
+    res.status(200).json(service);
+  } catch (err) {
+    console.error("Error fetching officer service:", err);
+    res.status(404).json({ error: err.message });
+  }
+};

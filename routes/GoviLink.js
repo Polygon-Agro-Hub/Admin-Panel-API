@@ -21,4 +21,10 @@ router.get("/get-all-companies", authMiddleware, GoviLinkEp.getAllCompanies);
 router.patch("/update-company/:id", authMiddleware, GoviLinkEp.updateCompany);
 
 router.delete("/delete-company/:id", authMiddleware, GoviLinkEp.deleteCompany);
+
+router.put("/update-officer-service/:id",  authMiddleware,
+    GoviLinkEp.updateOfficerService);
+
+router.get("/get-officer-service-by-id/:id", authMiddleware, GoviLinkEp.getOfficerServiceById);
+
 module.exports = router;

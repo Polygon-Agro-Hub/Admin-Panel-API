@@ -200,8 +200,8 @@ exports.createCollectionOfficerPersonal = (
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
       if (
-        officerData.jobRole === "Collection Center Manager" ||
-        officerData.jobRole === "Collection Center Head"
+        officerData.jobRole === "Collection Centre Manager" ||
+        officerData.jobRole === "Collection Centre Head"
       ) {
         officerData.irmId = null;
       }
@@ -405,7 +405,7 @@ exports.getAllCollectionOfficers = (
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN collectioncenter cc ON coff.centerId = cc.id
-            WHERE coff.jobRole IN ('Collection Center Manager', 'Collection Officer') AND cm.id = 1
+            WHERE coff.jobRole IN ('Collection Centre Manager', 'Collection Officer') AND cm.id = 1
         `;
 
     let dataSql = `
@@ -426,7 +426,7 @@ exports.getAllCollectionOfficers = (
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN collectioncenter cc ON coff.centerId = cc.id
-            WHERE coff.jobRole IN ('Collection Center Manager', 'Collection Officer') AND cm.id = 1
+            WHERE coff.jobRole IN ('Collection Centre Manager', 'Collection Officer') AND cm.id = 1
         `;
 
     const countParams = [];
@@ -520,8 +520,8 @@ exports.getAllCollectionOfficers = (
     // Modified ORDER BY to prioritize CCMs and sort by empId ASC, then others by createdAt DESC
     dataSql += `
       ORDER BY 
-        CASE WHEN coff.jobRole = 'Collection Center Manager' THEN 0 ELSE 1 END,
-        CASE WHEN coff.jobRole = 'Collection Center Manager' THEN coff.empId END ASC,
+        CASE WHEN coff.jobRole = 'Collection Centre Manager' THEN 0 ELSE 1 END,
+        CASE WHEN coff.jobRole = 'Collection Centre Manager' THEN coff.empId END ASC,
         CASE WHEN coff.jobRole = 'Collection Officer' THEN coff.createdAt END DESC
     `;
 
@@ -1711,7 +1711,7 @@ exports.getAllCenterManagerDao = (centerId) => {
     const sql = `
       SELECT id, firstNameEnglish, lastNameEnglish, empId
       FROM collectionofficer
-      WHERE jobRole = 'Collection Center Manager' 
+      WHERE jobRole = 'Collection Centre Manager' 
         AND companyId = 1 
         AND status = 'Approved' 
         AND centerId = ?
@@ -2309,9 +2309,9 @@ exports.getCCIDforCreateEmpIdDao = (employee) => {
       }
 
       if (results.length === 0) {
-        if (employee === "Collection Center Head") {
+        if (employee === "Collection Centre Head") {
           return resolve("CCH00001");
-        } else if (employee === "Collection Center Manager") {
+        } else if (employee === "Collection Centre Manager") {
           return resolve("CCM00001");
         } else if (employee === "Collection Officer") {
           return resolve("COO00001");
