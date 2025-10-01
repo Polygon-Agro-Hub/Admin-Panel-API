@@ -236,3 +236,16 @@ exports.updateCompany = (
     });
   });
 };
+
+exports.deleteCompanyById = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "DELETE FROM feildcompany WHERE id = ?";
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results.affectedRows);
+      }
+    });
+  });
+};

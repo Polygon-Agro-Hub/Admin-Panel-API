@@ -19,4 +19,6 @@ router.post(
 router.get("/get-all-companies", authMiddleware, GoviLinkEp.getAllCompanies);
 
 router.patch("/update-company/:id", authMiddleware, GoviLinkEp.updateCompany);
+
+router.delete("/delete-company/:id", authMiddleware, GoviLinkEp.deleteCompany);
 module.exports = router;

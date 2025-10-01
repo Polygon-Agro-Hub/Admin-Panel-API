@@ -312,3 +312,28 @@ exports.updateCompany = async (req, res) => {
     });
   }
 };
+exports.deleteCompany = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const id = req.params.id;
+
+    const affectedRows = await GoviLinkDAO.deleteCompanyById(id);
+
+    if (affectedRows === 0) {
+      return res.status(404).json({ message: "Company not found" });
+    } else {
+      console.log("Company deleted successfully");
+      return res.status(200).json({ status: true });
+    }
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error deleting company:", err);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while deleting the company" });
+  }
+};
