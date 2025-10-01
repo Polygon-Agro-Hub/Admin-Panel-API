@@ -11,7 +11,7 @@ exports.createCompany = async (req, res) => {
 
     // Extract user ID from JWT token (if available in your auth middleware)
     const tokenUserId = req.user?.id || req.user?.userId; // Adjust based on your auth middleware
-    
+
     // Validate the request body based on DAO parameters
     const {
       regNumber,
@@ -31,7 +31,7 @@ exports.createCompany = async (req, res) => {
     } = req.body;
 
     // Use token user ID if available, otherwise use the one from request body
-    const finalModifyBy = tokenUserId || modifyBy || 'system';
+    const finalModifyBy = tokenUserId || modifyBy || "system";
 
     // Check if company name or registration number already exists
     const checkCompany = await GoviLinkDAO.checkCompanyDisplayNameDao(
@@ -133,14 +133,12 @@ exports.getCompanyById = async (req, res) => {
   }
 };
 
-
-
 exports.saveOfficerService = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Request URL:", fullUrl);
 
   try {
-    const { englishName, tamilName, sinhalaName,  srvFee } = req.body;
+    const { englishName, tamilName, sinhalaName, srvFee } = req.body;
 
     // Validation (basic check)
     if (!englishName || !tamilName || !sinhalaName) {
@@ -160,5 +158,24 @@ exports.saveOfficerService = async (req, res) => {
   } catch (err) {
     console.error("Error saving officer service:", err);
     res.status(500).json({ error: "An error occurred while saving data." });
+  }
+};
+
+exports.getAllCompanies = async (req, res) => {
+  try {
+    console.log(req.query);
+    const { search } = req.query;
+    const results = await GoviLinkDAO.getAllCompanyDAO(search);
+
+    console.log("Successfully retrieved all companies");
+    res.json({
+      results,
+      total: results.length,
+    });
+  } catch (err) {
+    console.error("Error fetching companies:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching companies" });
   }
 };

@@ -98,8 +98,6 @@ exports.getCompanyDAO = (id) => {
   });
 };
 
-
-
 // officerService.dao.js
 
 exports.saveOfficerService = (englishName, tamilName, sinhalaName, srvFee) => {
@@ -109,15 +107,64 @@ exports.saveOfficerService = (englishName, tamilName, sinhalaName, srvFee) => {
       VALUES (?, ?, ?, ?)
     `;
 
-    admin.query(sql, [englishName, tamilName, sinhalaName, srvFee], (err, result) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve({
-          message: "Officer service saved successfully",
-          insertId: result.insertId
-        });
+    admin.query(
+      sql,
+      [englishName, tamilName, sinhalaName, srvFee],
+      (err, result) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve({
+            message: "Officer service saved successfully",
+            insertId: result.insertId,
+          });
+        }
       }
+    );
+  });
+};
+
+exports.getAllCompanyDAO = (searchTerm) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        fc.id,
+        fc.companyName,
+        fc.RegNumber,
+        fc.email,
+        fc.financeOfficerName,
+        fc.accName,
+        fc.accNumber,
+        fc.bank,
+        fc.branch,
+        fc.phoneCode1,
+        fc.phoneNumber1,
+        fc.phoneCode2,
+        fc.phoneNumber2,
+        fc.logo,
+        fc.modifyBy,
+        au.userName as modifierName,  -- Get userName from adminusers
+        fc.createdAt
+      FROM 
+        feildcompany fc
+      LEFT JOIN 
+        agro_world_admin.adminusers au ON fc.modifyBy = au.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (searchTerm && searchTerm.trim()) {
+      sql += " AND (fc.companyName LIKE ? OR fc.email LIKE ? OR fc.RegNumber LIKE ?)";
+      const trimmed = `%${searchTerm.trim()}%`;
+      params.push(trimmed, trimmed, trimmed);
+    }
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
     });
   });
 };
