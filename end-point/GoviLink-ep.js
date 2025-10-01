@@ -263,7 +263,7 @@ exports.updateCompany = async (req, res) => {
           const extension = mimeType.split("/")[1] || "png";
           const filename = `logo_${timestamp}_${random}.${extension}`;
           logoUrl = `${req.protocol}://${req.get("host")}/uploads/${filename}`;
-          
+
           // Note: You'll need to save the buffer to the file system here
           // Example: await saveFileToUploads(filename, buffer);
         }
