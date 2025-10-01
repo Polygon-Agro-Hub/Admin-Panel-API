@@ -179,3 +179,108 @@ exports.getAllCompanies = async (req, res) => {
       .json({ error: "An error occurred while fetching companies" });
   }
 };
+
+exports.updateCompany = async (req, res) => {
+  try {
+    // Properly format and log the full URL
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log(`Full URL: ${fullUrl}`);
+
+    // Extract the company ID from request parameters
+    const id = req.params.id;
+    if (!id) {
+      return res
+        .status(400)
+        .json({ message: "Company ID is required", status: false });
+    }
+
+    // Destructure request body to get the fields
+    const {
+      regNumber,
+      companyName,
+      email,
+      financeOfficerName,
+      accName,
+      accNumber,
+      bank,
+      branch,
+      phoneCode1,
+      phoneNumber1,
+      phoneCode2,
+      phoneNumber2,
+      logo,
+      modifyBy,
+    } = req.body;
+
+    // Validate required fields
+    if (!regNumber || !companyName || !modifyBy) {
+      return res.status(400).json({
+        message: "Registration number, company name, and modifyBy are required",
+        status: false,
+      });
+    }
+
+    // Check if company name or registration number already exists (excluding current company)
+    const checkResult = await GoviLinkDAO.checkCompanyDisplayNameDao(
+      companyName,
+      regNumber,
+      id
+    );
+
+    if (checkResult.exists) {
+      const errors = [];
+      if (checkResult.nameExists) {
+        errors.push("Company name already exists");
+      }
+      if (checkResult.regNumberExists) {
+        errors.push("Registration number already exists");
+      }
+
+      return res.status(409).json({
+        message: errors.join(" and "),
+        nameExists: checkResult.nameExists,
+        regNumberExists: checkResult.regNumberExists,
+        status: false,
+      });
+    }
+
+    // Call DAO function to update the company record
+    const result = await GoviLinkDAO.updateCompany(
+      id,
+      regNumber,
+      companyName,
+      email,
+      financeOfficerName,
+      accName,
+      accNumber,
+      bank,
+      branch,
+      phoneCode1,
+      phoneNumber1,
+      phoneCode2,
+      phoneNumber2,
+      logo,
+      modifyBy
+    );
+
+    // Check if any rows were affected (successful update)
+    if (!result || result.affectedRows === 0) {
+      return res.status(404).json({
+        message: "Company not found or no changes made",
+        status: false,
+      });
+    }
+
+    console.log("Company update success");
+    return res
+      .status(200)
+      .json({ message: "Company updated successfully", status: true });
+  } catch (err) {
+    // Log unexpected errors
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error: "An error occurred while updating the company",
+      status: false,
+    });
+  }
+};

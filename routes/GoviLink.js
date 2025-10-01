@@ -8,11 +8,7 @@ const router = express.Router();
 
 router.post("/create-company", authMiddleware, GoviLinkEp.createCompany);
 
-router.get(
-  "/get-company-by-id/:id",
-  // authMiddleware,
-  GoviLinkEp.getCompanyById
-);
+router.get("/get-company-by-id/:id", authMiddleware, GoviLinkEp.getCompanyById);
 
 router.post(
   "/save-officer-service",
@@ -21,4 +17,6 @@ router.post(
 );
 
 router.get("/get-all-companies", authMiddleware, GoviLinkEp.getAllCompanies);
+
+router.patch("/update-company/:id", authMiddleware, GoviLinkEp.updateCompany);
 module.exports = router;

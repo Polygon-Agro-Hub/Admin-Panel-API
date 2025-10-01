@@ -155,7 +155,8 @@ exports.getAllCompanyDAO = (searchTerm) => {
     const params = [];
 
     if (searchTerm && searchTerm.trim()) {
-      sql += " AND (fc.companyName LIKE ? OR fc.email LIKE ? OR fc.RegNumber LIKE ?)";
+      sql +=
+        " AND (fc.companyName LIKE ? OR fc.email LIKE ? OR fc.RegNumber LIKE ?)";
       const trimmed = `%${searchTerm.trim()}%`;
       params.push(trimmed, trimmed, trimmed);
     }
@@ -164,6 +165,73 @@ exports.getAllCompanyDAO = (searchTerm) => {
       if (err) {
         return reject(err);
       }
+      resolve(results);
+    });
+  });
+};
+
+exports.updateCompany = (
+  id,
+  regNumber,
+  companyName,
+  email,
+  financeOfficerName,
+  accName,
+  accNumber,
+  bank,
+  branch,
+  phoneCode1,
+  phoneNumber1,
+  phoneCode2,
+  phoneNumber2,
+  logo,
+  modifyBy
+) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE feildcompany SET 
+        regNumber = ?,
+        companyName = ?,
+        email = ?,
+        financeOfficerName = ?,
+        accName = ?,
+        accNumber = ?,
+        bank = ?,
+        branch = ?,
+        phoneCode1 = ?,
+        phoneNumber1 = ?,
+        phoneCode2 = ?,
+        phoneNumber2 = ?,
+        logo = ?,
+        modifyBy = ?,
+        createdAt = NOW()
+      WHERE id = ?
+    `;
+
+    const values = [
+      regNumber,
+      companyName,
+      email,
+      financeOfficerName,
+      accName,
+      accNumber,
+      bank,
+      branch,
+      phoneCode1,
+      phoneNumber1,
+      phoneCode2,
+      phoneNumber2,
+      logo,
+      modifyBy,
+      id,
+    ];
+
+    plantcare.query(sql, values, (err, results) => {
+      if (err) {
+        console.error("Database error details:", err);
+        return reject(err);
+      }
+      console.log("Update successful:", results);
       resolve(results);
     });
   });
