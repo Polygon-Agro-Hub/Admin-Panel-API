@@ -1,4 +1,4 @@
-const certificateCompanyDao = require("../dao/certificateCompany-dao");
+const certificateCompanyDao = require("../dao/CertificateCompany-dao");
 
 // Create a new certificate company
 exports.createCertificateCompany = async (req, res) => {
