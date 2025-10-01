@@ -14,7 +14,7 @@ exports.getAllCollectionCenter = async (req, res) => {
         .json({ message: "No news items found", data: result });
     }
 
-    console.log("Successfully retrieved all collection center");
+    console.log("Successfully retrieved all collection centre");
     res.json(result);
   } catch (err) {
     if (err.isJoi) {
@@ -44,7 +44,7 @@ exports.getAllCollectionCenterByCompany = async (req, res) => {
         .json({ message: "No news items found", data: result });
     }
 
-    console.log("Successfully retrieved all collection center");
+    console.log("Successfully retrieved all collection centre");
     res.json(result);
   } catch (err) {
     if (err.isJoi) {
@@ -58,7 +58,7 @@ exports.getAllCollectionCenterByCompany = async (req, res) => {
   }
 };
 
-//delete collection center
+//delete collection centre
 exports.deleteCollectionCenter = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -101,7 +101,7 @@ exports.addNewCollectionCenter = async (req, res) => {
       district: req.body.district,
       province: req.body.province,
     };
-    console.log("Add Collection center success", centerData);
+    console.log("Add Collection centre success", centerData);
 
     const result = await CollectionCenterDao.addCollectionCenter(
       centerData.regCode,
@@ -118,13 +118,13 @@ exports.addNewCollectionCenter = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Collection Center added successfully",
+      message: "Collection Centre added successfully",
       data: result,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Error adding collection center",
+      message: "Error adding collection centre",
       error: error.message,
     });
   }
@@ -149,7 +149,7 @@ exports.getAllComplains = async (req, res) => {
 
     console.log("results", results);
 
-    console.log("Successfully retrieved all collection center");
+    console.log("Successfully retrieved all collection centre");
     res.json({ results, total });
   } catch (err) {
     if (err.isJoi) {
@@ -191,7 +191,7 @@ exports.getAllCenterComplains = async (req, res) => {
         rpstatus
       );
 
-    console.log("Successfully retrieved all collection center");
+    console.log("Successfully retrieved all collection centre");
     console.log("results", results);
     res.json({ results, total });
   } catch (err) {
@@ -247,7 +247,7 @@ exports.getCenterComplainById = async (req, res) => {
         .json({ message: "No Center Complain founded", data: result[0] });
     }
 
-    console.log("Successfully retrieved collection center Complains");
+    console.log("Successfully retrieved collection centre Complains");
     res.json(result[0]);
   } catch (err) {
     if (err.isJoi) {
@@ -313,11 +313,11 @@ exports.createCollectionCenter = async (req, res) => {
     );
 
     if (companies && companies.length > 0) {
-      const centerId = result.insertId; // Assuming the ID of the new collection center is returned in `result.insertId`
+      const centerId = result.insertId; // Assuming the ID of the new collection centre is returned in `result.insertId`
       await CollectionCenterDao.addCompaniesToCenter(centerId, companies);
     }
 
-    console.log(" Collection Center creation success");
+    console.log(" Collection Centre creation success");
     return res.status(201).json({ result: result, status: true });
   } catch (err) {
     if (err.isJoi) {
@@ -375,7 +375,7 @@ exports.getCenterById = async (req, res) => {
 
     if (results.length === 0) {
       return res.json({
-        message: "No collection center availabale",
+        message: "No collection centre availabale",
         status: false,
       });
     }
@@ -449,7 +449,7 @@ exports.updateCollectionCenter = async (req, res) => {
       );
     }
 
-    console.log("Collection Center update successful");
+    console.log("Collection Centre update successful");
     return res.status(201).json({ result: result, status: true });
   } catch (err) {
     if (err.isJoi) {
@@ -459,7 +459,7 @@ exports.updateCollectionCenter = async (req, res) => {
     }
     console.error("Error executing query:", err);
     return res.status(500).json({
-      error: "An error occurred while updating the Collection Center",
+      error: "An error occurred while updating the Collection Centre",
     });
   }
 };
@@ -717,7 +717,7 @@ exports.getAllCompanyList = async (req, res) => {
         .json({ message: "No news items found", data: result });
     }
 
-    console.log("Successfully retrieved all collection center");
+    console.log("Successfully retrieved all collection centre");
     res.json(result);
   } catch (err) {
     if (err.isJoi) {
@@ -1064,11 +1064,6 @@ exports.getCompanyHead = async (req, res) => {
     console.log(fullUrl);
 
     const { companyId, page, limit, searchText } = req.query;
-    // console.log(searchText);
-    // const { page, limit, searchText } =
-    //   await cropCalendarValidations.getAllCropCalendarSchema.validateAsync(
-    //     req.query
-    //   );
     const offset = (page - 1) * limit;
 
     const { total, items } = await CollectionCenterDao.getcompanyHeadData(

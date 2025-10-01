@@ -44,7 +44,7 @@ exports.checkExistingDistributionCenter = (checkData) => {
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
-        console.error("Error checking existing distribution center:", err);
+        console.error("Error checking existing distribution centre:", err);
         return reject(err);
       }
 
@@ -115,7 +115,7 @@ exports.createDistributionCenter = (data) => {
     // First insert into distributedcenter
     collectionofficer.query(sql1, values1, (err, result1) => {
       if (err) {
-        console.error("Error inserting distribution center:", err);
+        console.error("Error inserting distribution centre:", err);
         return reject(err);
       }
 
@@ -277,7 +277,7 @@ exports.getAllCompanyDAO = (searchTerm, centerId) => {
           FROM collection_officer.collectionofficer co
           WHERE co.companyId = c.id 
           AND co.companyId = c.id 
-          AND co.jobRole = 'Distribution Center Manager'
+          AND co.jobRole = 'Distribution Centre Manager'
         ) AS managerCount,
         (
           SELECT COUNT(*) 
@@ -334,7 +334,7 @@ exports.getAllDistributionCentreHead = (
   searchText
 ) => {
   return new Promise((resolve, reject) => {
-    let countSql = `SELECT COUNT(*) AS total FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Center Head'`;
+    let countSql = `SELECT COUNT(*) AS total FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Centre Head'`;
     let dataSql = `SELECT 
         co.id,
         co.empId,
@@ -346,7 +346,7 @@ exports.getAllDistributionCentreHead = (
         co.phoneNumber01,
         co.phoneCode02,
         co.phoneNumber02,
-        co.createdAt FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Center Head'`;
+        co.createdAt FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Centre Head'`;
     const countParams = [companyId];
     const dataParams = [companyId];
 
@@ -806,14 +806,14 @@ exports.deleteDistributedCenterDao = (id) => {
 
 exports.updateDistributionCentreById = (id, updateData) => {
   return new Promise((resolve, reject) => {
-    console.log("Starting update for distribution center ID:", id);
+    console.log("Starting update for distribution centre ID:", id);
     console.log("Update data received:", updateData);
 
     // Extract company information from updateData if available
     const companyNameEnglish = updateData.companyNameEnglish;
     const companyId = updateData.companyId;
 
-    // Update distribution center SQL
+    // Update distribution centre SQL
     const updateCenterSql = `
       UPDATE distributedcenter 
       SET 
@@ -852,13 +852,13 @@ exports.updateDistributionCentreById = (id, updateData) => {
 
     console.log("Executing center update with:", updateCenterSql, centerParams);
 
-    // Execute distribution center update
+    // Executere update
     collectionofficer.query(
       updateCenterSql,
       centerParams,
       (err, centerResults) => {
         if (err) {
-          console.error("Error updating distribution center:", err);
+          console.error("Error updating distribution centre:", err);
           return reject(err);
         }
 
@@ -894,7 +894,7 @@ exports.updateDistributionCentreById = (id, updateData) => {
               console.log("Company update results:", companyResults);
               console.log("Updates completed successfully");
               
-              // Return updated distribution center regardless of company update result
+              // Return updated distribution centre regardless of company update result
               exports
                 .getDistributionCentreById(id)
                 .then((updatedCenter) => resolve(updatedCenter))
@@ -995,9 +995,9 @@ exports.getDistributedIdforCreateEmpIdDao = (employee) => {
       }
 
       if (results.length === 0) {
-        if (employee === "Distribution Center Head") {
+        if (employee === "Distribution Centre Head") {
           return resolve("DCH00001");
-        } else if (employee === "Distribution Center Manager") {
+        } else if (employee === "Distribution Centre Manager") {
           return resolve("DCM00001");
         } else if (employee === "Distribution Officer") {
           return resolve("CIO00001");
@@ -1038,7 +1038,7 @@ exports.getAllDistributionOfficers = (
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
-            WHERE coff.jobRole IN ('Distribution Center Manager', 'Distribution Officer') AND cm.id = 2
+            WHERE coff.jobRole IN ('Distribution Centre Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
     let dataSql = `
@@ -1059,7 +1059,7 @@ exports.getAllDistributionOfficers = (
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
-            WHERE coff.jobRole IN ('Distribution Center Manager', 'Distribution Officer') AND cm.id = 2
+            WHERE coff.jobRole IN ('Distribution Centre Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
     const countParams = [];
@@ -1156,7 +1156,7 @@ exports.getAllDistributionOfficers = (
     dataSql += ` 
       ORDER BY 
         CASE 
-          WHEN coff.jobRole = 'Distribution Center Manager' THEN 1 
+          WHEN coff.jobRole = 'Distribution Centre Manager' THEN 1 
           WHEN coff.jobRole = 'Distribution Officer' THEN 2 
           ELSE 3 
         END,
@@ -1210,7 +1210,7 @@ exports.getAllDistributionCenterManagerDao = () => {
     const sql = `
       SELECT id, firstNameEnglish, lastNameEnglish
       FROM collectionofficer
-      WHERE jobRole = 'Distribution Center Manager';
+      WHERE jobRole = 'Distribution Centre Manager';
     `;
 
     collectionofficer.query(sql, (err, results) => {
@@ -1489,9 +1489,9 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
       }
 
       if (results.length === 0) {
-        if (employee === "Distribution Center Head") {
+        if (employee === "Distribution Centre Head") {
           return resolve("DCH00001");
-        } else if (employee === "Distribution Center Manager") {
+        } else if (employee === "Distribution Centre Manager") {
           return resolve("DCM00001");
         } else if (employee === "Distribution Officer") {
           return resolve("DIO00001");
@@ -1543,7 +1543,7 @@ exports.createDistributionOfficerPersonal = (
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
       if (
-        officerData.jobRole === "Distribution Center Manager" 
+        officerData.jobRole === "Distribution Centre Manager" 
       ) {
         officerData.irmId = null;
       }
@@ -1931,7 +1931,7 @@ exports.getEachDistributedCenterOfficersDao = (data, status, role, searchText) =
         phoneNumber01,
         nic
       FROM collectionofficer 
-      WHERE companyId = ? AND centerId = ? AND jobRole IN ('Distribution Center Manager', 'Distribution Officer')
+      WHERE companyId = ? AND centerId = ? AND jobRole IN ('Distribution Centre Manager', 'Distribution Officer')
       `;
 
     if (status) {

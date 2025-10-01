@@ -79,7 +79,7 @@ exports.createDistributionCenter = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Distribution center created successfully",
+      message: "Distribution centre created successfully",
       data: result,
     });
   } catch (err) {
@@ -93,7 +93,7 @@ exports.createDistributionCenter = async (req, res) => {
     console.error("Server error:", err);
     return res.status(500).json({
       success: false,
-      error: "An error occurred while creating distribution center",
+      error: "An error occurred while creating distribution centre",
     });
   }
 };
@@ -367,7 +367,7 @@ exports.getAllCompanyList = async (req, res) => {
         .json({ message: "No news items found", data: result });
     }
 
-    console.log("Successfully retrieved all collection center");
+    console.log("Successfully retrieved all collection centre");
     res.json(result);
   } catch (err) {
     if (err.isJoi) {
@@ -684,7 +684,7 @@ exports.deleteDistributedCenter = async (req, res) => {
     if (result.affectedRows === 0) {
       return res.json({
         success: false,
-        message: "Distribution Center Delete faild",
+        message: "Distribution Centre Delete faild",
       });
     }
 
@@ -793,8 +793,8 @@ exports.updateDistributionCentreDetails = async (req, res) => {
       });
     }
 
-    // Update the distribution center
-    console.log("Calling DAO to update distribution center");
+    // Update the distribution centre
+    console.log("Calling DAO to update distribution centre");
     const updatedCentre = await DistributionDao.updateDistributionCentreById(
       id,
       data
@@ -843,7 +843,7 @@ exports.deleteDistributionCenter = async (req, res) => {
 
     const results = await DistributionDao.DeleteDistributionCenter(id);
 
-    console.log("Successfully Deleted Distribution Center");
+    console.log("Successfully Deleted Distribution Centre");
     if (results.affectedRows > 0) {
       res.status(200).json({ results: results, status: true });
     } else {
@@ -856,10 +856,10 @@ exports.deleteDistributionCenter = async (req, res) => {
         .json({ error: error.details[0].message, status: false });
     }
 
-    console.error("Error deleting Distribution Center:", error);
+    console.error("Error deleting Distribution Centre:", error);
     return res
       .status(500)
-      .json({ error: "An error occurred while deleting Distribution Center" });
+      .json({ error: "An error occurred while deleting Distribution Centre" });
   }
 };
 
@@ -1250,7 +1250,7 @@ exports.getAllDistributionCenterByCompany = async (req, res) => {
         .json({ message: "No news items found", data: result });
     }
 
-    console.log("Successfully retrieved all distribution center");
+    console.log("Successfully retrieved all distribution centre");
     res.json(result);
   } catch (err) {
     if (err.isJoi) {
