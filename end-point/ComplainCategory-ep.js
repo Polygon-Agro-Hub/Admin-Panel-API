@@ -300,7 +300,7 @@ exports.getAllSalesAgentComplains = async (req, res) => {
       replyStatus
     );
 
-    console.log("Successfully retrieved all collection center");
+    console.log("Successfully retrieved all collection centre");
     res.json({ results, total });
   } catch (err) {
     if (err.isJoi) {
