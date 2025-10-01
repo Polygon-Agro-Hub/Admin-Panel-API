@@ -9,13 +9,14 @@ exports.createCertificateCompany = (
   phoneNumber1,
   phoneCode2,
   phoneNumber2,
-  address
+  address,
+  userId
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO certificatecompany
-      (comName, regNumber, taxId, phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, address)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (comName, regNumber, taxId, phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, address, modifyBy, modifyDate)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
     const values = [
       companyName,
@@ -26,6 +27,7 @@ exports.createCertificateCompany = (
       phoneCode2 || null,
       phoneNumber2 || null,
       address,
+      userId,
     ];
 
     plantcare.query(sql, values, (err, results) => {
@@ -49,10 +51,9 @@ exports.checkByRegNumber = (regNumber) => {
   });
 };
 
-// Get all certificate companies with pagination and search
-exports.getAllCertificateCompanies = (limit, offset, search) => {
+// Get all certificate companies with optional search
+exports.getAllCertificateCompanies = (search) => {
   return new Promise((resolve, reject) => {
-    // Base SQL
     let sql = `
       SELECT 
         cc.id,
@@ -61,38 +62,102 @@ exports.getAllCertificateCompanies = (limit, offset, search) => {
         cc.phoneCode1,
         cc.phoneNumber1,
         cc.createdAt,
+        cc.modifyDate,                      
+        au.userName AS modifiedByUser,      
         COUNT(c.id) AS certificateCount
       FROM certificatecompany cc
       LEFT JOIN certificates c ON cc.id = c.srtcomapnyId
+      LEFT JOIN agro_world_admin.adminusers au ON cc.modifyBy = au.id
     `;
 
     const values = [];
     if (search) {
-      sql += ` WHERE cc.regNumber LIKE ? OR cc.taxId LIKE ?`;
+      sql += ` WHERE cc.regNumber LIKE ? OR cc.comName LIKE ?`;
       values.push(`%${search}%`, `%${search}%`);
     }
 
-    sql += " GROUP BY cc.id ORDER BY cc.createdAt DESC LIMIT ? OFFSET ?";
-    values.push(limit, offset);
+    sql += " GROUP BY cc.id ORDER BY cc.createdAt DESC";
 
-    // Count total companies
-    let countSql = `SELECT COUNT(*) AS total FROM certificatecompany cc`;
-    if (search) {
-      countSql += ` WHERE cc.regNumber LIKE ? OR cc.taxId LIKE ?`;
-    }
+    plantcare.query(sql, values, (err, results) => {
+      if (err) return reject(err);
+      resolve({ total: results.length, companies: results });
+    });
+  });
+};
 
-    plantcare.query(
-      countSql,
-      search ? [`%${search}%`, `%${search}%`] : [],
-      (err, countResults) => {
-        if (err) return reject(err);
-        const total = countResults[0].total;
+// Get by ID
+exports.getCertificateCompanyById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        cc.id,
+        cc.comName AS companyName,
+        cc.regNumber,
+        cc.taxId,
+        cc.phoneCode1,
+        cc.phoneNumber1,
+        cc.phoneCode2,
+        cc.phoneNumber2,
+        cc.address,
+        cc.createdAt
+      FROM certificatecompany cc
+      WHERE cc.id = ?
+    `;
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]); // return single company
+    });
+  });
+};
 
-        plantcare.query(sql, values, (err, results) => {
-          if (err) return reject(err);
-          resolve({ total, companies: results });
-        });
-      }
-    );
+// Update
+exports.updateCertificateCompany = (
+  id,
+  companyName,
+  regNumber,
+  taxId,
+  phoneCode1,
+  phoneNumber1,
+  phoneCode2,
+  phoneNumber2,
+  address,
+  modifyBy
+) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE certificatecompany 
+      SET comName=?, regNumber=?, taxId=?, phoneCode1=?, phoneNumber1=?, 
+          phoneCode2=?, phoneNumber2=?, address=?,
+          modifyBy=?, modifyDate=NOW()
+      WHERE id=?
+    `;
+    const values = [
+      companyName,
+      regNumber,
+      taxId,
+      phoneCode1,
+      phoneNumber1,
+      phoneCode2 || null,
+      phoneNumber2 || null,
+      address,
+      modifyBy,
+      id,
+    ];
+
+    plantcare.query(sql, values, (err, results) => {
+      if (err) return reject(err);
+      resolve(results.affectedRows > 0);
+    });
+  });
+};
+
+// Delete certificate company by ID
+exports.deleteCertificateCompany = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "DELETE FROM certificatecompany WHERE id = ?";
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.affectedRows > 0);
+    });
   });
 };
