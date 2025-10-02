@@ -1,4 +1,5 @@
 const certificateCompanyDao = require("../dao/CertificateCompany-dao");
+const uploadFileToS3 = require("../middlewares/s3upload");
 
 // Create a new certificate company
 exports.createCertificateCompany = async (req, res) => {
@@ -302,5 +303,149 @@ exports.deleteCertificateCompany = async (req, res) => {
       message: "An error occurred while deleting certificate company",
       error: err.message,
     });
+  }
+};
+
+// Get all certificate companies names only
+exports.getAllCertificateCompaniesNamesAndIdOnly = async (req, res) => {
+  try {
+    const companies =
+      await certificateCompanyDao.getAllCertificateCompaniesNamesOnly();
+    res.json(companies);
+  } catch (err) {
+    console.error("Error fetching certificate companies names:", err);
+    res.status(500).json({
+      message: "An error occurred while fetching certificate companies names",
+      error: err.message,
+    });
+  }
+};
+
+// Create a new certificate
+exports.createCertificate = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized", status: false });
+    }
+
+    // Extract fields from FormData
+    const {
+      srtcomapnyId,
+      srtName,
+      srtNumber,
+      applicable,
+      accreditation,
+      price,
+      timeLine,
+      commission,
+      scope,
+    } = req.body;
+
+    let serviceAreas = req.body.serviceAreas || [];
+    let cropIds = req.body.cropIds || [];
+
+    if (!Array.isArray(serviceAreas)) serviceAreas = [serviceAreas];
+    if (!Array.isArray(cropIds)) cropIds = [cropIds];
+
+    // Basic Validation
+    if (!srtcomapnyId) {
+      return res
+        .status(400)
+        .json({ message: "Company ID is required", status: false });
+    }
+    if (!srtName || srtName.trim().length === 0) {
+      return res
+        .status(400)
+        .json({ message: "Certificate name is required", status: false });
+    }
+    if (!srtNumber) {
+      return res
+        .status(400)
+        .json({ message: "Certificate number is required", status: false });
+    }
+    if (!applicable) {
+      return res
+        .status(400)
+        .json({ message: "Applicable field is required", status: false });
+    }
+    if (!accreditation) {
+      return res
+        .status(400)
+        .json({ message: "Accreditation is required", status: false });
+    }
+
+    // Number validations
+    if (price && isNaN(price)) {
+      return res
+        .status(400)
+        .json({ message: "Price must be a valid number", status: false });
+    }
+    if (
+      commission &&
+      (isNaN(commission) || commission < 0 || commission > 100)
+    ) {
+      return res
+        .status(400)
+        .json({
+          message: "Enter a valid commission between 0 and 100",
+          status: false,
+        });
+    }
+
+    // Arrays validation
+    if (!Array.isArray(serviceAreas) || serviceAreas.length === 0) {
+      return res
+        .status(400)
+        .json({
+          message: "At least one service area is required",
+          status: false,
+        });
+    }
+    if (!Array.isArray(cropIds) || cropIds.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "At least one crop is required", status: false });
+    }
+
+    // Upload PDF if exists
+    let tearmsUrl = null;
+    if (req.file) {
+      tearmsUrl = await uploadFileToS3(
+        req.file.buffer,
+        req.file.originalname,
+        "certificate/terms"
+      );
+    }
+
+    // Insert certificate
+    const certificateId = await certificateCompanyDao.createCertificate({
+      srtcomapnyId,
+      srtName,
+      srtNumber,
+      applicable,
+      accreditation,
+      serviceAreas,
+      price,
+      timeLine,
+      commission,
+      tearms: tearmsUrl,
+      scope,
+      modifyBy: userId,
+    });
+
+    //  Insert crops
+    await certificateCompanyDao.addCertificateCrops(certificateId, cropIds);
+
+    res.json({
+      message: "Certificate created successfully",
+      status: true,
+      certificateId,
+    });
+  } catch (err) {
+    console.error("Error creating certificate:", err);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
   }
 };

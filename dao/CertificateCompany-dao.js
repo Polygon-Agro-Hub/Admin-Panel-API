@@ -161,3 +161,81 @@ exports.deleteCertificateCompany = (id) => {
     });
   });
 };
+
+// Get all certificate companies (id + companyName only)
+exports.getAllCertificateCompaniesNamesOnly = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id,
+        comName AS companyName
+      FROM certificatecompany
+      ORDER BY comName ASC
+    `;
+
+    plantcare.query(sql, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+// Create certificate and return inserted certificate ID
+exports.createCertificate = ({
+  srtcomapnyId,
+  srtName,
+  srtNumber,
+  applicable,
+  accreditation,
+  serviceAreas,
+  price,
+  timeLine,
+  commission,
+  tearms,
+  scope,
+  modifyBy,
+}) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO certificates
+      (srtcomapnyId, srtName, srtNumber, applicable, accreditation, serviceAreas, price, timeLine, commission, tearms, scope, modifyBy, modifyDate)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    `;
+    const values = [
+      srtcomapnyId,
+      srtName,
+      srtNumber,
+      applicable,
+      accreditation,
+      JSON.stringify(serviceAreas), // <-- convert array to JSON string
+      price || null,
+      timeLine || null,
+      commission || null,
+      tearms,
+      scope,
+      modifyBy,
+    ];
+
+    plantcare.query(sql, values, (err, result) => {
+      if (err) return reject(err);
+      resolve(result.insertId);
+    });
+  });
+};
+
+// Add crops to certificatecrops table
+exports.addCertificateCrops = (certificateId, cropIds) => {
+  return new Promise((resolve, reject) => {
+    if (!cropIds || cropIds.length === 0) return resolve([]);
+    const sql = `
+      INSERT INTO certificatecrops (certificateId, cropId)
+      VALUES ?
+    `;
+    const values = cropIds.map((cropId) => [certificateId, cropId]);
+
+    plantcare.query(sql, [values], (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+  });
+};

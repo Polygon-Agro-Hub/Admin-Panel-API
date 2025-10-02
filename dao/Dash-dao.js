@@ -1188,7 +1188,7 @@ const genarateNewSalesAgentIdDao = async () => {
 
       // Increment and format back to 5 digits
       const nextNumber = number + 1;
-      const nextId = `${prefix}${nextNumber.toString().padStart(5, "0")}`; // "CCM00008"
+      const nextId = `${prefix}${nextNumber.toString().padStart(4, "0")}`; // "CCM00008"
 
       resolve(nextId);
     });
