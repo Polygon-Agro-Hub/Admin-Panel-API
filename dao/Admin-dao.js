@@ -561,21 +561,19 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
       SELECT COUNT(DISTINCT OC.id) as total 
       FROM ongoingcultivations OC
       LEFT JOIN users U ON OC.userId = U.id
-      LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
       WHERE 1=1
     `;
 
-    // Data query with farm count
+    // Data query with proper grouping
     let dataSql = `
       SELECT 
         OC.id AS cultivationId,
-        OCC.id AS ongCultivationId,
         U.id AS userId,
         U.firstName, 
         U.lastName, 
         U.NICnumber,
         U.phoneNumber,
-        COUNT(OCC.cropCalendar) AS CropCount,
+        COUNT(DISTINCT OCC.id) AS CropCount,
         COUNT(DISTINCT F.id) AS FarmCount
       FROM ongoingcultivations OC
       LEFT JOIN users U ON OC.userId = U.id
@@ -604,7 +602,7 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
     }
 
     dataSql += `
-      GROUP BY OC.id, OCC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber
+      GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber
       ORDER BY OC.createdAt DESC 
       LIMIT ? OFFSET ?
     `;
@@ -3762,7 +3760,7 @@ exports.deleteFarmDao = (farmId) => {
     plantcare.query(
       `DELETE scd FROM slavecropcalendardays scd
        JOIN farmstaff fs ON scd.completedStaffId = fs.id
-       WHERE fs.farmId = ?`, 
+       WHERE fs.farmId = ?`,
       [farmId],
       (err) => {
         if (err) return reject(err);
@@ -3970,7 +3968,7 @@ exports.deleteFarmById = (farmId) => {
 
 exports.tracktaskAddOngoingCultivation = (userId, id) => {
   return new Promise((resolve, reject) => {
-    const sql =`
+    const sql = `
       UPDATE ongoingcultivationscrops
       SET modifyBy = ?
       WHERE id = ?
