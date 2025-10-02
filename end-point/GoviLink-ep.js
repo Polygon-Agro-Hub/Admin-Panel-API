@@ -169,7 +169,7 @@ exports.updateOfficerService = async (req, res) => {
 
   try {
     const { id } = req.params; // get ID from frontend URL
-    const { englishName, tamilName, sinhalaName, srvFee } = req.body;
+    const { englishName, tamilName, sinhalaName, srvFee ,modifyBy} = req.body;
 
     // Validation (basic check)
     if (!englishName || !tamilName || !sinhalaName) {
@@ -182,7 +182,8 @@ exports.updateOfficerService = async (req, res) => {
       englishName,
       tamilName,
       sinhalaName,
-      srvFee
+      srvFee,
+      modifyBy
     );
 
     console.log(`Officer service with ID ${id} updated successfully`);
