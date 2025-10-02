@@ -1,8 +1,20 @@
 const express = require("express");
 const authMiddleware = require("../middlewares/authMiddleware");
 const certificateCompanyEp = require("../end-point/CertificateCompany-ep");
-
+const multer = require("multer");
 const router = express.Router();
+
+// Multer setup for memory storage (in-memory buffer)
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "application/pdf") cb(null, true);
+    else cb(new Error("Only PDF files are allowed"), false);
+  },
+});
+
 
 // Create new certificate company
 router.post("/", 
@@ -37,5 +49,21 @@ router.delete(
   authMiddleware,
   certificateCompanyEp.deleteCertificateCompany
 );
+
+// Get all certificate companies 
+router.get(
+  "/all/names-only",
+  authMiddleware,
+  certificateCompanyEp.getAllCertificateCompaniesNamesAndIdOnly
+);
+
+// Create certificate
+router.post(
+  "/certificate/create",
+  authMiddleware,
+  upload.single("tearmsFile"),
+  certificateCompanyEp.createCertificate
+);
+
 
 module.exports = router;
