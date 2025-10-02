@@ -164,5 +164,10 @@ router.get(
     cropCalendarEp.getCropGroupsForFilter
 );
 
+router.get(
+    "/get-all-crop-groups-names-only",
+    authMiddleware,
+    cropCalendarEp.getAllCropGroupNamesOnly
+);
 
 module.exports = router;
