@@ -204,3 +204,29 @@ exports.getOfficerServiceById = async (req, res) => {
     res.status(404).json({ error: err.message });
   }
 };
+exports.getAllOfficerServices = async (req, res) => {
+  try {
+    const services = await GoviLinkDAO.getAllOfficerServices();
+    res.status(200).json(services);
+  } catch (err) {
+    console.error("Error fetching officer services:", err);
+    res.status(500).json({ error: "Failed to fetch officer services" });
+  }
+};
+
+// Delete officer service by ID
+exports.deleteOfficerService = async (req, res) => {
+  const id = req.params.id; // get ID from URL params
+
+  try {
+    const result = await GoviLinkDAO.deleteOfficerServiceById(id); // call DAO function
+    if (result.affectedRows > 0) {
+      res.status(200).json({ message: 'Service deleted successfully' });
+    } else {
+      res.status(404).json({ message: 'Service not found' });
+    }
+  } catch (err) {
+    console.error('Error deleting officer service:', err);
+    res.status(500).json({ error: 'Failed to delete officer service' });
+  }
+};

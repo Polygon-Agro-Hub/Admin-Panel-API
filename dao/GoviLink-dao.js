@@ -171,3 +171,41 @@ exports.getOfficerServiceById = (id) => {
   });
 };
 
+exports.getAllOfficerServices = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, englishName, tamilName, sinhalaName, srvFee
+      FROM plant_care.officerservices
+       WHERE isValid = 1
+    `;
+
+    admin.query(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results); // return full list of services
+      }
+    });
+  });
+};
+
+// Delete an officer service by ID
+exports.deleteOfficerServiceById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `UPDATE plant_care.officerservices 
+                 SET isValid = 0 
+                 WHERE id = ?`;
+
+    admin.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve({ 
+          message: 'Service marked as invalid successfully', 
+          affectedRows: results.affectedRows 
+        });
+      }
+    });
+  });
+};
+

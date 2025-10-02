@@ -29,5 +29,7 @@ router.put("/update-officer-service/:id",  authMiddleware,
     GoviLinkEp.updateOfficerService);
 
 router.get("/get-officer-service-by-id/:id", authMiddleware, GoviLinkEp.getOfficerServiceById);
+router.get("/get-all-officer-service", authMiddleware, GoviLinkEp.getAllOfficerServices);
+router.delete('/officer-service/:id',authMiddleware, GoviLinkEp.deleteOfficerService);
 
 module.exports = router;
