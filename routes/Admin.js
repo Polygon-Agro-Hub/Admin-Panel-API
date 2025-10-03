@@ -367,6 +367,7 @@ router.get(
   AdminEp.getUserFarmDetails
 );
 
+
 router.delete("/delete-farm",  authMiddleware, AdminEp.deleteFarms);
 
 router.get(
@@ -398,6 +399,18 @@ router.post(
 router.post(
   "/resend-reset-password", 
   AdminEp.resendResetLink
+);
+
+router.get(
+  "/get-field-officer/:id",
+  authMiddleware,
+  AdminEp.getFieldOfficerById
+);
+
+router.delete(
+  "/delete-field-officer/:id",
+  authMiddleware,
+  AdminEp.deleteFieldOfficer
 );
 
 module.exports = router;

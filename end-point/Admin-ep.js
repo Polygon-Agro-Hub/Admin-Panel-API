@@ -3257,3 +3257,118 @@ exports.resendResetLink = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+exports.getFieldOfficerById = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    
+    // Validate and format the inputs
+    const { id } = await ValidateSchema.getFieldOfficerSchema.validateAsync({
+      id: req.params.id
+    });
+
+    // const id = req.params.id
+
+    console.log('id', id);
+
+    const officerData = await adminDao.getFieldOfficerByIdDAO(id);
+
+    if (!officerData) {
+      return res.status(404).json({ error: "Collection Officer not found" });
+    }
+
+    console.log(
+      "Successfully fetched collection officer, company, and bank details"
+    );
+
+    console.log('officerData', officerData)
+    res.json({ officerData });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+exports.deleteFieldOfficer = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = req.params;
+
+    const {profile, frontNic, backNic, backPassbook, contract} = await adminDao.getFieldOfficerImages(id);
+
+    console.log('images', profile, frontNic, backNic, backPassbook, contract);
+
+    if (profile) {
+      try {
+        await deleteFromS3(profile);
+      } catch (s3Error) {
+        console.error("Failed to delete Front Profile image from S3:", s3Error);
+      }
+    }
+
+
+    if (frontNic) {
+      try {
+        await deleteFromS3(frontNic);
+      } catch (s3Error) {
+        console.error("Failed to delete Front Nic image from S3:", s3Error);
+      }
+    }
+
+    if (backNic) {
+      try {
+        await deleteFromS3(backNic);
+      } catch (s3Error) {
+        console.error("Failed to delete Back Nic image from S3:", s3Error);
+      }
+    }
+
+    if (backPassbook) {
+      try {
+        await deleteFromS3(backPassbook);
+      } catch (s3Error) {
+        console.error("Failed to delete Passbook back image from S3:", s3Error);
+      }
+    }
+
+    if (contract) {
+      try {
+        await deleteFromS3(contract);
+      } catch (s3Error) {
+        console.error("Failed to delete Signed Contract image from S3:", s3Error);
+      }
+    }
+
+    console.log('success')
+
+    res.status(200).json({ massage: 'deleted', status: true });
+
+    // const results = await collectionofficerDao.DeleteFieldOfficerDao(
+    //   id
+    // );
+
+    // console.log("Successfully Delete Status");
+    // if (results.affectedRows > 0) {
+    //   res.status(200).json({ results: results, status: true });
+    // } else {
+    //   res.json({ results: results, status: false });
+    // }
+  } catch (error) {
+    if (error.isJoi) {
+      return res
+        .status(400)
+        .json({ error: error.details[0].message, status: false });
+    }
+
+    console.error("Error retrieving Updated Status:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while Updated Statuss" });
+  }
+};

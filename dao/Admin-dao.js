@@ -4124,3 +4124,98 @@ exports.resetPassword = (userId, newPassword) => {
     }
   });
 };
+
+
+exports.getFieldOfficerByIdDAO = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+          SELECT 
+              FO.*,
+              FC.companyName
+          FROM 
+              plant_care.feildofficer FO
+          JOIN 
+              plant_care.feildcompany FC ON FO.companyId = FC.id
+          WHERE 
+              FO.id = ?`;
+
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+
+      if (results.length === 0) {
+        return resolve(null); // No officer found
+      }
+
+      const officer = results[0];
+
+      const assignDistrictsArray = officer.assignDistrict
+        ? officer.assignDistrict.split(',').map(d => d.trim())
+        : [];
+      resolve({
+        collectionOfficer: {
+          id: officer.id,
+          firstName: officer.firstName,
+          lastName: officer.lastName,
+          phoneNumber01: officer.phoneNumber1,
+          phoneNumber02: officer.phoneNumber2,
+          phoneCode01: officer.phoneCode1,
+          phoneCode02: officer.phoneCode2,
+          image: officer.profile,
+          frontNic: officer.frontNic,
+          backNic: officer.backNic,
+          backPassbook: officer.backPassbook,
+          contract: officer.contract,
+          status: officer.status,
+          nic: officer.nic,
+          email: officer.email,
+          houseNumber: officer.house,
+          streetName: officer.street,
+          city: officer.city,
+          district: officer.distrct,
+          province: officer.province,
+          country: officer.country,
+          empId: officer.empId,
+          jobRole: officer.JobRole,
+          employeeType: officer.empType,
+          accHolderName: officer.accName,
+          accNumber: officer.accName,
+          bankName: officer.bank,
+          branchName: officer.branch,
+          companyName: officer.companyName,
+          assignDistricts: assignDistrictsArray,
+          comAmount: officer.comAmount,
+          language: officer.language
+        },
+      });
+    });
+  });
+};
+
+exports.getFieldOfficerImages = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT profile, frontNic, backNic, backPassbook, contract  FROM plant_care.feildofficer WHERE id = ?";
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.DeleteFieldOfficerDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            DELETE FROM plant_care.feildofficer
+            WHERE id = ?
+        `;
+    collectionofficer.query(sql, [parseInt(id)], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      resolve(results); // Resolve the promise with the query results
+    });
+  });
+};
