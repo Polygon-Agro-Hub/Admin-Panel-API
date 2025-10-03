@@ -360,7 +360,11 @@ router.get("/get-farm-owner", authMiddleware, AdminEp.getFarmOwner);
 
 router.put("/update-farm-owner/:id", authMiddleware, AdminEp.updateFarmOwner);
 
-router.get("/get-all-farmer-farms", authMiddleware, AdminEp.getUserFarmDetails);
+router.get(
+  "/get-all-farmer-farms",
+  authMiddleware,
+  AdminEp.getUserFarmDetails
+);
 
 router.delete("/delete-farm", authMiddleware, AdminEp.deleteFarms);
 
@@ -399,6 +403,18 @@ router.post(
     { name: "contract", maxCount: 1 },
   ]),
   AdminEp.createFieldOfficer
+);
+
+router.get(
+  "/get-field-officer/:id",
+  authMiddleware,
+  AdminEp.getFieldOfficerById
+);
+
+router.delete(
+  "/delete-field-officer/:id",
+  authMiddleware,
+  AdminEp.deleteFieldOfficer
 );
 
 module.exports = router;
