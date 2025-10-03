@@ -18,6 +18,11 @@ router.get(
     StakeholderEp.getAdminUserData
 );
 
-
+// ✅ Get all field officers
+router.get(
+  "/get-all-field-officers",
+  authMiddleware,
+  StakeholderEp.getAllFieldOfficers
+);
 
 module.exports = router;
