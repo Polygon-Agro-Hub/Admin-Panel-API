@@ -239,3 +239,29 @@ exports.addCertificateCrops = (certificateId, cropIds) => {
     });
   });
 };
+
+// Bulk insert questionnaires
+exports.bulkInsertQuestionnaires = (certificateId, questions) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO questionnaire
+      (certificateId, type, qNo, qEnglish, qSinhala, qTamil, createdAt)
+      VALUES ?
+    `;
+
+    const values = questions.map((q) => [
+      certificateId,
+      q.type.trim(),
+      q.qNo,
+      q.qEnglish.trim(),
+      q.qSinhala?.trim() || null,
+      q.qTamil?.trim() || null,
+      new Date(),
+    ]);
+
+    plantcare.query(sql, [values], (err, result) => {
+      if (err) return reject(err);
+      resolve(result); // includes insertId & affectedRows
+    });
+  });
+};
