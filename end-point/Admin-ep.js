@@ -933,11 +933,9 @@ exports.getBuildingOwnershipDetails = async (req, res) => {
     }
 
     console.error("Error fetching building ownership details:", err);
-    res
-      .status(500)
-      .json({
-        error: "An error occurred while fetching building ownership details.",
-      });
+    res.status(500).json({
+      error: "An error occurred while fetching building ownership details.",
+    });
   }
 };
 
@@ -971,11 +969,9 @@ exports.getLandOwnershipDetails = async (req, res) => {
     }
 
     console.error("Error fetching land ownership details:", err);
-    res
-      .status(500)
-      .json({
-        error: "An error occurred while fetching land ownership details.",
-      });
+    res.status(500).json({
+      error: "An error occurred while fetching land ownership details.",
+    });
   }
 };
 
@@ -3255,5 +3251,89 @@ exports.resendResetLink = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getAllCompanies = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const result = await adminDao.GetCompaniesDAO();
+
+    if (result.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No companies found", data: result });
+    }
+
+    console.log("Successfully retrieved all companies");
+    res.json(result);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching companies:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching companies" });
+  }
+};
+
+exports.getAllManagerList = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    const companyId = req.params.companyId;
+    console.log(companyId);
+
+    const result = await adminDao.GetAllManagerList(
+      companyId
+      // Removed assignDistrict parameter
+    );
+
+    if (result.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No collection Managers found", data: result });
+    }
+
+    console.log("Successfully retrieved all collection Managers");
+    res.json(result);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching collection managers:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection managers" });
+  }
+};
+
+exports.getForCreateId = async (req, res) => {
+  try {
+    const { role } = await ValidateSchema.getRoleShema.validateAsync(
+      req.params
+    );
+    const results = await FieldOfficerDao.getForCreateId(role);
+
+    // Since your DAO function now returns { empId: newEmpId } directly
+    // we don't need to check for length anymore
+    res.status(200).json({ result: results, status: true });
+    
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
   }
 };

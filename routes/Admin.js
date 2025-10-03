@@ -168,9 +168,16 @@ router.get(
   AdminEp.getFixedAssetsByCategory
 );
 
-router.get('/get-fixed-assets/building-ownership/:buildingAssetId', authMiddleware, AdminEp.getBuildingOwnershipDetails);
-router.get('/get-fixed-assets/land-ownership/:landAssetId', authMiddleware, AdminEp.getLandOwnershipDetails);
-
+router.get(
+  "/get-fixed-assets/building-ownership/:buildingAssetId",
+  authMiddleware,
+  AdminEp.getBuildingOwnershipDetails
+);
+router.get(
+  "/get-fixed-assets/land-ownership/:landAssetId",
+  authMiddleware,
+  AdminEp.getLandOwnershipDetails
+);
 
 router.get(
   "/get-current-assets-view/:id/:category",
@@ -347,57 +354,38 @@ router.delete(
   AdminEp.deleteOngoingCultivationsById
 );
 
-router.get(
-  "/get-all-farmer-staff",
-  authMiddleware,
-  AdminEp.getFarmerStaff
-);
+router.get("/get-all-farmer-staff", authMiddleware, AdminEp.getFarmerStaff);
 
-router.get(
-  "/get-farm-owner",
-  authMiddleware,
-  AdminEp.getFarmOwner
-);
+router.get("/get-farm-owner", authMiddleware, AdminEp.getFarmOwner);
 
-router.put('/update-farm-owner/:id', authMiddleware,  AdminEp.updateFarmOwner);
+router.put("/update-farm-owner/:id", authMiddleware, AdminEp.updateFarmOwner);
 
-router.get(
-  "/get-all-farmer-farms",
-  authMiddleware,
-  AdminEp.getUserFarmDetails
-);
+router.get("/get-all-farmer-farms", authMiddleware, AdminEp.getUserFarmDetails);
 
-router.delete("/delete-farm",  authMiddleware, AdminEp.deleteFarms);
+router.delete("/delete-farm", authMiddleware, AdminEp.deleteFarms);
 
-router.get(
-  "/get-farms-by-user",
-  authMiddleware,
-  AdminEp.getFarmsByUser
-);
+router.get("/get-farms-by-user", authMiddleware, AdminEp.getFarmsByUser);
 
 // Delete a farm by ID
-router.delete(
-  "/delete-farm/:farmId",
-  authMiddleware,
-  AdminEp.deleteFarm
-);
+router.delete("/delete-farm/:farmId", authMiddleware, AdminEp.deleteFarm);
 
 // Forgot Password
-router.post(
-  "/forgot-password", 
-  AdminEp.forgotPassword
-);
+router.post("/forgot-password", AdminEp.forgotPassword);
 
 // Reset password
-router.post(
-  "/reset-password", 
-  AdminEp.resetPassword
-);
+router.post("/reset-password", AdminEp.resetPassword);
 
 // Reset password
-router.post(
-  "/resend-reset-password", 
-  AdminEp.resendResetLink
+router.post("/resend-reset-password", AdminEp.resendResetLink);
+
+router.get("/get-all-companies", authMiddleware, AdminEp.getAllCompanies);
+
+router.get(
+  "/get-all-manager-list/:companyId",
+  authMiddleware,
+  AdminEp.getAllManagerList
 );
+
+router.get("/get-last-emp-id/:role", authMiddleware, AdminEp.getForCreateId);
 
 module.exports = router;
