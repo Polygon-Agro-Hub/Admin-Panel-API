@@ -4181,7 +4181,7 @@ exports.GetAllManagerList = (companyId) => {
     const sql =
       "SELECT id, firstName, lastName FROM feildofficer WHERE companyId = ? AND JobRole = 'Chief Field Officer' AND status = 'active'";
 
-    db.query(sql, [companyId], (err, results) => {
+    plantcare.query(sql, [companyId], (err, results) => {
       if (err) {
         return reject(err);
       }
