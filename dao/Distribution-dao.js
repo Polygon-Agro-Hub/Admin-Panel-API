@@ -1205,15 +1205,15 @@ exports.getAllDistributionCenterNamesDao = (district) => {
   });
 };
 
-exports.getAllDistributionCenterManagerDao = () => {
+exports.getAllDistributionCenterManagerDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT id, firstNameEnglish, lastNameEnglish
       FROM collectionofficer
-      WHERE jobRole = 'Distribution Centre Manager';
+      WHERE jobRole = 'Distribution Centre Manager' AND companyId = 2 AND distributedCenterId = ?;
     `;
 
-    collectionofficer.query(sql, (err, results) => {
+    collectionofficer.query(sql,[id], (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -2456,3 +2456,18 @@ exports.checkPhoneNumberExistDC = async (phoneNumber, excludeId = null) => {
   });
 };
 
+exports.claimDistributedOfficersDao = (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE collectionofficer
+      SET distributedCenterId = ?, irmId = ?, claimStatus = 1
+      WHERE id = ?
+    `;
+    collectionofficer.query(sql, [data.centerId, data.irmId, data.id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

@@ -123,7 +123,7 @@ router.get(
 );
 
 router.get(
-  "/get-all-distribution-manager-names",
+  "/get-all-distribution-manager-names/:id",
   authMiddleware,
   distributionEp.getAllDistributionManagerNames
 );
@@ -231,6 +231,12 @@ router.get(
 router.get('/get-selected-officer-targets', 
     authMiddleware,
     distributionEp.dcmGetSelectedOfficerTargets
+);
+
+
+router.patch('/claim-distributed-Officer', 
+    authMiddleware,
+    distributionEp.claimDistributedOfficer
 );
 
 module.exports = router;
