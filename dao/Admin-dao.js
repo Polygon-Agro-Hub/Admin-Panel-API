@@ -4309,7 +4309,6 @@ exports.getFOIDforCreateEmpIdDao = (employee) => {
   });
 };
 
-// Rename the DAO function to avoid conflict
 exports.createFieldOfficer = (
   officerData,
   profileImageUrl,
