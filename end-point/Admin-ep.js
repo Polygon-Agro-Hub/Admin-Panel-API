@@ -3349,16 +3349,16 @@ exports.deleteFieldOfficer = async (req, res) => {
 
     res.status(200).json({ massage: 'deleted', status: true });
 
-    // const results = await collectionofficerDao.DeleteFieldOfficerDao(
-    //   id
-    // );
+    const results = await collectionofficerDao.DeleteFieldOfficerDao(
+      id
+    );
 
-    // console.log("Successfully Delete Status");
-    // if (results.affectedRows > 0) {
-    //   res.status(200).json({ results: results, status: true });
-    // } else {
-    //   res.json({ results: results, status: false });
-    // }
+    console.log("Successfully Delete Status");
+    if (results.affectedRows > 0) {
+      res.status(200).json({ results: results, status: true });
+    } else {
+      res.json({ results: results, status: false });
+    }
   } catch (error) {
     if (error.isJoi) {
       return res
