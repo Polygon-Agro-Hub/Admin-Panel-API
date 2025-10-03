@@ -153,6 +153,8 @@ exports.getAllCropGroups = async (req, res) => {
       await cropCalendarValidations.getAllCropGroupsSchema.validateAsync(
         req.query
       );
+      
+      console.log("Category filter:", category);
 
     const offset = (page - 1) * limit;
 
