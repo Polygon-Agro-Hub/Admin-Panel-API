@@ -385,22 +385,18 @@ exports.createCertificate = async (req, res) => {
       commission &&
       (isNaN(commission) || commission < 0 || commission > 100)
     ) {
-      return res
-        .status(400)
-        .json({
-          message: "Enter a valid commission between 0 and 100",
-          status: false,
-        });
+      return res.status(400).json({
+        message: "Enter a valid commission between 0 and 100",
+        status: false,
+      });
     }
 
     // Arrays validation
     if (!Array.isArray(serviceAreas) || serviceAreas.length === 0) {
-      return res
-        .status(400)
-        .json({
-          message: "At least one service area is required",
-          status: false,
-        });
+      return res.status(400).json({
+        message: "At least one service area is required",
+        status: false,
+      });
     }
     if (!Array.isArray(cropIds) || cropIds.length === 0) {
       return res
@@ -444,6 +440,87 @@ exports.createCertificate = async (req, res) => {
     });
   } catch (err) {
     console.error("Error creating certificate:", err);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
+  }
+};
+
+// Create Questionnaire
+exports.createQuestionnaire = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized", status: false });
+    }
+
+    const { certificateId, questions } = req.body;
+
+    // Base validations
+    if (!certificateId) {
+      return res
+        .status(400)
+        .json({ message: "Certificate ID is required", status: false });
+    }
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "At least one question is required", status: false });
+    }
+
+    // Validate duplicates in qNo
+    const qNos = questions.map((q) => q.qNo);
+    if (new Set(qNos).size !== qNos.length) {
+      return res
+        .status(400)
+        .json({
+          message: "Duplicate question numbers are not allowed",
+          status: false,
+        });
+    }
+
+    // Validate each question
+    for (const q of questions) {
+      if (!q.qNo || isNaN(q.qNo) || q.qNo <= 0) {
+        return res
+          .status(400)
+          .json({
+            message: `Invalid question number for qNo: ${q.qNo}`,
+            status: false,
+          });
+      }
+      if (!q.type || typeof q.type !== "string") {
+        return res
+          .status(400)
+          .json({
+            message: `Type is required for qNo: ${q.qNo}`,
+            status: false,
+          });
+      }
+      if (!q.qEnglish || q.qEnglish.trim().length === 0) {
+        return res
+          .status(400)
+          .json({
+            message: `English question text is required for qNo: ${q.qNo}`,
+            status: false,
+          });
+      }
+    }
+
+    // Insert into DB
+    const dbResult = await certificateCompanyDao.bulkInsertQuestionnaires(
+      certificateId,
+      questions
+    );
+
+    res.json({
+      message: "Questionnaires created successfully",
+      status: true,
+      insertedId: dbResult.insertId,
+      affectedRows: dbResult.affectedRows,
+    });
+  } catch (err) {
+    console.error("Error creating questionnaires:", err);
     res
       .status(500)
       .json({ message: "Internal server error", error: err.message });
