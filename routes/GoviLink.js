@@ -22,14 +22,34 @@ router.get(
 router.post(
   "/save-officer-service",
   authMiddleware,
-    GoviLinkEp.saveOfficerService
+  GoviLinkEp.saveOfficerService
 );
 
-router.put("/update-officer-service/:id",  authMiddleware,
-    GoviLinkEp.updateOfficerService);
+router.put("/update-officer-service/:id", authMiddleware,
+  GoviLinkEp.updateOfficerService);
 
-router.get("/get-officer-service-by-id/:id", authMiddleware, GoviLinkEp.getOfficerServiceById);
-router.get("/get-all-officer-service", authMiddleware, GoviLinkEp.getAllOfficerServices);
-router.delete('/officer-service/:id',authMiddleware, GoviLinkEp.deleteOfficerService);
+router.get(
+  "/get-officer-service-by-id/:id",
+  authMiddleware,
+  GoviLinkEp.getOfficerServiceById
+);
+
+router.get(
+  "/get-all-officer-service",
+  authMiddleware,
+  GoviLinkEp.getAllOfficerServices
+);
+
+router.delete(
+  '/officer-service/:id',
+  authMiddleware,
+  GoviLinkEp.deleteOfficerService
+);
+
+router.get(
+  "/get-all-companies",
+  authMiddleware,
+  GoviLinkEp.getAllCompanies
+);
 
 module.exports = router;
