@@ -624,7 +624,10 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
         resolve({
           total,
           items: dataResults,
-          totalCrops: dataResults.reduce((sum, item) => sum + item.CropCount, 0),
+          totalCrops: dataResults.reduce(
+            (sum, item) => sum + item.CropCount,
+            0
+          ),
         });
       });
     });
@@ -870,23 +873,26 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
         bf.id = ?;
     `;
 
-    plantcare.query(getBuildingQuery, [buildingAssetId], (err, buildingResults) => {
-      if (err) {
-        reject("Error fetching building details: " + err);
-        return;
-      }
+    plantcare.query(
+      getBuildingQuery,
+      [buildingAssetId],
+      (err, buildingResults) => {
+        if (err) {
+          reject("Error fetching building details: " + err);
+          return;
+        }
 
-      if (buildingResults.length === 0) {
-        reject("Building not found");
-        return;
-      }
+        if (buildingResults.length === 0) {
+          reject("Building not found");
+          return;
+        }
 
-      const building = buildingResults[0];
-      const ownership = building.ownership;
+        const building = buildingResults[0];
+        const ownership = building.ownership;
 
-      // Define ownership-specific queries
-      const ownershipQueries = {
-        "Own Building (with title ownership)": `
+        // Define ownership-specific queries
+        const ownershipQueries = {
+          "Own Building (with title ownership)": `
           SELECT 
             oof.id,
             oof.buildingAssetId,
@@ -898,7 +904,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
           WHERE 
             oof.buildingAssetId = ?;
         `,
-        "Leased Building": `
+          "Leased Building": `
           SELECT 
             olf.id,
             olf.buildingAssetId,
@@ -912,7 +918,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
           WHERE 
             olf.buildingAssetId = ?;
         `,
-        "Permit Building": `
+          "Permit Building": `
           SELECT 
             opf.id,
             opf.buildingAssetId,
@@ -924,7 +930,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
           WHERE 
             opf.buildingAssetId = ?;
         `,
-        "Shared / No Ownership": `
+          "Shared / No Ownership": `
           SELECT 
             osf.id,
             osf.buildingAssetId,
@@ -934,34 +940,40 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
             ownershipsharedfixedasset osf
           WHERE 
             osf.buildingAssetId = ?;
-        `
-      };
+        `,
+        };
 
-      const ownershipQuery = ownershipQueries[ownership];
+        const ownershipQuery = ownershipQueries[ownership];
 
-      if (!ownershipQuery) {
-        // If no specific ownership query, return just building details
-        resolve({
-          buildingDetails: building,
-          ownershipDetails: null,
-          ownershipType: ownership
-        });
-        return;
-      }
-
-      // Execute the ownership-specific query
-      plantcare.query(ownershipQuery, [buildingAssetId], (err, ownershipResults) => {
-        if (err) {
-          reject("Error fetching ownership details: " + err);
-        } else {
+        if (!ownershipQuery) {
+          // If no specific ownership query, return just building details
           resolve({
             buildingDetails: building,
-            ownershipDetails: ownershipResults.length > 0 ? ownershipResults[0] : null,
-            ownershipType: ownership
+            ownershipDetails: null,
+            ownershipType: ownership,
           });
+          return;
         }
-      });
-    });
+
+        // Execute the ownership-specific query
+        plantcare.query(
+          ownershipQuery,
+          [buildingAssetId],
+          (err, ownershipResults) => {
+            if (err) {
+              reject("Error fetching ownership details: " + err);
+            } else {
+              resolve({
+                buildingDetails: building,
+                ownershipDetails:
+                  ownershipResults.length > 0 ? ownershipResults[0] : null,
+                ownershipType: ownership,
+              });
+            }
+          }
+        );
+      }
+    );
   });
 };
 
@@ -1006,7 +1018,7 @@ exports.getLandOwnershipDetails = (landAssetId) => {
 
       // Define ownership-specific queries for land
       const ownershipQueries = {
-        "Own": `
+        Own: `
           SELECT 
             oof.id,
             oof.buildingAssetId,
@@ -1018,7 +1030,7 @@ exports.getLandOwnershipDetails = (landAssetId) => {
           WHERE 
             oof.landAssetId = ?;
         `,
-        "Lease": `
+        Lease: `
           SELECT 
             olf.id,
             olf.buildingAssetId,
@@ -1032,7 +1044,7 @@ exports.getLandOwnershipDetails = (landAssetId) => {
           WHERE 
             olf.landAssetId = ?;
         `,
-        "Permited": `
+        Permited: `
           SELECT 
             opf.id,
             opf.buildingAssetId,
@@ -1044,7 +1056,7 @@ exports.getLandOwnershipDetails = (landAssetId) => {
           WHERE 
             opf.landAssetId = ?;
         `,
-        "Shared": `
+        Shared: `
           SELECT 
             osf.id,
             osf.buildingAssetId,
@@ -1054,7 +1066,7 @@ exports.getLandOwnershipDetails = (landAssetId) => {
             ownershipsharedfixedasset osf
           WHERE 
             osf.landAssetId = ?;
-        `
+        `,
       };
 
       const ownershipQuery = ownershipQueries[ownership];
@@ -1070,35 +1082,40 @@ exports.getLandOwnershipDetails = (landAssetId) => {
             extentp: extentp,
             district: land.district,
             landFenced: land.landFenced,
-            perennialCrop: land.perennialCrop
+            perennialCrop: land.perennialCrop,
           },
           ownershipDetails: null,
-          ownershipType: ownership
+          ownershipType: ownership,
         });
         return;
       }
 
       // Execute the ownership-specific query
-      plantcare.query(ownershipQuery, [landAssetId], (err, ownershipResults) => {
-        if (err) {
-          reject("Error fetching ownership details: " + err);
-        } else {
-          resolve({
-            landDetails: {
-              landAssetId: land.landAssetId,
-              ownership: land.ownership,
-              extentha: extentha,
-              extentac: extentac,
-              extentp: extentp,
-              district: land.district,
-              landFenced: land.landFenced,
-              perennialCrop: land.perennialCrop
-            },
-            ownershipDetails: ownershipResults.length > 0 ? ownershipResults[0] : null,
-            ownershipType: ownership
-          });
+      plantcare.query(
+        ownershipQuery,
+        [landAssetId],
+        (err, ownershipResults) => {
+          if (err) {
+            reject("Error fetching ownership details: " + err);
+          } else {
+            resolve({
+              landDetails: {
+                landAssetId: land.landAssetId,
+                ownership: land.ownership,
+                extentha: extentha,
+                extentac: extentac,
+                extentp: extentp,
+                district: land.district,
+                landFenced: land.landFenced,
+                perennialCrop: land.perennialCrop,
+              },
+              ownershipDetails:
+                ownershipResults.length > 0 ? ownershipResults[0] : null,
+              ownershipType: ownership,
+            });
+          }
         }
-      });
+      );
     });
   });
 };
@@ -1630,7 +1647,7 @@ exports.createPlantCareUser = (userData) => {
                 membership,
                 language,
                 profileImageUrl,
-                'inactive'
+                "inactive",
               ],
               (insertUserErr, insertUserResults) => {
                 if (insertUserErr) {
@@ -2158,8 +2175,7 @@ exports.editUserTask = (
 //post reply
 exports.getAllPostReplyDao = (postid) => {
   return new Promise((resolve, reject) => {
-    const sql =
-      `SELECT 
+    const sql = `SELECT 
         p.id,
         p.replyStaffId,
         p.replyMessage, 
@@ -2257,7 +2273,7 @@ exports.addNewTaskDao = (task, indexId, cropId) => {
     const values = [
       cropId,
       indexId,
-      task.days,   // <-- use this instead of undefined 'days'
+      task.days, // <-- use this instead of undefined 'days'
       task.taskTypeEnglish,
       task.taskTypeSinhala,
       task.taskTypeTamil,
@@ -3642,7 +3658,16 @@ exports.updateFarmOwnerByIdDao = (ownerId, data, userId) => {
     WHERE id = ?
   `;
 
-  const params = [firstName, lastName, phoneCode, phoneNumber, nic, role, userId, ownerId];
+  const params = [
+    firstName,
+    lastName,
+    phoneCode,
+    phoneNumber,
+    nic,
+    role,
+    userId,
+    ownerId,
+  ];
 
   return new Promise((resolve, reject) => {
     plantcare.query(sql, params, (err, results) => {
@@ -3702,7 +3727,7 @@ exports.getUserFarmDetailsDao = (userId) => {
         // Structure the data: user info + array of farms
         const structuredData = {
           user: null,
-          farms: []
+          farms: [],
         };
 
         if (results.length > 0) {
@@ -3722,12 +3747,13 @@ exports.getUserFarmDetailsDao = (userId) => {
             city: firstRow.userCity,
             district: firstRow.userDistrict,
             route: firstRow.route,
-            language: firstRow.language
+            language: firstRow.language,
           };
 
           // Extract all farms
-          results.forEach(row => {
-            if (row.farmId) { // Only add if farm exists
+          results.forEach((row) => {
+            if (row.farmId) {
+              // Only add if farm exists
               structuredData.farms.push({
                 id: row.farmId,
                 farmName: row.farmName,
@@ -3743,7 +3769,7 @@ exports.getUserFarmDetailsDao = (userId) => {
                 appUserCount: row.appUserCount,
                 imageId: row.imageId,
                 isBlock: row.isBlock,
-                createdAt: row.farmCreatedAt
+                createdAt: row.farmCreatedAt,
               });
             }
           });
@@ -3766,15 +3792,27 @@ exports.deleteFarmDao = (farmId) => {
         if (err) return reject(err);
 
         // Now delete farmstaff rows
-        plantcare.query(`DELETE FROM farmstaff WHERE farmId = ?`, [farmId], (err) => {
-          if (err) return reject(err);
+        plantcare.query(
+          `DELETE FROM farmstaff WHERE farmId = ?`,
+          [farmId],
+          (err) => {
+            if (err) return reject(err);
 
-          // Finally delete the farm
-          plantcare.query(`DELETE FROM farms WHERE id = ?`, [farmId], (err, result) => {
-            if (err) reject(err);
-            else resolve({ message: "Farm and related data deleted successfully", affectedRows: result.affectedRows });
-          });
-        });
+            // Finally delete the farm
+            plantcare.query(
+              `DELETE FROM farms WHERE id = ?`,
+              [farmId],
+              (err, result) => {
+                if (err) reject(err);
+                else
+                  resolve({
+                    message: "Farm and related data deleted successfully",
+                    affectedRows: result.affectedRows,
+                  });
+              }
+            );
+          }
+        );
       }
     );
   });
@@ -3912,7 +3950,7 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
       if (err) return reject(err);
 
       const usersMap = {};
-      results.forEach(row => {
+      results.forEach((row) => {
         if (!usersMap[row.userId]) {
           usersMap[row.userId] = {
             userId: row.userId,
@@ -3974,13 +4012,9 @@ exports.tracktaskAddOngoingCultivation = (userId, id) => {
       WHERE id = ?
     `;
 
-    const values = [
-      userId,
-      id
-    ];
+    const values = [userId, id];
 
     // Ensure that the values array length matches the expected column count
-
 
     plantcare.query(sql, values, (err, results) => {
       if (err) {
@@ -4121,6 +4155,233 @@ exports.resetPassword = (userId, newPassword) => {
       });
     } catch (err) {
       reject(err);
+    }
+  });
+};
+
+exports.GetCompaniesDAO = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, companyName 
+      FROM feildcompany
+    `;
+    plantcare.query(sql, [], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.GetAllManagerList = (companyId) => {
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT id, firstName, lastName FROM feildofficer WHERE companyId = ? AND JobRole = 'Chief Field Officer' AND status = 'active'";
+
+    plantcare.query(sql, [companyId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getForCreateId = (role) => {
+  console.log("role", role);
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT empId FROM feildofficer WHERE empId LIKE ? ORDER BY empId DESC LIMIT 1";
+
+    // Replace 'your_database_connection' with your actual DB connection variable
+    your_database_connection.query(sql, [`${role}%`], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      let newEmpId;
+
+      if (results.length > 0) {
+        const numericPart = parseInt(results[0].empId.substring(3), 10);
+        const incrementedValue = numericPart + 1;
+        newEmpId = `${role}${incrementedValue.toString().padStart(5, "0")}`;
+      } else {
+        // If no records found, start with 00001
+        newEmpId = `${role}00001`;
+      }
+
+      resolve({ empId: newEmpId });
+    });
+  });
+};
+
+exports.checkNICExist = async (nic, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM feildofficer WHERE nic = ?`;
+    const params = [nic];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkEmailExist = async (email, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM feildofficer WHERE email = ?`;
+    const params = [email];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
+  console.log("officer", excludeId);
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count 
+               FROM feildofficer 
+               WHERE (phoneNumber1 = ? OR phoneNumber2 = ?)`;
+    const params = [phoneNumber, phoneNumber];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.getFOIDforCreateEmpIdDao = (employee) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT empId 
+      FROM feildofficer
+      WHERE jobRole = ?
+      ORDER BY 
+        CAST(SUBSTRING(empId FROM 4) AS UNSIGNED) DESC
+      LIMIT 1
+    `;
+    const values = [employee];
+
+    plantcare.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.length === 0) {
+        if (employee === "Field Officer") {
+          return resolve("FIO00001");
+        } else if (employee === "Chief Field Officer") {
+          return resolve("CFO00001");
+        }
+        // ✅ FIXED: Removed the strange character and added proper return
+        return resolve(null);
+      }
+
+      const highestId = results[0].empId;
+
+      // Extract the numeric part
+      const prefix = highestId.substring(0, 3); // Get "FIO" or "CFO"
+      const numberStr = highestId.substring(3); // Get "00007"
+      const number = parseInt(numberStr, 10); // Convert to number 7
+
+      // Increment and format back to 5 digits
+      const nextNumber = number + 1;
+      const nextId = `${prefix}${nextNumber.toString().padStart(5, "0")}`; // "FIO00008" or "CFO00008"
+
+      resolve(nextId);
+    });
+  });
+};
+
+exports.createFieldOfficer = (
+  officerData,
+  profileImageUrl,
+  nicFrontUrl,
+  nicBackUrl,
+  passbookUrl,
+  contractUrl,
+  lastId
+) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // If no image URLs, set them to null
+      const profileUrl = profileImageUrl || null;
+      const frontNicUrl = nicFrontUrl || null;
+      const backNicUrl = nicBackUrl || null;
+      const backPassbookUrl = passbookUrl || null;
+      const contractUrlValue = contractUrl || null;
+
+      const sql = `
+                INSERT INTO feildofficer (
+                    companyId, irmId, firstName, lastName, empType, empId, jobRole, 
+                    phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, language, email, 
+                    nic, house, street, city, distrct, province, country, comAmount, 
+                    accName, accNumber, bank, branch, profile, frontNic, backNic, 
+                    backPassbook, contract, assignDistrict, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            `;
+
+      // Replace 'db' with your actual database connection variable
+      plantcare.query(
+        sql,
+        [
+          officerData.companyId,
+          officerData.irmId,
+          officerData.firstName,
+          officerData.lastName,
+          officerData.empType,
+          lastId,
+          officerData.jobRole,
+          officerData.phoneCode1,
+          officerData.phoneNumber1,
+          officerData.phoneCode2,
+          officerData.phoneNumber2,
+          officerData.language,
+          officerData.email,
+          officerData.nic,
+          officerData.house,
+          officerData.street,
+          officerData.city,
+          officerData.distrct,
+          officerData.province,
+          officerData.country,
+          officerData.comAmount,
+          officerData.accName,
+          officerData.accNumber,
+          officerData.bank,
+          officerData.branch,
+          profileUrl,
+          frontNicUrl,
+          backNicUrl,
+          backPassbookUrl,
+          contractUrlValue,
+          officerData.assignDistrict,
+          "Not Aproved",
+        ],
+        (err, results) => {
+          if (err) {
+            console.log(err);
+            return reject(err); // Reject promise if an error occurs
+          }
+          resolve(results); // Resolve the promise with the query results
+        }
+      );
+    } catch (error) {
+      reject(error); // Reject if any error occurs
     }
   });
 };

@@ -11,7 +11,7 @@ exports.createCompany = async (req, res) => {
 
     // Extract user ID from JWT token (if available in your auth middleware)
     const tokenUserId = req.user?.id || req.user?.userId; // Adjust based on your auth middleware
-    
+
     // Validate the request body based on DAO parameters
     const {
       regNumber,
@@ -31,7 +31,7 @@ exports.createCompany = async (req, res) => {
     } = req.body;
 
     // Use token user ID if available, otherwise use the one from request body
-    const finalModifyBy = tokenUserId || modifyBy || 'system';
+    const finalModifyBy = tokenUserId || modifyBy || "system";
 
     // Check if company name or registration number already exists
     const checkCompany = await GoviLinkDAO.checkCompanyDisplayNameDao(
@@ -133,14 +133,12 @@ exports.getCompanyById = async (req, res) => {
   }
 };
 
-
-
 exports.saveOfficerService = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Request URL:", fullUrl);
 
   try {
-    const { englishName, tamilName, sinhalaName,  srvFee } = req.body;
+    const { englishName, tamilName, sinhalaName, srvFee } = req.body;
 
     // Validation (basic check)
     if (!englishName || !tamilName || !sinhalaName) {
@@ -162,6 +160,184 @@ exports.saveOfficerService = async (req, res) => {
     res.status(500).json({ error: "An error occurred while saving data." });
   }
 };
+
+exports.getAllCompanies = async (req, res) => {
+  try {
+    console.log(req.query);
+    const { search } = req.query;
+    const results = await GoviLinkDAO.getAllCompanyDAO(search);
+
+    console.log("Successfully retrieved all companies");
+    res.json({
+      results,
+      total: results.length,
+    });
+  } catch (err) {
+    console.error("Error fetching companies:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching companies" });
+  }
+};
+
+exports.updateCompany = async (req, res) => {
+  try {
+    // Properly format and log the full URL
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log(`Full URL: ${fullUrl}`);
+
+    // Extract user ID from JWT token (if available in your auth middleware)
+    const tokenUserId = req.user?.id || req.user?.userId; // Adjust based on your auth middleware
+
+    // Extract the company ID from request parameters
+    const id = req.params.id;
+    if (!id) {
+      return res
+        .status(400)
+        .json({ message: "Company ID is required", status: false });
+    }
+
+    // Destructure request body to get the fields
+    const {
+      regNumber,
+      companyName,
+      email,
+      financeOfficerName,
+      accName,
+      accNumber,
+      bank,
+      branch,
+      phoneCode1,
+      phoneNumber1,
+      phoneCode2,
+      phoneNumber2,
+      logo: logoBase64,
+      modifyBy,
+    } = req.body;
+
+    // Use token user ID if available, otherwise use the one from request body
+    const finalModifyBy = tokenUserId || modifyBy || "system";
+
+    // Validate required fields
+    if (!regNumber || !companyName) {
+      return res.status(400).json({
+        message: "Registration number and company name are required",
+        status: false,
+      });
+    }
+
+    // Check if company name or registration number already exists (excluding current company)
+    const checkResult = await GoviLinkDAO.checkCompanyDisplayNameDao(
+      companyName,
+      regNumber,
+      id
+    );
+
+    if (checkResult.exists) {
+      const errors = [];
+      if (checkResult.nameExists) {
+        errors.push("Company name already exists");
+      }
+      if (checkResult.regNumberExists) {
+        errors.push("Registration number already exists");
+      }
+
+      return res.status(409).json({
+        message: errors.join(" and "),
+        nameExists: checkResult.nameExists,
+        regNumberExists: checkResult.regNumberExists,
+        status: false,
+      });
+    }
+
+    // Process logo if provided
+    let logoUrl = null;
+    if (logoBase64) {
+      try {
+        const matches = logoBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const mimeType = matches[1];
+          const buffer = Buffer.from(matches[2], "base64");
+          const timestamp = Date.now();
+          const random = Math.random().toString(36).substring(2, 15);
+          const extension = mimeType.split("/")[1] || "png";
+          const filename = `logo_${timestamp}_${random}.${extension}`;
+          logoUrl = `${req.protocol}://${req.get("host")}/uploads/${filename}`;
+
+          // Note: You'll need to save the buffer to the file system here
+          // Example: await saveFileToUploads(filename, buffer);
+        }
+      } catch (error) {
+        console.error("Error processing logo:", error);
+      }
+    }
+
+    // Call DAO function to update the company record - use finalModifyBy and logoUrl
+    const result = await GoviLinkDAO.updateCompany(
+      id,
+      regNumber,
+      companyName,
+      email,
+      financeOfficerName,
+      accName,
+      accNumber,
+      bank,
+      branch,
+      phoneCode1,
+      phoneNumber1,
+      phoneCode2,
+      phoneNumber2,
+      logoUrl, // Use the processed logo URL instead of raw base64
+      finalModifyBy // Use the secure modifyBy value
+    );
+
+    // Check if any rows were affected (successful update)
+    if (!result || result.affectedRows === 0) {
+      return res.status(404).json({
+        message: "Company not found or no changes made",
+        status: false,
+      });
+    }
+
+    console.log("Company update success");
+    return res
+      .status(200)
+      .json({ message: "Company updated successfully", status: true });
+  } catch (err) {
+    // Log unexpected errors
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error: "An error occurred while updating the company",
+      status: false,
+    });
+  }
+};
+exports.deleteCompany = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const id = req.params.id;
+
+    const affectedRows = await GoviLinkDAO.deleteCompanyById(id);
+
+    if (affectedRows === 0) {
+      return res.status(404).json({ message: "Company not found" });
+    } else {
+      console.log("Company deleted successfully");
+      return res.status(200).json({ status: true });
+    }
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error deleting company:", err);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while deleting the company" });
+  }
+};
+
 
 exports.updateOfficerService = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
