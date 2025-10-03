@@ -4217,3 +4217,174 @@ exports.getForCreateId = (role) => {
     });
   });
 };
+
+exports.checkNICExist = async (nic, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM feildofficer WHERE nic = ?`;
+    const params = [nic];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkEmailExist = async (email, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM feildofficer WHERE email = ?`;
+    const params = [email];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
+  console.log("officer", excludeId);
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count 
+               FROM feildofficer 
+               WHERE (phoneNumber1 = ? OR phoneNumber2 = ?)`;
+    const params = [phoneNumber, phoneNumber];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.getFOIDforCreateEmpIdDao = (employee) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT empId 
+      FROM feildofficer
+      WHERE jobRole = ?
+      ORDER BY 
+        CAST(SUBSTRING(empId FROM 4) AS UNSIGNED) DESC
+      LIMIT 1
+    `;
+    const values = [employee];
+
+    plantcare.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.length === 0) {
+        if (employee === "Field Officer") {
+          return resolve("FIO00001");
+        } else if (employee === "Chief Field Officer") {
+          return resolve("CFO00001");
+        }
+        // ✅ FIXED: Removed the strange character and added proper return
+        return resolve(null);
+      }
+
+      const highestId = results[0].empId;
+
+      // Extract the numeric part
+      const prefix = highestId.substring(0, 3); // Get "FIO" or "CFO"
+      const numberStr = highestId.substring(3); // Get "00007"
+      const number = parseInt(numberStr, 10); // Convert to number 7
+
+      // Increment and format back to 5 digits
+      const nextNumber = number + 1;
+      const nextId = `${prefix}${nextNumber.toString().padStart(5, "0")}`; // "FIO00008" or "CFO00008"
+
+      resolve(nextId);
+    });
+  });
+};
+
+// Rename the DAO function to avoid conflict
+exports.createFieldOfficer = (
+  officerData,
+  profileImageUrl,
+  nicFrontUrl,
+  nicBackUrl,
+  passbookUrl,
+  contractUrl,
+  lastId
+) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // If no image URLs, set them to null
+      const profileUrl = profileImageUrl || null;
+      const frontNicUrl = nicFrontUrl || null;
+      const backNicUrl = nicBackUrl || null;
+      const backPassbookUrl = passbookUrl || null;
+      const contractUrlValue = contractUrl || null;
+
+      const sql = `
+                INSERT INTO feildofficer (
+                    companyId, irmId, firstName, lastName, empType, empId, jobRole, 
+                    phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, language, email, 
+                    nic, house, street, city, distrct, province, country, comAmount, 
+                    accName, accNumber, bank, branch, profile, frontNic, backNic, 
+                    backPassbook, contract, assignDistrict, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            `;
+
+      // Replace 'db' with your actual database connection variable
+      plantcare.query(
+        sql,
+        [
+          officerData.companyId,
+          officerData.irmId,
+          officerData.firstName,
+          officerData.lastName,
+          officerData.empType,
+          lastId,
+          officerData.jobRole,
+          officerData.phoneCode1,
+          officerData.phoneNumber1,
+          officerData.phoneCode2,
+          officerData.phoneNumber2,
+          officerData.language,
+          officerData.email,
+          officerData.nic,
+          officerData.house,
+          officerData.street,
+          officerData.city,
+          officerData.distrct,
+          officerData.province,
+          officerData.country,
+          officerData.comAmount,
+          officerData.accName,
+          officerData.accNumber,
+          officerData.bank,
+          officerData.branch,
+          profileUrl,
+          frontNicUrl,
+          backNicUrl,
+          backPassbookUrl,
+          contractUrlValue,
+          officerData.assignDistrict,
+          "Not Aproved",
+        ],
+        (err, results) => {
+          if (err) {
+            console.log(err);
+            return reject(err); // Reject promise if an error occurs
+          }
+          resolve(results); // Resolve the promise with the query results
+        }
+      );
+    } catch (error) {
+      reject(error); // Reject if any error occurs
+    }
+  });
+};

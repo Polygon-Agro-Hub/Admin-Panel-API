@@ -3323,17 +3323,229 @@ exports.getForCreateId = async (req, res) => {
     const { role } = await ValidateSchema.getRoleShema.validateAsync(
       req.params
     );
-    const results = await FieldOfficerDao.getForCreateId(role);
+    const results = await adminDao.getForCreateId(role);
 
     // Since your DAO function now returns { empId: newEmpId } directly
     // we don't need to check for length anymore
     res.status(200).json({ result: results, status: true });
-    
   } catch (err) {
     if (err.isJoi) {
       return res.status(400).json({ error: err.details[0].message });
     }
     console.error("Error executing query:", err);
     res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+exports.createFieldOfficer = async (req, res) => {
+  console.log('Responce', req.body);
+  
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  const tokenUserId = req.user?.id || req.user?.userId;
+
+  try {
+    // Parse officer data
+    const officerData = JSON.parse(req.body.officerData);
+
+    let validationErrors = [];
+
+    // NIC validation (no excludeId for new creation)
+    const isExistingNIC = await adminDao.checkNICExist(officerData.nic);
+    if (isExistingNIC) {
+      validationErrors.push("NIC");
+    }
+
+    // Email validation (no excludeId for new creation)
+    const isExistingEmail = await adminDao.checkEmailExist(officerData.email);
+    if (isExistingEmail) {
+      validationErrors.push("Email");
+    }
+
+    // Phone number 1 validation (no excludeId for new creation)
+    const isExistingPhoneNumber1 = await adminDao.checkPhoneNumberExist(
+      officerData.phoneNumber1
+    );
+    if (isExistingPhoneNumber1) {
+      validationErrors.push("PhoneNumber1");
+    }
+
+    // Phone number 2 validation (optional)
+    if (officerData.phoneNumber2) {
+      const isExistingPhoneNumber2 = await adminDao.checkPhoneNumberExist(
+        officerData.phoneNumber2
+      );
+      if (isExistingPhoneNumber2) {
+        validationErrors.push("PhoneNumber2");
+      }
+    }
+
+    // If any errors, return them all at once
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        errors: validationErrors,
+        status: false,
+      });
+    }
+
+    // Generate employee ID
+    const lastId = await adminDao.getFOIDforCreateEmpIdDao(officerData.jobRole);
+    console.log("LastId", lastId);
+
+    // Handle file uploads
+    let profileImageUrl = null;
+    let nicFrontUrl = null;
+    let nicBackUrl = null;
+    let passbookUrl = null;
+    let contractUrl = null;
+
+    // Process profile image
+    if (req.body.profileImage) {
+      try {
+        const base64String = req.body.profileImage.split(",")[1];
+        const mimeType = req.body.profileImage.match(/data:(.*?);base64,/)[1];
+        const fileBuffer = Buffer.from(base64String, "base64");
+        const fileExtension = mimeType.split("/")[1];
+        const fileName = `${officerData.firstName}_${officerData.lastName}_profile.${fileExtension}`;
+
+        profileImageUrl = await uploadFileToS3(
+          fileBuffer,
+          fileName,
+          "fieldofficer/profile"
+        );
+      } catch (err) {
+        console.error("Error processing profile image:", err);
+        return res.status(400).json({ error: "Invalid profile image format" });
+      }
+    }
+
+    // Process NIC front image
+    if (req.body.nicFront) {
+      try {
+        const base64String = req.body.nicFront.split(",")[1];
+        const mimeType = req.body.nicFront.match(/data:(.*?);base64,/)[1];
+        const fileBuffer = Buffer.from(base64String, "base64");
+        const fileExtension = mimeType.split("/")[1];
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.${fileExtension}`;
+
+        nicFrontUrl = await uploadFileToS3(
+          fileBuffer,
+          fileName,
+          "fieldofficer/nic"
+        );
+      } catch (err) {
+        console.error("Error processing NIC front image:", err);
+        return res
+          .status(400)
+          .json({ error: "Invalid NIC front image format" });
+      }
+    }
+
+    // Process NIC back image
+    if (req.body.nicBack) {
+      try {
+        const base64String = req.body.nicBack.split(",")[1];
+        const mimeType = req.body.nicBack.match(/data:(.*?);base64,/)[1];
+        const fileBuffer = Buffer.from(base64String, "base64");
+        const fileExtension = mimeType.split("/")[1];
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.${fileExtension}`;
+
+        nicBackUrl = await uploadFileToS3(
+          fileBuffer,
+          fileName,
+          "fieldofficer/nic"
+        );
+      } catch (err) {
+        console.error("Error processing NIC back image:", err);
+        return res.status(400).json({ error: "Invalid NIC back image format" });
+      }
+    }
+
+    // Process passbook image
+    if (req.body.passbook) {
+      try {
+        const base64String = req.body.passbook.split(",")[1];
+        const mimeType = req.body.passbook.match(/data:(.*?);base64,/)[1];
+        const fileBuffer = Buffer.from(base64String, "base64");
+        const fileExtension = mimeType.split("/")[1];
+        const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.${fileExtension}`;
+
+        passbookUrl = await uploadFileToS3(
+          fileBuffer,
+          fileName,
+          "fieldofficer/passbook"
+        );
+      } catch (err) {
+        console.error("Error processing passbook image:", err);
+        return res.status(400).json({ error: "Invalid passbook image format" });
+      }
+    }
+
+    // Process contract document
+    if (req.body.contract) {
+      try {
+        const base64String = req.body.contract.split(",")[1];
+        const mimeType = req.body.contract.match(/data:(.*?);base64,/)[1];
+        const fileBuffer = Buffer.from(base64String, "base64");
+        const fileExtension = mimeType.split("/")[1];
+        const fileName = `${officerData.firstName}_${officerData.lastName}_contract.${fileExtension}`;
+
+        contractUrl = await uploadFileToS3(
+          fileBuffer,
+          fileName,
+          "fieldofficer/contract"
+        );
+      } catch (err) {
+        console.error("Error processing contract document:", err);
+        return res
+          .status(400)
+          .json({ error: "Invalid contract document format" });
+      }
+    }
+
+    // Set modifyBy for the officer data
+    officerData.modifyBy = tokenUserId;
+
+    // Handle irmId logic based on job role
+    if (
+      officerData.jobRole === "Field Officer" ||
+      officerData.jobRole === "Chief Field Officer"
+    ) {
+      officerData.irmId = null;
+    }
+
+    // Create field officer with all document URLs
+    const results = await adminDao.createFieldOfficer(
+      officerData,
+      profileImageUrl,
+      nicFrontUrl,
+      nicBackUrl,
+      passbookUrl,
+      contractUrl,
+      lastId
+    );
+
+    console.log("Field Officer created successfully");
+    return res.status(201).json({
+      message: "Field Officer created successfully",
+      id: results.insertId,
+      status: true,
+    });
+  } catch (error) {
+    console.error("Error creating field officer:", error);
+
+    // Handle specific error types
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    if (error instanceof SyntaxError) {
+      return res.status(400).json({ error: "Invalid JSON in officerData" });
+    }
+
+    return res.status(500).json({
+      error: "An error occurred while creating the field officer",
+    });
   }
 };

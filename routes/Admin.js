@@ -388,4 +388,17 @@ router.get(
 
 router.get("/get-last-emp-id/:role", authMiddleware, AdminEp.getForCreateId);
 
+router.post(
+  "/create-field-officer",
+  authMiddleware,
+  upload.fields([
+    { name: "profileImage", maxCount: 1 },
+    { name: "nicFront", maxCount: 1 },
+    { name: "nicBack", maxCount: 1 },
+    { name: "passbook", maxCount: 1 },
+    { name: "contract", maxCount: 1 },
+  ]),
+  AdminEp.createFieldOfficer
+);
+
 module.exports = router;
