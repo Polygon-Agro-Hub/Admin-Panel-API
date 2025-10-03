@@ -4165,9 +4165,9 @@ exports.GetCompaniesDAO = () => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT id, companyName 
-      FROM fieldcompany
+      FROM feildcompany
     `;
-    collectionofficer.query(sql, [], (err, results) => {
+    plantcare.query(sql, [], (err, results) => {
       if (err) {
         return reject(err);
       }
