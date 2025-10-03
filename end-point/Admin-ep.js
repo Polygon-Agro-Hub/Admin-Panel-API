@@ -3299,10 +3299,10 @@ exports.getAllManagerList = async (req, res) => {
     if (result.length === 0) {
       return res
         .status(404)
-        .json({ message: "No collection Managers found", data: result });
+        .json({ message: "No Fieald Officer found", data: result });
     }
 
-    console.log("Successfully retrieved all collection Managers");
+    console.log("Successfully retrieved all Field Officer Managers");
     res.json(result);
   } catch (err) {
     if (err.isJoi) {
