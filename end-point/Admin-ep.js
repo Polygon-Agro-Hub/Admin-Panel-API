@@ -3338,10 +3338,8 @@ exports.getForCreateId = async (req, res) => {
 };
 
 exports.createFieldOfficer = async (req, res) => {
-  console.log('Responce', req.body);
-  
-  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log(fullUrl);
+  console.log("Request received", req.body);
+  console.log("Files:", req.files);
 
   const tokenUserId = req.user?.id || req.user?.userId;
 
@@ -3351,19 +3349,19 @@ exports.createFieldOfficer = async (req, res) => {
 
     let validationErrors = [];
 
-    // NIC validation (no excludeId for new creation)
+    // NIC validation
     const isExistingNIC = await adminDao.checkNICExist(officerData.nic);
     if (isExistingNIC) {
       validationErrors.push("NIC");
     }
 
-    // Email validation (no excludeId for new creation)
+    // Email validation
     const isExistingEmail = await adminDao.checkEmailExist(officerData.email);
     if (isExistingEmail) {
       validationErrors.push("Email");
     }
 
-    // Phone number 1 validation (no excludeId for new creation)
+    // Phone number validation
     const isExistingPhoneNumber1 = await adminDao.checkPhoneNumberExist(
       officerData.phoneNumber1
     );
@@ -3371,7 +3369,6 @@ exports.createFieldOfficer = async (req, res) => {
       validationErrors.push("PhoneNumber1");
     }
 
-    // Phone number 2 validation (optional)
     if (officerData.phoneNumber2) {
       const isExistingPhoneNumber2 = await adminDao.checkPhoneNumberExist(
         officerData.phoneNumber2
@@ -3381,7 +3378,6 @@ exports.createFieldOfficer = async (req, res) => {
       }
     }
 
-    // If any errors, return them all at once
     if (validationErrors.length > 0) {
       return res.status(400).json({
         errors: validationErrors,
@@ -3391,9 +3387,9 @@ exports.createFieldOfficer = async (req, res) => {
 
     // Generate employee ID
     const lastId = await adminDao.getFOIDforCreateEmpIdDao(officerData.jobRole);
-    console.log("LastId", lastId);
+    console.log("Generated Employee ID:", lastId);
 
-    // Handle file uploads
+    // Handle file uploads from multipart form
     let profileImageUrl = null;
     let nicFrontUrl = null;
     let nicBackUrl = null;
@@ -3401,19 +3397,18 @@ exports.createFieldOfficer = async (req, res) => {
     let contractUrl = null;
 
     // Process profile image
-    if (req.body.profileImage) {
+    if (req.files && req.files.profileImage) {
       try {
-        const base64String = req.body.profileImage.split(",")[1];
-        const mimeType = req.body.profileImage.match(/data:(.*?);base64,/)[1];
-        const fileBuffer = Buffer.from(base64String, "base64");
-        const fileExtension = mimeType.split("/")[1];
+        const file = req.files.profileImage[0];
+        const fileExtension = file.originalname.split(".").pop();
         const fileName = `${officerData.firstName}_${officerData.lastName}_profile.${fileExtension}`;
 
         profileImageUrl = await uploadFileToS3(
-          fileBuffer,
+          file.buffer,
           fileName,
           "fieldofficer/profile"
         );
+        console.log("Profile image uploaded:", profileImageUrl);
       } catch (err) {
         console.error("Error processing profile image:", err);
         return res.status(400).json({ error: "Invalid profile image format" });
@@ -3421,19 +3416,18 @@ exports.createFieldOfficer = async (req, res) => {
     }
 
     // Process NIC front image
-    if (req.body.nicFront) {
+    if (req.files && req.files.nicFront) {
       try {
-        const base64String = req.body.nicFront.split(",")[1];
-        const mimeType = req.body.nicFront.match(/data:(.*?);base64,/)[1];
-        const fileBuffer = Buffer.from(base64String, "base64");
-        const fileExtension = mimeType.split("/")[1];
+        const file = req.files.nicFront[0];
+        const fileExtension = file.originalname.split(".").pop();
         const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.${fileExtension}`;
 
         nicFrontUrl = await uploadFileToS3(
-          fileBuffer,
+          file.buffer,
           fileName,
           "fieldofficer/nic"
         );
+        console.log("NIC front uploaded:", nicFrontUrl);
       } catch (err) {
         console.error("Error processing NIC front image:", err);
         return res
@@ -3443,19 +3437,18 @@ exports.createFieldOfficer = async (req, res) => {
     }
 
     // Process NIC back image
-    if (req.body.nicBack) {
+    if (req.files && req.files.nicBack) {
       try {
-        const base64String = req.body.nicBack.split(",")[1];
-        const mimeType = req.body.nicBack.match(/data:(.*?);base64,/)[1];
-        const fileBuffer = Buffer.from(base64String, "base64");
-        const fileExtension = mimeType.split("/")[1];
+        const file = req.files.nicBack[0];
+        const fileExtension = file.originalname.split(".").pop();
         const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.${fileExtension}`;
 
         nicBackUrl = await uploadFileToS3(
-          fileBuffer,
+          file.buffer,
           fileName,
           "fieldofficer/nic"
         );
+        console.log("NIC back uploaded:", nicBackUrl);
       } catch (err) {
         console.error("Error processing NIC back image:", err);
         return res.status(400).json({ error: "Invalid NIC back image format" });
@@ -3463,19 +3456,18 @@ exports.createFieldOfficer = async (req, res) => {
     }
 
     // Process passbook image
-    if (req.body.passbook) {
+    if (req.files && req.files.passbook) {
       try {
-        const base64String = req.body.passbook.split(",")[1];
-        const mimeType = req.body.passbook.match(/data:(.*?);base64,/)[1];
-        const fileBuffer = Buffer.from(base64String, "base64");
-        const fileExtension = mimeType.split("/")[1];
+        const file = req.files.passbook[0];
+        const fileExtension = file.originalname.split(".").pop();
         const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.${fileExtension}`;
 
         passbookUrl = await uploadFileToS3(
-          fileBuffer,
+          file.buffer,
           fileName,
           "fieldofficer/passbook"
         );
+        console.log("Passbook uploaded:", passbookUrl);
       } catch (err) {
         console.error("Error processing passbook image:", err);
         return res.status(400).json({ error: "Invalid passbook image format" });
@@ -3483,19 +3475,18 @@ exports.createFieldOfficer = async (req, res) => {
     }
 
     // Process contract document
-    if (req.body.contract) {
+    if (req.files && req.files.contract) {
       try {
-        const base64String = req.body.contract.split(",")[1];
-        const mimeType = req.body.contract.match(/data:(.*?);base64,/)[1];
-        const fileBuffer = Buffer.from(base64String, "base64");
-        const fileExtension = mimeType.split("/")[1];
+        const file = req.files.contract[0];
+        const fileExtension = file.originalname.split(".").pop();
         const fileName = `${officerData.firstName}_${officerData.lastName}_contract.${fileExtension}`;
 
         contractUrl = await uploadFileToS3(
-          fileBuffer,
+          file.buffer,
           fileName,
           "fieldofficer/contract"
         );
+        console.log("Contract uploaded:", contractUrl);
       } catch (err) {
         console.error("Error processing contract document:", err);
         return res
@@ -3514,6 +3505,14 @@ exports.createFieldOfficer = async (req, res) => {
     ) {
       officerData.irmId = null;
     }
+
+    console.log("Creating field officer with data:", {
+      profileImageUrl,
+      nicFrontUrl,
+      nicBackUrl,
+      passbookUrl,
+      contractUrl,
+    });
 
     // Create field officer with all document URLs
     const results = await adminDao.createFieldOfficer(
@@ -3546,6 +3545,7 @@ exports.createFieldOfficer = async (req, res) => {
 
     return res.status(500).json({
       error: "An error occurred while creating the field officer",
+      details: error.message,
     });
   }
 };
