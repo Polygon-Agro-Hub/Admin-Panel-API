@@ -4154,7 +4154,7 @@ exports.getFieldOfficerByIdDAO = (id) => {
         ? officer.assignDistrict.split(',').map(d => d.trim())
         : [];
       resolve({
-        collectionOfficer: {
+        fieldOfficer: {
           id: officer.id,
           firstName: officer.firstName,
           lastName: officer.lastName,
