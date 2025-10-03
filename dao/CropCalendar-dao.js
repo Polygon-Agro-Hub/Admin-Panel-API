@@ -793,3 +793,21 @@ exports.cropGroupsDao = async (id) => {
     });
   });
 };
+
+// Get all crop groups with only id and cropNameEnglish
+exports.getAllCropGroupEnglishNamesOnly = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, cropNameEnglish 
+      FROM cropgroup 
+      ORDER BY cropNameEnglish ASC
+    `;
+    plantcare.query(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
