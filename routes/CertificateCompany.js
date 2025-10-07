@@ -17,42 +17,43 @@ const upload = multer({
 
 
 // Create new certificate company
-router.post("/", 
+router.post(
+  "/company/", 
   authMiddleware, 
   certificateCompanyEp.createCertificateCompany
 );
 
 // Get all certificate companies
 router.get(
-  "/all",
+  "/company/all",
   authMiddleware,
   certificateCompanyEp.getAllCertificateCompanies
 );
 
 // Get by ID
 router.get(
-  "/:id", 
+  "/company/:id", 
   authMiddleware,
   certificateCompanyEp.getCertificateCompanyById
 );
 
 // Update
 router.put(
-  "/:id", 
+  "/company/:id", 
   authMiddleware,
   certificateCompanyEp.updateCertificateCompany
 );
 
 // Delete company by ID
 router.delete(
-  "/:id",
+  "/company/:id",
   authMiddleware,
   certificateCompanyEp.deleteCertificateCompany
 );
 
 // Get all certificate companies 
 router.get(
-  "/all/names-only",
+  "/company/all/names-only",
   authMiddleware,
   certificateCompanyEp.getAllCertificateCompaniesNamesAndIdOnly
 );
@@ -70,6 +71,27 @@ router.post(
   "/questionnaire/create",
   authMiddleware,
   certificateCompanyEp.createQuestionnaire
+);
+
+// Get list by certificate questionnaires
+router.get(
+  "/questionnaire/:certificateId",  
+  authMiddleware,
+  certificateCompanyEp.getQuestionnaireList
+);
+
+// Update questionnaire
+router.put(
+  "/questionnaire/:id",   
+  authMiddleware,
+  certificateCompanyEp.updateQuestionnaire
+);
+
+// Delete questionnaire
+router.delete(
+  "/questionnaire/:id",   
+  authMiddleware,
+  certificateCompanyEp.deleteQuestionnaire
 );
 
 module.exports = router;

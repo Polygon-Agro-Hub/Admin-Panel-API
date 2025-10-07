@@ -1,9 +1,16 @@
 const certificateCompanyDao = require("../dao/CertificateCompany-dao");
 const uploadFileToS3 = require("../middlewares/s3upload");
+const ValidateSchema = require("../validations/CertificateCompany-validation");
 
 // Create a new certificate company
 exports.createCertificateCompany = async (req, res) => {
   try {
+    // Validate input with Joi
+    const value =
+      await ValidateSchema.createCertificateCompanyValidation.validateAsync(
+        req.body
+      );
+
     const {
       companyName,
       regNumber,
@@ -13,43 +20,20 @@ exports.createCertificateCompany = async (req, res) => {
       phoneCode2,
       phoneNumber2,
       address,
-    } = req.body;
-
-    if (
-      !companyName ||
-      !regNumber ||
-      !taxId ||
-      !phoneCode1 ||
-      !phoneNumber1 ||
-      !address
-    ) {
-      return res.status(400).json({
-        message: "Missing required fields",
-        status: false,
-      });
-    }
+    } = value;
 
     // Get userId from JWT
     const userId = req.user?.userId;
     if (!userId) {
-      return res.status(401).json({
-        message: "Unauthorized. User ID not found.",
-        status: false,
-      });
+      return res.status(401).json({ message: "Unauthorized", status: false });
     }
 
-    // Phone number validation
+    // Validate Sri Lankan phone rule
     const validatePhone = (dialCode, number, required = false) => {
       if (required && !number) return false;
-
       if (!number) return true;
-
-      // Sri Lanka (+94) → exactly 9 digits
       if (dialCode === "+94" && !/^[0-9]{9}$/.test(number)) return false;
-
-      // Other countries → only numbers allowed
       if (dialCode !== "+94" && !/^[0-9]+$/.test(number)) return false;
-
       return true;
     };
 
@@ -73,7 +57,6 @@ exports.createCertificateCompany = async (req, res) => {
       });
     }
 
-    // Same number check
     if (phoneNumber1 && phoneNumber2 && phoneNumber1 === phoneNumber2) {
       return res.status(400).json({
         message: "Phone Number 1 and Phone Number 2 cannot be the same",
@@ -90,7 +73,6 @@ exports.createCertificateCompany = async (req, res) => {
       });
     }
 
-    // Create new record
     const insertId = await certificateCompanyDao.createCertificateCompany(
       companyName,
       regNumber,
@@ -103,17 +85,16 @@ exports.createCertificateCompany = async (req, res) => {
       userId
     );
 
-    return res.status(201).json({
+    res.status(201).json({
       message: "Certificate company created successfully",
       id: insertId,
       status: true,
     });
   } catch (err) {
     console.error("Error creating certificate company:", err);
-    res.status(500).json({
-      message: "An error occurred while creating certificate company",
-      error: err.message,
-    });
+    const message =
+      err.isJoi && err.details ? err.details[0].message : err.message;
+    res.status(400).json({ message, status: false });
   }
 };
 
@@ -284,11 +265,30 @@ exports.deleteCertificateCompany = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Validate id param
+    const { error } = ValidateSchema.getByIdSchema.validate({ id });
+    if (error) {
+      return res.status(400).json({
+        message: error.details[0].message,
+        status: false,
+      });
+    }
+
+    // Check if company exists
+    const existing = await certificateCompanyDao.getCertificateCompanyById(id);
+    if (!existing || existing.length === 0) {
+      return res.status(404).json({
+        message: "Certificate company not found",
+        status: false,
+      });
+    }
+
+    // Perform delete
     const deleted = await certificateCompanyDao.deleteCertificateCompany(id);
 
     if (!deleted) {
       return res.status(404).json({
-        message: "Certificate company not found",
+        message: "Certificate company not found or already deleted",
         status: false,
       });
     }
@@ -302,6 +302,7 @@ exports.deleteCertificateCompany = async (req, res) => {
     res.status(500).json({
       message: "An error occurred while deleting certificate company",
       error: err.message,
+      status: false,
     });
   }
 };
@@ -329,8 +330,11 @@ exports.createCertificate = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized", status: false });
     }
 
-    // Extract fields from FormData
-    const {
+    // Validate request body
+    const validated =
+      await ValidateSchema.createCertificateValidation.validateAsync(req.body);
+
+    let {
       srtcomapnyId,
       srtName,
       srtNumber,
@@ -339,72 +343,43 @@ exports.createCertificate = async (req, res) => {
       price,
       timeLine,
       commission,
+      serviceAreas,
+      cropIds,
       scope,
-    } = req.body;
+    } = validated;
 
-    let serviceAreas = req.body.serviceAreas || [];
-    let cropIds = req.body.cropIds || [];
+    // --- Normalize serviceAreas ---
+    if (typeof serviceAreas === "string") {
+      try {
+        const parsed = JSON.parse(serviceAreas);
+        if (Array.isArray(parsed)) {
+          serviceAreas = parsed.join(",");
+        } else {
+          serviceAreas = serviceAreas;
+        }
+      } catch {
+        serviceAreas = serviceAreas;
+      }
+    } else if (Array.isArray(serviceAreas)) {
+      serviceAreas = serviceAreas.join(",");
+    }
 
-    if (!Array.isArray(serviceAreas)) serviceAreas = [serviceAreas];
+    // --- Normalize cropIds ---
+    if (typeof cropIds === "string") {
+      try {
+        const parsed = JSON.parse(cropIds);
+        if (Array.isArray(parsed)) {
+          cropIds = parsed;
+        } else {
+          cropIds = [parsed];
+        }
+      } catch {
+        cropIds = cropIds.split(",").map((s) => s.trim());
+      }
+    }
     if (!Array.isArray(cropIds)) cropIds = [cropIds];
 
-    // Basic Validation
-    if (!srtcomapnyId) {
-      return res
-        .status(400)
-        .json({ message: "Company ID is required", status: false });
-    }
-    if (!srtName || srtName.trim().length === 0) {
-      return res
-        .status(400)
-        .json({ message: "Certificate name is required", status: false });
-    }
-    if (!srtNumber) {
-      return res
-        .status(400)
-        .json({ message: "Certificate number is required", status: false });
-    }
-    if (!applicable) {
-      return res
-        .status(400)
-        .json({ message: "Applicable field is required", status: false });
-    }
-    if (!accreditation) {
-      return res
-        .status(400)
-        .json({ message: "Accreditation is required", status: false });
-    }
-
-    // Number validations
-    if (price && isNaN(price)) {
-      return res
-        .status(400)
-        .json({ message: "Price must be a valid number", status: false });
-    }
-    if (
-      commission &&
-      (isNaN(commission) || commission < 0 || commission > 100)
-    ) {
-      return res.status(400).json({
-        message: "Enter a valid commission between 0 and 100",
-        status: false,
-      });
-    }
-
-    // Arrays validation
-    if (!Array.isArray(serviceAreas) || serviceAreas.length === 0) {
-      return res.status(400).json({
-        message: "At least one service area is required",
-        status: false,
-      });
-    }
-    if (!Array.isArray(cropIds) || cropIds.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "At least one crop is required", status: false });
-    }
-
-    // Upload PDF if exists
+    // --- Upload PDF (optional) ---
     let tearmsUrl = null;
     if (req.file) {
       tearmsUrl = await uploadFileToS3(
@@ -414,7 +389,7 @@ exports.createCertificate = async (req, res) => {
       );
     }
 
-    // Insert certificate
+    // --- Insert certificate ---
     const certificateId = await certificateCompanyDao.createCertificate({
       srtcomapnyId,
       srtName,
@@ -430,7 +405,6 @@ exports.createCertificate = async (req, res) => {
       modifyBy: userId,
     });
 
-    //  Insert crops
     await certificateCompanyDao.addCertificateCrops(certificateId, cropIds);
 
     res.json({
@@ -440,9 +414,9 @@ exports.createCertificate = async (req, res) => {
     });
   } catch (err) {
     console.error("Error creating certificate:", err);
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: err.message });
+    const message =
+      err.isJoi && err.details ? err.details[0].message : err.message;
+    res.status(400).json({ message, status: false });
   }
 };
 
@@ -454,60 +428,22 @@ exports.createQuestionnaire = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized", status: false });
     }
 
-    const { certificateId, questions } = req.body;
+    // Validate input using Joi
+    const { certificateId, questions } =
+      await ValidateSchema.createQuestionnaireSchema.validateAsync(req.body, {
+        abortEarly: false,
+      });
 
-    // Base validations
-    if (!certificateId) {
-      return res
-        .status(400)
-        .json({ message: "Certificate ID is required", status: false });
-    }
-    if (!Array.isArray(questions) || questions.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "At least one question is required", status: false });
-    }
-
-    // Validate duplicates in qNo
+    // Validate duplicates manually (still useful)
     const qNos = questions.map((q) => q.qNo);
     if (new Set(qNos).size !== qNos.length) {
-      return res
-        .status(400)
-        .json({
-          message: "Duplicate question numbers are not allowed",
-          status: false,
-        });
+      return res.status(400).json({
+        message: "Duplicate question numbers are not allowed",
+        status: false,
+      });
     }
 
-    // Validate each question
-    for (const q of questions) {
-      if (!q.qNo || isNaN(q.qNo) || q.qNo <= 0) {
-        return res
-          .status(400)
-          .json({
-            message: `Invalid question number for qNo: ${q.qNo}`,
-            status: false,
-          });
-      }
-      if (!q.type || typeof q.type !== "string") {
-        return res
-          .status(400)
-          .json({
-            message: `Type is required for qNo: ${q.qNo}`,
-            status: false,
-          });
-      }
-      if (!q.qEnglish || q.qEnglish.trim().length === 0) {
-        return res
-          .status(400)
-          .json({
-            message: `English question text is required for qNo: ${q.qNo}`,
-            status: false,
-          });
-      }
-    }
-
-    // Insert into DB
+    // DB insert
     const dbResult = await certificateCompanyDao.bulkInsertQuestionnaires(
       certificateId,
       questions
@@ -520,7 +456,114 @@ exports.createQuestionnaire = async (req, res) => {
       affectedRows: dbResult.affectedRows,
     });
   } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({
+        message: "Validation failed",
+        details: err.details.map((d) => d.message),
+        status: false,
+      });
+    }
     console.error("Error creating questionnaires:", err);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
+  }
+};
+
+// Get Questionnaire List
+exports.getQuestionnaireList = async (req, res) => {
+  try {
+    const { certificateId } =
+      await ValidateSchema.getQuestionnaireListSchema.validateAsync(req.params);
+
+    const questionnaires = await certificateCompanyDao.getQuestionnaireList(
+      certificateId
+    );
+
+    res.json({
+      message: "Questionnaire list fetched successfully",
+      status: true,
+      data: questionnaires,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({
+        message: "Validation failed",
+        details: err.details.map((d) => d.message),
+        status: false,
+      });
+    }
+    console.error("Error fetching questionnaire list:", err);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
+  }
+};
+
+// Update Questionnaire
+exports.updateQuestionnaire = async (req, res) => {
+  try {
+    const validated =
+      await ValidateSchema.updateQuestionnaireSchema.validateAsync(
+        { ...req.params, ...req.body },
+        { abortEarly: false }
+      );
+
+    const result = await certificateCompanyDao.updateQuestionnaire(
+      validated.id,
+      validated
+    );
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ message: "Questionnaire not found", status: false });
+    }
+
+    res.json({ message: "Questionnaire updated successfully", status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({
+        message: "Validation failed",
+        details: err.details.map((d) => d.message),
+        status: false,
+      });
+    }
+    console.error("Error updating questionnaire:", err);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
+  }
+};
+
+// Delete Questionnaire
+exports.deleteQuestionnaire = async (req, res) => {
+  try {
+    const { id } = await ValidateSchema.deleteQuestionnaireSchema.validateAsync(
+      req.params
+    );
+
+    const result = await certificateCompanyDao.deleteQuestionnaire(id);
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ message: "Questionnaire not found", status: false });
+    }
+
+    res.json({
+      message: "Questionnaire deleted successfully",
+      status: true,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({
+        message: "Validation failed",
+        details: err.details.map((d) => d.message),
+        status: false,
+      });
+    }
+    console.error("Error deleting questionnaire:", err);
     res
       .status(500)
       .json({ message: "Internal server error", error: err.message });
