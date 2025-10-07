@@ -1367,7 +1367,7 @@ exports.editPackage = async (req, res) => {
     if (exists) {
       return res.json({
         status: false,
-        message: "Display name allready exist!",
+        message: "A package with this display name already exists. Please choose a different name.",
       });
     }
 

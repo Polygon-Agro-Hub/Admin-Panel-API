@@ -81,7 +81,7 @@ exports.createCropGroup = async (req, res) => {
 
     console.log("crop group creation success");
     return res.status(201).json({
-      message: "crop group created successfully",
+      message: "Crop group has been created successfully",
       id: newsId,
       status: true,
     });
