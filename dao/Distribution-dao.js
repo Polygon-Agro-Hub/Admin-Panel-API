@@ -440,7 +440,7 @@ exports.createDistributionHeadPersonal = (
 
       const sql = `
                 INSERT INTO collectionofficer (
-                    centerId, companyId, irmId, firstNameEnglish, lastNameEnglish,
+                    distributedCenterId, companyId, irmId, firstNameEnglish, lastNameEnglish,
                     jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
                     languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
@@ -1037,7 +1037,7 @@ exports.getAllDistributionOfficers = (
             SELECT COUNT(*) as total
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
-            LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
+            LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
             WHERE coff.jobRole IN ('Distribution Centre Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
@@ -1058,7 +1058,7 @@ exports.getAllDistributionOfficers = (
                 dc.centerName
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
-            LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
+            LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
             WHERE coff.jobRole IN ('Distribution Centre Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
@@ -1107,8 +1107,8 @@ exports.getAllDistributionOfficers = (
     }
 
     if (centerId) {
-      countSql += " AND coff.centerId = ?";
-      dataSql += " AND coff.centerId = ?";
+      countSql += " AND coff.distributedCenterId = ?";
+      dataSql += " AND coff.distributedCenterId = ?";
       countParams.push(centerId);
       dataParams.push(centerId);
     }
@@ -1630,7 +1630,7 @@ exports.GetDistributionCentersByCompanyIdDAO = (companyId) => {
 exports.GetAllDistributionManagerList = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND centerId = ?";
+      "SELECT id, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND distributedCenterId = ?";
     collectionofficer.query(sql, [companyId, centerId], (err, results) => {
       if (err) {
         return reject(err);
@@ -1931,7 +1931,7 @@ exports.getEachDistributedCenterOfficersDao = (data, status, role, searchText) =
         phoneNumber01,
         nic
       FROM collectionofficer 
-      WHERE companyId = ? AND centerId = ? AND jobRole IN ('Distribution Centre Manager', 'Distribution Officer')
+      WHERE companyId = ? AND distributedCenterId = ? AND jobRole IN ('Distribution Centre Manager', 'Distribution Officer')
       `;
 
     if (status) {
