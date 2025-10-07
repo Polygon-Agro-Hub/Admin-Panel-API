@@ -417,4 +417,17 @@ router.delete(
   AdminEp.deleteFieldOfficer
 );
 
+router.put(
+  "/update-field-officers/:id",
+  authMiddleware,
+  upload.fields([
+    { name: "profileImage", maxCount: 1 },
+    { name: "nicFront", maxCount: 1 },
+    { name: "nicBack", maxCount: 1 },
+    { name: "passbook", maxCount: 1 },
+    { name: "contract", maxCount: 1 },
+  ]),
+  AdminEp.updateFieldOfficer
+);
+
 module.exports = router;
