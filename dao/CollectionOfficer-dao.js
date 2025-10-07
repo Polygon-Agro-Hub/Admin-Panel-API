@@ -1434,13 +1434,16 @@ exports.getOfficerByIdDAO = (id) => {
           SELECT 
               COF.*,
               COM.companyNameEnglish,
-              CEN.centerName
+              CEN.centerName,
+              DC.centerName AS distributedCenterName
           FROM 
               collectionofficer COF
           JOIN 
               company COM ON COF.companyId = COM.id
           LEFT JOIN 
               collectioncenter CEN ON COF.centerId = CEN.id
+          LEFT JOIN 
+              distributedcenter DC ON COF.distributedCenterId = DC.id
           WHERE 
               COF.id = ?`;
 
@@ -1495,6 +1498,7 @@ exports.getOfficerByIdDAO = (id) => {
           branchName: officer.branchName,
           companyNameEnglish: officer.companyNameEnglish,
           centerName: officer.centerName,
+          distributedCenterName: officer.distributedCenterName || null
         },
       });
     });
@@ -1505,7 +1509,7 @@ exports.disclaimOfficerDetailsDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
           UPDATE collectionofficer
-          SET centerId = NULL, irmId = NULL, claimStatus = 0
+          SET centerId = NULL, distributedCenterId = NULL, irmId = NULL, claimStatus = 0
           WHERE id = ?
       `;
     collectionofficer.query(sql, [id], (err, results) => {
