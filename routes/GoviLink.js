@@ -1,35 +1,52 @@
-const express = require('express');
-const GoviLinkEp = require('../end-point/GoviLink-ep');
-const authMiddleware = require('../middlewares/authMiddleware');
-const multer = require('multer');
+const express = require("express");
+const GoviLinkEp = require("../end-point/GoviLink-ep");
+const authMiddleware = require("../middlewares/authMiddleware");
+const multer = require("multer");
 const upload = require("../middlewares/uploadMiddleware");
-
 
 const router = express.Router();
 
-router.post(
-  "/create-company",
-  authMiddleware,
-  GoviLinkEp.createCompany
-);
+router.post("/create-company", authMiddleware, GoviLinkEp.createCompany);
 
-router.get(
-  "/get-company-by-id/:id",
-  // authMiddleware,
-  GoviLinkEp.getCompanyById
-);
+router.get("/get-company-by-id/:id", authMiddleware, GoviLinkEp.getCompanyById);
 
 router.post(
   "/save-officer-service",
   authMiddleware,
-    GoviLinkEp.saveOfficerService
+  GoviLinkEp.saveOfficerService
 );
 
-router.put("/update-officer-service/:id",  authMiddleware,
-    GoviLinkEp.updateOfficerService);
+router.get("/get-all-companies", authMiddleware, GoviLinkEp.getAllCompanies);
 
-router.get("/get-officer-service-by-id/:id", authMiddleware, GoviLinkEp.getOfficerServiceById);
-router.get("/get-all-officer-service", authMiddleware, GoviLinkEp.getAllOfficerServices);
-router.delete('/officer-service/:id',authMiddleware, GoviLinkEp.deleteOfficerService);
+router.patch("/update-company/:id", authMiddleware, GoviLinkEp.updateCompany);
+
+router.delete("/delete-company/:id", authMiddleware, GoviLinkEp.deleteCompany);
+
+router.put("/update-officer-service/:id", authMiddleware,
+  GoviLinkEp.updateOfficerService);
+
+router.get(
+  "/get-officer-service-by-id/:id",
+  authMiddleware,
+  GoviLinkEp.getOfficerServiceById
+);
+
+router.get(
+  "/get-all-officer-service",
+  authMiddleware,
+  GoviLinkEp.getAllOfficerServices
+);
+
+router.delete(
+  '/officer-service/:id',
+  authMiddleware,
+  GoviLinkEp.deleteOfficerService
+);
+
+router.get(
+  "/get-all-companies",
+  authMiddleware,
+  GoviLinkEp.getAllCompanies
+);
 
 module.exports = router;

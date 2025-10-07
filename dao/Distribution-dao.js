@@ -440,7 +440,7 @@ exports.createDistributionHeadPersonal = (
 
       const sql = `
                 INSERT INTO collectionofficer (
-                    centerId, companyId, irmId, firstNameEnglish, lastNameEnglish,
+                    distributedCenterId, companyId, irmId, firstNameEnglish, lastNameEnglish,
                     jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
                     languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
@@ -1037,7 +1037,7 @@ exports.getAllDistributionOfficers = (
             SELECT COUNT(*) as total
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
-            LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
+            LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
             WHERE coff.jobRole IN ('Distribution Centre Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
@@ -1058,7 +1058,7 @@ exports.getAllDistributionOfficers = (
                 dc.centerName
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
-            LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
+            LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
             WHERE coff.jobRole IN ('Distribution Centre Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
@@ -1107,8 +1107,8 @@ exports.getAllDistributionOfficers = (
     }
 
     if (centerId) {
-      countSql += " AND coff.centerId = ?";
-      dataSql += " AND coff.centerId = ?";
+      countSql += " AND coff.distributedCenterId = ?";
+      dataSql += " AND coff.distributedCenterId = ?";
       countParams.push(centerId);
       dataParams.push(centerId);
     }
@@ -1205,15 +1205,15 @@ exports.getAllDistributionCenterNamesDao = (district) => {
   });
 };
 
-exports.getAllDistributionCenterManagerDao = () => {
+exports.getAllDistributionCenterManagerDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT id, firstNameEnglish, lastNameEnglish
       FROM collectionofficer
-      WHERE jobRole = 'Distribution Centre Manager';
+      WHERE jobRole = 'Distribution Centre Manager' AND companyId = 2 AND distributedCenterId = ?;
     `;
 
-    collectionofficer.query(sql, (err, results) => {
+    collectionofficer.query(sql,[id], (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -1550,7 +1550,7 @@ exports.createDistributionOfficerPersonal = (
 
       const sql = `
                 INSERT INTO collectionofficer (
-                    centerId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
+                    distributedCenterId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
                     lastNameSinhala, lastNameTamil, jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
                     languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
@@ -1630,7 +1630,7 @@ exports.GetDistributionCentersByCompanyIdDAO = (companyId) => {
 exports.GetAllDistributionManagerList = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND centerId = ?";
+      "SELECT id, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND distributedCenterId = ?";
     collectionofficer.query(sql, [companyId, centerId], (err, results) => {
       if (err) {
         return reject(err);
@@ -1931,7 +1931,7 @@ exports.getEachDistributedCenterOfficersDao = (data, status, role, searchText) =
         phoneNumber01,
         nic
       FROM collectionofficer 
-      WHERE companyId = ? AND centerId = ? AND jobRole IN ('Distribution Centre Manager', 'Distribution Officer')
+      WHERE companyId = ? AND distributedCenterId = ? AND jobRole IN ('Distribution Centre Manager', 'Distribution Officer')
       `;
 
     if (status) {
@@ -2062,7 +2062,7 @@ exports.updateDistributionOfficerDetails = (
   return new Promise((resolve, reject) => {
     let sql = `
              UPDATE collectionofficer
-                SET centerId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
+                SET distributedCenterId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
                     firstNameTamil = ?, lastNameTamil = ?, jobRole = ?, empId = ?, empType = ?, phoneCode01 = ?, phoneNumber01 = ?, phoneCode02 = ?, phoneNumber02 = ?,
                     nic = ?, email = ?, houseNumber = ?, streetName = ?, city = ?, district = ?, province = ?, country = ?, languages = ?,
                     accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?, status = 'Not Approved'
@@ -2456,3 +2456,18 @@ exports.checkPhoneNumberExistDC = async (phoneNumber, excludeId = null) => {
   });
 };
 
+exports.claimDistributedOfficersDao = (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE collectionofficer
+      SET distributedCenterId = ?, irmId = ?, claimStatus = 1
+      WHERE id = ?
+    `;
+    collectionofficer.query(sql, [data.centerId, data.irmId, data.id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

@@ -281,3 +281,18 @@ exports.getTodayRegAdmin = () => {
     });
   });
 };
+
+exports.getAllFieldOfficers = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT * 
+      FROM plant_care.feildofficer
+    `;
+    admin.query(sql, (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      resolve(results); // Resolve with all rows
+    });
+  });
+};

@@ -933,11 +933,9 @@ exports.getBuildingOwnershipDetails = async (req, res) => {
     }
 
     console.error("Error fetching building ownership details:", err);
-    res
-      .status(500)
-      .json({
-        error: "An error occurred while fetching building ownership details.",
-      });
+    res.status(500).json({
+      error: "An error occurred while fetching building ownership details.",
+    });
   }
 };
 
@@ -971,11 +969,9 @@ exports.getLandOwnershipDetails = async (req, res) => {
     }
 
     console.error("Error fetching land ownership details:", err);
-    res
-      .status(500)
-      .json({
-        error: "An error occurred while fetching land ownership details.",
-      });
+    res.status(500).json({
+      error: "An error occurred while fetching land ownership details.",
+    });
   }
 };
 
@@ -3255,5 +3251,416 @@ exports.resendResetLink = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getAllCompanies = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const result = await adminDao.GetCompaniesDAO();
+
+    if (result.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No companies found", data: result });
+    }
+
+    console.log("Successfully retrieved all companies");
+    res.json(result);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching companies:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching companies" });
+  }
+};
+
+exports.getAllManagerList = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    const companyId = req.params.companyId;
+    console.log(companyId);
+
+    const result = await adminDao.GetAllManagerList(
+      companyId
+      // Removed assignDistrict parameter
+    );
+
+    if (result.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No Fieald Officer found", data: result });
+    }
+
+    console.log("Successfully retrieved all Field Officer Managers");
+    res.json(result);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching collection managers:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection managers" });
+  }
+};
+
+exports.getForCreateId = async (req, res) => {
+  try {
+    const { role } = await ValidateSchema.getRoleShema.validateAsync(
+      req.params
+    );
+    const results = await adminDao.getForCreateId(role);
+
+    // Since your DAO function now returns { empId: newEmpId } directly
+    // we don't need to check for length anymore
+    res.status(200).json({ result: results, status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+exports.createFieldOfficer = async (req, res) => {
+  console.log("Request received", req.body);
+  console.log("Files:", req.files);
+
+  const tokenUserId = req.user?.id || req.user?.userId;
+
+  try {
+    // Parse officer data
+    const officerData = JSON.parse(req.body.officerData);
+
+    let validationErrors = [];
+
+    // NIC validation
+    const isExistingNIC = await adminDao.checkNICExist(officerData.nic);
+    if (isExistingNIC) {
+      validationErrors.push("NIC");
+    }
+
+    // Email validation
+    const isExistingEmail = await adminDao.checkEmailExist(officerData.email);
+    if (isExistingEmail) {
+      validationErrors.push("Email");
+    }
+
+    // Phone number validation
+    const isExistingPhoneNumber1 = await adminDao.checkPhoneNumberExist(
+      officerData.phoneNumber1
+    );
+    if (isExistingPhoneNumber1) {
+      validationErrors.push("PhoneNumber1");
+    }
+
+    if (officerData.phoneNumber2) {
+      const isExistingPhoneNumber2 = await adminDao.checkPhoneNumberExist(
+        officerData.phoneNumber2
+      );
+      if (isExistingPhoneNumber2) {
+        validationErrors.push("PhoneNumber2");
+      }
+    }
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        errors: validationErrors,
+        status: false,
+      });
+    }
+
+    // Generate employee ID
+    const lastId = await adminDao.getFOIDforCreateEmpIdDao(officerData.jobRole);
+    console.log("Generated Employee ID:", lastId);
+
+    // Handle file uploads from multipart form
+    let profileImageUrl = null;
+    let nicFrontUrl = null;
+    let nicBackUrl = null;
+    let passbookUrl = null;
+    let contractUrl = null;
+
+    // Process profile image
+    if (req.files && req.files.profileImage) {
+      try {
+        const file = req.files.profileImage[0];
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_profile.${fileExtension}`;
+
+        profileImageUrl = await uploadFileToS3(
+          file.buffer,
+          fileName,
+          "fieldofficer/profile"
+        );
+        console.log("Profile image uploaded:", profileImageUrl);
+      } catch (err) {
+        console.error("Error processing profile image:", err);
+        return res.status(400).json({ error: "Invalid profile image format" });
+      }
+    }
+
+    // Process NIC front image
+    if (req.files && req.files.nicFront) {
+      try {
+        const file = req.files.nicFront[0];
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.${fileExtension}`;
+
+        nicFrontUrl = await uploadFileToS3(
+          file.buffer,
+          fileName,
+          "fieldofficer/nic"
+        );
+        console.log("NIC front uploaded:", nicFrontUrl);
+      } catch (err) {
+        console.error("Error processing NIC front image:", err);
+        return res
+          .status(400)
+          .json({ error: "Invalid NIC front image format" });
+      }
+    }
+
+    // Process NIC back image
+    if (req.files && req.files.nicBack) {
+      try {
+        const file = req.files.nicBack[0];
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.${fileExtension}`;
+
+        nicBackUrl = await uploadFileToS3(
+          file.buffer,
+          fileName,
+          "fieldofficer/nic"
+        );
+        console.log("NIC back uploaded:", nicBackUrl);
+      } catch (err) {
+        console.error("Error processing NIC back image:", err);
+        return res.status(400).json({ error: "Invalid NIC back image format" });
+      }
+    }
+
+    // Process passbook image
+    if (req.files && req.files.passbook) {
+      try {
+        const file = req.files.passbook[0];
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.${fileExtension}`;
+
+        passbookUrl = await uploadFileToS3(
+          file.buffer,
+          fileName,
+          "fieldofficer/passbook"
+        );
+        console.log("Passbook uploaded:", passbookUrl);
+      } catch (err) {
+        console.error("Error processing passbook image:", err);
+        return res.status(400).json({ error: "Invalid passbook image format" });
+      }
+    }
+
+    // Process contract document
+    if (req.files && req.files.contract) {
+      try {
+        const file = req.files.contract[0];
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_contract.${fileExtension}`;
+
+        contractUrl = await uploadFileToS3(
+          file.buffer,
+          fileName,
+          "fieldofficer/contract"
+        );
+        console.log("Contract uploaded:", contractUrl);
+      } catch (err) {
+        console.error("Error processing contract document:", err);
+        return res
+          .status(400)
+          .json({ error: "Invalid contract document format" });
+      }
+    }
+
+    // Set modifyBy for the officer data
+    officerData.modifyBy = tokenUserId;
+
+    // Handle irmId logic based on job role
+    if (
+      officerData.jobRole === "Field Officer" ||
+      officerData.jobRole === "Chief Field Officer"
+    ) {
+      officerData.irmId = null;
+    }
+
+    console.log("Creating field officer with data:", {
+      profileImageUrl,
+      nicFrontUrl,
+      nicBackUrl,
+      passbookUrl,
+      contractUrl,
+    });
+
+    // Create field officer with all document URLs
+    const results = await adminDao.createFieldOfficer(
+      officerData,
+      profileImageUrl,
+      nicFrontUrl,
+      nicBackUrl,
+      passbookUrl,
+      contractUrl,
+      lastId
+    );
+
+    console.log("Field Officer created successfully");
+    return res.status(201).json({
+      message: "Field Officer created successfully",
+      id: results.insertId,
+      status: true,
+    });
+  } catch (error) {
+    console.error("Error creating field officer:", error);
+
+    // Handle specific error types
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    if (error instanceof SyntaxError) {
+      return res.status(400).json({ error: "Invalid JSON in officerData" });
+    }
+
+    return res.status(500).json({
+      error: "An error occurred while creating the field officer",
+      details: error.message,
+    });
+  }
+};
+
+
+exports.getFieldOfficerById = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    
+    // Validate and format the inputs
+    const { id } = await ValidateSchema.getFieldOfficerSchema.validateAsync({
+      id: req.params.id
+    });
+
+    // const id = req.params.id
+
+    console.log('id', id);
+
+    const officerData = await adminDao.getFieldOfficerByIdDAO(id);
+
+    if (!officerData) {
+      return res.status(404).json({ error: "Collection Officer not found" });
+    }
+
+    console.log(
+      "Successfully fetched collection officer, company, and bank details"
+    );
+
+    console.log('officerData', officerData)
+    res.json({ officerData });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+exports.deleteFieldOfficer = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = req.params;
+
+    const {profile, frontNic, backNic, backPassbook, contract} = await adminDao.getFieldOfficerImages(id);
+
+    console.log('images', profile, frontNic, backNic, backPassbook, contract);
+
+    if (profile) {
+      try {
+        await deleteFromS3(profile);
+      } catch (s3Error) {
+        console.error("Failed to delete Front Profile image from S3:", s3Error);
+      }
+    }
+
+
+    if (frontNic) {
+      try {
+        await deleteFromS3(frontNic);
+      } catch (s3Error) {
+        console.error("Failed to delete Front Nic image from S3:", s3Error);
+      }
+    }
+
+    if (backNic) {
+      try {
+        await deleteFromS3(backNic);
+      } catch (s3Error) {
+        console.error("Failed to delete Back Nic image from S3:", s3Error);
+      }
+    }
+
+    if (backPassbook) {
+      try {
+        await deleteFromS3(backPassbook);
+      } catch (s3Error) {
+        console.error("Failed to delete Passbook back image from S3:", s3Error);
+      }
+    }
+
+    if (contract) {
+      try {
+        await deleteFromS3(contract);
+      } catch (s3Error) {
+        console.error("Failed to delete Signed Contract image from S3:", s3Error);
+      }
+    }
+
+    console.log('success')
+
+    res.status(200).json({ massage: 'deleted', status: true });
+
+    const results = await collectionofficerDao.DeleteFieldOfficerDao(
+      id
+    );
+
+    console.log("Successfully Delete Status");
+    if (results.affectedRows > 0) {
+      res.status(200).json({ results: results, status: true });
+    } else {
+      res.json({ results: results, status: false });
+    }
+  } catch (error) {
+    if (error.isJoi) {
+      return res
+        .status(400)
+        .json({ error: error.details[0].message, status: false });
+    }
+
+    console.error("Error retrieving Updated Status:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while Updated Statuss" });
   }
 };

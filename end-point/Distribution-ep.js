@@ -970,9 +970,9 @@ exports.getAllDistributionManagerNames = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    const results = await DistributionDao.getAllDistributionCenterManagerDao();
+    const id = parseInt(req.params.id)
+    const results = await DistributionDao.getAllDistributionCenterManagerDao(id);
 
-    console.log("Successfully retrieved reports");
     res.status(200).json(results);
   } catch (error) {
     if (error.isJoi) {
@@ -1690,5 +1690,29 @@ exports.dcmGetSelectedOfficerTargets = async (req, res) => {
 
     console.error("Error fetching officer targets:", error);
     return res.status(500).json({ error: "An error occurred while fetching officer targets" });
+  }
+};
+
+
+exports.claimDistributedOfficer = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const data = req.body;
+    const result = await DistributionDao.claimDistributedOfficersDao(data);
+    if(result.affectedRows === 0){
+      return res.json({message: "Claim failed or no changes made", status: false})
+    }
+    console.log("Successfully retrieved reports");
+    res.status(200).json({ status: true , message: "Claimed successfully"});
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error retrieving district reports:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching the reports" });
   }
 };

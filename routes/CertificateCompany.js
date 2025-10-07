@@ -65,5 +65,11 @@ router.post(
   certificateCompanyEp.createCertificate
 );
 
+// Create questionnaire
+router.post(
+  "/questionnaire/create",
+  authMiddleware,
+  certificateCompanyEp.createQuestionnaire
+);
 
 module.exports = router;

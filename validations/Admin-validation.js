@@ -452,3 +452,8 @@ exports.getFarmsByUserSchema = Joi.object({
   search: Joi.string().allow("", null),
   userId: Joi.number().integer().required(),
 }).options({ convert: true }); // <- important
+
+exports.getFieldOfficerSchema = Joi.object({
+  id: Joi.number().integer().required(),
+});
+
