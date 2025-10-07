@@ -72,4 +72,11 @@ router.post(
   certificateCompanyEp.createQuestionnaire
 );
 
+//All certificates
+router.get(
+  "/certificates/all-certificates",
+  authMiddleware,
+  certificateCompanyEp.getAllCertificates
+);
+
 module.exports = router;

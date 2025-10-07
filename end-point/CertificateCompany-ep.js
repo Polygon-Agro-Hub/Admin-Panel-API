@@ -526,3 +526,32 @@ exports.createQuestionnaire = async (req, res) => {
       .json({ message: "Internal server error", error: err.message });
   }
 };
+
+
+exports.getAllCertificates = async (req, res) => {
+  try {
+    const {quaction, area, company, searchText} = req.query;
+    console.log(req.params);
+    
+    const result = await certificateCompanyDao.getAllCertificatesDao(quaction, area, company, searchText);
+
+    if (result.length === 0) {
+      return res
+        .json({ message: "No Certificates founded", data: [] });
+    }
+
+    console.log("Successfully retrieved collection centre Complains");
+    res.json({ message: "Certificates founded", data: result });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching news:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching center complains" });
+  }
+};

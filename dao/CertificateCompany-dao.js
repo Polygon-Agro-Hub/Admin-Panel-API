@@ -265,3 +265,61 @@ exports.bulkInsertQuestionnaires = (certificateId, questions) => {
     });
   });
 };
+
+
+exports.getAllCertificatesDao = (quaction, area, company, searchText) => {
+  return new Promise((resolve, reject) => {
+    const sqlParams = [];
+    let sql = `
+      SELECT
+        c.id,
+        c.srtName,
+        c.srtNumber,
+        c.commission,
+        c.serviceAreas,
+        ( SELECT COUNT(*) FROM questionnaire q WHERE q.certificateId = c.id ) AS qCount,
+        au.userName AS modifiedByUser,
+        c.modifyDate,
+        com.comName AS companyName
+      FROM certificates c
+      LEFT JOIN certificatecompany com ON c.srtcomapnyId = com.id
+      LEFT JOIN agro_world_admin.adminusers au ON c.modifyBy = au.id
+      WHERE 1=1
+    `;
+
+    // Use the actual subquery in WHERE clause instead of alias
+    if (quaction) {
+      if (quaction === "Yes") {
+        sql += ` AND (SELECT COUNT(*) FROM questionnaire q WHERE q.certificateId = c.id) > 0`;
+      } else if (quaction === "No") {
+        sql += ` AND (SELECT COUNT(*) FROM questionnaire q WHERE q.certificateId = c.id) = 0`;
+      }
+    }
+
+    if(area){
+      sql += ` AND c.serviceAreas LIKE ?`;
+      sqlParams.push(`%${area}%`);
+    }
+
+    if(company){
+      sql += ` AND c.srtcomapnyId = ?`;
+      sqlParams.push(company);
+    }
+
+    if(searchText){
+      sql += ` AND (c.srtName LIKE ? OR c.srtNumber LIKE ?)`;
+      sqlParams.push(`%${searchText}%`, `%${searchText}%`);
+    }
+
+    sql += ` ORDER BY c.createdAt DESC`;
+    
+    plantcare.query(sql, sqlParams, (err, results) => {
+      if (err) {
+        console.log(err);
+        return reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
