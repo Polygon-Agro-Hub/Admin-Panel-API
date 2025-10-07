@@ -3664,3 +3664,216 @@ exports.deleteFieldOfficer = async (req, res) => {
       .json({ error: "An error occurred while Updated Statuss" });
   }
 };
+
+exports.updateFieldOfficer = async (req, res) => {
+  console.log("Update request received", req.body);
+  console.log("Files:", req.files);
+
+  const tokenUserId = req.user?.id || req.user?.userId;
+  const officerId = req.params.id; // Get officer ID from URL params
+
+  try {
+    // Parse officer data
+    const officerData = JSON.parse(req.body.officerData);
+
+    let validationErrors = [];
+
+    // NIC validation (exclude current officer)
+    const isExistingNIC = await adminDao.checkNICExist(officerData.nic, officerId);
+    if (isExistingNIC) {
+      validationErrors.push("NIC");
+    }
+
+    // Email validation (exclude current officer)
+    const isExistingEmail = await adminDao.checkEmailExist(officerData.email, officerId);
+    if (isExistingEmail) {
+      validationErrors.push("Email");
+    }
+
+    // Phone number validation (exclude current officer)
+    const isExistingPhoneNumber1 = await adminDao.checkPhoneNumberExist(
+      officerData.phoneNumber1,
+      officerId
+    );
+    if (isExistingPhoneNumber1) {
+      validationErrors.push("PhoneNumber1");
+    }
+
+    if (officerData.phoneNumber2) {
+      const isExistingPhoneNumber2 = await adminDao.checkPhoneNumberExist(
+        officerData.phoneNumber2,
+        officerId
+      );
+      if (isExistingPhoneNumber2) {
+        validationErrors.push("PhoneNumber2");
+      }
+    }
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        errors: validationErrors,
+        status: false,
+      });
+    }
+
+    // Handle file uploads from multipart form
+    let profileImageUrl = undefined; // Use undefined to avoid updating if no new file
+    let nicFrontUrl = undefined;
+    let nicBackUrl = undefined;
+    let passbookUrl = undefined;
+    let contractUrl = undefined;
+
+    // Process profile image
+    if (req.files && req.files.profileImage) {
+      try {
+        const file = req.files.profileImage[0];
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_profile.${fileExtension}`;
+
+        profileImageUrl = await uploadFileToS3(
+          file.buffer,
+          fileName,
+          "fieldofficer/profile"
+        );
+        console.log("Profile image uploaded:", profileImageUrl);
+      } catch (err) {
+        console.error("Error processing profile image:", err);
+        return res.status(400).json({ error: "Invalid profile image format" });
+      }
+    }
+
+    // Process NIC front image
+    if (req.files && req.files.nicFront) {
+      try {
+        const file = req.files.nicFront[0];
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.${fileExtension}`;
+
+        nicFrontUrl = await uploadFileToS3(
+          file.buffer,
+          fileName,
+          "fieldofficer/nic"
+        );
+        console.log("NIC front uploaded:", nicFrontUrl);
+      } catch (err) {
+        console.error("Error processing NIC front image:", err);
+        return res
+          .status(400)
+          .json({ error: "Invalid NIC front image format" });
+      }
+    }
+
+    // Process NIC back image
+    if (req.files && req.files.nicBack) {
+      try {
+        const file = req.files.nicBack[0];
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.${fileExtension}`;
+
+        nicBackUrl = await uploadFileToS3(
+          file.buffer,
+          fileName,
+          "fieldofficer/nic"
+        );
+        console.log("NIC back uploaded:", nicBackUrl);
+      } catch (err) {
+        console.error("Error processing NIC back image:", err);
+        return res.status(400).json({ error: "Invalid NIC back image format" });
+      }
+    }
+
+    // Process passbook image
+    if (req.files && req.files.passbook) {
+      try {
+        const file = req.files.passbook[0];
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.${fileExtension}`;
+
+        passbookUrl = await uploadFileToS3(
+          file.buffer,
+          fileName,
+          "fieldofficer/passbook"
+        );
+        console.log("Passbook uploaded:", passbookUrl);
+      } catch (err) {
+        console.error("Error processing passbook image:", err);
+        return res.status(400).json({ error: "Invalid passbook image format" });
+      }
+    }
+
+    // Process contract document
+    if (req.files && req.files.contract) {
+      try {
+        const file = req.files.contract[0];
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_contract.${fileExtension}`;
+
+        contractUrl = await uploadFileToS3(
+          file.buffer,
+          fileName,
+          "fieldofficer/contract"
+        );
+        console.log("Contract uploaded:", contractUrl);
+      } catch (err) {
+        console.error("Error processing contract document:", err);
+        return res
+          .status(400)
+          .json({ error: "Invalid contract document format" });
+      }
+    }
+
+    // Set modifyBy for the officer data
+    officerData.modifyBy = tokenUserId;
+
+    // Handle irmId logic based on job role
+    if (
+      officerData.jobRole === "Field Officer" ||
+      officerData.jobRole === "Chief Field Officer"
+    ) {
+      officerData.irmId = null;
+    }
+
+    console.log("Updating field officer with data:", {
+      officerId,
+      profileImageUrl,
+      nicFrontUrl,
+      nicBackUrl,
+      passbookUrl,
+      contractUrl,
+    });
+
+    // Update field officer with all document URLs
+    const results = await adminDao.updateFieldOfficer(
+      officerId,
+      officerData,
+      profileImageUrl,
+      nicFrontUrl,
+      nicBackUrl,
+      passbookUrl,
+      contractUrl
+    );
+
+    console.log("Field Officer updated successfully");
+    return res.status(200).json({
+      message: "Field Officer updated successfully",
+      affectedRows: results.affectedRows,
+      status: true,
+    });
+  } catch (error) {
+    console.error("Error updating field officer:", error);
+
+    // Handle specific error types
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    if (error instanceof SyntaxError) {
+      return res.status(400).json({ error: "Invalid JSON in officerData" });
+    }
+
+    return res.status(500).json({
+      error: "An error occurred while updating the field officer",
+      details: error.message,
+    });
+  }
+};
