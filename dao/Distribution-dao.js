@@ -1550,7 +1550,7 @@ exports.createDistributionOfficerPersonal = (
 
       const sql = `
                 INSERT INTO collectionofficer (
-                    centerId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
+                    distributedCenterId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
                     lastNameSinhala, lastNameTamil, jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
                     languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
