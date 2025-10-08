@@ -2471,3 +2471,19 @@ exports.claimDistributedOfficersDao = (data) => {
     });
   });
 };
+
+exports.updateDistributedCompaanyCenterDao = async (companyId, centerId) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      UPDATE distributedcompanycenter 
+      SET companyId = ? 
+      WHERE centerId = ?
+    `;
+    const params = [companyId, centerId];
+  
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};

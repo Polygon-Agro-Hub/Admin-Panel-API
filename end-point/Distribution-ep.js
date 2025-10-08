@@ -800,6 +800,8 @@ exports.updateDistributionCentreDetails = async (req, res) => {
       data
     );
 
+    const updateComCenter = await DistributionDao.updateDistributedCompaanyCenterDao(data.company, id)
+
     if (!updatedCentre) {
       console.log(
         "Update failed: Distribution Centre not found or no changes made"
