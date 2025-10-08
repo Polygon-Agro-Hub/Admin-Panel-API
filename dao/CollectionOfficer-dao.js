@@ -1521,13 +1521,13 @@ exports.disclaimOfficerDetailsDao = (id) => {
   });
 };
 
-exports.createCenterHeadPersonal = (officerData, profileImageUrl) => {
+exports.createCenterHeadPersonal = (officerData, profileImageUrl, lastId) => {
   return new Promise(async (resolve, reject) => {
     try {
       // Prepare data for QR code generation
       const qrData = `
             {
-                "empId": "${officerData.empId}",
+                "empId": "${lastId}",
             }
             `;
 
@@ -1538,13 +1538,12 @@ exports.createCenterHeadPersonal = (officerData, profileImageUrl) => {
       );
       const qrcodeURL = await uploadFileToS3(
         qrCodeBuffer,
-        `${officerData.empId}.png`,
+        `${lastId}.png`,
         "collectionofficer/QRcode"
       );
       console.log(qrcodeURL);
 
-      // If no image URL, set it to null
-      const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
+      const imageUrl = profileImageUrl || null;
 
       const sql = `
                 INSERT INTO collectionofficer (
@@ -1557,7 +1556,6 @@ exports.createCenterHeadPersonal = (officerData, profileImageUrl) => {
                          ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?, 'Not Approved')
             `;
 
-      // Database query with QR image data added
       collectionofficer.query(
         sql,
         [
@@ -1570,7 +1568,7 @@ exports.createCenterHeadPersonal = (officerData, profileImageUrl) => {
           officerData.lastNameSinhala,
           officerData.lastNameTamil,
           officerData.jobRole,
-          officerData.empId,
+          lastId,
           officerData.empType,
           officerData.phoneCode01,
           officerData.phoneNumber01,
@@ -1589,19 +1587,19 @@ exports.createCenterHeadPersonal = (officerData, profileImageUrl) => {
           officerData.accNumber,
           officerData.bankName,
           officerData.branchName,
-          imageUrl, // Use the potentially null image URL
+          imageUrl,
           qrcodeURL,
         ],
         (err, results) => {
           if (err) {
             console.log(err);
-            return reject(err); // Reject promise if an error occurs
+            return reject(err);
           }
-          resolve(results); // Resolve the promise with the query results
+          resolve(results);
         }
       );
     } catch (error) {
-      reject(error); // Reject if any error occurs during QR code generation
+      reject(error);
     }
   });
 };

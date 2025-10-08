@@ -954,21 +954,20 @@ exports.createCenterHead = async (req, res) => {
       });
     }
 
-    let profileImageUrl = null; // Default to null if no image is provided
+    let profileImageUrl = null;
+    
+    // Get the last ID for empId generation
+    const lastId = await collectionofficerDao.getCCIDforCreateEmpIdDao(officerData.jobRole);
+    console.log("LastId", lastId);
 
-    // Check if an image file is provided
     if (req.body.file) {
       try {
-        const base64String = req.body.file.split(",")[1]; // Extract the Base64 content
-        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1]; // Extract MIME type
-        const fileBuffer = Buffer.from(base64String, "base64"); // Decode Base64 to buffer
+        const base64String = req.body.file.split(",")[1];
+        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
+        const fileBuffer = Buffer.from(base64String, "base64");
 
-        
-
-        const fileExtension = mimeType.split("/")[1]; // Extract file extension from MIME type
+        const fileExtension = mimeType.split("/")[1];
         const fileName = `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}.${fileExtension}`;
-
-        // Upload image to S3
 
         console.log('go to s3');
         profileImageUrl = await uploadFileToS3(
@@ -984,12 +983,12 @@ exports.createCenterHead = async (req, res) => {
       }
     }
 
-    // Save officer data (without image if no image is uploaded)
     console.log('got to dao');
     const resultsPersonal =
       await collectionofficerDao.createCenterHeadPersonal(
         officerData,
-        profileImageUrl
+        profileImageUrl,
+        lastId
       );
 
     console.log("Center Head created successfully");
