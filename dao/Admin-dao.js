@@ -699,48 +699,78 @@ exports.getOngoingCultivationsWithUserDetails = () => {
 // };
 
 exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
-  const sql = `
-    SELECT DISTINCT
-      occ.id AS ongoingcultivationscropsid,
-      occ.ongoingCultivationId,
-      occ.cropCalendar,
-      occ.startedAt,
-      (occ.extentac + occ.extentha * 2.47105 + occ.extentp / 160) AS extentac,
-      cg.cropNameEnglish AS cropName,
-      cv.varietyNameEnglish AS variety,
-      cc.method AS cultivationMethod,
-      cc.natOfCul AS natureOfCultivation,
-      cc.cropDuration AS cropDuration,
-      occ.longitude,
-      occ.latitude,
-      au.userName AS modifyBy,
-      u.firstName AS userFirstName,
-      u.lastName AS userLastName,
-      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
-      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks
-    FROM 
-      ongoingcultivationscrops occ
-    JOIN 
-      ongoingcultivations oc ON occ.ongoingCultivationId = oc.id
-    JOIN 
-      users u ON oc.userId = u.id
-    JOIN 
-      cropcalender cc ON occ.cropCalendar = cc.id
-    JOIN 
-      cropvariety cv ON cc.cropVarietyId = cv.id
-    JOIN 
-      cropgroup cg ON cv.cropGroupId = cg.id
-    LEFT JOIN
-      agro_world_admin.adminusers au ON occ.modifyBy = au.id
-    WHERE
-      occ.farmId = ? AND oc.userId = ?`;
-
   return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT DISTINCT
+        occ.id AS ongoingcultivationscropsid,
+        occ.ongoingCultivationId,
+        occ.cropCalendar,
+        occ.startedAt,
+        (occ.extentac + occ.extentha * 2.47105 + occ.extentp / 160) AS extentac,
+        cg.cropNameEnglish AS cropName,
+        cv.varietyNameEnglish AS variety,
+        cc.method AS cultivationMethod,
+        cc.natOfCul AS natureOfCultivation,
+        cc.cropDuration AS cropDuration,
+        occ.longitude,
+        occ.latitude,
+        au.userName AS modifyBy,
+        u.firstName AS userFirstName,
+        u.lastName AS userLastName,
+        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
+        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks
+      FROM 
+        ongoingcultivationscrops occ
+      JOIN 
+        ongoingcultivations oc ON occ.ongoingCultivationId = oc.id
+      JOIN 
+        users u ON oc.userId = u.id
+      JOIN 
+        cropcalender cc ON occ.cropCalendar = cc.id
+      JOIN 
+        cropvariety cv ON cc.cropVarietyId = cv.id
+      JOIN 
+        cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN
+        agro_world_admin.adminusers au ON occ.modifyBy = au.id
+      WHERE
+        occ.farmId = ? AND oc.userId = ?`;
+
     plantcare.query(sql, [farmId, userId], (err, results) => {
       if (err) {
-        reject("Error fetching cultivation crops by farmId: " + err);
+        return reject("Error fetching cultivation crops by farmId: " + err);
+      }
+
+      if (results.length > 0) {
+        // Data found
+        resolve({
+          userFirstName: results[0].userFirstName,
+          userLastName: results[0].userLastName,
+          cultivations: results,
+        });
       } else {
-        resolve(results);
+        // No cultivations found → still get user name
+        const userSql = `SELECT firstName AS userFirstName, lastName AS userLastName FROM users WHERE id = ?`;
+        plantcare.query(userSql, [userId], (userErr, userResult) => {
+          if (userErr) {
+            return reject("Error fetching user details: " + userErr);
+          }
+
+          if (userResult.length > 0) {
+            resolve({
+              userFirstName: userResult[0].userFirstName,
+              userLastName: userResult[0].userLastName,
+              cultivations: [],
+            });
+          } else {
+            // User not found
+            resolve({
+              userFirstName: null,
+              userLastName: null,
+              cultivations: [],
+            });
+          }
+        });
       }
     });
   });
@@ -3980,29 +4010,112 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
   });
 };
 
-// Delete a farm by farmId
+// // Delete a farm by farmId
+// exports.deleteFarmById = (farmId) => {
+//   return new Promise((resolve, reject) => {
+//     if (!farmId) {
+//       return reject(new Error("Farm ID is required"));
+//     }
+
+//     const sql = `DELETE FROM farms WHERE id = ?`;
+
+//     plantcare.query(sql, [farmId], (err, result) => {
+//       if (err) return reject(err);
+
+//       if (result.affectedRows === 0) {
+//         return resolve({
+//           success: false,
+//           message: "No farm found with the given ID",
+//         });
+//       }
+
+//       resolve({ success: true, message: `Farm deleted successfully.` });
+//     });
+//   });
+// };
+
+
 exports.deleteFarmById = (farmId) => {
   return new Promise((resolve, reject) => {
     if (!farmId) {
       return reject(new Error("Farm ID is required"));
     }
 
-    const sql = `DELETE FROM farms WHERE id = ?`;
+    const deleteRelatedRecords = `
+      DELETE scd 
+      FROM slavecropcalendardays scd
+      JOIN farmstaff fs ON scd.completedStaffId = fs.id
+      WHERE fs.farmId = ?;
+    `;
 
-    plantcare.query(sql, [farmId], (err, result) => {
+    const deleteFarmStaff = `DELETE FROM farmstaff WHERE farmId = ?;`;
+    const deleteFarm = `DELETE FROM farms WHERE id = ?;`;
+
+    // ✅ Get a connection from the pool
+    plantcare.getConnection((err, connection) => {
       if (err) return reject(err);
 
-      if (result.affectedRows === 0) {
-        return resolve({
-          success: false,
-          message: "No farm found with the given ID",
-        });
-      }
+      // ✅ Begin transaction
+      connection.beginTransaction((err) => {
+        if (err) {
+          connection.release();
+          return reject(err);
+        }
 
-      resolve({ success: true, message: `Farm deleted successfully.` });
+        connection.query(deleteRelatedRecords, [farmId], (err) => {
+          if (err) {
+            return connection.rollback(() => {
+              connection.release();
+              reject(err);
+            });
+          }
+
+          connection.query(deleteFarmStaff, [farmId], (err) => {
+            if (err) {
+              return connection.rollback(() => {
+                connection.release();
+                reject(err);
+              });
+            }
+
+            connection.query(deleteFarm, [farmId], (err, result) => {
+              if (err) {
+                return connection.rollback(() => {
+                  connection.release();
+                  reject(err);
+                });
+              }
+
+              connection.commit((err) => {
+                if (err) {
+                  return connection.rollback(() => {
+                    connection.release();
+                    reject(err);
+                  });
+                }
+
+                connection.release();
+
+                if (result.affectedRows === 0) {
+                  return resolve({
+                    success: false,
+                    message: "No farm found with the given ID",
+                  });
+                }
+
+                resolve({
+                  success: true,
+                  message: "Farm deleted successfully.",
+                });
+              });
+            });
+          });
+        });
+      });
     });
   });
 };
+
 
 exports.tracktaskAddOngoingCultivation = (userId, id) => {
   return new Promise((resolve, reject) => {
