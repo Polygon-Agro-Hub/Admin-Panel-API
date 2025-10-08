@@ -4560,7 +4560,8 @@ exports.getFieldOfficerByIdDAO = (id) => {
           companyName: officer.companyName,
           assignDistricts: assignDistrictsArray,
           comAmount: officer.comAmount,
-          language: officer.language
+          language: officer.language,
+          companyId: officer.companyId,
         },
       });
     });
