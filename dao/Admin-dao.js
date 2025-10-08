@@ -4195,7 +4195,7 @@ exports.getForCreateId = (role) => {
       "SELECT empId FROM feildofficer WHERE empId LIKE ? ORDER BY empId DESC LIMIT 1";
 
     // Replace 'your_database_connection' with your actual DB connection variable
-    your_database_connection.query(sql, [`${role}%`], (err, results) => {
+    plantcare.query(sql, [`${role}%`], (err, results) => {
       if (err) {
         return reject(err);
       }
