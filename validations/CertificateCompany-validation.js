@@ -33,18 +33,30 @@ exports.createCertificateValidation = Joi.object({
       return value;
     })
     .required(),
-  cropIds: Joi.alternatives()
-    .try(Joi.array().items(Joi.number().integer()), Joi.number().integer())
-    .custom((value) => {
-      if (Array.isArray(value) && value.length === 0)
-        throw new Error("At least one crop is required");
-      return value;
-    })
-    .required(),
-
   price: Joi.number().min(0).allow(null, ""),
   timeLine: Joi.number().integer().min(1).allow(null, ""),
   commission: Joi.number().min(0).max(100).allow(null, ""),
+  scope: Joi.string().allow(null, ""),
+});
+
+// Update certificate validations
+exports.updateCertificateValidation = Joi.object({
+  srtcomapnyId: Joi.number().required(),
+  srtName: Joi.string().required(),
+  srtNumber: Joi.string().required(),
+  applicable: Joi.string().allow(null, ""),
+  accreditation: Joi.string().allow(null, ""),
+  price: Joi.number().allow(null, ""),
+  timeLine: Joi.string().allow(null, ""),
+  commission: Joi.number().allow(null, ""),
+  serviceAreas: Joi.alternatives().try(
+    Joi.array().items(Joi.string()),
+    Joi.string()
+  ),
+  cropIds: Joi.alternatives().try(
+    Joi.array().items(Joi.number()),
+    Joi.string()
+  ),
   scope: Joi.string().allow(null, ""),
 });
 

@@ -242,32 +242,7 @@ exports.addCertificateCrops = (certificateId, cropIds) => {
   });
 };
 
-// Bulk insert questionnaires
-exports.bulkInsertQuestionnaires = (certificateId, questions) => {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      INSERT INTO questionnaire
-      (certificateId, type, qNo, qEnglish, qSinhala, qTamil, createdAt)
-      VALUES ?
-    `;
-
-    const values = questions.map((q) => [
-      certificateId,
-      q.type.trim(),
-      q.qNo,
-      q.qEnglish.trim(),
-      q.qSinhala?.trim() || null,
-      q.qTamil?.trim() || null,
-      new Date(),
-    ]);
-
-    plantcare.query(sql, [values], (err, result) => {
-      if (err) return reject(err);
-      resolve(result); // includes insertId & affectedRows
-    });
-  });
-};
-
+// Get all certificates
 exports.getAllCertificatesDao = (quaction, area, company, searchText) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [];
@@ -297,23 +272,23 @@ exports.getAllCertificatesDao = (quaction, area, company, searchText) => {
       }
     }
 
-    if(area){
+    if (area) {
       sql += ` AND c.serviceAreas LIKE ?`;
       sqlParams.push(`%${area}%`);
     }
 
-    if(company){
+    if (company) {
       sql += ` AND c.srtcomapnyId = ?`;
       sqlParams.push(company);
     }
 
-    if(searchText){
+    if (searchText) {
       sql += ` AND (c.srtName LIKE ? OR c.srtNumber LIKE ?)`;
       sqlParams.push(`%${searchText}%`, `%${searchText}%`);
     }
 
     sql += ` ORDER BY c.createdAt DESC`;
-    
+
     plantcare.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.log(err);
@@ -321,6 +296,133 @@ exports.getAllCertificatesDao = (quaction, area, company, searchText) => {
       } else {
         resolve(results);
       }
+    });
+  });
+};
+
+// Get certificate by ID
+exports.getCertificateById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `SELECT * FROM certificates WHERE id = ?`;
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
+// Get crops linked to certificate
+exports.getCertificateCrops = (certificateId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `SELECT cropId FROM certificatecrops WHERE certificateId = ?`;
+    plantcare.query(sql, [certificateId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+// Update certificate
+exports.updateCertificate = ({
+  id,
+  srtcomapnyId,
+  srtName,
+  srtNumber,
+  applicable,
+  accreditation,
+  serviceAreas,
+  price,
+  timeLine,
+  commission,
+  tearms,
+  scope,
+  modifyBy,
+}) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE certificates
+      SET
+        srtcomapnyId = ?,
+        srtName = ?,
+        srtNumber = ?,
+        applicable = ?,
+        accreditation = ?,
+        serviceAreas = ?,
+        price = ?,
+        timeLine = ?,
+        commission = ?,
+        tearms = COALESCE(?, tearms),
+        scope = ?,
+        modifyBy = ?,
+        modifyDate = NOW()
+      WHERE id = ?
+    `;
+    const values = [
+      srtcomapnyId,
+      srtName,
+      srtNumber,
+      applicable,
+      accreditation,
+      serviceAreas,
+      price || null,
+      timeLine || null,
+      commission || null,
+      tearms,
+      scope,
+      modifyBy,
+      id,
+    ];
+    plantcare.query(sql, values, (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+  });
+};
+
+// Delete certificate crops
+exports.deleteCertificateCrops = (certificateId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `DELETE FROM certificatecrops WHERE certificateId = ?`;
+    plantcare.query(sql, [certificateId], (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+  });
+};
+
+// Delete certificate
+exports.deleteCertificate = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `DELETE FROM certificates WHERE id = ?`;
+    plantcare.query(sql, [id], (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+  });
+};
+
+// Bulk insert questionnaires
+exports.bulkInsertQuestionnaires = (certificateId, questions) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO questionnaire
+      (certificateId, type, qNo, qEnglish, qSinhala, qTamil, createdAt)
+      VALUES ?
+    `;
+
+    const values = questions.map((q) => [
+      certificateId,
+      q.type.trim(),
+      q.qNo,
+      q.qEnglish.trim(),
+      q.qSinhala?.trim() || null,
+      q.qTamil?.trim() || null,
+      new Date(),
+    ]);
+
+    plantcare.query(sql, [values], (err, result) => {
+      if (err) return reject(err);
+      resolve(result); // includes insertId & affectedRows
     });
   });
 };
