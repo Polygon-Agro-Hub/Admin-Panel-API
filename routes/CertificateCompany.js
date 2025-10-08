@@ -18,85 +18,107 @@ const upload = multer({
 
 // Create new certificate company
 router.post(
-  "/company/", 
+  "/create-certificate-company", 
   authMiddleware, 
   certificateCompanyEp.createCertificateCompany
 );
 
 // Get all certificate companies
 router.get(
-  "/company/all",
+  "/get-all-certificate-companies",
   authMiddleware,
   certificateCompanyEp.getAllCertificateCompanies
 );
 
 // Get by ID
 router.get(
-  "/company/:id", 
+  "/get-certificate-company-by-id/:id", 
   authMiddleware,
   certificateCompanyEp.getCertificateCompanyById
 );
 
-// Update
+// Update certificate company
 router.put(
-  "/company/:id", 
+  "/update-certificate-company/:id", 
   authMiddleware,
   certificateCompanyEp.updateCertificateCompany
 );
 
-// Delete company by ID
+// Delete certificate company by ID
 router.delete(
-  "/company/:id",
+  "/delete-certificate-company/:id",
   authMiddleware,
   certificateCompanyEp.deleteCertificateCompany
 );
 
 // Get all certificate companies 
 router.get(
-  "/company/all/names-only",
+  "/get-all-certificate-companies-names-only",
   authMiddleware,
   certificateCompanyEp.getAllCertificateCompaniesNamesAndIdOnly
 );
 
 // Create certificate
 router.post(
-  "/certificate/create",
+  "/create-certificate",
   authMiddleware,
   upload.single("tearmsFile"),
   certificateCompanyEp.createCertificate
 );
 
-// Create questionnaire
-router.post(
-  "/questionnaire/create",
-  authMiddleware,
-  certificateCompanyEp.createQuestionnaire
-);
-
-//All certificates
+// Get all certificates
 router.get(
-  "/certificates/all-certificates",
+  "/get-all-certificates",
   authMiddleware,
   certificateCompanyEp.getAllCertificates
 );
 
+// Get certificate by ID
+router.get(
+  "/get-certificate-details/:id",
+  authMiddleware,
+  certificateCompanyEp.getCertificateDetailsById
+);
+
+// Update certificate
+router.put(
+  "/update-certificate/:id",
+  authMiddleware,
+  upload.single("tearmsFile"),
+  certificateCompanyEp.updateCertificate
+);
+
+// Delete certificate
+router.delete(
+  "/delete-certificate/:id",
+  authMiddleware,
+  certificateCompanyEp.deleteCertificate
+);
+
+// Create questionnaire
+router.post(
+  "/create-questionnaire",
+  authMiddleware,
+  certificateCompanyEp.createQuestionnaire
+);
+
 // Get list by certificate questionnaires
 router.get(
-  "/questionnaire/:certificateId",  
+  "/get-qestionnaire-list/:certificateId",  
   authMiddleware,
   certificateCompanyEp.getQuestionnaireList
 );
 
 // Update questionnaire
 router.put(
-  "/questionnaire/:id",   
+  "/update-questionnaire/:id",   
   authMiddleware,
   certificateCompanyEp.updateQuestionnaire
 );
 
 // Delete questionnaire
 router.delete(
-  "/questionnaire/:id",   
+  "/delete-questionnaire/:id",   
   authMiddleware,
   certificateCompanyEp.deleteQuestionnaire
 );

@@ -348,7 +348,7 @@ exports.createCertificate = async (req, res) => {
       scope,
     } = validated;
 
-    // --- Normalize serviceAreas ---
+    // Normalize serviceAreas
     if (typeof serviceAreas === "string") {
       try {
         const parsed = JSON.parse(serviceAreas);
@@ -364,7 +364,7 @@ exports.createCertificate = async (req, res) => {
       serviceAreas = serviceAreas.join(",");
     }
 
-    // --- Normalize cropIds ---
+    // Normalize cropIds
     if (typeof cropIds === "string") {
       try {
         const parsed = JSON.parse(cropIds);
@@ -379,7 +379,7 @@ exports.createCertificate = async (req, res) => {
     }
     if (!Array.isArray(cropIds)) cropIds = [cropIds];
 
-    // --- Upload PDF (optional) ---
+    // Upload PDF
     let tearmsUrl = null;
     if (req.file) {
       tearmsUrl = await uploadFileToS3(
@@ -389,7 +389,7 @@ exports.createCertificate = async (req, res) => {
       );
     }
 
-    // --- Insert certificate ---
+    // Insert certificat
     const certificateId = await certificateCompanyDao.createCertificate({
       srtcomapnyId,
       srtName,
@@ -417,6 +417,185 @@ exports.createCertificate = async (req, res) => {
     const message =
       err.isJoi && err.details ? err.details[0].message : err.message;
     res.status(400).json({ message, status: false });
+  }
+};
+
+// Get all certificates
+exports.getAllCertificates = async (req, res) => {
+  try {
+    const { quaction, area, company, searchText } = req.query;
+    console.log(req.params);
+
+    const result = await certificateCompanyDao.getAllCertificatesDao(
+      quaction,
+      area,
+      company,
+      searchText
+    );
+
+    if (result.length === 0) {
+      return res.json({ message: "No Certificates founded", data: [] });
+    }
+
+    console.log("Successfully retrieved collection centre Complains");
+    res.json({ message: "Certificates founded", data: result });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching news:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching center complains" });
+  }
+};
+
+// Get certificate by ID
+exports.getCertificateDetailsById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const data = await certificateCompanyDao.getCertificateById(id);
+    if (!data) {
+      return res
+        .status(404)
+        .json({ message: "Certificate not found", status: false });
+    }
+
+    // Convert serviceAreas string -> array
+    if (data.serviceAreas && typeof data.serviceAreas === "string") {
+      data.serviceAreas = data.serviceAreas
+        .split(",")
+        .map((area) => area.trim())
+        .filter((area) => area.length > 0);
+    }
+
+    // Fetch crops related to this certificate
+    const crops = await certificateCompanyDao.getCertificateCrops(id);
+    data.cropIds = crops.map((c) => c.cropId);
+
+    res.json({
+      message: "Certificate details fetched successfully",
+      status: true,
+      data,
+    });
+  } catch (err) {
+    console.error("Error fetching certificate:", err);
+    res.status(500).json({ message: "Internal server error", status: false });
+  }
+};
+
+// Update certificate
+exports.updateCertificate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized", status: false });
+    }
+
+    // Validate request body
+    const validated =
+      await ValidateSchema.updateCertificateValidation.validateAsync(req.body);
+
+    let {
+      srtcomapnyId,
+      srtName,
+      srtNumber,
+      applicable,
+      accreditation,
+      price,
+      timeLine,
+      commission,
+      serviceAreas,
+      cropIds,
+      scope,
+    } = validated;
+
+    // Normalize fields (same as create)
+    if (typeof serviceAreas === "string") {
+      try {
+        const parsed = JSON.parse(serviceAreas);
+        serviceAreas = Array.isArray(parsed) ? parsed.join(",") : serviceAreas;
+      } catch {
+        serviceAreas = serviceAreas;
+      }
+    } else if (Array.isArray(serviceAreas)) {
+      serviceAreas = serviceAreas.join(",");
+    }
+
+    if (typeof cropIds === "string") {
+      try {
+        const parsed = JSON.parse(cropIds);
+        cropIds = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        cropIds = cropIds.split(",").map((s) => s.trim());
+      }
+    }
+    if (!Array.isArray(cropIds)) cropIds = [cropIds];
+
+    // Handle file upload
+    let tearmsUrl = null;
+    if (req.file) {
+      tearmsUrl = await uploadFileToS3(
+        req.file.buffer,
+        req.file.originalname,
+        "certificate/terms"
+      );
+    }
+
+    // Update certificate
+    await certificateCompanyDao.updateCertificate({
+      id,
+      srtcomapnyId,
+      srtName,
+      srtNumber,
+      applicable,
+      accreditation,
+      serviceAreas,
+      price,
+      timeLine,
+      commission,
+      tearms: tearmsUrl,
+      scope,
+      modifyBy: userId,
+    });
+
+    // Update crops
+    await certificateCompanyDao.deleteCertificateCrops(id);
+    await certificateCompanyDao.addCertificateCrops(id, cropIds);
+
+    res.json({ message: "Certificate updated successfully", status: true });
+  } catch (err) {
+    console.error("Error updating certificate:", err);
+    const message =
+      err.isJoi && err.details ? err.details[0].message : err.message;
+    res.status(400).json({ message, status: false });
+  }
+};
+
+// Delete certificate
+exports.deleteCertificate = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const exists = await certificateCompanyDao.getCertificateById(id);
+    if (!exists) {
+      return res
+        .status(404)
+        .json({ message: "Certificate not found", status: false });
+    }
+
+    await certificateCompanyDao.deleteCertificateCrops(id);
+    await certificateCompanyDao.deleteCertificate(id);
+
+    res.json({ message: "Certificate deleted successfully", status: true });
+  } catch (err) {
+    console.error("Error deleting certificate:", err);
+    res.status(500).json({ message: "Internal server error", status: false });
   }
 };
 
@@ -467,34 +646,6 @@ exports.createQuestionnaire = async (req, res) => {
     res
       .status(500)
       .json({ message: "Internal server error", error: err.message });
-  }
-};
-
-exports.getAllCertificates = async (req, res) => {
-  try {
-    const {quaction, area, company, searchText} = req.query;
-    console.log(req.params);
-    
-    const result = await certificateCompanyDao.getAllCertificatesDao(quaction, area, company, searchText);
-
-    if (result.length === 0) {
-      return res
-        .json({ message: "No Certificates founded", data: [] });
-    }
-
-    console.log("Successfully retrieved collection centre Complains");
-    res.json({ message: "Certificates founded", data: result });
-  } catch (err) {
-    if (err.isJoi) {
-      // Validation error
-      console.error("Validation error:", err.details[0].message);
-      return res.status(400).json({ error: err.details[0].message });
-    }
-
-    console.error("Error fetching news:", err);
-    res
-      .status(500)
-      .json({ error: "An error occurred while fetching center complains" });
   }
 };
 
