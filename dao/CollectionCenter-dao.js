@@ -1300,58 +1300,57 @@ exports.getTransactionAmountCountDao = (centerId) => {
 exports.getReseantCollectionDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-          SELECT CG.cropNameEnglish, CV.varietyNameEnglish, 
-                 SUM(FPC.gradeAprice) AS totAprice, SUM(FPC.gradeBprice) AS totBprice, SUM(FPC.gradeCprice) AS totCprice, 
-                 SUM(FPC.gradeAquan) AS totAqty, SUM(FPC.gradeBquan) AS totBqty, SUM(FPC.gradeCquan) AS totCqty, 
-                 DATE(RFP.createdAt) AS date 
-          FROM registeredfarmerpayments RFP
-          JOIN farmerpaymentscrops FPC ON RFP.id = FPC.registerFarmerId
-          JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
-          JOIN plant_care.cropvariety CV ON FPC.cropId = CV.id
-          JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
-          WHERE COF.centerId = ?
-          GROUP BY CG.cropNameEnglish, CV.varietyNameEnglish, DATE(RFP.createdAt)
-          ORDER BY DATE(RFP.createdAt)
-          LIMIT 5
-      `;
+      SELECT CG.cropNameEnglish, CV.varietyNameEnglish, 
+             SUM(FPC.gradeAprice) AS totAprice, SUM(FPC.gradeBprice) AS totBprice, SUM(FPC.gradeCprice) AS totCprice, 
+             SUM(FPC.gradeAquan) AS totAqty, SUM(FPC.gradeBquan) AS totBqty, SUM(FPC.gradeCquan) AS totCqty, 
+             DATE(RFP.createdAt) AS date 
+      FROM registeredfarmerpayments RFP
+      JOIN farmerpaymentscrops FPC ON RFP.id = FPC.registerFarmerId
+      JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
+      JOIN plant_care.cropvariety CV ON FPC.cropId = CV.id
+      JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
+      WHERE COF.centerId = ?
+      GROUP BY CG.cropNameEnglish, CV.varietyNameEnglish, DATE(RFP.createdAt)
+      ORDER BY DATE(RFP.createdAt)
+      LIMIT 5
+    `;
 
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
         return reject(err);
       }
 
-      // Corrected transformation of data
       const transformData = results.flatMap((item) => {
         const entries = [];
 
-        if (item.totAqty !== undefined) {
+        if (item.totAqty && item.totAprice) {
           entries.push({
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
-            totPrice: item.totAprice,
             totQty: item.totAqty,
+            totPrice: item.totAprice * item.totAqty, // multiply price by quantity
             grade: "A",
             date: item.date,
           });
         }
 
-        if (item.totBqty !== undefined) {
+        if (item.totBqty && item.totBprice) {
           entries.push({
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
-            totPrice: item.totBprice,
             totQty: item.totBqty,
+            totPrice: item.totBprice * item.totBqty, // multiply price by quantity
             grade: "B",
             date: item.date,
           });
         }
 
-        if (item.totCqty !== undefined) {
+        if (item.totCqty && item.totCprice) {
           entries.push({
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
-            totPrice: item.totCprice,
             totQty: item.totCqty,
+            totPrice: item.totCprice * item.totCqty, // multiply price by quantity
             grade: "C",
             date: item.date,
           });
@@ -1364,6 +1363,7 @@ exports.getReseantCollectionDao = (centerId) => {
     });
   });
 };
+
 
 exports.getTotExpencesDao = (centerId) => {
   return new Promise((resolve, reject) => {
