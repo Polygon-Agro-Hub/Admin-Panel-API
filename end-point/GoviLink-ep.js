@@ -7,10 +7,11 @@ exports.createCompany = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
-    console.log(req.body);
+    console.log("Request Body:", req.body);
+    console.log("Files:", req.files);
 
-    // Extract user ID from JWT token (if available in your auth middleware)
-    const tokenUserId = req.user?.id || req.user?.userId; // Adjust based on your auth middleware
+    // Extract user ID from JWT token
+    const tokenUserId = req.user?.id || req.user?.userId;
 
     // Validate the request body based on DAO parameters
     const {
@@ -26,8 +27,7 @@ exports.createCompany = async (req, res) => {
       phoneNumber1,
       phoneCode2,
       phoneNumber2,
-      logo: logoBase64,
-      modifyBy, // This comes from frontend, but we can override with token user ID for security
+      modifyBy,
     } = req.body;
 
     // Use token user ID if available, otherwise use the one from request body
@@ -56,26 +56,39 @@ exports.createCompany = async (req, res) => {
       });
     }
 
-    // Process logo if provided
-    let logoUrl = null;
-    if (logoBase64) {
+    // Handle file upload from multipart form (logo)
+    let logoUrl = undefined;
+
+    // Process logo image from multipart form - FIXED THIS PART
+    if (req.files && req.files.logo && req.files.logo[0]) {
       try {
-        const matches = logoBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-        if (matches && matches.length === 3) {
-          const mimeType = matches[1];
-          const buffer = Buffer.from(matches[2], "base64");
-          const timestamp = Date.now();
-          const random = Math.random().toString(36).substring(2, 15);
-          const extension = mimeType.split("/")[1] || "png";
-          const filename = `logo_${timestamp}_${random}.${extension}`;
-          logoUrl = `${req.protocol}://${req.get("host")}/uploads/${filename}`;
-        }
-      } catch (error) {
-        console.error("Error processing logo:", error);
+        const file = req.files.logo[0];
+        console.log("Logo file details:", {
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        });
+
+        const fileExtension = file.originalname.split(".").pop();
+        const fileName = `${companyName.replace(
+          /\s+/g,
+          "_"
+        )}_logo.${fileExtension}`;
+
+        logoUrl = await uploadFileToS3(file.buffer, fileName, "company/logo");
+        console.log("Company logo uploaded:", logoUrl);
+      } catch (err) {
+        console.error("Error processing company logo:", err);
+        return res.status(400).json({
+          status: false,
+          error: "Invalid logo image format",
+        });
       }
+    } else {
+      console.log("No logo file found in request");
     }
 
-    // Create company using DAO with correct parameters - use finalModifyBy
+    // Create company using DAO with correct parameters
     const companyId = await GoviLinkDAO.createCompany(
       regNumber,
       companyName,
@@ -89,11 +102,11 @@ exports.createCompany = async (req, res) => {
       phoneNumber1,
       phoneCode2,
       phoneNumber2,
-      logoUrl,
-      finalModifyBy // Use the secure modifyBy value
+      logoUrl, // This will be undefined if no logo was uploaded
+      finalModifyBy
     );
 
-    console.log("Company creation success");
+    console.log("Company creation success, ID:", companyId);
     return res.status(201).json({
       status: true,
       message: "Company created successfully",
@@ -101,13 +114,17 @@ exports.createCompany = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-      return res.status(400).json({ error: err.details[0].message });
+      return res.status(400).json({
+        status: false,
+        error: err.details[0].message,
+      });
     }
 
     console.error("Error executing query:", err);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while creating company" });
+    return res.status(500).json({
+      status: false,
+      error: "An error occurred while creating company",
+    });
   }
 };
 
@@ -338,14 +355,13 @@ exports.deleteCompany = async (req, res) => {
   }
 };
 
-
 exports.updateOfficerService = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Request URL:", fullUrl);
 
   try {
     const { id } = req.params; // get ID from frontend URL
-    const { englishName, tamilName, sinhalaName, srvFee ,modifyBy} = req.body;
+    const { englishName, tamilName, sinhalaName, srvFee, modifyBy } = req.body;
 
     // Validation (basic check)
     if (!englishName || !tamilName || !sinhalaName) {
@@ -398,16 +414,15 @@ exports.deleteOfficerService = async (req, res) => {
   try {
     const result = await GoviLinkDAO.deleteOfficerServiceById(id); // call DAO function
     if (result.affectedRows > 0) {
-      res.status(200).json({ message: 'Service deleted successfully' });
+      res.status(200).json({ message: "Service deleted successfully" });
     } else {
-      res.status(404).json({ message: 'Service not found' });
+      res.status(404).json({ message: "Service not found" });
     }
   } catch (err) {
-    console.error('Error deleting officer service:', err);
-    res.status(500).json({ error: 'Failed to delete officer service' });
+    console.error("Error deleting officer service:", err);
+    res.status(500).json({ error: "Failed to delete officer service" });
   }
 };
-
 
 exports.getAllCompanies = async (req, res) => {
   try {

@@ -52,12 +52,17 @@ exports.createCompany = async (
   phoneNumber1,
   phoneCode2,
   phoneNumber2,
-  logo,
+  logo, // This will now be the S3 URL or undefined
   modifyBy
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
       "INSERT INTO feildcompany (companyName, RegNumber, email, financeOfficerName, accName, accNumber, bank, branch, phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, logo, modifyBy, createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, NOW())";
+
+    // Handle undefined logo - set to NULL in database
+    const logoValue = logo !== undefined ? logo : null;
+
+    console.log("DAO - Logo value:", logoValue); // Debug log
 
     const values = [
       companyName,
@@ -72,14 +77,18 @@ exports.createCompany = async (
       phoneNumber1,
       phoneCode2,
       phoneNumber2,
-      logo,
+      logoValue, // Use the handled logo value
       modifyBy,
     ];
 
+    console.log("DAO - Executing query with values:", values); // Debug log
+
     plantcare.query(sql, values, (err, results) => {
       if (err) {
+        console.error("DAO - Database error:", err); // Debug log
         reject(err);
       } else {
+        console.log("DAO - Insert successful, ID:", results.insertId); // Debug log
         resolve(results.insertId);
       }
     });
@@ -251,7 +260,14 @@ exports.deleteCompanyById = async (id) => {
 };
 
 // Update Officer Service by ID
-exports.updateOfficerService = (id, englishName, tamilName, sinhalaName, srvFee, modifyBy) => {
+exports.updateOfficerService = (
+  id,
+  englishName,
+  tamilName,
+  sinhalaName,
+  srvFee,
+  modifyBy
+) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE plant_care.officerservices
@@ -271,7 +287,7 @@ exports.updateOfficerService = (id, englishName, tamilName, sinhalaName, srvFee,
           } else {
             resolve({
               message: "Officer service updated successfully",
-              affectedRows: result.affectedRows
+              affectedRows: result.affectedRows,
             });
           }
         }
@@ -324,7 +340,6 @@ exports.getAllOfficerServices = () => {
   });
 };
 
-
 // Delete an officer service by ID
 exports.deleteOfficerServiceById = (id) => {
   return new Promise((resolve, reject) => {
@@ -336,9 +351,9 @@ exports.deleteOfficerServiceById = (id) => {
       if (err) {
         reject(err);
       } else {
-        resolve({ 
-          message: 'Service marked as invalid successfully', 
-          affectedRows: results.affectedRows 
+        resolve({
+          message: "Service marked as invalid successfully",
+          affectedRows: results.affectedRows,
         });
       }
     });

@@ -6,7 +6,12 @@ const upload = require("../middlewares/uploadMiddleware");
 
 const router = express.Router();
 
-router.post("/create-company", authMiddleware, GoviLinkEp.createCompany);
+router.post(
+  "/create-company",
+  authMiddleware,
+  upload.fields([{ name: "logo", maxCount: 1 }]), // Change from single to fields
+  GoviLinkEp.createCompany
+);
 
 router.get("/get-company-by-id/:id", authMiddleware, GoviLinkEp.getCompanyById);
 
@@ -22,8 +27,11 @@ router.patch("/update-company/:id", authMiddleware, GoviLinkEp.updateCompany);
 
 router.delete("/delete-company/:id", authMiddleware, GoviLinkEp.deleteCompany);
 
-router.put("/update-officer-service/:id", authMiddleware,
-  GoviLinkEp.updateOfficerService);
+router.put(
+  "/update-officer-service/:id",
+  authMiddleware,
+  GoviLinkEp.updateOfficerService
+);
 
 router.get(
   "/get-officer-service-by-id/:id",
@@ -38,15 +46,11 @@ router.get(
 );
 
 router.delete(
-  '/officer-service/:id',
+  "/officer-service/:id",
   authMiddleware,
   GoviLinkEp.deleteOfficerService
 );
 
-router.get(
-  "/get-all-companies",
-  authMiddleware,
-  GoviLinkEp.getAllCompanies
-);
+router.get("/get-all-companies", authMiddleware, GoviLinkEp.getAllCompanies);
 
 module.exports = router;
