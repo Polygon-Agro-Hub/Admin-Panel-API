@@ -457,3 +457,7 @@ exports.getFieldOfficerSchema = Joi.object({
   id: Joi.number().integer().required(),
 });
 
+exports.getRoleShema = Joi.object({
+  role: Joi.string().required().valid() // Add valid roles as needed
+});
+
