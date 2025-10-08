@@ -198,16 +198,18 @@ exports.createCertificate = ({
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO certificates
-      (srtcomapnyId, srtName, srtNumber, applicable, accreditation, serviceAreas, price, timeLine, commission, tearms, scope, modifyBy, modifyDate)
+      (srtcomapnyId, srtName, srtNumber, applicable, accreditation, serviceAreas,
+       price, timeLine, commission, tearms, scope, modifyBy, modifyDate)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
+
     const values = [
       srtcomapnyId,
       srtName,
       srtNumber,
       applicable,
       accreditation,
-      JSON.stringify(serviceAreas), // <-- convert array to JSON string
+      serviceAreas,
       price || null,
       timeLine || null,
       commission || null,
@@ -262,6 +264,117 @@ exports.bulkInsertQuestionnaires = (certificateId, questions) => {
     plantcare.query(sql, [values], (err, result) => {
       if (err) return reject(err);
       resolve(result); // includes insertId & affectedRows
+    });
+  });
+};
+
+exports.getAllCertificatesDao = (quaction, area, company, searchText) => {
+  return new Promise((resolve, reject) => {
+    const sqlParams = [];
+    let sql = `
+      SELECT
+        c.id,
+        c.srtName,
+        c.srtNumber,
+        c.commission,
+        c.serviceAreas,
+        ( SELECT COUNT(*) FROM questionnaire q WHERE q.certificateId = c.id ) AS qCount,
+        au.userName AS modifiedByUser,
+        c.modifyDate,
+        com.comName AS companyName
+      FROM certificates c
+      LEFT JOIN certificatecompany com ON c.srtcomapnyId = com.id
+      LEFT JOIN agro_world_admin.adminusers au ON c.modifyBy = au.id
+      WHERE 1=1
+    `;
+
+    // Use the actual subquery in WHERE clause instead of alias
+    if (quaction) {
+      if (quaction === "Yes") {
+        sql += ` AND (SELECT COUNT(*) FROM questionnaire q WHERE q.certificateId = c.id) > 0`;
+      } else if (quaction === "No") {
+        sql += ` AND (SELECT COUNT(*) FROM questionnaire q WHERE q.certificateId = c.id) = 0`;
+      }
+    }
+
+    if(area){
+      sql += ` AND c.serviceAreas LIKE ?`;
+      sqlParams.push(`%${area}%`);
+    }
+
+    if(company){
+      sql += ` AND c.srtcomapnyId = ?`;
+      sqlParams.push(company);
+    }
+
+    if(searchText){
+      sql += ` AND (c.srtName LIKE ? OR c.srtNumber LIKE ?)`;
+      sqlParams.push(`%${searchText}%`, `%${searchText}%`);
+    }
+
+    sql += ` ORDER BY c.createdAt DESC`;
+    
+    plantcare.query(sql, sqlParams, (err, results) => {
+      if (err) {
+        console.log(err);
+        return reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+// Get questionnaires for a certificate
+exports.getQuestionnaireList = (certificateId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, certificateId, type, qNo, qEnglish, qSinhala, qTamil, createdAt
+      FROM questionnaire
+      WHERE certificateId = ?
+      ORDER BY qNo ASC
+    `;
+
+    plantcare.query(sql, [certificateId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+// Update questionnaire by ID
+exports.updateQuestionnaire = (id, updatedFields) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE questionnaire
+      SET type = ?, qNo = ?, qEnglish = ?, qSinhala = ?, qTamil = ?
+      WHERE id = ?
+    `;
+
+    const values = [
+      updatedFields.type,
+      updatedFields.qNo,
+      updatedFields.qEnglish,
+      updatedFields.qSinhala,
+      updatedFields.qTamil,
+      id,
+    ];
+
+    plantcare.query(sql, values, (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+  });
+};
+
+// Delete questionnaire by ID
+exports.deleteQuestionnaire = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `DELETE FROM questionnaire WHERE id = ?`;
+
+    plantcare.query(sql, [id], (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
     });
   });
 };

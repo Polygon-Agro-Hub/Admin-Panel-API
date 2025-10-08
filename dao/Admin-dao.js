@@ -4394,13 +4394,13 @@ exports.getFieldOfficerByIdDAO = (id) => {
               FO.*,
               FC.companyName
           FROM 
-              plant_care.feildofficer FO
+              feildofficer FO
           JOIN 
-              plant_care.feildcompany FC ON FO.companyId = FC.id
+              feildcompany FC ON FO.companyId = FC.id
           WHERE 
               FO.id = ?`;
 
-    collectionofficer.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -4441,13 +4441,14 @@ exports.getFieldOfficerByIdDAO = (id) => {
           jobRole: officer.JobRole,
           employeeType: officer.empType,
           accHolderName: officer.accName,
-          accNumber: officer.accName,
+          accNumber: officer.accNumber,
           bankName: officer.bank,
           branchName: officer.branch,
           companyName: officer.companyName,
           assignDistricts: assignDistrictsArray,
           comAmount: officer.comAmount,
-          language: officer.language
+          language: officer.language,
+          companyId: officer.companyId,
         },
       });
     });
@@ -4478,5 +4479,111 @@ exports.DeleteFieldOfficerDao = (id) => {
       }
       resolve(results); // Resolve the promise with the query results
     });
+  });
+};
+
+exports.updateFieldOfficer = (
+  officerId,
+  officerData,
+  profileImageUrl,
+  nicFrontUrl,
+  nicBackUrl,
+  passbookUrl,
+  contractUrl
+) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // If no image URLs, set them to null
+      const profileUrl = profileImageUrl || null;
+      const frontNicUrl = nicFrontUrl || null;
+      const backNicUrl = nicBackUrl || null;
+      const backPassbookUrl = passbookUrl || null;
+      const contractUrlValue = contractUrl || null;
+
+      const sql = `
+        UPDATE feildofficer 
+        SET 
+          companyId = ?, 
+          irmId = ?, 
+          firstName = ?, 
+          lastName = ?, 
+          empType = ?, 
+          jobRole = ?, 
+          phoneCode1 = ?, 
+          phoneNumber1 = ?, 
+          phoneCode2 = ?, 
+          phoneNumber2 = ?, 
+          language = ?, 
+          email = ?, 
+          nic = ?, 
+          house = ?, 
+          street = ?, 
+          city = ?, 
+          distrct = ?, 
+          province = ?, 
+          country = ?, 
+          comAmount = ?, 
+          accName = ?, 
+          accNumber = ?, 
+          bank = ?, 
+          branch = ?, 
+          profile = ?, 
+          frontNic = ?, 
+          backNic = ?, 
+          backPassbook = ?, 
+          contract = ?, 
+          assignDistrict = ?, 
+          status = ?
+        WHERE id = ?;
+      `;
+
+      // Replace 'db' with your actual database connection variable
+      plantcare.query(
+        sql,
+        [
+          officerData.companyId,
+          officerData.irmId,
+          officerData.firstName,
+          officerData.lastName,
+          officerData.empType,
+          officerData.jobRole,
+          officerData.phoneCode1,
+          officerData.phoneNumber1,
+          officerData.phoneCode2,
+          officerData.phoneNumber2,
+          officerData.language,
+          officerData.email,
+          officerData.nic,
+          officerData.house,
+          officerData.street,
+          officerData.city,
+          officerData.distrct,
+          officerData.province,
+          officerData.country,
+          officerData.comAmount,
+          officerData.accName,
+          officerData.accNumber,
+          officerData.bank,
+          officerData.branch,
+          profileUrl,
+          frontNicUrl,
+          backNicUrl,
+          backPassbookUrl,
+          contractUrlValue,
+          officerData.assignDistrict,
+          officerData.status || "Not Aproved", // Keep existing status or default
+          officerId // WHERE condition
+        ],
+        (err, results) => {
+          if (err) {
+            console.log(err);
+            return reject(err);
+          }
+          resolve(results);
+        }
+      );
+    } catch (error) {
+      reject(error);
+    }
   });
 };
