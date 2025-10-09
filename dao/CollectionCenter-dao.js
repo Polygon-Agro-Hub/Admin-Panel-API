@@ -756,7 +756,7 @@ exports.sendComplainReply = (complainId, reply) => {
 
     const sql = `
       UPDATE farmercomplains 
-      SET reply = ?, status = ?, adminStatus = ? 
+      SET reply = ?, status = ?, adminStatus = ?, replyTime = NOW()
       WHERE id = ?
     `;
 
@@ -797,7 +797,7 @@ exports.sendCenterComplainReply = (complainId, reply) => {
 
     const sql = `
       UPDATE officercomplains 
-      SET reply = ?, COOStatus = ?, CCMStatus = ? , CCHStatus = ? , AdminStatus = ?
+      SET reply = ?, COOStatus = ?, CCMStatus = ? , CCHStatus = ? , AdminStatus = ?, replyTime = NOW()
       WHERE id = ?
     `;
 

@@ -408,7 +408,7 @@ exports.updateMarketplaceComplaintReply = (complaintId, reply) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE market_place.marcketplacecomplain
-      SET reply = ?, status = ?
+      SET reply = ?, status = ?, replyTime = NOW()
       WHERE id = ?
     `;
     marketPlace.query(sql, [reply, "Closed", complaintId, ], (err, results) => {
