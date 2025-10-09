@@ -67,8 +67,8 @@ exports.createCertificateCompany = async (req, res) => {
     // Check duplicate regNumber
     const existing = await certificateCompanyDao.checkByRegNumber(regNumber);
     if (existing.length > 0) {
-      return res.json({
-        message: "This registration number already exists!",
+      return res.status(400).json({
+        message: `Registration number "${regNumber}" already exists. Please use a different one.`,
         status: false,
       });
     }
