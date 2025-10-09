@@ -180,7 +180,7 @@ router.get(
 );
 
 router.get(
-  "/get-current-assets-view/:id/:category",
+  "/get-current-assets-view/:id/:category/:farmId",
   authMiddleware,
   AdminEp.getCurrentAssetsByCategory
 );
@@ -193,7 +193,7 @@ router.post(
 
 //Report current assert --- get-assert-using-userid
 router.get(
-  "/get-current-assert/:id",
+  "/get-current-assert/:id/:farmId",
   authMiddleware,
   AdminEp.getCurrentAssertGroup
 );

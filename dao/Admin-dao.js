@@ -1150,9 +1150,9 @@ exports.getLandOwnershipDetails = (landAssetId) => {
   });
 };
 
-exports.getCurrentAssetsByCategory = (userId, category) => {
-  const sql = `SELECT * FROM currentasset WHERE userId = ? AND category = ?`;
-  const values = [userId, category];
+exports.getCurrentAssetsByCategory = (userId, category ,farmId) => {
+  const sql = `SELECT * FROM currentasset WHERE userId = ? AND category = ? AND farmId = ?`;
+  const values = [userId, category,farmId];
 
   return new Promise((resolve, reject) => {
     plantcare.query(sql, values, (err, results) => {
@@ -1847,15 +1847,15 @@ exports.createAdmin = (adminData, hashedPassword) => {
   });
 };
 
-exports.getCurrentAssetGroup = (userId) => {
+exports.getCurrentAssetGroup = (userId,farmId) => {
   return new Promise((resolve, reject) => {
     const sql = `
             SELECT category, SUM(total) as totPrice 
             FROM currentasset 
-            WHERE userId = ? 
+            WHERE userId = ? AND farmId = ?
             GROUP BY category
         `;
-    const values = [userId];
+    const values = [userId ,farmId];
 
     plantcare.query(sql, values, (err, results) => {
       if (err) {

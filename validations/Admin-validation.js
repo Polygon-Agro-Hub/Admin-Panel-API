@@ -368,6 +368,11 @@ exports.getCurrentAssetGroupSchema = Joi.object({
     "number.base": "User ID must be a number",
     "number.integer": "User ID must be an integer",
   }),
+  farmId: Joi.number().integer().required().messages({
+    "any.required": "Farm ID is required",
+    "number.base": "Farm ID must be a number",
+    "number.integer": "Farm ID must be an integer",
+  }),
 });
 
 exports.getCurrentAssetRecordByIdSchema = Joi.object({
