@@ -442,3 +442,30 @@ exports.getAllCompanies = async (req, res) => {
       .json({ error: "An error occurred while fetching companies" });
   }
 };
+
+// Get all govi link jobs with filters
+exports.getAllGoviLinkJobs = async (req, res) => {
+  try {
+    const { search, district, status, assignStatus, date } = req.query;
+
+    const results = await GoviLinkDAO.getAllGoviLinkJobsDAO({
+      search,
+      district,
+      status,
+      assignStatus,
+      date,
+    });
+
+    console.log("Successfully retrieved all GoviLink jobs");
+
+    res.json({
+      results,
+      total: results.length,
+    });
+  } catch (err) {
+    console.error("Error fetching GoviLink jobs:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching GoviLink jobs" });
+  }
+};
