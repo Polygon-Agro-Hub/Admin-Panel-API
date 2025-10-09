@@ -756,7 +756,7 @@ exports.sendComplainReply = (complainId, reply) => {
 
     const sql = `
       UPDATE farmercomplains 
-      SET reply = ?, status = ?, adminStatus = ? 
+      SET reply = ?, status = ?, adminStatus = ?, replyTime = NOW()
       WHERE id = ?
     `;
 
