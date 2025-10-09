@@ -415,3 +415,97 @@ exports.getAllCompanyDAO = (searchTerm) => {
     });
   });
 };
+
+// Get all govi link jobs
+// Get all govi link jobs with filters
+exports.getAllGoviLinkJobsDAO = (filters = {}) => {
+  return new Promise((resolve, reject) => {
+    const {
+      searchTerm,
+      district,
+      status,
+      assignStatus,
+      date
+    } = filters;
+
+    let sql = `
+      SELECT 
+        gj.id AS jobId,
+        CONCAT(u.firstName, ' ', u.lastName) AS farmerName,
+        u.NICnumber AS farmerNIC,
+        os.englishName AS service,
+        f.district AS district,
+        gj.status AS status,
+        au.userName AS assignedBy,
+        gj.sheduleDate AS scheduledDate,
+        gj.createdAt AS createdAt,
+        CASE 
+          WHEN jao.id IS NOT NULL THEN 'Assigned'
+          ELSE 'Not Assigned'
+        END AS assignStatus,
+        jao.id AS assignmentId,
+        CONCAT(fo.firstName, ' ', fo.lastName) AS assignedOfficerName,
+        fo.empId AS officerEmpId
+      FROM 
+        govilinkjobs gj
+      LEFT JOIN users u ON gj.farmerId = u.id
+      LEFT JOIN officerservices os ON gj.serviceId = os.id
+      LEFT JOIN farms f ON gj.farmId = f.id
+      LEFT JOIN agro_world_admin.adminusers au ON gj.assignBy = au.id
+      LEFT JOIN jobassignofficer jao ON gj.id = jao.jobId AND jao.isActive = 1
+      LEFT JOIN feildofficer fo ON jao.officerId = fo.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    // Search filter (by farmer name, NIC, service, or officer name)
+    if (searchTerm && searchTerm.trim()) {
+      sql += `
+        AND (
+          CONCAT(u.firstName, ' ', u.lastName) LIKE ? OR
+          u.NICnumber LIKE ? OR
+          os.englishName LIKE ? OR
+          CONCAT(fo.firstName, ' ', fo.lastName) LIKE ? OR
+          fo.empId LIKE ?
+        )
+      `;
+      const trimmed = `%${searchTerm.trim()}%`;
+      params.push(trimmed, trimmed, trimmed, trimmed, trimmed);
+    }
+
+    // District filter
+    if (district && district.trim()) {
+      sql += ` AND f.district = ?`;
+      params.push(district.trim());
+    }
+
+    // Status filter
+    if (status && status.trim()) {
+      sql += ` AND gj.status = ?`;
+      params.push(status.trim());
+    }
+
+    // Assign Status filter (Assigned/Not Assigned)
+    if (assignStatus && assignStatus.trim()) {
+      if (assignStatus === 'Assigned') {
+        sql += ` AND jao.id IS NOT NULL`;
+      } else if (assignStatus === 'Not Assigned') {
+        sql += ` AND jao.id IS NULL`;
+      }
+    }
+
+    // Date filter - filter by specific date
+    if (date && date.trim()) {
+      sql += ` AND DATE(gj.createdAt) = ?`;
+      params.push(date.trim());
+    }
+
+    sql += " ORDER BY gj.createdAt DESC";
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};

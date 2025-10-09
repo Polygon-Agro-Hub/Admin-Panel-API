@@ -53,4 +53,11 @@ router.delete(
 
 router.get("/get-all-companies", authMiddleware, GoviLinkEp.getAllCompanies);
 
+// Get all govi link jobs
+router.get(
+  "/get-all-govi-link-jobs",
+  authMiddleware,
+  GoviLinkEp.getAllGoviLinkJobs
+);
+
 module.exports = router;
