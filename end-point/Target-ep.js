@@ -52,14 +52,18 @@ exports.getSavedCenterCrops = async (req, res) => {
 
   try {
     const companyId = 1;
-    const { id, date } =
+    const { id } =
       await TargetValidate.getSavedCenterCropsSchema.validateAsync(req.params);
-    const { searchText } =
+    const { page, date, searchText } =
       await TargetValidate.getSavedCenterCropsQuaryParam.validateAsync(
         req.query
       );
 
-    console.log(id, date);
+    if (date === null) {
+       date = ''
+    }
+
+    console.log('ep', 'id', id,'date', date, 'searchText', searchText);
 
     const companyCenterId = await TargetDAO.getCompanyCenterIDDao(
       companyId,
@@ -74,14 +78,38 @@ exports.getSavedCenterCrops = async (req, res) => {
     }
 
     const status = true;
-    const result = await TargetDAO.getSavedCenterCropsDao(
+    const preresult = await TargetDAO.getSavedCenterCropsDao(
       companyCenterId,
       date,
       status,
       searchText
     );
 
-    return res.status(200).json({ result, companyCenterId });
+    console.log('preresult', preresult)
+
+    const assignBy = preresult.latestAssignBy;
+
+    let officerData = null;
+    let officerName = null;
+      
+    if (assignBy) {
+      officerData = await TargetDAO.getOfficerData(assignBy);
+    
+      if (officerData && officerData.length > 0) {
+        officerName = officerData[0].firstNameEnglish || null;
+      }
+    }
+    
+    console.log("Officer Data:", officerData);
+    console.log("Officer Name:", officerName);
+
+
+    const result = {
+      data: preresult.data,
+      isNew: preresult.isNew
+    };
+
+    return res.status(200).json({ result, companyCenterId, officerName });
   } catch (error) {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message }); // Add return here

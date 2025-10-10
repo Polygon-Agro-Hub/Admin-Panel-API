@@ -44,7 +44,7 @@ exports.checkExistingDistributionCenter = (checkData) => {
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
-        console.error("Error checking existing distribution center:", err);
+        console.error("Error checking existing distribution centre:", err);
         return reject(err);
       }
 
@@ -54,23 +54,23 @@ exports.checkExistingDistributionCenter = (checkData) => {
 
         switch (conflict.conflictType) {
           case "name":
-            message = "A distribution center with this name already exists.";
+            message = "name";
             break;
           case "regCode":
             message =
-              "A distribution center with this registration code already exists.";
+              "regCode";
             break;
           case "email":
             message =
-              "Email already exists.";
+              "email";
             break;
           case "contact":
             message =
-              "Mobile Number already exists.";
+              "contact";
             break;
           default:
             message =
-              "A distribution center with these details already exists.";
+              "default";
         }
 
         resolve({
@@ -115,7 +115,7 @@ exports.createDistributionCenter = (data) => {
     // First insert into distributedcenter
     collectionofficer.query(sql1, values1, (err, result1) => {
       if (err) {
-        console.error("Error inserting distribution center:", err);
+        console.error("Error inserting distribution centre:", err);
         return reject(err);
       }
 
@@ -277,7 +277,7 @@ exports.getAllCompanyDAO = (searchTerm, centerId) => {
           FROM collection_officer.collectionofficer co
           WHERE co.companyId = c.id 
           AND co.companyId = c.id 
-          AND co.jobRole = 'Distribution Center Manager'
+          AND co.jobRole = 'Distribution Centre Manager'
         ) AS managerCount,
         (
           SELECT COUNT(*) 
@@ -334,7 +334,7 @@ exports.getAllDistributionCentreHead = (
   searchText
 ) => {
   return new Promise((resolve, reject) => {
-    let countSql = `SELECT COUNT(*) AS total FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Center Head'`;
+    let countSql = `SELECT COUNT(*) AS total FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Centre Head'`;
     let dataSql = `SELECT 
         co.id,
         co.empId,
@@ -346,7 +346,7 @@ exports.getAllDistributionCentreHead = (
         co.phoneNumber01,
         co.phoneCode02,
         co.phoneNumber02,
-        co.createdAt FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Center Head'`;
+        co.createdAt FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Centre Head'`;
     const countParams = [companyId];
     const dataParams = [companyId];
 
@@ -440,7 +440,7 @@ exports.createDistributionHeadPersonal = (
 
       const sql = `
                 INSERT INTO collectionofficer (
-                    centerId, companyId, irmId, firstNameEnglish, lastNameEnglish,
+                    distributedCenterId, companyId, irmId, firstNameEnglish, lastNameEnglish,
                     jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
                     languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
@@ -637,14 +637,42 @@ exports.GetDistributionHeadDetailsByIdDao = (id) => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-        id, companyId, irmId, firstNameEnglish, lastNameEnglish, jobRole, empId, empType,
-        phoneCode01, phoneNumber01, phoneCode02, phoneNumber02, nic, email,
-        houseNumber, streetName, city, district, province, country, languages,
-        accHolderName, accNumber, bankName, branchName, image, status,
-        claimStatus, onlineStatus
+        co.id, 
+        co.companyId, 
+        cc.centerName,  -- ✅ fetched from collectioncenter
+        co.irmId, 
+        co.firstNameEnglish, 
+        co.lastNameEnglish, 
+        co.jobRole, 
+        co.empId, 
+        co.empType,
+        co.phoneCode01, 
+        co.phoneNumber01, 
+        co.phoneCode02, 
+        co.phoneNumber02, 
+        co.nic, 
+        co.email,
+        co.houseNumber, 
+        co.streetName, 
+        co.city, 
+        co.district, 
+        co.province, 
+        co.country, 
+        co.languages,
+        co.accHolderName, 
+        co.accNumber, 
+        co.bankName, 
+        co.branchName, 
+        co.image, 
+        co.status,
+        co.claimStatus, 
+        co.onlineStatus
       FROM 
-        collectionofficer
-      WHERE id = ?
+        collectionofficer co
+      LEFT JOIN 
+        collectioncenter cc 
+      ON co.companyId = cc.id
+      WHERE co.id = ?
     `;
 
     collectionofficer.query(sql, [id], (err, results) => {
@@ -657,6 +685,7 @@ exports.GetDistributionHeadDetailsByIdDao = (id) => {
     });
   });
 };
+
 
 exports.UpdateDistributionHeadDao = (id, updateData) => {
   console.log("id", id);
@@ -777,14 +806,14 @@ exports.deleteDistributedCenterDao = (id) => {
 
 exports.updateDistributionCentreById = (id, updateData) => {
   return new Promise((resolve, reject) => {
-    console.log("Starting update for distribution center ID:", id);
+    console.log("Starting update for distribution centre ID:", id);
     console.log("Update data received:", updateData);
 
     // Extract company information from updateData if available
     const companyNameEnglish = updateData.companyNameEnglish;
     const companyId = updateData.companyId;
 
-    // Update distribution center SQL
+    // Update distribution centre SQL
     const updateCenterSql = `
       UPDATE distributedcenter 
       SET 
@@ -823,13 +852,13 @@ exports.updateDistributionCentreById = (id, updateData) => {
 
     console.log("Executing center update with:", updateCenterSql, centerParams);
 
-    // Execute distribution center update
+    // Executere update
     collectionofficer.query(
       updateCenterSql,
       centerParams,
       (err, centerResults) => {
         if (err) {
-          console.error("Error updating distribution center:", err);
+          console.error("Error updating distribution centre:", err);
           return reject(err);
         }
 
@@ -865,7 +894,7 @@ exports.updateDistributionCentreById = (id, updateData) => {
               console.log("Company update results:", companyResults);
               console.log("Updates completed successfully");
               
-              // Return updated distribution center regardless of company update result
+              // Return updated distribution centre regardless of company update result
               exports
                 .getDistributionCentreById(id)
                 .then((updatedCenter) => resolve(updatedCenter))
@@ -966,9 +995,9 @@ exports.getDistributedIdforCreateEmpIdDao = (employee) => {
       }
 
       if (results.length === 0) {
-        if (employee === "Distribution Center Head") {
+        if (employee === "Distribution Centre Head") {
           return resolve("DCH00001");
-        } else if (employee === "Distribution Center Manager") {
+        } else if (employee === "Distribution Centre Manager") {
           return resolve("DCM00001");
         } else if (employee === "Distribution Officer") {
           return resolve("CIO00001");
@@ -1008,8 +1037,8 @@ exports.getAllDistributionOfficers = (
             SELECT COUNT(*) as total
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
-            LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
-            WHERE coff.jobRole IN ('Distribution Center Manager', 'Distribution Officer') AND cm.id = 2
+            LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
+            WHERE coff.jobRole IN ('Distribution Centre Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
     let dataSql = `
@@ -1029,8 +1058,8 @@ exports.getAllDistributionOfficers = (
                 dc.centerName
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
-            LEFT JOIN distributedcenter dc ON coff.centerId = dc.id
-            WHERE coff.jobRole IN ('Distribution Center Manager', 'Distribution Officer') AND cm.id = 2
+            LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
+            WHERE coff.jobRole IN ('Distribution Centre Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
     const countParams = [];
@@ -1078,8 +1107,8 @@ exports.getAllDistributionOfficers = (
     }
 
     if (centerId) {
-      countSql += " AND coff.centerId = ?";
-      dataSql += " AND coff.centerId = ?";
+      countSql += " AND coff.distributedCenterId = ?";
+      dataSql += " AND coff.distributedCenterId = ?";
       countParams.push(centerId);
       dataParams.push(centerId);
     }
@@ -1127,7 +1156,7 @@ exports.getAllDistributionOfficers = (
     dataSql += ` 
       ORDER BY 
         CASE 
-          WHEN coff.jobRole = 'Distribution Center Manager' THEN 1 
+          WHEN coff.jobRole = 'Distribution Centre Manager' THEN 1 
           WHEN coff.jobRole = 'Distribution Officer' THEN 2 
           ELSE 3 
         END,
@@ -1176,15 +1205,15 @@ exports.getAllDistributionCenterNamesDao = (district) => {
   });
 };
 
-exports.getAllDistributionCenterManagerDao = () => {
+exports.getAllDistributionCenterManagerDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT id, firstNameEnglish, lastNameEnglish
       FROM collectionofficer
-      WHERE jobRole = 'Distribution Center Manager';
+      WHERE jobRole = 'Distribution Centre Manager' AND companyId = 2 AND distributedCenterId = ?;
     `;
 
-    collectionofficer.query(sql, (err, results) => {
+    collectionofficer.query(sql,[id], (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -1460,9 +1489,9 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
       }
 
       if (results.length === 0) {
-        if (employee === "Distribution Center Head") {
+        if (employee === "Distribution Centre Head") {
           return resolve("DCH00001");
-        } else if (employee === "Distribution Center Manager") {
+        } else if (employee === "Distribution Centre Manager") {
           return resolve("DCM00001");
         } else if (employee === "Distribution Officer") {
           return resolve("DIO00001");
@@ -1514,14 +1543,14 @@ exports.createDistributionOfficerPersonal = (
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
       if (
-        officerData.jobRole === "Distribution Center Manager" 
+        officerData.jobRole === "Distribution Centre Manager" 
       ) {
         officerData.irmId = null;
       }
 
       const sql = `
                 INSERT INTO collectionofficer (
-                    centerId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
+                    distributedCenterId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
                     lastNameSinhala, lastNameTamil, jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
                     languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
@@ -1601,7 +1630,7 @@ exports.GetDistributionCentersByCompanyIdDAO = (companyId) => {
 exports.GetAllDistributionManagerList = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND centerId = ?";
+      "SELECT id, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND distributedCenterId = ?";
     collectionofficer.query(sql, [companyId, centerId], (err, results) => {
       if (err) {
         return reject(err);
@@ -1902,7 +1931,7 @@ exports.getEachDistributedCenterOfficersDao = (data, status, role, searchText) =
         phoneNumber01,
         nic
       FROM collectionofficer 
-      WHERE companyId = ? AND centerId = ? AND jobRole IN ('Distribution Center Manager', 'Distribution Officer')
+      WHERE companyId = ? AND distributedCenterId = ? AND jobRole IN ('Distribution Centre Manager', 'Distribution Officer')
       `;
 
     if (status) {
@@ -2033,7 +2062,7 @@ exports.updateDistributionOfficerDetails = (
   return new Promise((resolve, reject) => {
     let sql = `
              UPDATE collectionofficer
-                SET centerId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
+                SET distributedCenterId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
                     firstNameTamil = ?, lastNameTamil = ?, jobRole = ?, empId = ?, empType = ?, phoneCode01 = ?, phoneNumber01 = ?, phoneCode02 = ?, phoneNumber02 = ?,
                     nic = ?, email = ?, houseNumber = ?, streetName = ?, city = ?, district = ?, province = ?, country = ?, languages = ?,
                     accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?, status = 'Not Approved'
@@ -2358,6 +2387,103 @@ exports.getCompanyAndCenter = (officerId) => {
         return reject(err);
       }
       resolve(results[0]);
+    });
+  });
+};
+
+
+exports.checkEmailExistDC = async (email, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM distributedcenter WHERE email = ?`;
+    const params = [email];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkCompanyNameExistDC = async (name, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM distributedcenter WHERE centerName = ?`;
+    const params = [name];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkRegCodeExistDC = async (regCode, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM distributedcenter WHERE regCode = ?`;
+    const params = [regCode];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+// Check if phone number exists, excluding the current officer
+exports.checkPhoneNumberExistDC = async (phoneNumber, excludeId = null) => {
+  console.log("officer", excludeId);
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count 
+               FROM distributedcenter 
+               WHERE (contact01 = ? OR contact02 = ?)`;
+    const params = [phoneNumber, phoneNumber];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.claimDistributedOfficersDao = (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE collectionofficer
+      SET distributedCenterId = ?, irmId = ?, claimStatus = 1
+      WHERE id = ?
+    `;
+    collectionofficer.query(sql, [data.centerId, data.irmId, data.id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.updateDistributedCompaanyCenterDao = async (companyId, centerId) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      UPDATE distributedcompanycenter 
+      SET companyId = ? 
+      WHERE centerId = ?
+    `;
+    const params = [companyId, centerId];
+  
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
     });
   });
 };

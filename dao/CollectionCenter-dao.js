@@ -100,7 +100,7 @@ exports.GetCentersByCompanyIdDAO = (companyId) => {
   });
 };
 
-//delete collection center
+//delete collection centre
 exports.deleteCollectionCenterDAo = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = "DELETE FROM collectioncenter WHERE id = ?";
@@ -756,7 +756,7 @@ exports.sendComplainReply = (complainId, reply) => {
 
     const sql = `
       UPDATE farmercomplains 
-      SET reply = ?, status = ?, adminStatus = ? 
+      SET reply = ?, status = ?, adminStatus = ?, replyTime = NOW()
       WHERE id = ?
     `;
 
@@ -797,7 +797,7 @@ exports.sendCenterComplainReply = (complainId, reply) => {
 
     const sql = `
       UPDATE officercomplains 
-      SET reply = ?, COOStatus = ?, CCMStatus = ? , CCHStatus = ? , AdminStatus = ?
+      SET reply = ?, COOStatus = ?, CCMStatus = ? , CCHStatus = ? , AdminStatus = ?, replyTime = NOW()
       WHERE id = ?
     `;
 
@@ -826,6 +826,7 @@ exports.sendCenterComplainReply = (complainId, reply) => {
 };
 
 exports.getForCreateId = (role) => {
+  console.log('role', role)
   return new Promise((resolve, reject) => {
     const sql =
       "SELECT empId FROM collectionofficer WHERE empId LIKE ? ORDER BY empId DESC LIMIT 1";
@@ -930,7 +931,7 @@ exports.GetAllCompanyList = () => {
 exports.GetAllManagerList = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND centerId = ?";
+      "SELECT id, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND centerId = ? AND jobRole = 'Collection Centre Manager'";
     collectionofficer.query(sql, [companyId, centerId], (err, results) => {
       if (err) {
         return reject(err);
@@ -972,80 +973,6 @@ exports.generateRegCode = (province, district, city, callback) => {
   });
 };
 
-// exports.getAllCompanyDAO = () => {
-//   return new Promise((resolve, reject) => {
-//     const sql = `
-//       SELECT
-//         c.companyNameEnglish AS companyName,
-//         c.email AS companyEmail,
-//         c.status,
-//         SUM(CASE WHEN co.jobRole = 'Collection Center Head' THEN 1 ELSE 0 END) AS numOfHeads,
-//         SUM(CASE WHEN co.jobRole = 'Collection Center Manager' THEN 1 ELSE 0 END) AS numOfManagers,
-//         SUM(CASE WHEN co.jobRole = 'Collection Officer' THEN 1 ELSE 0 END) AS numOfOfficers
-//       FROM
-//         company c
-//       LEFT JOIN
-//         collectionofficer co
-//       ON
-//         c.id = co.companyId
-//       GROUP BY
-//         c.id
-//     `;
-//     collectionofficer.query(sql, (err, results) => {
-//       if (err) {
-//         return reject(err);
-//       }
-//       resolve(results);
-//     });
-//   });
-// };
-
-// exports.getAllCompanyDAO = (search) => {
-//   return new Promise((resolve, reject) => {
-//     let sql = `
-//       SELECT 
-//         c.id,
-//         c.companyNameEnglish AS companyName,
-//         c.email AS companyEmail,
-//         c.status,
-//         SUM(CASE WHEN co.jobRole = 'Collection Center Head' THEN 1 ELSE 0 END) AS numOfHead,
-//         SUM(CASE WHEN co.jobRole = 'Collection Center Manager' THEN 1 ELSE 0 END) AS numOfManagers,
-//         SUM(CASE WHEN co.jobRole = 'Collection Officer' THEN 1 ELSE 0 END) AS numOfOfficers,
-//         SUM(CASE WHEN co.jobRole = 'Customer Officer' THEN 1 ELSE 0 END) AS numOfCustomerOfficers,
-//         (
-//           SELECT 
-//             COUNT(*) 
-//           FROM 
-//             companycenter cc 
-//           WHERE 
-//             c.id = cc.companyId
-//         ) AS numOfCenters
-//       FROM 
-//         company c
-//       LEFT JOIN 
-//         collectionofficer co 
-//       ON 
-//         c.id = co.companyId
-//       WHERE c.isCollection = true
-//     `;
-//     const params = [];
-
-//     if (search) {
-//       sql += " WHERE c.companyNameEnglish LIKE ?";
-//       const searchQuery = `%${search}%`;
-//       params.push(searchQuery);
-//     }
-
-//     sql += " GROUP BY c.id ORDER BY companyName ASC";
-
-//     collectionofficer.query(sql, params, (err, results) => {
-//       if (err) {
-//         return reject(err);
-//       }
-//       resolve(results);
-//     });
-//   });
-// };
 
 exports.getAllCompanyDAO = (search) => {
   return new Promise((resolve, reject) => {
@@ -1055,8 +982,8 @@ exports.getAllCompanyDAO = (search) => {
         c.companyNameEnglish AS companyName,
         c.email AS companyEmail,
         c.status,
-        SUM(CASE WHEN co.jobRole = 'Collection Center Head' THEN 1 ELSE 0 END) AS numOfHead,
-        SUM(CASE WHEN co.jobRole = 'Collection Center Manager' THEN 1 ELSE 0 END) AS numOfManagers,
+        SUM(CASE WHEN co.jobRole = 'Collection Centre Head' THEN 1 ELSE 0 END) AS numOfHead,
+        SUM(CASE WHEN co.jobRole = 'Collection Centre Manager' THEN 1 ELSE 0 END) AS numOfManagers,
         SUM(CASE WHEN co.jobRole = 'Collection Officer' THEN 1 ELSE 0 END) AS numOfOfficers,
         SUM(CASE WHEN co.jobRole = 'Customer Officer' THEN 1 ELSE 0 END) AS numOfCustomerOfficers,
         (
@@ -1373,58 +1300,57 @@ exports.getTransactionAmountCountDao = (centerId) => {
 exports.getReseantCollectionDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-          SELECT CG.cropNameEnglish, CV.varietyNameEnglish, 
-                 SUM(FPC.gradeAprice) AS totAprice, SUM(FPC.gradeBprice) AS totBprice, SUM(FPC.gradeCprice) AS totCprice, 
-                 SUM(FPC.gradeAquan) AS totAqty, SUM(FPC.gradeBquan) AS totBqty, SUM(FPC.gradeCquan) AS totCqty, 
-                 DATE(RFP.createdAt) AS date 
-          FROM registeredfarmerpayments RFP
-          JOIN farmerpaymentscrops FPC ON RFP.id = FPC.registerFarmerId
-          JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
-          JOIN plant_care.cropvariety CV ON FPC.cropId = CV.id
-          JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
-          WHERE COF.centerId = ?
-          GROUP BY CG.cropNameEnglish, CV.varietyNameEnglish, DATE(RFP.createdAt)
-          ORDER BY DATE(RFP.createdAt)
-          LIMIT 5
-      `;
+      SELECT CG.cropNameEnglish, CV.varietyNameEnglish, 
+             SUM(FPC.gradeAprice) AS totAprice, SUM(FPC.gradeBprice) AS totBprice, SUM(FPC.gradeCprice) AS totCprice, 
+             SUM(FPC.gradeAquan) AS totAqty, SUM(FPC.gradeBquan) AS totBqty, SUM(FPC.gradeCquan) AS totCqty, 
+             DATE(RFP.createdAt) AS date 
+      FROM registeredfarmerpayments RFP
+      JOIN farmerpaymentscrops FPC ON RFP.id = FPC.registerFarmerId
+      JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
+      JOIN plant_care.cropvariety CV ON FPC.cropId = CV.id
+      JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
+      WHERE COF.centerId = ?
+      GROUP BY CG.cropNameEnglish, CV.varietyNameEnglish, DATE(RFP.createdAt)
+      ORDER BY DATE(RFP.createdAt)
+      LIMIT 5
+    `;
 
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
         return reject(err);
       }
 
-      // Corrected transformation of data
       const transformData = results.flatMap((item) => {
         const entries = [];
 
-        if (item.totAqty !== undefined) {
+        if (item.totAqty && item.totAprice) {
           entries.push({
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
-            totPrice: item.totAprice,
             totQty: item.totAqty,
+            totPrice: item.totAprice * item.totAqty, // multiply price by quantity
             grade: "A",
             date: item.date,
           });
         }
 
-        if (item.totBqty !== undefined) {
+        if (item.totBqty && item.totBprice) {
           entries.push({
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
-            totPrice: item.totBprice,
             totQty: item.totBqty,
+            totPrice: item.totBprice * item.totBqty, // multiply price by quantity
             grade: "B",
             date: item.date,
           });
         }
 
-        if (item.totCqty !== undefined) {
+        if (item.totCqty && item.totCprice) {
           entries.push({
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
-            totPrice: item.totCprice,
             totQty: item.totCqty,
+            totPrice: item.totCprice * item.totCqty, // multiply price by quantity
             grade: "C",
             date: item.date,
           });
@@ -1437,6 +1363,7 @@ exports.getReseantCollectionDao = (centerId) => {
     });
   });
 };
+
 
 exports.getTotExpencesDao = (centerId) => {
   return new Promise((resolve, reject) => {
@@ -1517,7 +1444,7 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
     let countSql = `
       SELECT COUNT(*) AS total 
       FROM collectionofficer
-      WHERE companyId = ? AND jobRole = 'Collection Center Head'
+      WHERE companyId = ? AND jobRole = 'Collection Centre Head'
     `;
 
     let dataSql = `
@@ -1535,7 +1462,7 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
         collectionofficer.createdAt
       FROM 
         collectionofficer
-      WHERE companyId = ? AND jobRole = 'Collection Center Head'
+      WHERE companyId = ? AND jobRole = 'Collection Centre Head'
     `;
 
     const countParams = [companyId];

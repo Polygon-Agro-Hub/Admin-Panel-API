@@ -492,7 +492,34 @@ exports.editMarketProduct = async (req, res) => {
       req.params
     );
     console.log(req.body);
-    const data = req.body;
+    const product = req.body;
+
+    const { exists, varietyExists, nameExists } =
+      await MarketPlaceDao.checkMarketEditProductExistsDao(
+        product.varietyId,
+        product.cropName,
+        product.category,
+        id // Add category parameter
+      );
+
+    if (exists) {
+      let message = "";
+      if (varietyExists && nameExists) {
+        message =
+          "A product with the same display name and variety already exists in this category. Please enter unique values.";
+      } else if (varietyExists) {
+        message =
+          "A product with the same variety already exists in this category. Please select a different variety.";
+      } else if (nameExists) {
+        message =
+          "A product with the same display name already exists in this category. Please use a different display name.";
+      }
+
+      return res.status(201).json({
+        message: message,
+        status: false,
+      });
+    }
 
     // Directly update the product without checking for existing varietyId or displayName
     const result = await MarketPlaceDao.updateMarketProductDao(req.body, id);
@@ -1340,7 +1367,7 @@ exports.editPackage = async (req, res) => {
     if (exists) {
       return res.json({
         status: false,
-        message: "Display name allready exist!",
+        message: "A package with this display name already exists. Please choose a different name.",
       });
     }
 

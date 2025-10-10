@@ -39,7 +39,7 @@ router.delete(
   AdminEp.deleteAdminUser
 );
 
-router.post("/edit-admin-user/:id", authMiddleware, AdminEp.editAdminUser);
+router.post("/update-admin/:id", authMiddleware, AdminEp.editAdminUser);
 
 router.get("/get-admin-by-id/:id", authMiddleware, AdminEp.getAdminById);
 
@@ -168,12 +168,19 @@ router.get(
   AdminEp.getFixedAssetsByCategory
 );
 
-router.get('/get-fixed-assets/building-ownership/:buildingAssetId', authMiddleware, AdminEp.getBuildingOwnershipDetails);
-router.get('/get-fixed-assets/land-ownership/:landAssetId', authMiddleware, AdminEp.getLandOwnershipDetails);
-
+router.get(
+  "/get-fixed-assets/building-ownership/:buildingAssetId",
+  authMiddleware,
+  AdminEp.getBuildingOwnershipDetails
+);
+router.get(
+  "/get-fixed-assets/land-ownership/:landAssetId",
+  authMiddleware,
+  AdminEp.getLandOwnershipDetails
+);
 
 router.get(
-  "/get-current-assets-view/:id/:category",
+  "/get-current-assets-view/:id/:category/:farmId",
   authMiddleware,
   AdminEp.getCurrentAssetsByCategory
 );
@@ -186,7 +193,7 @@ router.post(
 
 //Report current assert --- get-assert-using-userid
 router.get(
-  "/get-current-assert/:id",
+  "/get-current-assert/:id/:farmId",
   authMiddleware,
   AdminEp.getCurrentAssertGroup
 );
@@ -347,19 +354,11 @@ router.delete(
   AdminEp.deleteOngoingCultivationsById
 );
 
-router.get(
-  "/get-all-farmer-staff",
-  authMiddleware,
-  AdminEp.getFarmerStaff
-);
+router.get("/get-all-farmer-staff", authMiddleware, AdminEp.getFarmerStaff);
 
-router.get(
-  "/get-farm-owner",
-  authMiddleware,
-  AdminEp.getFarmOwner
-);
+router.get("/get-farm-owner", authMiddleware, AdminEp.getFarmOwner);
 
-router.put('/update-farm-owner/:id', authMiddleware,  AdminEp.updateFarmOwner);
+router.put("/update-farm-owner/:id", authMiddleware, AdminEp.updateFarmOwner);
 
 router.get(
   "/get-all-farmer-farms",
@@ -367,20 +366,68 @@ router.get(
   AdminEp.getUserFarmDetails
 );
 
-router.delete("/delete-farm",  authMiddleware, AdminEp.deleteFarms);
+router.delete("/delete-farm", authMiddleware, AdminEp.deleteFarms);
 
-router.get(
-  "/get-farms-by-user",
-  authMiddleware,
-  AdminEp.getFarmsByUser
-);
+router.get("/get-farms-by-user", authMiddleware, AdminEp.getFarmsByUser);
 
 // Delete a farm by ID
-router.delete(
-  "/delete-farm/:farmId",
+router.delete("/delete-farm/:farmId", authMiddleware, AdminEp.deleteFarm);
+
+// Forgot Password
+router.post("/forgot-password", AdminEp.forgotPassword);
+
+// Reset password
+router.post("/reset-password", AdminEp.resetPassword);
+
+// Reset password
+router.post("/resend-reset-password", AdminEp.resendResetLink);
+
+router.get("/get-all-companies", authMiddleware, AdminEp.getAllCompanies);
+
+router.get(
+  "/get-all-manager-list/:companyId",
   authMiddleware,
-  AdminEp.deleteFarm
+  AdminEp.getAllManagerList
 );
 
+router.get("/get-last-emp-id/:role", authMiddleware, AdminEp.getForCreateId);
+
+router.post(
+  "/create-field-officer",
+  authMiddleware,
+  upload.fields([
+    { name: "profileImage", maxCount: 1 },
+    { name: "nicFront", maxCount: 1 },
+    { name: "nicBack", maxCount: 1 },
+    { name: "passbook", maxCount: 1 },
+    { name: "contract", maxCount: 1 },
+  ]),
+  AdminEp.createFieldOfficer
+);
+
+router.get(
+  "/get-field-officer/:id",
+  authMiddleware,
+  AdminEp.getFieldOfficerById
+);
+
+router.delete(
+  "/delete-field-officer/:id",
+  authMiddleware,
+  AdminEp.deleteFieldOfficer
+);
+
+router.put(
+  "/update-field-officers/:id",
+  authMiddleware,
+  upload.fields([
+    { name: "profileImage", maxCount: 1 },
+    { name: "nicFront", maxCount: 1 },
+    { name: "nicBack", maxCount: 1 },
+    { name: "passbook", maxCount: 1 },
+    { name: "contract", maxCount: 1 },
+  ]),
+  AdminEp.updateFieldOfficer
+);
 
 module.exports = router;

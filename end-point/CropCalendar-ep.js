@@ -81,7 +81,7 @@ exports.createCropGroup = async (req, res) => {
 
     console.log("crop group creation success");
     return res.status(201).json({
-      message: "crop group created successfully",
+      message: "Crop group has been created successfully",
       id: newsId,
       status: true,
     });
@@ -153,6 +153,8 @@ exports.getAllCropGroups = async (req, res) => {
       await cropCalendarValidations.getAllCropGroupsSchema.validateAsync(
         req.query
       );
+      
+      console.log("Category filter:", category);
 
     const offset = (page - 1) * limit;
 
@@ -836,7 +838,6 @@ exports.updateVariety = async (req, res) => {
   }
 };
 
-
 exports.getCropGroupsForFilter = async (req, res) => {
   try {
     const crop = await cropCalendarDao.cropGroupsDao();
@@ -845,5 +846,16 @@ exports.getCropGroupsForFilter = async (req, res) => {
   } catch (err) {
     console.error("Error updating crop variety:", err);
     res.status(500).send("An error occurred while updating the crop variety.");
+  }
+};
+
+// Get all crop groups with only id and cropNameEnglish
+exports.getAllCropGroupNamesOnly = async (req, res) => {
+  try {
+    const cropGroups = await cropCalendarDao.getAllCropGroupEnglishNamesOnly();
+    res.json(cropGroups);
+  } catch (err) {
+    console.error("Error fetching crop group names:", err);
+    res.status(500).send("An error occurred while fetching crop group names.");
   }
 };

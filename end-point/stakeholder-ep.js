@@ -64,3 +64,16 @@ exports.getAdminUserData = async (req, res) => {
     return res.status(500).json({ error: "An error occurred while fetching collection officers" });
   }
 };
+
+  exports.getAllFieldOfficers = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    const officers = await StakeholderDao.getAllFieldOfficers();
+    res.status(200).json({ status: true, data: officers });
+  } catch (error) {
+    console.error("Error fetching field officers:", error);
+    res.status(500).json({ status: false, error: "An error occurred while fetching field officers" });
+  }
+};

@@ -39,6 +39,8 @@ const TargetRoutes  =require('./routes/Target');
 const ProcumentRoutes  =require('./routes/Procuments');
 const DispatchRoutes  =require('./routes/Dispatch');
 const DistributionRoutes =require('./routes/DistributionRoutes')
+const GoviLinkRoutes =require('./routes/GoviLink')
+const CertificateCompanyRoutes =require('./routes/CertificateCompany')
 
 const heathRoutes = require("./routes/heathRoutes");
 const DashRoutes = require("./routes/Dash");
@@ -139,6 +141,8 @@ app.use(BASE_PATH + '/api/target', TargetRoutes)
 app.use(BASE_PATH + '/api/procument', ProcumentRoutes)
 app.use(BASE_PATH + '/api/dispatch', DispatchRoutes)
 app.use(BASE_PATH + '/api/distribution', DistributionRoutes)
+app.use(BASE_PATH + '/api/govi-link', GoviLinkRoutes)
+app.use(BASE_PATH + '/api/certificate-company', CertificateCompanyRoutes)
 
 
 app.use("/uploads", express.static("uploads"));

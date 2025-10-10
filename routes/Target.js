@@ -5,7 +5,7 @@ const TargetEP = require("../end-point/Target-ep");
 const router = express.Router();
 
 router.get(
-  "/get-saved-center-crops/:id/:date",
+  "/get-saved-center-crops/:id",
   authMiddleware,
   TargetEP.getSavedCenterCrops
 );

@@ -67,8 +67,8 @@ exports.getCollectionOfficersByPosition = () => {
     const sql = `
             SELECT 
                 CASE 
-                   WHEN jobRole = 'Collection Center Head' AND companyId = '1' AND status = 'Approved' THEN 'CCH'
-                    WHEN jobRole = 'Collection Center Manager' AND companyId = '1' AND status = 'Approved' THEN 'CCM'
+                   WHEN jobRole = 'Collection Centre Head' AND companyId = '1' AND status = 'Approved' THEN 'CCH'
+                    WHEN jobRole = 'Collection Centre Manager' AND companyId = '1' AND status = 'Approved' THEN 'CCM'
                     WHEN jobRole = 'Collection Officer' AND companyId = '1' AND status = 'Approved' THEN 'COO'
                     WHEN jobRole = 'Customer Officer' AND companyId = '1' AND status = 'Approved' THEN 'CUO'
                 END AS job,
@@ -278,6 +278,21 @@ exports.getTodayRegAdmin = () => {
       // console.log('Today ->', results);
       
       resolve(results[0]); // Resolve the promise with the query results
+    });
+  });
+};
+
+exports.getAllFieldOfficers = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT * 
+      FROM plant_care.feildofficer
+    `;
+    admin.query(sql, (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      resolve(results); // Resolve with all rows
     });
   });
 };

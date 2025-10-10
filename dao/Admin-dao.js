@@ -5,7 +5,7 @@ const {
   marketPlace,
   dash,
 } = require("../startup/database");
-
+const bcrypt = require("bcryptjs");
 const { Upload } = require("@aws-sdk/lib-storage");
 const Joi = require("joi");
 
@@ -561,24 +561,25 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
       SELECT COUNT(DISTINCT OC.id) as total 
       FROM ongoingcultivations OC
       LEFT JOIN users U ON OC.userId = U.id
-      LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+      WHERE 1=1
     `;
 
-    // Data query with farm count
+    // Data query with proper grouping
     let dataSql = `
       SELECT 
         OC.id AS cultivationId,
-        OCC.id AS ongCultivationId,
         U.id AS userId,
         U.firstName, 
         U.lastName, 
         U.NICnumber,
-        COUNT(OCC.cropCalendar) AS CropCount,
+        U.phoneNumber,
+        COUNT(DISTINCT OCC.id) AS CropCount,
         COUNT(DISTINCT F.id) AS FarmCount
       FROM ongoingcultivations OC
       LEFT JOIN users U ON OC.userId = U.id
       LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
       LEFT JOIN farms F ON F.userId = U.id
+      WHERE 1=1
     `;
 
     const countParams = [];
@@ -590,17 +591,18 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
         AND (
           U.NICnumber LIKE ? OR 
           U.firstName LIKE ? OR 
-          U.lastName LIKE ?
+          U.lastName LIKE ? OR
+          U.phoneNumber LIKE ?
         )
       `;
       countSql += searchCondition;
       dataSql += searchCondition;
-      countParams.push(searchQuery, searchQuery, searchQuery);
-      dataParams.push(searchQuery, searchQuery, searchQuery);
+      countParams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+      dataParams.push(searchQuery, searchQuery, searchQuery, searchQuery);
     }
 
     dataSql += `
-      GROUP BY OC.id, OCC.id, U.id, U.firstName, U.lastName, U.NICnumber 
+      GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber
       ORDER BY OC.createdAt DESC 
       LIMIT ? OFFSET ?
     `;
@@ -658,7 +660,7 @@ exports.getOngoingCultivationsWithUserDetails = () => {
 // exports.getOngoingCultivationsById = (farmId, userId) => {
 //   const sql = `
 //     SELECT DISTINCT
-//       ongoingcultivationscrops.id AS ongoingcultivationscropsid, 
+//       ongoingcultivationscrops.id AS ongoingcultivationscropsid,
 //       ongoingcultivationscrops.ongoingCultivationId,
 //       ongoingcultivationscrops.cropCalendar,
 //       ongoingcultivationscrops.startedAt,
@@ -672,16 +674,16 @@ exports.getOngoingCultivationsWithUserDetails = () => {
 //       ongoingcultivationscrops.latitude,
 //       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id) AS totalTasks,
 //       (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = ongoingcultivationscrops.id AND status = 'completed') AS completedTasks
-//     FROM 
+//     FROM
 //       ongoingcultivationscrops
-//     JOIN 
+//     JOIN
 //       cropcalender ON ongoingcultivationscrops.cropCalendar = cropcalender.id
-//     JOIN 
+//     JOIN
 //       cropvariety ON cropcalender.cropVarietyId = cropvariety.id
-//     JOIN 
+//     JOIN
 //       cropgroup ON cropvariety.cropGroupId = cropgroup.id
-//     LEFT JOIN 
-//       slavecropcalendardays ON slavecropcalendardays.onCulscropID = ongoingcultivationscrops.id 
+//     LEFT JOIN
+//       slavecropcalendardays ON slavecropcalendardays.onCulscropID = ongoingcultivationscrops.id
 //     WHERE
 //       ongoingcultivationscrops.ongoingCultivationId = ?`;
 
@@ -697,51 +699,82 @@ exports.getOngoingCultivationsWithUserDetails = () => {
 // };
 
 exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
-  const sql = `
-    SELECT DISTINCT
-      occ.id AS ongoingcultivationscropsid,
-      occ.ongoingCultivationId,
-      occ.cropCalendar,
-      occ.startedAt,
-      (occ.extentac + occ.extentha * 2.47105 + occ.extentp / 160) AS extentac,
-      cg.cropNameEnglish AS cropName,
-      cv.varietyNameEnglish AS variety,
-      cc.method AS cultivationMethod,
-      cc.natOfCul AS natureOfCultivation,
-      cc.cropDuration AS cropDuration,
-      occ.longitude,
-      occ.latitude,
-      occ.modifyBy,
-      u.firstName AS userFirstName,
-      u.lastName AS userLastName,
-      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
-      (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks
-    FROM 
-      ongoingcultivationscrops occ
-    JOIN 
-      ongoingcultivations oc ON occ.ongoingCultivationId = oc.id
-    JOIN 
-      users u ON oc.userId = u.id
-    JOIN 
-      cropcalender cc ON occ.cropCalendar = cc.id
-    JOIN 
-      cropvariety cv ON cc.cropVarietyId = cv.id
-    JOIN 
-      cropgroup cg ON cv.cropGroupId = cg.id
-    WHERE
-      occ.farmId = ? AND oc.userId = ?`;
-
   return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT DISTINCT
+        occ.id AS ongoingcultivationscropsid,
+        occ.ongoingCultivationId,
+        occ.cropCalendar,
+        occ.startedAt,
+        (occ.extentac + occ.extentha * 2.47105 + occ.extentp / 160) AS extentac,
+        cg.cropNameEnglish AS cropName,
+        cv.varietyNameEnglish AS variety,
+        cc.method AS cultivationMethod,
+        cc.natOfCul AS natureOfCultivation,
+        cc.cropDuration AS cropDuration,
+        occ.longitude,
+        occ.latitude,
+        au.userName AS modifyBy,
+        u.firstName AS userFirstName,
+        u.lastName AS userLastName,
+        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
+        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks
+      FROM 
+        ongoingcultivationscrops occ
+      JOIN 
+        ongoingcultivations oc ON occ.ongoingCultivationId = oc.id
+      JOIN 
+        users u ON oc.userId = u.id
+      JOIN 
+        cropcalender cc ON occ.cropCalendar = cc.id
+      JOIN 
+        cropvariety cv ON cc.cropVarietyId = cv.id
+      JOIN 
+        cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN
+        agro_world_admin.adminusers au ON occ.modifyBy = au.id
+      WHERE
+        occ.farmId = ? AND oc.userId = ?`;
+
     plantcare.query(sql, [farmId, userId], (err, results) => {
       if (err) {
-        reject("Error fetching cultivation crops by farmId: " + err);
+        return reject("Error fetching cultivation crops by farmId: " + err);
+      }
+
+      if (results.length > 0) {
+        // Data found
+        resolve({
+          userFirstName: results[0].userFirstName,
+          userLastName: results[0].userLastName,
+          cultivations: results,
+        });
       } else {
-        resolve(results);
+        // No cultivations found → still get user name
+        const userSql = `SELECT firstName AS userFirstName, lastName AS userLastName FROM users WHERE id = ?`;
+        plantcare.query(userSql, [userId], (userErr, userResult) => {
+          if (userErr) {
+            return reject("Error fetching user details: " + userErr);
+          }
+
+          if (userResult.length > 0) {
+            resolve({
+              userFirstName: userResult[0].userFirstName,
+              userLastName: userResult[0].userLastName,
+              cultivations: [],
+            });
+          } else {
+            // User not found
+            resolve({
+              userFirstName: null,
+              userLastName: null,
+              cultivations: [],
+            });
+          }
+        });
       }
     });
   });
 };
-
 
 exports.getFixedAssetsByCategory = (userId, category, farmId) => {
   const validCategories = {
@@ -870,23 +903,26 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
         bf.id = ?;
     `;
 
-    plantcare.query(getBuildingQuery, [buildingAssetId], (err, buildingResults) => {
-      if (err) {
-        reject("Error fetching building details: " + err);
-        return;
-      }
+    plantcare.query(
+      getBuildingQuery,
+      [buildingAssetId],
+      (err, buildingResults) => {
+        if (err) {
+          reject("Error fetching building details: " + err);
+          return;
+        }
 
-      if (buildingResults.length === 0) {
-        reject("Building not found");
-        return;
-      }
+        if (buildingResults.length === 0) {
+          reject("Building not found");
+          return;
+        }
 
-      const building = buildingResults[0];
-      const ownership = building.ownership;
+        const building = buildingResults[0];
+        const ownership = building.ownership;
 
-      // Define ownership-specific queries
-      const ownershipQueries = {
-        "Own Building (with title ownership)": `
+        // Define ownership-specific queries
+        const ownershipQueries = {
+          "Own Building (with title ownership)": `
           SELECT 
             oof.id,
             oof.buildingAssetId,
@@ -898,7 +934,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
           WHERE 
             oof.buildingAssetId = ?;
         `,
-        "Leased Building": `
+          "Leased Building": `
           SELECT 
             olf.id,
             olf.buildingAssetId,
@@ -912,7 +948,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
           WHERE 
             olf.buildingAssetId = ?;
         `,
-        "Permit Building": `
+          "Permit Building": `
           SELECT 
             opf.id,
             opf.buildingAssetId,
@@ -924,7 +960,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
           WHERE 
             opf.buildingAssetId = ?;
         `,
-        "Shared / No Ownership": `
+          "Shared / No Ownership": `
           SELECT 
             osf.id,
             osf.buildingAssetId,
@@ -934,34 +970,40 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
             ownershipsharedfixedasset osf
           WHERE 
             osf.buildingAssetId = ?;
-        `
-      };
+        `,
+        };
 
-      const ownershipQuery = ownershipQueries[ownership];
+        const ownershipQuery = ownershipQueries[ownership];
 
-      if (!ownershipQuery) {
-        // If no specific ownership query, return just building details
-        resolve({
-          buildingDetails: building,
-          ownershipDetails: null,
-          ownershipType: ownership
-        });
-        return;
-      }
-
-      // Execute the ownership-specific query
-      plantcare.query(ownershipQuery, [buildingAssetId], (err, ownershipResults) => {
-        if (err) {
-          reject("Error fetching ownership details: " + err);
-        } else {
+        if (!ownershipQuery) {
+          // If no specific ownership query, return just building details
           resolve({
             buildingDetails: building,
-            ownershipDetails: ownershipResults.length > 0 ? ownershipResults[0] : null,
-            ownershipType: ownership
+            ownershipDetails: null,
+            ownershipType: ownership,
           });
+          return;
         }
-      });
-    });
+
+        // Execute the ownership-specific query
+        plantcare.query(
+          ownershipQuery,
+          [buildingAssetId],
+          (err, ownershipResults) => {
+            if (err) {
+              reject("Error fetching ownership details: " + err);
+            } else {
+              resolve({
+                buildingDetails: building,
+                ownershipDetails:
+                  ownershipResults.length > 0 ? ownershipResults[0] : null,
+                ownershipType: ownership,
+              });
+            }
+          }
+        );
+      }
+    );
   });
 };
 
@@ -1006,7 +1048,7 @@ exports.getLandOwnershipDetails = (landAssetId) => {
 
       // Define ownership-specific queries for land
       const ownershipQueries = {
-        "Own": `
+        Own: `
           SELECT 
             oof.id,
             oof.buildingAssetId,
@@ -1018,7 +1060,7 @@ exports.getLandOwnershipDetails = (landAssetId) => {
           WHERE 
             oof.landAssetId = ?;
         `,
-        "Lease": `
+        Lease: `
           SELECT 
             olf.id,
             olf.buildingAssetId,
@@ -1032,7 +1074,7 @@ exports.getLandOwnershipDetails = (landAssetId) => {
           WHERE 
             olf.landAssetId = ?;
         `,
-        "Permited": `
+        Permited: `
           SELECT 
             opf.id,
             opf.buildingAssetId,
@@ -1044,7 +1086,7 @@ exports.getLandOwnershipDetails = (landAssetId) => {
           WHERE 
             opf.landAssetId = ?;
         `,
-        "Shared": `
+        Shared: `
           SELECT 
             osf.id,
             osf.buildingAssetId,
@@ -1054,7 +1096,7 @@ exports.getLandOwnershipDetails = (landAssetId) => {
             ownershipsharedfixedasset osf
           WHERE 
             osf.landAssetId = ?;
-        `
+        `,
       };
 
       const ownershipQuery = ownershipQueries[ownership];
@@ -1070,42 +1112,47 @@ exports.getLandOwnershipDetails = (landAssetId) => {
             extentp: extentp,
             district: land.district,
             landFenced: land.landFenced,
-            perennialCrop: land.perennialCrop
+            perennialCrop: land.perennialCrop,
           },
           ownershipDetails: null,
-          ownershipType: ownership
+          ownershipType: ownership,
         });
         return;
       }
 
       // Execute the ownership-specific query
-      plantcare.query(ownershipQuery, [landAssetId], (err, ownershipResults) => {
-        if (err) {
-          reject("Error fetching ownership details: " + err);
-        } else {
-          resolve({
-            landDetails: {
-              landAssetId: land.landAssetId,
-              ownership: land.ownership,
-              extentha: extentha,
-              extentac: extentac,
-              extentp: extentp,
-              district: land.district,
-              landFenced: land.landFenced,
-              perennialCrop: land.perennialCrop
-            },
-            ownershipDetails: ownershipResults.length > 0 ? ownershipResults[0] : null,
-            ownershipType: ownership
-          });
+      plantcare.query(
+        ownershipQuery,
+        [landAssetId],
+        (err, ownershipResults) => {
+          if (err) {
+            reject("Error fetching ownership details: " + err);
+          } else {
+            resolve({
+              landDetails: {
+                landAssetId: land.landAssetId,
+                ownership: land.ownership,
+                extentha: extentha,
+                extentac: extentac,
+                extentp: extentp,
+                district: land.district,
+                landFenced: land.landFenced,
+                perennialCrop: land.perennialCrop,
+              },
+              ownershipDetails:
+                ownershipResults.length > 0 ? ownershipResults[0] : null,
+              ownershipType: ownership,
+            });
+          }
         }
-      });
+      );
     });
   });
 };
 
-exports.getCurrentAssetsByCategory = (userId, category) => {
-  const sql = `SELECT * FROM currentasset WHERE userId = ? AND category = ?`;
-  const values = [userId, category];
+exports.getCurrentAssetsByCategory = (userId, category ,farmId) => {
+  const sql = `SELECT * FROM currentasset WHERE userId = ? AND category = ? AND farmId = ?`;
+  const values = [userId, category,farmId];
 
   return new Promise((resolve, reject) => {
     plantcare.query(sql, values, (err, results) => {
@@ -1630,7 +1677,7 @@ exports.createPlantCareUser = (userData) => {
                 membership,
                 language,
                 profileImageUrl,
-                'inactive'
+                "inactive",
               ],
               (insertUserErr, insertUserResults) => {
                 if (insertUserErr) {
@@ -1800,15 +1847,15 @@ exports.createAdmin = (adminData, hashedPassword) => {
   });
 };
 
-exports.getCurrentAssetGroup = (userId) => {
+exports.getCurrentAssetGroup = (userId,farmId) => {
   return new Promise((resolve, reject) => {
     const sql = `
             SELECT category, SUM(total) as totPrice 
             FROM currentasset 
-            WHERE userId = ? 
+            WHERE userId = ? AND farmId = ?
             GROUP BY category
         `;
-    const values = [userId];
+    const values = [userId ,farmId];
 
     plantcare.query(sql, values, (err, results) => {
       if (err) {
@@ -2158,8 +2205,7 @@ exports.editUserTask = (
 //post reply
 exports.getAllPostReplyDao = (postid) => {
   return new Promise((resolve, reject) => {
-    const sql =
-      `SELECT 
+    const sql = `SELECT 
         p.id,
         p.replyStaffId,
         p.replyMessage, 
@@ -2189,7 +2235,6 @@ exports.getAllPostReplyDao = (postid) => {
 };
 
 // replyDao.js
-
 exports.getReplyCount = () => {
   return new Promise((resolve, reject) => {
     const sql =
@@ -2258,7 +2303,7 @@ exports.addNewTaskDao = (task, indexId, cropId) => {
     const values = [
       cropId,
       indexId,
-      task.days,   // <-- use this instead of undefined 'days'
+      task.days, // <-- use this instead of undefined 'days'
       task.taskTypeEnglish,
       task.taskTypeSinhala,
       task.taskTypeTamil,
@@ -2293,7 +2338,6 @@ exports.addNewTaskDao = (task, indexId, cropId) => {
     });
   });
 };
-
 
 exports.addNewReplyDao = (chatId, replyId, replyMessage) => {
   console.log("Dao Reply: ", replyMessage);
@@ -2976,7 +3020,6 @@ exports.insertUserXLSXData = (data) => {
   });
 };
 
-
 exports.getUserFeedbackDetails = (page, limit) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit; // Calculate the offset for pagination
@@ -3552,7 +3595,7 @@ exports.updateAdminRoleById = (id, role, email) => {
 exports.deleteOngoingCultivationsById = (id) => {
   const sql = `
     DELETE FROM ongoingcultivationscrops
-    WHERE ongoingCultivationId = ?`;
+    WHERE id = ? `;
 
   return new Promise((resolve, reject) => {
     plantcare.query(sql, [id], (err, results) => {
@@ -3564,7 +3607,6 @@ exports.deleteOngoingCultivationsById = (id) => {
     });
   });
 };
-
 
 exports.getFarmerStaffDao = (ownerId, role) => {
   const sqlParams = [ownerId];
@@ -3602,7 +3644,6 @@ exports.getFarmerStaffDao = (ownerId, role) => {
     });
   });
 };
-
 
 exports.getFarmOwnerByIdDao = (ownerId) => {
   const sql = `
@@ -3647,7 +3688,16 @@ exports.updateFarmOwnerByIdDao = (ownerId, data, userId) => {
     WHERE id = ?
   `;
 
-  const params = [firstName, lastName, phoneCode, phoneNumber, nic, role, userId, ownerId];
+  const params = [
+    firstName,
+    lastName,
+    phoneCode,
+    phoneNumber,
+    nic,
+    role,
+    userId,
+    ownerId,
+  ];
 
   return new Promise((resolve, reject) => {
     plantcare.query(sql, params, (err, results) => {
@@ -3659,8 +3709,6 @@ exports.updateFarmOwnerByIdDao = (ownerId, data, userId) => {
     });
   });
 };
-
-
 
 exports.getUserFarmDetailsDao = (userId) => {
   const sqlParams = [userId];
@@ -3709,7 +3757,7 @@ exports.getUserFarmDetailsDao = (userId) => {
         // Structure the data: user info + array of farms
         const structuredData = {
           user: null,
-          farms: []
+          farms: [],
         };
 
         if (results.length > 0) {
@@ -3729,12 +3777,13 @@ exports.getUserFarmDetailsDao = (userId) => {
             city: firstRow.userCity,
             district: firstRow.userDistrict,
             route: firstRow.route,
-            language: firstRow.language
+            language: firstRow.language,
           };
 
           // Extract all farms
-          results.forEach(row => {
-            if (row.farmId) { // Only add if farm exists
+          results.forEach((row) => {
+            if (row.farmId) {
+              // Only add if farm exists
               structuredData.farms.push({
                 id: row.farmId,
                 farmName: row.farmName,
@@ -3750,7 +3799,7 @@ exports.getUserFarmDetailsDao = (userId) => {
                 appUserCount: row.appUserCount,
                 imageId: row.imageId,
                 isBlock: row.isBlock,
-                createdAt: row.farmCreatedAt
+                createdAt: row.farmCreatedAt,
               });
             }
           });
@@ -3762,32 +3811,42 @@ exports.getUserFarmDetailsDao = (userId) => {
   });
 };
 
-
 exports.deleteFarmDao = (farmId) => {
   return new Promise((resolve, reject) => {
     plantcare.query(
       `DELETE scd FROM slavecropcalendardays scd
        JOIN farmstaff fs ON scd.completedStaffId = fs.id
-       WHERE fs.farmId = ?`, 
+       WHERE fs.farmId = ?`,
       [farmId],
       (err) => {
         if (err) return reject(err);
 
         // Now delete farmstaff rows
-        plantcare.query(`DELETE FROM farmstaff WHERE farmId = ?`, [farmId], (err) => {
-          if (err) return reject(err);
+        plantcare.query(
+          `DELETE FROM farmstaff WHERE farmId = ?`,
+          [farmId],
+          (err) => {
+            if (err) return reject(err);
 
-          // Finally delete the farm
-          plantcare.query(`DELETE FROM farms WHERE id = ?`, [farmId], (err, result) => {
-            if (err) reject(err);
-            else resolve({ message: "Farm and related data deleted successfully", affectedRows: result.affectedRows });
-          });
-        });
+            // Finally delete the farm
+            plantcare.query(
+              `DELETE FROM farms WHERE id = ?`,
+              [farmId],
+              (err, result) => {
+                if (err) reject(err);
+                else
+                  resolve({
+                    message: "Farm and related data deleted successfully",
+                    affectedRows: result.affectedRows,
+                  });
+              }
+            );
+          }
+        );
       }
     );
   });
 };
-
 
 // exports.getAllFarmsWithCultivations = (userId, searchItem) => {
 //   return new Promise((resolve, reject) => {
@@ -3814,7 +3873,7 @@ exports.deleteFarmDao = (farmId) => {
 //     }
 
 //     const sql = `
-//       SELECT 
+//       SELECT
 //         F.id AS farmId,
 //         F.farmName,
 //         F.farmIndex,
@@ -3921,7 +3980,7 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
       if (err) return reject(err);
 
       const usersMap = {};
-      results.forEach(row => {
+      results.forEach((row) => {
         if (!usersMap[row.userId]) {
           usersMap[row.userId] = {
             userId: row.userId,
@@ -3951,24 +4010,108 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
   });
 };
 
+// // Delete a farm by farmId
+// exports.deleteFarmById = (farmId) => {
+//   return new Promise((resolve, reject) => {
+//     if (!farmId) {
+//       return reject(new Error("Farm ID is required"));
+//     }
 
-// Delete a farm by farmId
+//     const sql = `DELETE FROM farms WHERE id = ?`;
+
+//     plantcare.query(sql, [farmId], (err, result) => {
+//       if (err) return reject(err);
+
+//       if (result.affectedRows === 0) {
+//         return resolve({
+//           success: false,
+//           message: "No farm found with the given ID",
+//         });
+//       }
+
+//       resolve({ success: true, message: `Farm deleted successfully.` });
+//     });
+//   });
+// };
+
+
 exports.deleteFarmById = (farmId) => {
   return new Promise((resolve, reject) => {
     if (!farmId) {
       return reject(new Error("Farm ID is required"));
     }
 
-    const sql = `DELETE FROM farms WHERE id = ?`;
+    const deleteRelatedRecords = `
+      DELETE scd 
+      FROM slavecropcalendardays scd
+      JOIN farmstaff fs ON scd.completedStaffId = fs.id
+      WHERE fs.farmId = ?;
+    `;
 
-    plantcare.query(sql, [farmId], (err, result) => {
+    const deleteFarmStaff = `DELETE FROM farmstaff WHERE farmId = ?;`;
+    const deleteFarm = `DELETE FROM farms WHERE id = ?;`;
+
+    // ✅ Get a connection from the pool
+    plantcare.getConnection((err, connection) => {
       if (err) return reject(err);
 
-      if (result.affectedRows === 0) {
-        return resolve({ success: false, message: "No farm found with the given ID" });
-      }
+      // ✅ Begin transaction
+      connection.beginTransaction((err) => {
+        if (err) {
+          connection.release();
+          return reject(err);
+        }
 
-      resolve({ success: true, message: `Farm with ID ${farmId} deleted successfully` });
+        connection.query(deleteRelatedRecords, [farmId], (err) => {
+          if (err) {
+            return connection.rollback(() => {
+              connection.release();
+              reject(err);
+            });
+          }
+
+          connection.query(deleteFarmStaff, [farmId], (err) => {
+            if (err) {
+              return connection.rollback(() => {
+                connection.release();
+                reject(err);
+              });
+            }
+
+            connection.query(deleteFarm, [farmId], (err, result) => {
+              if (err) {
+                return connection.rollback(() => {
+                  connection.release();
+                  reject(err);
+                });
+              }
+
+              connection.commit((err) => {
+                if (err) {
+                  return connection.rollback(() => {
+                    connection.release();
+                    reject(err);
+                  });
+                }
+
+                connection.release();
+
+                if (result.affectedRows === 0) {
+                  return resolve({
+                    success: false,
+                    message: "No farm found with the given ID",
+                  });
+                }
+
+                resolve({
+                  success: true,
+                  message: "Farm deleted successfully.",
+                });
+              });
+            });
+          });
+        });
+      });
     });
   });
 };
@@ -3976,19 +4119,15 @@ exports.deleteFarmById = (farmId) => {
 
 exports.tracktaskAddOngoingCultivation = (userId, id) => {
   return new Promise((resolve, reject) => {
-    const sql =`
+    const sql = `
       UPDATE ongoingcultivationscrops
       SET modifyBy = ?
       WHERE id = ?
     `;
 
-    const values = [
-      userId,
-      id
-    ];
+    const values = [userId, id];
 
     // Ensure that the values array length matches the expected column count
-
 
     plantcare.query(sql, values, (err, results) => {
       if (err) {
@@ -3997,5 +4136,567 @@ exports.tracktaskAddOngoingCultivation = (userId, id) => {
         resolve(results);
       }
     });
+  });
+};
+
+// Find admin by email
+exports.findAdminByEmail = (email) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM adminusers WHERE mail = ?";
+    admin.query(sql, [email], (err, results) => {
+      if (err) reject(err);
+      else resolve(results[0]);
+    });
+  });
+};
+
+// Find admin by ID
+exports.findAdminById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM adminusers WHERE id = ?";
+    admin.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
+// Create or replace password reset token
+exports.createPasswordResetToken = (userId, token, expiresAt) => {
+  return new Promise((resolve, reject) => {
+    // Always delete existing token first
+    const deleteSql = "DELETE FROM adminresetpasswordtoken WHERE userId = ?";
+    admin.query(deleteSql, [userId], (delErr) => {
+      if (delErr) return reject(delErr);
+
+      const insertSql = `
+        INSERT INTO adminresetpasswordtoken (userId, resetPasswordToken, resetPasswordExpires) 
+        VALUES (?, ?, ?)
+      `;
+      admin.query(insertSql, [userId, token, expiresAt], (insErr) => {
+        if (insErr) return reject(insErr);
+        resolve(token);
+      });
+    });
+  });
+};
+
+// Verify reset token
+exports.verifyResetToken = (token) => {
+  return new Promise((resolve, reject) => {
+    const sql = `SELECT u.mail, t.resetPasswordExpires, t.userId 
+                 FROM adminresetpasswordtoken t 
+                 JOIN adminusers u ON t.userId = u.id 
+                 WHERE t.resetPasswordToken = ?`;
+    admin.query(sql, [token], (err, results) => {
+      if (err) return reject(err);
+      if (results.length === 0) return resolve(null);
+
+      const tokenData = results[0];
+      const now = new Date();
+      if (now > new Date(tokenData.resetPasswordExpires)) return resolve(null);
+
+      resolve({ email: tokenData.mail, userId: tokenData.userId });
+    });
+  });
+};
+
+// Reset password
+exports.resetPassword = (userId, newPassword) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      const updateSql = "UPDATE adminusers SET password = ? WHERE id = ?";
+      admin.query(updateSql, [hashedPassword, userId], (updateErr) => {
+        if (updateErr) return reject(updateErr);
+
+        const deleteSql =
+          "DELETE FROM adminresetpasswordtoken WHERE userId = ?";
+        admin.query(deleteSql, [userId], (delErr) => {
+          if (delErr) return reject(delErr);
+          resolve(true);
+        });
+      });
+    } catch (hashErr) {
+      reject(hashErr);
+    }
+  });
+};
+
+// Find reset token (ignores expiry - for resend flow)
+exports.findResetToken = (token) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT * FROM adminresetpasswordtoken 
+      WHERE resetPasswordToken = ?
+    `;
+    admin.query(sql, [token], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
+// Delete reset token for user
+exports.deletePasswordResetToken = (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = "DELETE FROM adminresetpasswordtoken WHERE userId = ?";
+    admin.query(sql, [userId], (err, result) => {
+      if (err) return reject(err);
+      resolve(result.affectedRows > 0);
+    });
+  });
+};
+
+// Reset password and clear token
+exports.resetPassword = (userId, newPassword) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      const updateSql = "UPDATE adminusers SET password = ? WHERE id = ?";
+      admin.query(updateSql, [hashedPassword, userId], (updateErr) => {
+        if (updateErr) return reject(updateErr);
+
+        const deleteSql =
+          "DELETE FROM adminresetpasswordtoken WHERE userId = ?";
+        admin.query(deleteSql, [userId], (delErr) => {
+          if (delErr) return reject(delErr);
+          resolve(true);
+        });
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+exports.GetCompaniesDAO = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, companyName 
+      FROM feildcompany
+    `;
+    plantcare.query(sql, [], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.GetAllManagerList = (companyId) => {
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT id, firstName, lastName FROM feildofficer WHERE companyId = ? AND JobRole = 'Chief Field Officer' AND status = 'active'";
+
+    plantcare.query(sql, [companyId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getForCreateId = (role) => {
+  console.log("role", role);
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT empId FROM feildofficer WHERE empId LIKE ? ORDER BY empId DESC LIMIT 1";
+
+    // Replace 'your_database_connection' with your actual DB connection variable
+    plantcare.query(sql, [`${role}%`], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      let newEmpId;
+
+      if (results.length > 0) {
+        const numericPart = parseInt(results[0].empId.substring(3), 10);
+        const incrementedValue = numericPart + 1;
+        newEmpId = `${role}${incrementedValue.toString().padStart(5, "0")}`;
+      } else {
+        // If no records found, start with 00001
+        newEmpId = `${role}00001`;
+      }
+
+      resolve({ empId: newEmpId });
+    });
+  });
+};
+
+exports.checkNICExist = async (nic, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM feildofficer WHERE nic = ?`;
+    const params = [nic];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkEmailExist = async (email, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM feildofficer WHERE email = ?`;
+    const params = [email];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
+  console.log("officer", excludeId);
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count 
+               FROM feildofficer 
+               WHERE (phoneNumber1 = ? OR phoneNumber2 = ?)`;
+    const params = [phoneNumber, phoneNumber];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.getFOIDforCreateEmpIdDao = (employee) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT empId 
+      FROM feildofficer
+      WHERE jobRole = ?
+      ORDER BY 
+        CAST(SUBSTRING(empId FROM 4) AS UNSIGNED) DESC
+      LIMIT 1
+    `;
+    const values = [employee];
+
+    plantcare.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.length === 0) {
+        if (employee === "Field Officer") {
+          return resolve("FIO00001");
+        } else if (employee === "Chief Field Officer") {
+          return resolve("CFO00001");
+        }
+        // ✅ FIXED: Removed the strange character and added proper return
+        return resolve(null);
+      }
+
+      const highestId = results[0].empId;
+
+      // Extract the numeric part
+      const prefix = highestId.substring(0, 3); // Get "FIO" or "CFO"
+      const numberStr = highestId.substring(3); // Get "00007"
+      const number = parseInt(numberStr, 10); // Convert to number 7
+
+      // Increment and format back to 5 digits
+      const nextNumber = number + 1;
+      const nextId = `${prefix}${nextNumber.toString().padStart(5, "0")}`; // "FIO00008" or "CFO00008"
+
+      resolve(nextId);
+    });
+  });
+};
+
+exports.createFieldOfficer = (
+  officerData,
+  profileImageUrl,
+  nicFrontUrl,
+  nicBackUrl,
+  passbookUrl,
+  contractUrl,
+  lastId
+) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // If no image URLs, set them to null
+      const profileUrl = profileImageUrl || null;
+      const frontNicUrl = nicFrontUrl || null;
+      const backNicUrl = nicBackUrl || null;
+      const backPassbookUrl = passbookUrl || null;
+      const contractUrlValue = contractUrl || null;
+
+      const sql = `
+                INSERT INTO feildofficer (
+                    companyId, irmId, firstName, lastName, empType, empId, jobRole, 
+                    phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, language, email, 
+                    nic, house, street, city, distrct, province, country, comAmount, 
+                    accName, accNumber, bank, branch, profile, frontNic, backNic, 
+                    backPassbook, contract, assignDistrict, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            `;
+
+      // Replace 'db' with your actual database connection variable
+      plantcare.query(
+        sql,
+        [
+          officerData.companyId,
+          officerData.irmId,
+          officerData.firstName,
+          officerData.lastName,
+          officerData.empType,
+          lastId,
+          officerData.jobRole,
+          officerData.phoneCode1,
+          officerData.phoneNumber1,
+          officerData.phoneCode2,
+          officerData.phoneNumber2,
+          officerData.language,
+          officerData.email,
+          officerData.nic,
+          officerData.house,
+          officerData.street,
+          officerData.city,
+          officerData.distrct,
+          officerData.province,
+          officerData.country,
+          officerData.comAmount,
+          officerData.accName,
+          officerData.accNumber,
+          officerData.bank,
+          officerData.branch,
+          profileUrl,
+          frontNicUrl,
+          backNicUrl,
+          backPassbookUrl,
+          contractUrlValue,
+          officerData.assignDistrict,
+          "Not Aproved",
+        ],
+        (err, results) => {
+          if (err) {
+            console.log(err);
+            return reject(err); // Reject promise if an error occurs
+          }
+          resolve(results); // Resolve the promise with the query results
+        }
+      );
+    } catch (error) {
+      reject(error); // Reject if any error occurs
+    }
+  });
+};
+
+
+exports.getFieldOfficerByIdDAO = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+          SELECT 
+              FO.*,
+              FC.companyName
+          FROM 
+              feildofficer FO
+          JOIN 
+              feildcompany FC ON FO.companyId = FC.id
+          WHERE 
+              FO.id = ?`;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+
+      if (results.length === 0) {
+        return resolve(null); // No officer found
+      }
+
+      const officer = results[0];
+
+      const assignDistrictsArray = officer.assignDistrict
+        ? officer.assignDistrict.split(',').map(d => d.trim())
+        : [];
+      resolve({
+        fieldOfficer: {
+          id: officer.id,
+          firstName: officer.firstName,
+          lastName: officer.lastName,
+          phoneNumber01: officer.phoneNumber1,
+          phoneNumber02: officer.phoneNumber2,
+          phoneCode01: officer.phoneCode1,
+          phoneCode02: officer.phoneCode2,
+          image: officer.profile,
+          frontNic: officer.frontNic,
+          backNic: officer.backNic,
+          backPassbook: officer.backPassbook,
+          contract: officer.contract,
+          status: officer.status,
+          nic: officer.nic,
+          email: officer.email,
+          houseNumber: officer.house,
+          streetName: officer.street,
+          city: officer.city,
+          district: officer.distrct,
+          province: officer.province,
+          country: officer.country,
+          empId: officer.empId,
+          jobRole: officer.JobRole,
+          employeeType: officer.empType,
+          accHolderName: officer.accName,
+          accNumber: officer.accNumber,
+          bankName: officer.bank,
+          branchName: officer.branch,
+          companyName: officer.companyName,
+          assignDistricts: assignDistrictsArray,
+          comAmount: officer.comAmount,
+          language: officer.language,
+          companyId: officer.companyId,
+        },
+      });
+    });
+  });
+};
+
+exports.getFieldOfficerImages = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT profile, frontNic, backNic, backPassbook, contract  FROM plant_care.feildofficer WHERE id = ?";
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.DeleteFieldOfficerDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            DELETE FROM plant_care.feildofficer
+            WHERE id = ?
+        `;
+    collectionofficer.query(sql, [parseInt(id)], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      resolve(results); // Resolve the promise with the query results
+    });
+  });
+};
+
+exports.updateFieldOfficer = (
+  officerId,
+  officerData,
+  profileImageUrl,
+  nicFrontUrl,
+  nicBackUrl,
+  passbookUrl,
+  contractUrl
+) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // If no image URLs, set them to null
+      const profileUrl = profileImageUrl || null;
+      const frontNicUrl = nicFrontUrl || null;
+      const backNicUrl = nicBackUrl || null;
+      const backPassbookUrl = passbookUrl || null;
+      const contractUrlValue = contractUrl || null;
+
+      const sql = `
+        UPDATE feildofficer 
+        SET 
+          companyId = ?, 
+          irmId = ?, 
+          firstName = ?, 
+          lastName = ?, 
+          empType = ?, 
+          jobRole = ?, 
+          phoneCode1 = ?, 
+          phoneNumber1 = ?, 
+          phoneCode2 = ?, 
+          phoneNumber2 = ?, 
+          language = ?, 
+          email = ?, 
+          nic = ?, 
+          house = ?, 
+          street = ?, 
+          city = ?, 
+          distrct = ?, 
+          province = ?, 
+          country = ?, 
+          comAmount = ?, 
+          accName = ?, 
+          accNumber = ?, 
+          bank = ?, 
+          branch = ?, 
+          profile = ?, 
+          frontNic = ?, 
+          backNic = ?, 
+          backPassbook = ?, 
+          contract = ?, 
+          assignDistrict = ?, 
+          status = ?
+        WHERE id = ?;
+      `;
+
+      // Replace 'db' with your actual database connection variable
+      plantcare.query(
+        sql,
+        [
+          officerData.companyId,
+          officerData.irmId,
+          officerData.firstName,
+          officerData.lastName,
+          officerData.empType,
+          officerData.jobRole,
+          officerData.phoneCode1,
+          officerData.phoneNumber1,
+          officerData.phoneCode2,
+          officerData.phoneNumber2,
+          officerData.language,
+          officerData.email,
+          officerData.nic,
+          officerData.house,
+          officerData.street,
+          officerData.city,
+          officerData.distrct,
+          officerData.province,
+          officerData.country,
+          officerData.comAmount,
+          officerData.accName,
+          officerData.accNumber,
+          officerData.bank,
+          officerData.branch,
+          profileUrl,
+          frontNicUrl,
+          backNicUrl,
+          backPassbookUrl,
+          contractUrlValue,
+          officerData.assignDistrict,
+          officerData.status || "Not Aproved", // Keep existing status or default
+          officerId // WHERE condition
+        ],
+        (err, results) => {
+          if (err) {
+            console.log(err);
+            return reject(err);
+          }
+          resolve(results);
+        }
+      );
+    } catch (error) {
+      reject(error);
+    }
   });
 };

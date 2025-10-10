@@ -111,6 +111,9 @@ const {
 
 exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
   return new Promise((resolve, reject) => {
+    if (!date) {
+      return resolve({ data: [], isNew: true, latestAssignBy: null });
+    }
     let dataSql = `
       SELECT 
           CG.cropNameEnglish, 
@@ -118,7 +121,9 @@ exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
           DT.grade,
           DT.target,
           DT.id,
-          CC.varietyId 
+          CC.varietyId,
+          DT.assignBy,
+          DT.assignTime
       FROM 
           centercrops CC
       LEFT JOIN 
@@ -128,13 +133,12 @@ exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
     const dataParams = [];
 
     if (state) {
-      const dateParam = new Date(date).toISOString().split("T")[0];
-      dataSql += ` AND DT.date = ? `;
-      dataParams.push(dateParam);
+      console.log('date', date)
+      dataSql += ` AND DATE(DT.date) = ? `;
+      dataParams.push(date);
     } else {
-      const dateParam = new Date(date).toISOString().split("T")[0];
-      dataSql += ` AND DT.date != ? `;
-      dataParams.push(dateParam);
+      dataSql += ` AND DATE(DT.date) != ? `;
+      dataParams.push(date);
     }
 
     dataSql += `
@@ -162,12 +166,21 @@ exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
         return reject(err);
       }
 
-      if (results.length === 0 && state) {
-        // If no results found for the date, try without date filter
-        this.getSavedCenterCropsDao(id, date, false, searchText)
-          .then(resolve)
-          .catch(reject);
-      } else {
+      let latestAssignTime;
+      let latestAssignBy
+      if (results.length > 0) {
+        // Sort by assignTime descending (latest first)
+        results.sort((a, b) => new Date(b.assignTime) - new Date(a.assignTime));
+      
+        // Get the latest item's assignBy and assignTime
+        latestAssignBy = results[0].assignBy;
+        latestAssignTime = results[0].assignTime;
+      
+        console.log("Latest assignBy:", latestAssignBy);
+        console.log("Latest assignTime:", latestAssignTime);
+      }
+      
+
         const aggregatedResults = {};
 
         results.forEach((row) => {
@@ -204,8 +217,8 @@ exports.getSavedCenterCropsDao = (id, date, state, searchText) => {
           (item) => item.idA === null && item.idB === null && item.idC === null
         );
 
-        resolve({ data: finalResults, isNew });
-      }
+        resolve({ data: finalResults, isNew, latestAssignBy });
+
     });
   });
 };
@@ -423,6 +436,24 @@ exports.removeCenterCropsDao = (companyCenterId, cropId) => {
         return reject(err);
       }
 
+      resolve(results);
+    });
+  });
+};
+
+exports.getOfficerData = (assignBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            SELECT firstNameEnglish, lastNameEnglish 
+            FROM collection_officer.collectionofficer
+            WHERE id = ? 
+        `;
+    const values = [assignBy];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
       resolve(results);
     });
   });

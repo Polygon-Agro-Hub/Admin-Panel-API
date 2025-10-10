@@ -207,7 +207,7 @@ exports.getCurrentAssetsByCategorySchema = Joi.object({
 });
 
 exports.deleteAdminUserSchema = Joi.object({
-  id: Joi.number().integer().required().label("Admin User ID"),
+  id: Joi.number().integer().required()
 });
 
 exports.editAdminUserSchema = Joi.object({
@@ -368,6 +368,11 @@ exports.getCurrentAssetGroupSchema = Joi.object({
     "number.base": "User ID must be a number",
     "number.integer": "User ID must be an integer",
   }),
+  farmId: Joi.number().integer().required().messages({
+    "any.required": "Farm ID is required",
+    "number.base": "Farm ID must be a number",
+    "number.integer": "Farm ID must be an integer",
+  }),
 });
 
 exports.getCurrentAssetRecordByIdSchema = Joi.object({
@@ -452,3 +457,12 @@ exports.getFarmsByUserSchema = Joi.object({
   search: Joi.string().allow("", null),
   userId: Joi.number().integer().required(),
 }).options({ convert: true }); // <- important
+
+exports.getFieldOfficerSchema = Joi.object({
+  id: Joi.number().integer().required(),
+});
+
+exports.getRoleShema = Joi.object({
+  role: Joi.string().required().valid() // Add valid roles as needed
+});
+

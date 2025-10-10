@@ -17,28 +17,69 @@ exports.createDistributionCenter = async (req, res) => {
 
     console.log(data);
 
-    // Check for existing records
-    const existingChecks = await DistributionDao.checkExistingDistributionCenter({
-      name: data.name,
-      regCode: data.regCode,
-      contact01: data.contact1,
-      email:data.email,
-      excludeId: null // For create operation, no ID to exclude
-    });
+    let validationErrors = [];
 
-    if (existingChecks.exists) {
-      return res.status(409).json({
-        success: false,
-        error: existingChecks.message
+    // Email validation
+    const isExistingEmail = await DistributionDao.checkEmailExistDC(data.email);
+    if (isExistingEmail) {
+      validationErrors.push("email");
+    }
+
+    const isCompanyName = await DistributionDao.checkCompanyNameExistDC(data.name);
+    if (isCompanyName) {
+      validationErrors.push("name");
+    }
+
+    const isRegCode = await DistributionDao.checkRegCodeExistDC(data.regCode);
+    if (isRegCode) {
+      validationErrors.push("regCode");
+    }
+
+    // Phone number 1 validation
+    const isExistingPhoneNumber01 = await DistributionDao.checkPhoneNumberExistDC(data.contact1);
+    if (isExistingPhoneNumber01) {
+      validationErrors.push("contact01");
+    }
+
+    // Phone number 2 validation (optional)
+    if (data.contact2) {
+      const isExistingPhoneNumber02 = await DistributionDao.checkPhoneNumberExistDC(data.contact2);
+      if (isExistingPhoneNumber02) {
+        validationErrors.push("contact02");
+      }
+    }
+
+    // If any errors, return them all at once
+    if (validationErrors.length > 0) {
+      console.log('validationErrors', validationErrors)
+      return res.status(400).json({
+        errors: validationErrors,   // e.g. ["Email", "PhoneNumber01"]
+        status: false
       });
     }
+
+    // // Check for existing records
+    // const existingChecks = await DistributionDao.checkExistingDistributionCenter({
+    //   name: data.name,
+    //   regCode: data.regCode,
+    //   contact01: data.contact1,
+    //   email:data.email,
+    //   excludeId: null // For create operation, no ID to exclude
+    // });
+
+    // if (existingChecks.exists) {
+    //   return res.status(409).json({
+    //     success: false,
+    //     error: existingChecks.message
+    //   });
+    // }
 
     // Proceed to create
     const result = await DistributionDao.createDistributionCenter(data);
 
     return res.status(201).json({
       success: true,
-      message: "Distribution center created successfully",
+      message: "Distribution centre created successfully",
       data: result,
     });
   } catch (err) {
@@ -52,7 +93,7 @@ exports.createDistributionCenter = async (req, res) => {
     console.error("Server error:", err);
     return res.status(500).json({
       success: false,
-      error: "An error occurred while creating distribution center",
+      error: "An error occurred while creating distribution centre",
     });
   }
 };
@@ -326,7 +367,7 @@ exports.getAllCompanyList = async (req, res) => {
         .json({ message: "No news items found", data: result });
     }
 
-    console.log("Successfully retrieved all collection center");
+    console.log("Successfully retrieved all collection centre");
     res.json(result);
   } catch (err) {
     if (err.isJoi) {
@@ -643,7 +684,7 @@ exports.deleteDistributedCenter = async (req, res) => {
     if (result.affectedRows === 0) {
       return res.json({
         success: false,
-        message: "Distribution Center Delete faild",
+        message: "Distribution Centre Delete faild",
       });
     }
 
@@ -676,22 +717,72 @@ exports.updateDistributionCentreDetails = async (req, res) => {
     // Validate input with Joi
     const data = await DistributionValidation.getDistributionCenterDetailsSchema.validateAsync(updateData);
 
-    // Check for existing records excluding current center
-    const existingChecks = await DistributionDao.checkExistingDistributionCenter({
-      name: data.name,
-      regCode: data.regCode,
-      contact01: data.contact1,
-      email:data.email,
-      excludeId: id // Exclude current center from check
-    });
+    let validationErrors = [];
 
-    if (existingChecks.exists) {
-      return res.status(409).json({
-        success: false,
-        error: existingChecks.message,
-        conflictingRecord: existingChecks.conflictingRecord
+    // Check duplicates
+
+    const isExistingEmail = await DistributionDao.checkEmailExistDC(data.email, id);
+    if (isExistingEmail) {
+      console.log('isExistingEmail')
+      validationErrors.push('email');
+      console.log('validationErrors', validationErrors)
+    }
+    const isCompanyName = await DistributionDao.checkCompanyNameExistDC(data.name, id);
+    if (isCompanyName) {
+      console.log('isCompanyName')
+      validationErrors.push('name');
+      console.log('validationErrors', validationErrors)
+    } 
+
+    const isRegCode = await DistributionDao.checkRegCodeExistDC(data.regCode, id);
+    if (isRegCode) validationErrors.push('regCode');
+
+    const isExistingPhoneNumber01 = await DistributionDao.checkPhoneNumberExistDC(data.contact1, id);
+    if (isExistingPhoneNumber01) validationErrors.push('contact1');
+
+    if (data.contact2) {
+      const isExistingPhoneNumber02 = await DistributionDao.checkPhoneNumberExistDC(data.contact2, id);
+      if (isExistingPhoneNumber02) validationErrors.push('contact2');
+    }
+
+    // If any validation errors, send all at once
+    if (validationErrors.length > 0) {
+      console.log('validationErrors', validationErrors)
+      return res.status(400).json({
+        errors: validationErrors,
+        status: false
       });
     }
+
+    console.log('validationErrors', validationErrors)
+
+
+    // // Check for existing records excluding current center
+    // const existingChecks = await DistributionDao.checkExistingDistributionCenter({
+    //   name: data.name,
+    //   regCode: data.regCode,
+    //   contact01: data.contact1,
+    //   email:data.email,
+    //   excludeId: id // Exclude current center from check
+    // });
+
+    // console.log('existingChecks', existingChecks)
+
+    // if (existingChecks.exists) {
+    //   return res.status(409).json({
+    //     success: false,
+    //     error: existingChecks.message,
+    //     conflictingRecord: existingChecks.conflictingRecord
+    //   });
+    // }
+
+    // if (existingChecks.exists) {
+    //   return res.status(409).json({
+    //     success: false,
+    //     error: existingChecks.message,
+    //     conflictingRecord: existingChecks.conflictingRecord
+    //   });
+    // }
 
     // Validate required fields
     if (!id) {
@@ -702,12 +793,14 @@ exports.updateDistributionCentreDetails = async (req, res) => {
       });
     }
 
-    // Update the distribution center
-    console.log("Calling DAO to update distribution center");
+    // Update the distribution centre
+    console.log("Calling DAO to update distribution centre");
     const updatedCentre = await DistributionDao.updateDistributionCentreById(
       id,
       data
     );
+
+    const updateComCenter = await DistributionDao.updateDistributedCompaanyCenterDao(data.company, id)
 
     if (!updatedCentre) {
       console.log(
@@ -752,7 +845,7 @@ exports.deleteDistributionCenter = async (req, res) => {
 
     const results = await DistributionDao.DeleteDistributionCenter(id);
 
-    console.log("Successfully Deleted Distribution Center");
+    console.log("Successfully Deleted Distribution Centre");
     if (results.affectedRows > 0) {
       res.status(200).json({ results: results, status: true });
     } else {
@@ -765,10 +858,10 @@ exports.deleteDistributionCenter = async (req, res) => {
         .json({ error: error.details[0].message, status: false });
     }
 
-    console.error("Error deleting Distribution Center:", error);
+    console.error("Error deleting Distribution Centre:", error);
     return res
       .status(500)
-      .json({ error: "An error occurred while deleting Distribution Center" });
+      .json({ error: "An error occurred while deleting Distribution Centre" });
   }
 };
 
@@ -879,9 +972,9 @@ exports.getAllDistributionManagerNames = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    const results = await DistributionDao.getAllDistributionCenterManagerDao();
+    const id = parseInt(req.params.id)
+    const results = await DistributionDao.getAllDistributionCenterManagerDao(id);
 
-    console.log("Successfully retrieved reports");
     res.status(200).json(results);
   } catch (error) {
     if (error.isJoi) {
@@ -1159,7 +1252,7 @@ exports.getAllDistributionCenterByCompany = async (req, res) => {
         .json({ message: "No news items found", data: result });
     }
 
-    console.log("Successfully retrieved all distribution center");
+    console.log("Successfully retrieved all distribution centre");
     res.json(result);
   } catch (err) {
     if (err.isJoi) {
@@ -1599,5 +1692,29 @@ exports.dcmGetSelectedOfficerTargets = async (req, res) => {
 
     console.error("Error fetching officer targets:", error);
     return res.status(500).json({ error: "An error occurred while fetching officer targets" });
+  }
+};
+
+
+exports.claimDistributedOfficer = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const data = req.body;
+    const result = await DistributionDao.claimDistributedOfficersDao(data);
+    if(result.affectedRows === 0){
+      return res.json({message: "Claim failed or no changes made", status: false})
+    }
+    console.log("Successfully retrieved reports");
+    res.status(200).json({ status: true , message: "Claimed successfully"});
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error retrieving district reports:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching the reports" });
   }
 };

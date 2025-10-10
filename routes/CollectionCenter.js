@@ -26,7 +26,7 @@ router.get(
   CollectionCenterEp.getAllCollectionCenterByCompany
 );
 
-//delete collection center
+//delete collection centre
 router.delete(
   "/delete-collection-center/:id",
   authMiddleware,

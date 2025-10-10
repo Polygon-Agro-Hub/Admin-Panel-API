@@ -115,6 +115,8 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
           o.sheduleDate,
           pc.totalItems AS totcount,
           pc.packedItems AS packCount,
+          au.userName,
+          CONCAT(coff.firstNameEnglish , '' , coff.lastNameEnglish) AS packOfficer,
           COALESCE(aic.totalAdditionalItems, 0) AS orderAdditionalCount,
           COALESCE(
               (SELECT SUM(price)
@@ -142,6 +144,8 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
       LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
       LEFT JOIN package_counts pc ON pc.orderPackageId = op.id
       LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      LEFT JOIN agro_world_admin.adminusers au ON po.adminPackby = au.id
+      LEFT JOIN collection_officer.collectionofficer coff ON po.packby = coff.id
       ${whereClause}
       ORDER BY po.createdAt DESC
       LIMIT ? OFFSET ?
@@ -244,6 +248,8 @@ exports.getSelectedPackages = (page, limit, Status, date, search) => {
           po.id AS processOrderId,
           po.invNo,
           o.sheduleDate,
+          au.userName,
+          CONCAT(coff.firstNameEnglish , '' , coff.lastNameEnglish) AS packOfficer,
           COALESCE(aic.totalAdditionalItems, 0) AS orderAdditionalCount,
           COALESCE(
               (SELECT SUM(price)
@@ -262,6 +268,8 @@ exports.getSelectedPackages = (page, limit, Status, date, search) => {
       FROM processorders po
       LEFT JOIN orders o ON po.orderId = o.id
       LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      LEFT JOIN agro_world_admin.adminusers au ON po.adminPackby = au.id
+      LEFT JOIN collection_officer.collectionofficer coff ON po.packby = coff.id
       ${whereClause}
       ORDER BY po.createdAt DESC
       LIMIT ? OFFSET ?
@@ -1574,7 +1582,8 @@ exports.getMarketPlacePremadePackagesItemsDao = (orderId) => {
           po.id AS processOrderId,
           mp.displayName AS name,
           mp.productPrice AS price,
-          op.id AS packageId
+          op.id AS packageId,
+          op.qty AS packageQty
         FROM processorders po
         LEFT JOIN orderpackage op ON po.id = op.orderId
         LEFT JOIN marketplacepackages mp ON op.packageId = mp.id
@@ -1586,6 +1595,7 @@ exports.getMarketPlacePremadePackagesItemsDao = (orderId) => {
         pd.name,
         pd.price,
         pd.packageId,
+        pd.packageQty,
         COALESCE(pic.totalItems, 0) AS totCount,
         COALESCE(pic.packedItems, 0) AS packCount,
         CASE

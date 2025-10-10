@@ -54,7 +54,7 @@ exports.insertMarketPriceXLSXData = (xlindex, data) => {
 
         if (collectionCenters.length === 0) {
           return resolve({
-            message: "No collection centers found. Only market price data inserted.",
+            message: "No collection centre found. Only market price data inserted.",
             totalRows: data.length,
             insertedRows: marketPriceResult.affectedRows,
           });
