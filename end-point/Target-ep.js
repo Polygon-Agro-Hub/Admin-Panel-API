@@ -380,3 +380,26 @@ exports.addOrRemoveCenterCrops = async (req, res) => {
       .json({ error: "An error occurred while fetching collection officers" });
   }
 };
+
+
+exports.getSelectedOfficerTarget = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+
+  try {
+
+    const { officerId, status, search } = await TargetValidate.getSelectedOfficerTargetSchemanew.validateAsync(req.query);
+
+
+    const results = await TargetDAO.getOfficerTargetDao(officerId, status, search);
+
+    return res.status(200).json({ items: results });
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+    console.error("Error fetching collection officers:", error);
+
+
+    return res.status(500).json({ error: "An error occurred while fetching collection officers" });
+  }
+};

@@ -458,3 +458,58 @@ exports.getOfficerData = (assignBy) => {
     });
   });
 };
+
+
+exports.getOfficerTargetDao = (userId, status, search) => {
+    return new Promise((resolve, reject) => {
+        let sql =
+            `SELECT 
+            OFT.id, 
+            OFT.dailyTargetId, 
+            DT.varietyId, 
+            CV.varietyNameEnglish, 
+            CG.cropNameEnglish, 
+            OFT.target, 
+            DT.grade, 
+            OFT.complete, 
+            CO.empId,
+            DT.date AS toDate,
+            CASE 
+                WHEN OFT.target > OFT.complete THEN 'Pending'
+                WHEN OFT.target < OFT.complete THEN 'Exceeded'
+                WHEN OFT.target = OFT.complete THEN 'Completed'
+            END AS status,
+            CASE 
+                WHEN OFT.complete > OFT.target THEN 0.00
+                ELSE OFT.target - OFT.complete
+            END AS remaining
+        FROM dailytarget DT, officertarget OFT, plant_care.cropgroup CG, plant_care.cropvariety CV, collectionofficer CO
+        WHERE OFT.officerId = ? AND OFT.dailyTargetId = DT.id AND DT.varietyId = CV.id AND CV.cropGroupId = CG.id AND OFT.officerId = CO.id
+    `;
+
+        const params = [userId];
+
+        if (status) {
+            sql += ` AND (
+                CASE 
+                    WHEN OFT.target > OFT.complete THEN 'Pending'
+                    WHEN OFT.target < OFT.complete THEN 'Exceeded'
+                    WHEN OFT.target = OFT.complete THEN 'Completed'
+                END
+            ) = ?`;
+            params.push(status);
+        }
+
+        if (search) {
+            sql += ` AND (CV.varietyNameEnglish LIKE ? OR CG.cropNameEnglish LIKE ?)`;
+            params.push(`%${search}%`, `%${search}%`);
+        }
+
+        collectionofficer.query(sql, params, (err, results) => {
+            if (err) {
+                return reject(err);
+            }
+            resolve(results);
+        });
+    });
+};
