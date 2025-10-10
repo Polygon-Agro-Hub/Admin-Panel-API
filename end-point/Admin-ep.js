@@ -49,6 +49,10 @@ exports.loginAdmin = async (req, res) => {
 
     // Fetch user and permissions from the database
     const [user] = await adminDao.loginAdmin(email);
+    console.log("--------------------------------------");
+    console.log(user);
+    console.log("--------------------------------------");
+    
 
     if (!user) {
       return res.status(401).json({ error: "User not found." });
@@ -2230,6 +2234,12 @@ exports.addNewTaskU = async (req, res) => {
   console.log(req.params);
   const ongCultivationId = req.query.ongCultivationId;
   const adminUserId = req.user.userId;
+  console.log("----------------------------------------");
+  console.log("Admin user Id:",req.user);
+  console.log("----------------------------------------");
+
+  
+  
 
   try {
     const task = req.body;
@@ -2262,7 +2272,7 @@ exports.addNewTaskU = async (req, res) => {
 
     const trackResult = await adminDao.tracktaskAddOngoingCultivation(
       adminUserId,
-      ongCultivationId
+      parseInt(ongCultivationId)
     );
 
     if (addedTaskResult.insertId > 0) {
