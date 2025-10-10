@@ -469,3 +469,117 @@ exports.getAllGoviLinkJobs = async (req, res) => {
       .json({ error: "An error occurred while fetching GoviLink jobs" });
   }
 };
+
+// Get field officers by job role
+exports.getOfficersByJobRole = async (req, res) => {
+  try {
+    const { jobRole } = req.query;
+
+    if (!jobRole) {
+      return res.status(400).json({ error: "JobRole parameter is required" });
+    }
+
+    const officers = await GoviLinkDAO.getOfficersByJobRoleDAO(jobRole);
+
+    console.log(`Successfully retrieved officers with job role: ${jobRole}`);
+
+    res.json({
+      success: true,
+      data: officers,
+      total: officers.length,
+    });
+  } catch (err) {
+    console.error("Error fetching officers by job role:", err);
+    res.status(500).json({
+      error: "An error occurred while fetching officers",
+      details: err.message,
+    });
+  }
+};
+
+// Assign officer to job with automatic deactivation of previous assignments
+exports.assignOfficerToJob = async (req, res) => {
+  try {
+    const { jobId, officerId } = req.body;
+
+    if (!jobId || !officerId) {
+      return res.status(400).json({
+        success: false,
+        error: "jobId and officerId are required",
+      });
+    }
+
+    const result = await GoviLinkDAO.assignOfficerToJobDAO(jobId, officerId);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: "Officer assigned successfully",
+        data: result.data,
+      });
+    } else {
+      // Handle specific error cases
+      if (
+        result.error.includes("not found") ||
+        result.error.includes("inactive")
+      ) {
+        return res.status(404).json({
+          success: false,
+          error: result.error,
+        });
+      } else if (result.error.includes("completed")) {
+        return res.status(400).json({
+          success: false,
+          error: result.error,
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: result.error,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error assigning officer to job:", err);
+    res.status(500).json({
+      success: false,
+      error: "An error occurred while assigning officer",
+      details: err.message,
+    });
+  }
+};
+
+// Get basic job details by ID
+exports.getJobBasicDetailsById = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({ 
+        success: false,
+        error: "jobId parameter is required" 
+      });
+    }
+
+    const jobDetails = await GoviLinkDAO.getJobBasicDetailsByIdDAO(jobId);
+
+    if (jobDetails) {
+      res.json({
+        success: true,
+        data: jobDetails
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: "Job not found"
+      });
+    }
+  } catch (err) {
+    console.error("Error fetching job details:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "An error occurred while fetching job details",
+      details: err.message 
+    });
+  }
+};
