@@ -8,18 +8,32 @@ const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === "application/pdf") cb(null, true);
-    else cb(new Error("Only PDF files are allowed"), false);
+    const allowedTypes = [
+      "application/pdf",
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+    ];
+
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(
+        new Error("Only PDF and image files are allowed (jpg, png, webp)"),
+        false
+      );
+    }
   },
 });
 
-
 // Create new certificate company
 router.post(
-  "/create-certificate-company", 
-  authMiddleware, 
+  "/create-certificate-company",
+  authMiddleware,
+  upload.single("logo"),
   certificateCompanyEp.createCertificateCompany
 );
 
@@ -32,15 +46,16 @@ router.get(
 
 // Get by ID
 router.get(
-  "/get-certificate-company-by-id/:id", 
+  "/get-certificate-company-by-id/:id",
   authMiddleware,
   certificateCompanyEp.getCertificateCompanyById
 );
 
 // Update certificate company
 router.put(
-  "/update-certificate-company/:id", 
+  "/update-certificate-company/:id",
   authMiddleware,
+  upload.single("logo"),
   certificateCompanyEp.updateCertificateCompany
 );
 
@@ -51,7 +66,7 @@ router.delete(
   certificateCompanyEp.deleteCertificateCompany
 );
 
-// Get all certificate companies 
+// Get all certificate companies
 router.get(
   "/get-all-certificate-companies-names-only",
   authMiddleware,
@@ -104,21 +119,21 @@ router.post(
 
 // Get list by certificate questionnaires
 router.get(
-  "/get-qestionnaire-list/:certificateId",  
+  "/get-qestionnaire-list/:certificateId",
   authMiddleware,
   certificateCompanyEp.getQuestionnaireList
 );
 
 // Update questionnaire
 router.put(
-  "/update-questionnaire/:id",   
+  "/update-questionnaire/:id",
   authMiddleware,
   certificateCompanyEp.updateQuestionnaire
 );
 
 // Delete questionnaire
 router.delete(
-  "/delete-questionnaire/:id",   
+  "/delete-questionnaire/:id",
   authMiddleware,
   certificateCompanyEp.deleteQuestionnaire
 );

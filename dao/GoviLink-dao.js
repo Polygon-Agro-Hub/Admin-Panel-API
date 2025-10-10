@@ -416,17 +416,10 @@ exports.getAllCompanyDAO = (searchTerm) => {
   });
 };
 
-// Get all govi link jobs
 // Get all govi link jobs with filters
 exports.getAllGoviLinkJobsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
-    const {
-      searchTerm,
-      district,
-      status,
-      assignStatus,
-      date
-    } = filters;
+    const { searchTerm, district, status, assignStatus, date } = filters;
 
     let sql = `
       SELECT 
@@ -488,9 +481,9 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
 
     // Assign Status filter (Assigned/Not Assigned)
     if (assignStatus && assignStatus.trim()) {
-      if (assignStatus === 'Assigned') {
+      if (assignStatus === "Assigned") {
         sql += ` AND jao.id IS NOT NULL`;
-      } else if (assignStatus === 'Not Assigned') {
+      } else if (assignStatus === "Not Assigned") {
         sql += ` AND jao.id IS NULL`;
       }
     }
@@ -506,6 +499,138 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
     plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);
+    });
+  });
+};
+
+// Get field officers by job role
+exports.getOfficersByJobRoleDAO = (jobRole) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        id,
+        empId,
+        firstName,
+        lastName,
+        JobRole,
+        distrct
+      FROM 
+        feildofficer
+      WHERE 
+        JobRole = ?
+      ORDER BY 
+        firstName, lastName
+    `;
+
+    const params = [jobRole];
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+// Assign officer to job deactivate previous assignments and create new one
+exports.assignOfficerToJobDAO = (jobId, officerId) => {
+  return new Promise((resolve, reject) => {
+    // Step 1: Deactivate any existing active assignments
+    const deactivateSql = `
+      UPDATE jobassignofficer 
+      SET isActive = 0 
+      WHERE jobId = ? AND isActive = 1
+    `;
+
+    plantcare.query(deactivateSql, [jobId], (err, deactivateResults) => {
+      if (err) return reject(err);
+
+      // Step 2: Create new assignment
+      const insertSql = `
+        INSERT INTO jobassignofficer (jobId, officerId, isActive) 
+        VALUES (?, ?, 1)
+      `;
+
+      plantcare.query(insertSql, [jobId, officerId], (err, insertResults) => {
+        if (err) return reject(err);
+
+        resolve({
+          success: true,
+          data: {
+            assignmentId: insertResults.insertId,
+            jobId: jobId,
+            officerId: officerId,
+            previousAssignmentsDeactivated: deactivateResults.affectedRows,
+            action: "created",
+          },
+        });
+      });
+    });
+  });
+};
+
+// Get basic job details by ID
+exports.getJobBasicDetailsByIdDAO = (jobId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        gj.id AS jobId,
+        gj.sheduleDate AS scheduledDate,
+        
+        -- Farmer Details
+        CONCAT(u.firstName, ' ', u.lastName) AS farmerName,
+        u.NICnumber AS farmerNIC,
+        
+        -- Service Details
+        os.englishName AS serviceName,
+        
+        -- Farm Details
+        f.farmName,
+        
+        -- Crops as comma separated string
+        GROUP_CONCAT(DISTINCT cg.cropNameEnglish SEPARATOR ', ') AS crops
+        
+      FROM 
+        govilinkjobs gj
+        
+        -- Join farmer details
+        LEFT JOIN users u ON gj.farmerId = u.id
+        
+        -- Join service details
+        LEFT JOIN officerservices os ON gj.serviceId = os.id
+        
+        -- Join farm details
+        LEFT JOIN farms f ON gj.farmId = f.id
+        
+        -- Join crops
+        LEFT JOIN jobrequestcrops jrc ON gj.id = jrc.jobId
+        LEFT JOIN cropgroup cg ON jrc.cropId = cg.id
+        
+      WHERE 
+        gj.id = ?
+        
+      GROUP BY 
+        gj.id
+    `;
+
+    plantcare.query(sql, [jobId], (err, results) => {
+      if (err) return reject(err);
+
+      if (results.length === 0) {
+        resolve(null);
+      } else {
+        const jobData = results[0];
+
+        // Format the date to YYYY/MM/DD
+        if (jobData.scheduledDate) {
+          const date = new Date(jobData.scheduledDate);
+          jobData.scheduledDate = date
+            .toISOString()
+            .split("T")[0]
+            .replace(/-/g, "/");
+        }
+
+        resolve(jobData);
+      }
     });
   });
 };
