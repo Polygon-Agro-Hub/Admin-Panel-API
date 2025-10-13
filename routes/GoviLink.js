@@ -60,4 +60,25 @@ router.get(
   GoviLinkEp.getAllGoviLinkJobs
 );
 
+// Get officers by job role
+router.get(
+  "/get-officers-by-jobrole",
+  authMiddleware,
+  GoviLinkEp.getOfficersByJobRole
+);
+
+// Assign officer to job
+router.post(
+  "/assign-officer-to-job",
+  authMiddleware,
+  GoviLinkEp.assignOfficerToJob
+);
+
+// Get job details by ID
+router.get(
+  "/get-job-basic-details/:jobId",
+  authMiddleware,
+  GoviLinkEp.getJobBasicDetailsById
+);
+
 module.exports = router;

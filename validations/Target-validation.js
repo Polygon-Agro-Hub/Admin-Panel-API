@@ -93,3 +93,10 @@ exports.getCenterCropsSchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).default(10).optional(),
   searchText: Joi.string().allow("").optional(),
 });
+
+exports.getSelectedOfficerTargetSchemanew = Joi.object({
+    officerId: Joi.number().integer().optional(),
+    status: Joi.string().optional(),
+    search: Joi.string().optional(),
+
+});

@@ -1,4 +1,5 @@
 const certificateCompanyDao = require("../dao/CertificateCompany-dao");
+const deleteFromS3 = require("../middlewares/s3delete");
 const uploadFileToS3 = require("../middlewares/s3upload");
 const ValidateSchema = require("../validations/CertificateCompany-validation");
 
@@ -28,7 +29,7 @@ exports.createCertificateCompany = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized", status: false });
     }
 
-    // Validate Sri Lankan phone rule
+    // Validate phone numbers
     const validatePhone = (dialCode, number, required = false) => {
       if (required && !number) return false;
       if (!number) return true;
@@ -73,6 +74,17 @@ exports.createCertificateCompany = async (req, res) => {
       });
     }
 
+    // Upload logo if provided
+    let logoUrl = null;
+    if (req.file) {
+      logoUrl = await uploadFileToS3(
+        req.file.buffer,
+        req.file.originalname,
+        "certificatecompany/logo"
+      );
+    }
+
+    // Save to DB
     const insertId = await certificateCompanyDao.createCertificateCompany(
       companyName,
       regNumber,
@@ -82,7 +94,8 @@ exports.createCertificateCompany = async (req, res) => {
       phoneCode2,
       phoneNumber2,
       address,
-      userId
+      userId,
+      logoUrl
     );
 
     res.status(201).json({
@@ -149,7 +162,7 @@ exports.getCertificateCompanyById = async (req, res) => {
 exports.updateCertificateCompany = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.userId;
+    const userId = req.user?.userId;
     const {
       companyName,
       regNumber,
@@ -169,20 +182,18 @@ exports.updateCertificateCompany = async (req, res) => {
       !phoneNumber1 ||
       !address
     ) {
-      return res.status(400).json({
-        message: "Missing required fields",
-        status: false,
-      });
+      return res
+        .status(400)
+        .json({ message: "Missing required fields", status: false });
     }
 
     if (!userId) {
-      return res.status(401).json({
-        message: "Unauthorized. User ID not found.",
-        status: false,
-      });
+      return res
+        .status(401)
+        .json({ message: "Unauthorized: User not found", status: false });
     }
 
-    // --- Same validations as create ---
+    // Validate phone numbers
     const validatePhone = (dialCode, number, required = false) => {
       if (required && !number) return false;
       if (!number) return true;
@@ -201,7 +212,7 @@ exports.updateCertificateCompany = async (req, res) => {
       });
     }
 
-    if (!validatePhone(phoneCode2, phoneNumber2, false)) {
+    if (phoneNumber2 && !validatePhone(phoneCode2, phoneNumber2, false)) {
       return res.status(400).json({
         message:
           phoneCode2 === "+94"
@@ -218,13 +229,41 @@ exports.updateCertificateCompany = async (req, res) => {
       });
     }
 
-    // Check duplicate regNumber (excluding current id)
-    const existing = await certificateCompanyDao.checkByRegNumber(regNumber);
-    if (existing.length > 0 && existing[0].id != id) {
-      return res.json({
-        message: "This registration number already exists!",
-        status: false,
-      });
+    // Fetch current company first to check if regNumber is being changed
+    const currentCompany =
+      await certificateCompanyDao.getCertificateCompanyById(id);
+    if (!currentCompany) {
+      return res
+        .status(404)
+        .json({ message: "Company not found", status: false });
+    }
+
+    // Only check for duplicate registration number if it's being changed
+    if (currentCompany.regNumber !== regNumber) {
+      const existing = await certificateCompanyDao.checkByRegNumber(regNumber);
+      if (existing.length > 0) {
+        return res.status(400).json({
+          message: `Registration number "${regNumber}" already exists. Please use a different one.`,
+          status: false,
+        });
+      }
+    }
+
+    let logoUrl = currentCompany?.logo || null;
+
+    // If new logo uploaded
+    if (req.file) {
+      const uploadedUrl = await uploadFileToS3(
+        req.file.buffer,
+        req.file.originalname,
+        "certificatecompany/logo"
+      );
+      logoUrl = uploadedUrl;
+
+      // Delete old logo if exists
+      if (currentCompany?.logo) {
+        await deleteFromS3(currentCompany.logo);
+      }
     }
 
     // Update record
@@ -238,7 +277,8 @@ exports.updateCertificateCompany = async (req, res) => {
       phoneCode2,
       phoneNumber2,
       address,
-      userId
+      userId,
+      logoUrl
     );
 
     if (!updated) {
@@ -250,6 +290,7 @@ exports.updateCertificateCompany = async (req, res) => {
     res.json({
       message: "Certificate company updated successfully",
       status: true,
+      logo: logoUrl,
     });
   } catch (err) {
     console.error("Error updating certificate company:", err);

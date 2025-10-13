@@ -10,13 +10,14 @@ exports.createCertificateCompany = (
   phoneCode2,
   phoneNumber2,
   address,
-  userId
+  userId,
+  logo
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO certificatecompany
-      (comName, regNumber, taxId, phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, address, modifyBy, modifyDate)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      (comName, regNumber, taxId, phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, address, logo, modifyBy, modifyDate)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
     const values = [
       companyName,
@@ -27,15 +28,13 @@ exports.createCertificateCompany = (
       phoneCode2 || null,
       phoneNumber2 || null,
       address,
+      logo || null,
       userId,
     ];
 
     plantcare.query(sql, values, (err, results) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(results.insertId);
-      }
+      if (err) reject(err);
+      else resolve(results.insertId);
     });
   });
 };
@@ -99,7 +98,8 @@ exports.getCertificateCompanyById = (id) => {
         cc.phoneCode2,
         cc.phoneNumber2,
         cc.address,
-        cc.createdAt
+        cc.createdAt,
+        cc.logo
       FROM certificatecompany cc
       WHERE cc.id = ?
     `;
@@ -121,13 +121,14 @@ exports.updateCertificateCompany = (
   phoneCode2,
   phoneNumber2,
   address,
-  modifyBy
+  modifyBy,
+  logo
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE certificatecompany 
       SET comName=?, regNumber=?, taxId=?, phoneCode1=?, phoneNumber1=?, 
-          phoneCode2=?, phoneNumber2=?, address=?,
+          phoneCode2=?, phoneNumber2=?, address=?, logo=?, 
           modifyBy=?, modifyDate=NOW()
       WHERE id=?
     `;
@@ -140,6 +141,7 @@ exports.updateCertificateCompany = (
       phoneCode2 || null,
       phoneNumber2 || null,
       address,
+      logo || null,
       modifyBy,
       id,
     ];
