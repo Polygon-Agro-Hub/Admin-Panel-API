@@ -1192,7 +1192,7 @@ exports.getAllCollectionManagerNames = async (req, res) => {
 exports.claimOfficer = async (req, res) => {
   try {
     const { id } = req.params; // Officer ID from URL params
-    const { centerId, irmId } = req.body; // Center ID and IRM ID from request body
+    const { centerId, managerId } = req.body; // Center ID and IRM ID from request body
 
     // Validate required fields
     if (!centerId) {
@@ -1203,7 +1203,7 @@ exports.claimOfficer = async (req, res) => {
     const result = await collectionofficerDao.claimOfficerDetailsDao(
       id,
       centerId,
-      irmId
+      managerId
     );
 
     // Send success response
