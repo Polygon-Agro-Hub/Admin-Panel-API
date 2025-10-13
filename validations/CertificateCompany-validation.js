@@ -114,3 +114,18 @@ exports.updateQuestionnaireSchema = Joi.object({
 exports.deleteQuestionnaireSchema = Joi.object({
   id: Joi.number().integer().required(),
 });
+
+// Validation for farm cluster
+exports.createFarmerClusterSchema = Joi.object({
+  clusterName: Joi.string().min(2).max(55).required().messages({
+    "string.empty": "Cluster name is required",
+    "string.min": "Cluster name must be at least 2 characters",
+    "string.max": "Cluster name cannot exceed 55 characters",
+  }),
+  farmerNICs: Joi.array()
+    .min(1)
+    .required()
+    .messages({
+      "array.min": "At least one NIC number must be provided",
+    }),
+});

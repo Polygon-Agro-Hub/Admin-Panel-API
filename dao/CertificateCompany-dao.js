@@ -482,3 +482,45 @@ exports.deleteQuestionnaire = (id) => {
     });
   });
 };
+
+// Check NICs existence
+exports.checkNICsExist = async (nicList, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id, NICnumber FROM users WHERE NICnumber IN (?)`,
+    [nicList]
+  );
+  const existingNICs = rows.map((r) => r.NICnumber);
+  const missingNICs = nicList.filter((nic) => !existingNICs.includes(nic));
+  return { existingNICs, missingNICs };
+};
+
+// Create farm cluster
+exports.createFarmCluster = async (clusterName, modifyBy, connection) => {
+  const [result] = await connection.query(
+    `INSERT INTO farmcluster (clsName, modifyBy, modifyDate) VALUES (?, ?, NOW())`,
+    [clusterName, modifyBy]
+  );
+  return result;
+};
+
+// Get farmer IDs by NIC
+exports.getFarmerIdsByNICs = async (nicList, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id, NICnumber FROM users WHERE NICnumber IN (?)`,
+    [nicList]
+  );
+  const map = {};
+  rows.forEach((r) => (map[r.NICnumber] = r.id));
+  return map;
+};
+
+// Bulk insert farmers into cluster
+exports.bulkInsertClusterFarmers = async (clusterId, farmerIds, connection) => {
+  if (farmerIds.length === 0) return { affectedRows: 0 };
+  const values = farmerIds.map((id) => [clusterId, id]);
+  const [result] = await connection.query(
+    `INSERT INTO farmclusterfarmers (clusterId, farmerId) VALUES ?`,
+    [values]
+  );
+  return result;
+};
