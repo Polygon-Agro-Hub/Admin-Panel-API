@@ -1,6 +1,7 @@
 const certificateCompanyDao = require("../dao/CertificateCompany-dao");
 const deleteFromS3 = require("../middlewares/s3delete");
 const uploadFileToS3 = require("../middlewares/s3upload");
+const { plantcare } = require("../startup/database");
 const ValidateSchema = require("../validations/CertificateCompany-validation");
 
 // Create a new certificate company
@@ -787,5 +788,115 @@ exports.deleteQuestionnaire = async (req, res) => {
     res
       .status(500)
       .json({ message: "Internal server error", error: err.message });
+  }
+};
+
+// Create Farmer Cluster with bulk farmers
+exports.createFarmerCluster = async (req, res) => {
+  let connection;
+
+  try {
+    // Use promise wrapper to get connection
+    connection = await plantcare.promise().getConnection();
+    await connection.beginTransaction();
+
+    const userId = req.user?.userId;
+    if (!userId) {
+      await connection.rollback();
+      return res.status(401).json({
+        message: "Unauthorized",
+        status: false,
+      });
+    }
+
+    // Validate request body
+    const { clusterName, farmerNICs } =
+      await ValidateSchema.createFarmerClusterSchema.validateAsync(req.body, {
+        abortEarly: false,
+      });
+
+    // Remove duplicates & trim
+    const uniqueNICs = [...new Set(farmerNICs.map((nic) => nic.trim()))];
+
+    // Check NICs exist
+    const nicCheckResult = await certificateCompanyDao.checkNICsExist(
+      uniqueNICs,
+      connection
+    );
+    if (nicCheckResult.missingNICs.length > 0) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "Some NIC numbers are not registered in the system",
+        status: false,
+        missingNICs: nicCheckResult.missingNICs,
+        existingNICs: nicCheckResult.existingNICs,
+        details: `The following NIC numbers were not found: ${nicCheckResult.missingNICs.join(
+          ", "
+        )}`,
+      });
+    }
+
+    // Create farm cluster
+    const clusterResult = await certificateCompanyDao.createFarmCluster(
+      clusterName,
+      userId,
+      connection
+    );
+    const clusterId = clusterResult.insertId;
+
+    // Get farmer IDs
+    const farmerMap = await certificateCompanyDao.getFarmerIdsByNICs(
+      uniqueNICs,
+      connection
+    );
+    const farmerIds = uniqueNICs.map((nic) => farmerMap[nic]);
+
+    // Bulk insert farmers into cluster
+    const bulkInsertResult =
+      await certificateCompanyDao.bulkInsertClusterFarmers(
+        clusterId,
+        farmerIds,
+        connection
+      );
+
+    await connection.commit();
+
+    res.status(201).json({
+      message: "Farmer cluster created successfully",
+      status: true,
+      data: {
+        clusterId,
+        clusterName,
+        farmersAdded: bulkInsertResult.affectedRows,
+        totalFarmers: uniqueNICs.length,
+      },
+    });
+  } catch (err) {
+    if (connection) await connection.rollback();
+
+    if (err.isJoi) {
+      return res.status(400).json({
+        message: "Validation failed",
+        status: false,
+        details: err.details.map((d) => d.message),
+      });
+    }
+
+    console.error("Error creating farmer cluster:", err);
+
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({
+        message: "Cluster name already exists",
+        status: false,
+      });
+    }
+
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
   }
 };
