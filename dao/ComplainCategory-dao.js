@@ -456,3 +456,216 @@ exports.getComplaintCategoryFromMarketplace = (appId) => {
   });
 };
 
+
+exports.GetAllDistributedComplainDAO = (
+  page,
+  limit,
+  status,
+  category,
+  comCategory,
+  filterCompany,
+  searchText,
+  rpstatus
+) => {
+  return new Promise((resolve, reject) => {
+    const Sqlparams = [];
+    const Counterparams = [];
+    const offset = (page - 1) * limit;
+
+    // SQL to count total records - Added missing JOINs
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM distributedcomplains oc
+      LEFT JOIN collectionofficer co ON oc.officerId = co.id
+      LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
+      LEFT JOIN  company c ON co.companyId = c.id
+      LEFT JOIN  distributedcenter dc ON co.distributedCenterId = dc.id
+      LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      WHERE complainAssign = 'Admin'
+    `;
+
+    // SQL to fetch paginated data
+    let sql = `
+      SELECT 
+        oc.id, 
+        oc.refNo,
+        co.empId AS empId,
+        CONCAT (co.firstNameEnglish, ' ', co.lastNameEnglish) AS officerName,
+        CONCAT (co.firstNameSinhala, ' ', co.lastNameSinhala) AS officerNameSinhala,
+        CONCAT (co.firstNameTamil, ' ', co.lastNameTamil) AS officerNameTamil,
+        c.companyNameEnglish AS companyName,
+        cc.categoryEnglish AS complainCategory,
+        ar.role,
+        oc.createdAt,
+        oc.complain,
+        oc.AdminStatus AS status,
+        oc.reply,
+        dc.regCode,
+        oc.language
+      FROM distributedcomplains oc
+      LEFT JOIN collectionofficer co ON oc.officerId = co.id
+      LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
+      LEFT JOIN  company c ON co.companyId = c.id
+      LEFT JOIN  distributedcenter dc ON co.centerId = dc.id
+      LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      WHERE complainAssign = 'Admin'
+    `;
+
+    // Add filter for status
+    if (status) {
+      countSql += " AND oc.AdminStatus = ? ";
+      sql += " AND oc.AdminStatus = ? ";
+      Sqlparams.push(status);
+      Counterparams.push(status);
+    }
+
+    // Fixed category filter to use the correct alias
+    if (category) {
+      countSql += " AND ar.role = ? ";
+      sql += " AND ar.role = ? ";
+      Sqlparams.push(category);
+      Counterparams.push(category);
+    }
+
+    if (comCategory) {
+      countSql += " AND oc.complainCategory = ? ";
+      sql += " AND oc.complainCategory = ? ";
+      Sqlparams.push(comCategory);
+      Counterparams.push(comCategory);
+    }
+
+    if (filterCompany) {
+      countSql += " AND c.id = ? ";
+      sql += " AND c.id = ? ";
+      Sqlparams.push(filterCompany);
+      Counterparams.push(filterCompany);
+    }
+
+    // Add search functionality
+    if (searchText) {
+      countSql += `
+        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ?)
+      `;
+      sql += `
+        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ?)
+      `;
+      const searchQuery = `%${searchText}%`;
+      Sqlparams.push(searchQuery, searchQuery, searchQuery);
+      Counterparams.push(searchQuery, searchQuery, searchQuery);
+    }
+
+    if (rpstatus) {
+      if (rpstatus === "Yes") {
+        countSql += " AND oc.reply IS NOT NULL ";
+        sql += " AND oc.reply IS NOT NULL ";
+      } else {
+        countSql += " AND oc.reply IS NULL ";
+        sql += " AND oc.reply IS NULL ";
+      }
+    }
+
+    // Add pagination
+    sql += " ORDER BY oc.createdAt DESC LIMIT ? OFFSET ?";
+    Sqlparams.push(parseInt(limit), parseInt(offset));
+
+    // Execute count query to get total records
+    collectionofficer.query(
+      countSql,
+      Counterparams,
+      (countErr, countResults) => {
+        if (countErr) {
+          return reject(countErr);
+        }
+
+        const total = countResults[0]?.total || 0;
+
+        // Execute main query to get paginated results
+        collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
+          if (dataErr) {
+            return reject(dataErr);
+          }
+
+          resolve({ results, total });
+        });
+      }
+    );
+  });
+};
+
+
+exports.getDistributedComplainById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = ` 
+    SELECT 
+      oc.id, 
+      oc.refNo, 
+      oc.createdAt, 
+      oc.language, 
+      oc.complain, 
+      oc.complainCategory, 
+      oc.reply, 
+      cof.firstNameEnglish AS firstName, 
+      cof.lastNameEnglish AS lastName, 
+      cof.phoneCode01, 
+      cof.phoneNumber01,  
+      cc.categoryEnglish AS complainCategory, 
+      cof.empId AS empId, 
+      cof.jobRole AS jobRole,
+      CONCAT (cof.firstNameEnglish, ' ', cof.lastNameEnglish) AS officerName,
+      CONCAT (cof.firstNameSinhala, ' ', cof.lastNameSinhala) AS officerNameSinhala,
+      CONCAT (cof.firstNameTamil, ' ', cof.lastNameTamil) AS officerNameTamil
+    FROM distributedcomplains oc
+    LEFT JOIN collectionofficer cof ON oc.officerId = cof.id
+    LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
+    WHERE oc.id = ? 
+    `;
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+
+exports.sendDistributedComplainReply = (complainId, reply) => {
+  return new Promise((resolve, reject) => {
+    // Input validation
+    if (!complainId) {
+      return reject(new Error("Complain ID is required"));
+    }
+
+    if (reply === undefined || reply === null || reply.trim() === "") {
+      return reject(new Error("Reply cannot be empty"));
+    }
+
+    const sql = `
+      UPDATE distributedcomplains 
+      SET reply = ?, DIOStatus = ?, DCMStatus = ? , DCHstatus = ? , AdminStatus = ?, replyTime = NOW()
+      WHERE id = ?
+    `;
+
+    const status = "Closed";
+    const adminStatus = "Closed";
+    const values = [reply, status, status, status, status, complainId];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        console.error("Database error details:", err);
+        return reject(err);
+      }
+
+      if (results.affectedRows === 0) {
+        console.warn(`No record found with id: ${complainId}`);
+        return reject(new Error(`No record found with id: ${complainId}`));
+      }
+
+      console.log("Update successful:", results);
+      resolve({
+        message: "Reply sent successfully",
+        affectedRows: results.affectedRows,
+      });
+    });
+  });
+};
