@@ -430,4 +430,10 @@ router.put(
   AdminEp.updateFieldOfficer
 );
 
+router.delete(
+  "/delete-farm-staff/:id",
+  authMiddleware,
+  AdminEp.deleteFarmStaff
+);
+
 module.exports = router;

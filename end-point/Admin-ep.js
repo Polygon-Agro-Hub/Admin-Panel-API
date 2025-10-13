@@ -2886,12 +2886,12 @@ exports.deleteOngoingCultivationsById = async (req, res) => {
 
 exports.getFarmerStaff = async (req, res) => {
   try {
-    const { id, role } = await ValidateSchema.getFarmerStaffShema.validateAsync(
+    const { id, role, searchText } = await ValidateSchema.getFarmerStaffShema.validateAsync(
       req.query
     );
-    console.log(role);
+    console.log(searchText);
 
-    const result = await adminDao.getFarmerStaffDao(id, role);
+    const result = await adminDao.getFarmerStaffDao(id, role, searchText);
 
     console.log("Successfully fetched feedback list");
     res.json({
@@ -3885,5 +3885,31 @@ exports.updateFieldOfficer = async (req, res) => {
       error: "An error occurred while updating the field officer",
       details: error.message,
     });
+  }
+};
+
+
+exports.deleteFarmStaff = async (req, res) => {
+  try {
+    const { id } = await ValidateSchema.IdParamShema.validateAsync(
+      req.params
+    );
+    const results = await adminDao.deleteFarmStaffDao(id);
+
+    if(results.affectedRows === 0){
+      return res.json({status:false, message: 'Staff delete faild!'})
+    }
+
+    res.status({status:true, message:"Staff delete successfull!"})
+
+    // Since your DAO function now returns { empId: newEmpId } directly
+    // we don't need to check for length anymore
+    res.status(200).json({ result: results, status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
   }
 };
