@@ -1007,8 +1007,8 @@ exports.getAllCompanyDAO = (search) => {
     const params = [];
 
     if (search) {
-      sql += " AND c.companyNameEnglish LIKE ?";
-      params.push(`%${search}%`);
+      sql += " AND (c.companyNameEnglish LIKE ? OR c.email LIKE ?) ";
+      params.push(`%${search}%`, `%${search}%`);
     }
 
     sql += " GROUP BY c.id ORDER BY companyName ASC";
