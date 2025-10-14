@@ -138,4 +138,11 @@ router.delete(
   certificateCompanyEp.deleteQuestionnaire
 );
 
+// Create farmer cluster with bulk farmers
+router.post(
+  '/create-farmer-cluster',
+  authMiddleware,
+  certificateCompanyEp.createFarmerCluster
+);
+
 module.exports = router;

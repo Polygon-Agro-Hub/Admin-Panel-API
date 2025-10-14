@@ -450,6 +450,7 @@ exports.createfeedback = Joi.object({
 exports.getFarmerStaffShema = Joi.object({
   id: Joi.number().integer().positive().required(),
   role: Joi.string().optional(),
+  searchText: Joi.string().optional(),
 });
 exports.getFarmsByUserSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
@@ -464,5 +465,10 @@ exports.getFieldOfficerSchema = Joi.object({
 
 exports.getRoleShema = Joi.object({
   role: Joi.string().required().valid() // Add valid roles as needed
+});
+
+
+exports.IdParamShema = Joi.object({
+  id: Joi.number().integer().required() 
 });
 

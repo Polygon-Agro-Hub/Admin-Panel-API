@@ -45,7 +45,7 @@ router.post(
   ComplainCategoryEP.postNewApplication
 );
 
-router.get('/get-application-name/:id',   authMiddleware,ComplainCategoryEP.getApplicationName);
+router.get('/get-application-name/:id', authMiddleware, ComplainCategoryEP.getApplicationName);
 
 
 router.post(
@@ -95,13 +95,13 @@ router.put(
 router.get(
   '/get-marketplace-complaint',
   authMiddleware,
-   ComplainCategoryEP.getAllMarketplaceComplaints
+  ComplainCategoryEP.getAllMarketplaceComplaints
 );
 
 router.get(
   '/get-marketplace-complaintWholesale',
   authMiddleware,
-   ComplainCategoryEP.getAllMarketplaceComplaintsWholesale
+  ComplainCategoryEP.getAllMarketplaceComplaintsWholesale
 );
 
 router.get(
@@ -111,11 +111,37 @@ router.get(
 );
 
 
-router.put('/complaints/:id/reply',  authMiddleware,
+router.put('/complaints/:id/reply', authMiddleware,
   ComplainCategoryEP.updateMarketplaceComplaintReply);
 module.exports = router;
 
 
 
 router.get('/complaint-categories/:appId', authMiddleware,
-  ComplainCategoryEP.getComplaintCategoriesByAppId);
+  ComplainCategoryEP.getComplaintCategoriesByAppId
+);
+
+router.get(
+  '/get-all-distributed-complains',
+  authMiddleware,
+  ComplainCategoryEP.getAllDistributionComplain
+);
+
+router.get(
+  "/get-distributed-complain-by-id/:id",
+  authMiddleware,
+  ComplainCategoryEP.getDistributedComplainById
+);
+
+router.put(
+  "/reply-distributed-complain/:id",
+  authMiddleware,
+  ComplainCategoryEP.sendDistributedComplainReply
+);
+
+
+router.get(
+  "/get-distribution-comppany-for-officer-complain",
+  authMiddleware,
+  ComplainCategoryEP.GetAllDistriutionCompanyForOfficerComplain
+);

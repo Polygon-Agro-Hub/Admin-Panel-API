@@ -504,25 +504,36 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
 };
 
 // Get field officers by job role
-exports.getOfficersByJobRoleDAO = (jobRole) => {
+exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate) => {
   return new Promise((resolve, reject) => {
-    let sql = `
+    const sql = `
       SELECT 
-        id,
-        empId,
-        firstName,
-        lastName,
-        JobRole,
-        distrct
+        fo.id,
+        fo.empId,
+        fo.firstName,
+        fo.lastName,
+        fo.JobRole,
+        fo.distrct,
+        COUNT(ja.id) AS activeJobCount
       FROM 
-        feildofficer
+        feildofficer fo
+      LEFT JOIN 
+        jobassignofficer ja 
+        ON fo.id = ja.officerId 
+        AND ja.isActive = 1
+      LEFT JOIN 
+        govilinkjobs gj 
+        ON gj.id = ja.jobId 
+        AND gj.sheduleDate = ?
       WHERE 
-        JobRole = ?
+        fo.JobRole = ?
+      GROUP BY 
+        fo.id, fo.empId, fo.firstName, fo.lastName, fo.JobRole, fo.distrct
       ORDER BY 
-        firstName, lastName
+        fo.firstName, fo.lastName
     `;
 
-    const params = [jobRole];
+    const params = [scheduleDate, jobRole];
 
     plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);

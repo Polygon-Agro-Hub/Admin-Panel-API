@@ -1690,11 +1690,11 @@ exports.getMarketPlaceCustomePackagesDao = (page, limit, packageStatus, date, se
       }
     }
 
-    // if (date) {
-    //   whereClause += " AND DATE(o.sheduleDate) = ?";
-    //   params.push(date);
-    //   countParams.push(date);
-    // }
+    if (date) {
+      whereClause += " AND DATE(o.sheduleDate) = ?";
+      params.push(date);
+      countParams.push(date);
+    }
 
     if (search) {
       whereClause += ` AND (po.invNo LIKE ?)`;
@@ -2024,7 +2024,9 @@ exports.trackPackagePackDao = (userId, orderId) => {
     const sql = `
       UPDATE processorders
       SET 
-        adminPackby = ?
+        adminPackby = ?,
+        status = 'Out For Delivery',
+        outDlvrDate = NOW()
       WHERE 
         id = ?
     `;

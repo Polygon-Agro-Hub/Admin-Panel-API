@@ -473,15 +473,22 @@ exports.getAllGoviLinkJobs = async (req, res) => {
 // Get field officers by job role
 exports.getOfficersByJobRole = async (req, res) => {
   try {
-    const { jobRole } = req.query;
+    const { jobRole, scheduleDate } = req.query;
 
-    if (!jobRole) {
-      return res.status(400).json({ error: "JobRole parameter is required" });
+    if (!jobRole || !scheduleDate) {
+      return res.status(400).json({
+        error: "jobRole and scheduleDate parameters are required",
+      });
     }
 
-    const officers = await GoviLinkDAO.getOfficersByJobRoleDAO(jobRole);
+    const officers = await GoviLinkDAO.getOfficersByJobRoleDAO(
+      jobRole,
+      scheduleDate
+    );
 
-    console.log(`Successfully retrieved officers with job role: ${jobRole}`);
+    console.log(
+      `Successfully retrieved officers with job role: ${jobRole} on ${scheduleDate}`
+    );
 
     res.json({
       success: true,
@@ -555,9 +562,9 @@ exports.getJobBasicDetailsById = async (req, res) => {
     const { jobId } = req.params;
 
     if (!jobId) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: "jobId parameter is required" 
+        error: "jobId parameter is required",
       });
     }
 
@@ -566,20 +573,20 @@ exports.getJobBasicDetailsById = async (req, res) => {
     if (jobDetails) {
       res.json({
         success: true,
-        data: jobDetails
+        data: jobDetails,
       });
     } else {
       res.status(404).json({
         success: false,
-        error: "Job not found"
+        error: "Job not found",
       });
     }
   } catch (err) {
     console.error("Error fetching job details:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: "An error occurred while fetching job details",
-      details: err.message 
+      details: err.message,
     });
   }
 };

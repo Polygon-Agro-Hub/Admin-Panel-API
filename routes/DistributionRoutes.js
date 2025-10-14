@@ -239,4 +239,18 @@ router.patch('/claim-distributed-Officer',
     distributionEp.claimDistributedOfficer
 );
 
+
+router.get(
+  "/get-officer-details/:id",
+  // authMiddleware,
+  distributionEp.getOfficerById
+);
+
+router.get(
+  "/get-all-distribution-center-list/:companyId",
+  authMiddleware,
+  distributionEp.getAllDistributionCenterList
+);
+
+
 module.exports = router;

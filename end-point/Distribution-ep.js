@@ -1280,11 +1280,13 @@ exports.getAllDistributionManagerList = async (req, res) => {
       centerId
     );
 
-    if (result.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No collection Managers found", data: result });
-    }
+    console.log('result', result)
+
+    // if (result.length === 0) {
+    //   return res
+    //     .status(404)
+    //     .json({ message: "No collection Managers found", data: result });
+    // }
 
     console.log("Successfully retrieved all collection Managers");
     res.json(result);
@@ -1716,5 +1718,64 @@ exports.claimDistributedOfficer = async (req, res) => {
     return res
       .status(500)
       .json({ error: "An error occurred while fetching the reports" });
+  }
+};
+
+exports.getOfficerById = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const id = req.params.id;
+    const officerData = await DistributionDao.getOfficerById(id);
+
+    console.log('officerData', officerData)
+
+    if (!officerData) {
+      return res.status(404).json({ error: "Distribution Officer not found" });
+    }
+
+    console.log(
+      "Successfully fetched distribution officer, company, and bank details"
+    );
+    res.json({ officerData });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+
+exports.getAllDistributionCenterList = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    const companyId = req.params.companyId;
+    console.log(companyId);
+
+    const result = await DistributionDao.GetAllDistributionCenterList(
+      companyId
+    );
+
+    if (result.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No collection Managers found", data: result });
+    }
+
+    console.log("Successfully retrieved all collection Managers");
+    res.json(result);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching news:", err);
+    res.status(500).json({ error: "An error occurred while fetching news" });
   }
 };

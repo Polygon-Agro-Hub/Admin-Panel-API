@@ -1150,9 +1150,9 @@ exports.getLandOwnershipDetails = (landAssetId) => {
   });
 };
 
-exports.getCurrentAssetsByCategory = (userId, category ,farmId) => {
+exports.getCurrentAssetsByCategory = (userId, category, farmId) => {
   const sql = `SELECT * FROM currentasset WHERE userId = ? AND category = ? AND farmId = ?`;
-  const values = [userId, category,farmId];
+  const values = [userId, category, farmId];
 
   return new Promise((resolve, reject) => {
     plantcare.query(sql, values, (err, results) => {
@@ -1847,7 +1847,7 @@ exports.createAdmin = (adminData, hashedPassword) => {
   });
 };
 
-exports.getCurrentAssetGroup = (userId,farmId) => {
+exports.getCurrentAssetGroup = (userId, farmId) => {
   return new Promise((resolve, reject) => {
     const sql = `
             SELECT category, SUM(total) as totPrice 
@@ -1855,7 +1855,7 @@ exports.getCurrentAssetGroup = (userId,farmId) => {
             WHERE userId = ? AND farmId = ?
             GROUP BY category
         `;
-    const values = [userId ,farmId];
+    const values = [userId, farmId];
 
     plantcare.query(sql, values, (err, results) => {
       if (err) {
@@ -3608,7 +3608,7 @@ exports.deleteOngoingCultivationsById = (id) => {
   });
 };
 
-exports.getFarmerStaffDao = (ownerId, role) => {
+exports.getFarmerStaffDao = (ownerId, role, searchText) => {
   const sqlParams = [ownerId];
 
   let sql = `
@@ -3628,6 +3628,14 @@ exports.getFarmerStaffDao = (ownerId, role) => {
       ON f.modifyBy = a.id
     WHERE f.ownerId = ?
   `;
+
+  if (searchText) {
+    sql += ` AND (f.firstName LIKE ? OR f.lastName LIKE ? OR f.nic LIKE ? )`;
+    const searchParam = `%${searchText}%`
+    console.log(searchParam);
+    
+    sqlParams.push(searchParam, searchParam, searchParam);
+  }
 
   if (role) {
     sql += ` AND f.role = ?`;
@@ -4698,5 +4706,20 @@ exports.updateFieldOfficer = (
     } catch (error) {
       reject(error);
     }
+  });
+};
+
+
+exports.deleteFarmStaffDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      DELETE FROM farmstaff
+      WHERE id = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
   });
 };
