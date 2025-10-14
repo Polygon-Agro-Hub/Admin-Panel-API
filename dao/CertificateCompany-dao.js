@@ -503,6 +503,15 @@ exports.createFarmCluster = async (clusterName, modifyBy, connection) => {
   return result;
 };
 
+// Check if a cluster name already exists
+exports.isClusterNameExists = async (clusterName, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id FROM farmcluster WHERE clsName = ?`,
+    [clusterName.trim()]
+  );
+  return rows.length > 0;
+};
+
 // Get farmer IDs by NIC
 exports.getFarmerIdsByNICs = async (nicList, connection) => {
   const [rows] = await connection.query(
@@ -523,4 +532,144 @@ exports.bulkInsertClusterFarmers = async (clusterId, farmerIds, connection) => {
     [values]
   );
   return result;
+};
+
+// Get all farmer clusters with member count and last modified info
+exports.getAllFarmerClusters = async (connection, search = "") => {
+  let query = `
+    SELECT 
+      fc.id AS clusterId,
+      fc.clsName AS clusterName,
+      COUNT(fcf.farmerId) AS memberCount,
+      au.userName AS lastModifiedBy,
+      fc.modifyDate AS lastModifiedDate
+    FROM farmcluster fc
+    LEFT JOIN farmclusterfarmers fcf ON fc.id = fcf.clusterId
+    LEFT JOIN agro_world_admin.adminusers au ON fc.modifyBy = au.id
+  `;
+
+  const params = [];
+
+  if (search) {
+    query += ` WHERE fc.clsName LIKE ? `;
+    params.push(`%${search}%`);
+  }
+
+  // Sort by cluster name alphabetically (A → Z)
+  query += `
+    GROUP BY fc.id, fc.clsName, au.userName, fc.modifyDate
+    ORDER BY fc.clsName ASC
+  `;
+
+  const [rows] = await connection.query(query, params);
+  return rows;
+};
+
+// Delete a farm cluster and its associated farmers
+exports.deleteFarmClusterWithFarmers = async (clusterId, connection) => {
+  try {
+    // Start transaction
+    await connection.beginTransaction();
+
+    // Delete all farmers in the cluster
+    await connection.query(
+      `DELETE FROM farmclusterfarmers WHERE clusterId = ?`,
+      [clusterId]
+    );
+
+    // Delete the cluster itself
+    const [result] = await connection.query(
+      `DELETE FROM farmcluster WHERE id = ?`,
+      [clusterId]
+    );
+
+    // Commit transaction
+    await connection.commit();
+
+    return result;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  }
+};
+
+// Get all users for a given cluster ID with optional search
+exports.getUsersByClusterId = async (clusterId, search = "", connection) => {
+  const [clusterRows] = await connection.query(
+    `SELECT clsName AS clusterName FROM farmcluster WHERE id = ?`,
+    [clusterId]
+  );
+  const clusterName = clusterRows.length ? clusterRows[0].clusterName : null;
+
+  let query = `
+    SELECT 
+      u.id,
+      u.firstName,
+      u.lastName,
+      u.NICnumber AS NIC,
+      u.phoneNumber
+    FROM users u
+    INNER JOIN farmclusterfarmers fcf ON u.id = fcf.farmerId
+    WHERE fcf.clusterId = ?
+  `;
+  const params = [clusterId];
+
+  if (search) {
+    query += ` AND (u.NICnumber LIKE ? OR u.phoneNumber LIKE ?)`;
+    params.push(`%${search}%`, `%${search}%`);
+  }
+
+  query += ` ORDER BY u.firstName ASC, u.lastName ASC`;
+
+  const [rows] = await connection.query(query, params);
+  const members = rows.map((user, index) => ({
+    no: String(index + 1).padStart(2, "0"),
+    id: user.id,
+    farmerId: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    nic: user.NIC,
+    phoneNumber: user.phoneNumber,
+  }));
+
+  return {
+    clusterId,
+    clusterName,
+    members,
+  };
+};
+
+// Delete specific user from a cluster
+exports.deleteClusterUser = async (clusterId, farmerId, connection) => {
+  const [result] = await connection.query(
+    `DELETE FROM farmclusterfarmers WHERE clusterId = ? AND farmerId = ?`,
+    [clusterId, farmerId]
+  );
+  return result.affectedRows > 0;
+};
+
+// Get farmer ID by NIC
+exports.getFarmerIdByNIC = async (nic, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id FROM users WHERE NICnumber = ?`,
+    [nic]
+  );
+  return rows.length > 0 ? rows[0].id : null;
+};
+
+// Check if farmer already in cluster
+exports.isFarmerInCluster = async (clusterId, farmerId, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id FROM farmclusterfarmers WHERE clusterId = ? AND farmerId = ?`,
+    [clusterId, farmerId]
+  );
+  return rows.length > 0;
+};
+
+// Insert farmer into cluster
+exports.insertFarmerIntoCluster = async (clusterId, farmerId, connection) => {
+  await connection.query(
+    `INSERT INTO farmclusterfarmers (clusterId, farmerId, createdAt) VALUES (?, ?, NOW())`,
+    [clusterId, farmerId]
+  );
 };

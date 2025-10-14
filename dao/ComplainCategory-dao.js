@@ -506,7 +506,7 @@ exports.GetAllDistributedComplainDAO = (
       LEFT JOIN collectionofficer co ON oc.officerId = co.id
       LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
       LEFT JOIN  company c ON co.companyId = c.id
-      LEFT JOIN  distributedcenter dc ON co.centerId = dc.id
+      LEFT JOIN  distributedcenter dc ON co.distributedCenterId = dc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
       WHERE complainAssign = 'Admin'
     `;
