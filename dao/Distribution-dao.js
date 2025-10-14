@@ -2487,3 +2487,36 @@ exports.updateDistributedCompaanyCenterDao = async (companyId, centerId) => {
     });
   });
 };
+
+exports.getOfficerById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            SELECT 
+                co.*
+            FROM 
+                collectionofficer co
+            WHERE 
+                co.id = ?`;
+
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+
+exports.GetAllDistributionCenterList = (companyId) => {
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT dc.id, dc.centerName FROM collection_officer.distributedcenter dc LEFT JOIN distributedcompanycenter dcc ON dc.id = dcc.centerId WHERE dcc.companyId = ?";
+    collectionofficer.query(sql, [companyId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

@@ -1190,6 +1190,8 @@ exports.getAllCollectionManagerNames = async (req, res) => {
 };
 
 exports.claimOfficer = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
   try {
     const { id } = req.params; // Officer ID from URL params
     const { centerId, managerId } = req.body; // Center ID and IRM ID from request body
@@ -1199,11 +1201,13 @@ exports.claimOfficer = async (req, res) => {
       return res.status(400).json({ error: "centerId is required" });
     }
 
+    console.log('id', id, 'centerId', centerId, 'managerId', managerId.id)
+
     // Call the DAO function to update the officer's details
     const result = await collectionofficerDao.claimOfficerDetailsDao(
       id,
       centerId,
-      managerId
+      managerId.id
     );
 
     // Send success response
