@@ -138,3 +138,10 @@ router.put(
   authMiddleware,
   ComplainCategoryEP.sendDistributedComplainReply
 );
+
+
+router.get(
+  "/get-distribution-comppany-for-officer-complain",
+  authMiddleware,
+  ComplainCategoryEP.GetAllDistriutionCompanyForOfficerComplain
+);

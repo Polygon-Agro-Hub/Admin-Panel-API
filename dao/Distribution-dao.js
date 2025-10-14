@@ -893,7 +893,7 @@ exports.updateDistributionCentreById = (id, updateData) => {
 
               console.log("Company update results:", companyResults);
               console.log("Updates completed successfully");
-              
+
               // Return updated distribution centre regardless of company update result
               exports
                 .getDistributionCentreById(id)
@@ -1208,16 +1208,21 @@ exports.getAllDistributionCenterNamesDao = (district) => {
 exports.getAllDistributionCenterManagerDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT id, firstNameEnglish, lastNameEnglish
+      SELECT 
+        id, 
+        firstNameEnglish, 
+        lastNameEnglish, 
+        empId, 
+        CONCAT(empId, ' - ', firstNameEnglish, ' ', lastNameEnglish) AS labelName
       FROM collectionofficer
       WHERE jobRole = 'Distribution Centre Manager' AND companyId = 2 AND distributedCenterId = ?;
     `;
 
-    collectionofficer.query(sql,[id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err);
       }
-      resolve(results); // Resolve the promise with the query results
+      resolve(results);
     });
   });
 };
@@ -1305,7 +1310,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => {});
+    doc.on("end", () => { });
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -1543,7 +1548,7 @@ exports.createDistributionOfficerPersonal = (
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
       if (
-        officerData.jobRole === "Distribution Centre Manager" 
+        officerData.jobRole === "Distribution Centre Manager"
       ) {
         officerData.irmId = null;
       }
@@ -1855,7 +1860,7 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
     // Add date filter - FIXED: Handle both string and Date objects
     if (date) {
       let dateValue;
-      
+
       // Handle different date formats
       if (typeof date === 'string') {
         dateValue = date.trim();
@@ -1863,7 +1868,7 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
         // Convert Date object to YYYY-MM-DD format
         dateValue = date.toISOString().split('T')[0];
       }
-      
+
       if (dateValue && dateValue !== '') {
         sql += ` AND DATE(o.sheduleDate) = DATE(?)`;
         sqlParams.push(dateValue);
@@ -2167,7 +2172,7 @@ exports.getOfficerDailyDistributionTargetDao = async (id) => {
 
 exports.getDistributedCompanyCenter = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
-      const sql = `
+    const sql = `
       SELECT dcc.id AS companyCenterId
       FROM collection_officer.distributedcompanycenter dcc 
       JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
@@ -2175,12 +2180,12 @@ exports.getDistributedCompanyCenter = (companyId, centerId) => {
       WHERE c.id = ? AND dc.id = ?
       `;
 
-      collectionofficer.query(sql, [companyId, centerId], (err, results) => {
-          if (err) {
-              return reject(err);
-          }
-          resolve(results);
-      });
+    collectionofficer.query(sql, [companyId, centerId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
   });
 };
 
@@ -2206,7 +2211,7 @@ exports.getDeliveryChargeCity = (companyCenterId) => {
   });
 };
 
-exports.dcmGetSelectedOfficerTargetsDao = (officerId, deliveryLocationData, search, packageStatus, centerId ) => {
+exports.dcmGetSelectedOfficerTargetsDao = (officerId, deliveryLocationData, search, packageStatus, centerId) => {
   console.log('officerId', officerId)
   return new Promise((resolve, reject) => {
 
@@ -2235,42 +2240,42 @@ exports.dcmGetSelectedOfficerTargetsDao = (officerId, deliveryLocationData, sear
     )
      `;
 
-   
+
 
     if (search) {
       whereClause += ` AND (po.invNo LIKE ?)`;
       const searchPattern = `%${search}%`;
       params.push(searchPattern);
-      
+
     }
 
     if (packageStatus) {
-        if (packageStatus === 'Pending') {
-          whereClause += ` 
+      if (packageStatus === 'Pending') {
+        whereClause += ` 
         AND (
           (pic.packedItems = 0 AND pic.totalItems > 0) 
           OR 
           (COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0)
         )
       `;
-        } else if (packageStatus === 'Completed') {
-          whereClause += ` 
+      } else if (packageStatus === 'Completed') {
+        whereClause += ` 
         AND (
           (pic.totalItems > 0 AND pic.packedItems = pic.totalItems) 
           OR 
           (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0))
         )
       `;
-        } else if (packageStatus === 'Opened') {
-          whereClause += ` 
+      } else if (packageStatus === 'Opened') {
+        whereClause += ` 
         AND (
           (pic.packedItems > 0 AND pic.totalItems > pic.packedItems) 
           OR 
           (COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0))
         )
       `;
-        }
       }
+    }
 
     const dataSql = `
     WITH package_item_counts AS (
@@ -2362,19 +2367,19 @@ LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
 
       `;
 
-  
-      console.log('Executing Data Query...');
-      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
-        if (dataErr) {
-          console.error("Error in data query:", dataErr);
-          return reject(dataErr);
-        }
-        console.log('dataResults', dataResults)
-        resolve({
-          items: dataResults
-        });
+
+    console.log('Executing Data Query...');
+    marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+      if (dataErr) {
+        console.error("Error in data query:", dataErr);
+        return reject(dataErr);
+      }
+      console.log('dataResults', dataResults)
+      resolve({
+        items: dataResults
       });
     });
+  });
 };
 
 exports.getCompanyAndCenter = (officerId) => {
@@ -2480,7 +2485,7 @@ exports.updateDistributedCompaanyCenterDao = async (companyId, centerId) => {
       WHERE centerId = ?
     `;
     const params = [companyId, centerId];
-  
+
     collectionofficer.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);

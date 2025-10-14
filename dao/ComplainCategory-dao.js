@@ -669,3 +669,16 @@ exports.sendDistributedComplainReply = (complainId, reply) => {
     });
   });
 };
+
+
+exports.GetAllCompanyForOfficerComplain = () => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT id, companyNameEnglish FROM company WHERE isDistributed = 1";
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
