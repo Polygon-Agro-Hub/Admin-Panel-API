@@ -796,7 +796,6 @@ exports.createFarmerCluster = async (req, res) => {
   let connection;
 
   try {
-    // Use promise wrapper to get connection
     connection = await plantcare.promise().getConnection();
     await connection.beginTransaction();
 
@@ -809,16 +808,28 @@ exports.createFarmerCluster = async (req, res) => {
       });
     }
 
-    // Validate request body
+    // Validate input
     const { clusterName, farmerNICs } =
       await ValidateSchema.createFarmerClusterSchema.validateAsync(req.body, {
         abortEarly: false,
       });
 
-    // Remove duplicates & trim
     const uniqueNICs = [...new Set(farmerNICs.map((nic) => nic.trim()))];
 
-    // Check NICs exist
+    // Check duplicate cluster name
+    const clusterExists = await certificateCompanyDao.isClusterNameExists(
+      clusterName,
+      connection
+    );
+    if (clusterExists) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "Cluster name already exists",
+        status: false,
+      });
+    }
+
+    // Check NICs existence
     const nicCheckResult = await certificateCompanyDao.checkNICsExist(
       uniqueNICs,
       connection
@@ -830,13 +841,10 @@ exports.createFarmerCluster = async (req, res) => {
         status: false,
         missingNICs: nicCheckResult.missingNICs,
         existingNICs: nicCheckResult.existingNICs,
-        details: `The following NIC numbers were not found: ${nicCheckResult.missingNICs.join(
-          ", "
-        )}`,
       });
     }
 
-    // Create farm cluster
+    // Create cluster
     const clusterResult = await certificateCompanyDao.createFarmCluster(
       clusterName,
       userId,
@@ -851,7 +859,7 @@ exports.createFarmerCluster = async (req, res) => {
     );
     const farmerIds = uniqueNICs.map((nic) => farmerMap[nic]);
 
-    // Bulk insert farmers into cluster
+    // Bulk insert farmers
     const bulkInsertResult =
       await certificateCompanyDao.bulkInsertClusterFarmers(
         clusterId,
@@ -874,6 +882,14 @@ exports.createFarmerCluster = async (req, res) => {
   } catch (err) {
     if (connection) await connection.rollback();
 
+    // Handle duplicate cluster name from MySQL as safety
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({
+        message: "Cluster name already exists",
+        status: false,
+      });
+    }
+
     if (err.isJoi) {
       return res.status(400).json({
         message: "Validation failed",
@@ -883,19 +899,258 @@ exports.createFarmerCluster = async (req, res) => {
     }
 
     console.error("Error creating farmer cluster:", err);
-
-    if (err.code === "ER_DUP_ENTRY") {
-      return res.status(400).json({
-        message: "Cluster name already exists",
-        status: false,
-      });
-    }
-
     res.status(500).json({
       message: "Internal server error",
       status: false,
       error: err.message,
     });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// Add a single farmer to an existing cluster
+exports.addSingleFarmerToCluster = async (req, res) => {
+  let connection;
+
+  try {
+    connection = await plantcare.promise().getConnection();
+    await connection.beginTransaction();
+
+    const userId = req.user?.userId;
+    if (!userId) {
+      await connection.rollback();
+      return res.status(401).json({ message: "Unauthorized", status: false });
+    }
+
+    const clusterId = parseInt(req.params.clusterId);
+    if (!clusterId) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "Cluster ID is required",
+        status: false,
+      });
+    }
+
+    const { nic } = req.body;
+    if (!nic?.trim()) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "NIC number is required",
+        status: false,
+      });
+    }
+
+    // Step 1: Check if user with NIC exists
+    const farmerId = await certificateCompanyDao.getFarmerIdByNIC(
+      nic.trim(),
+      connection
+    );
+    if (!farmerId) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `No farmer exists using this NIC`,
+        status: false,
+      });
+    }
+
+    // Step 2: Check if farmer already in cluster
+    const exists = await certificateCompanyDao.isFarmerInCluster(
+      clusterId,
+      farmerId,
+      connection
+    );
+    if (exists) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `This farmer already added to the cluster`,
+        status: false,
+      });
+    }
+
+    // Step 3: Insert farmer into cluster
+    await certificateCompanyDao.insertFarmerIntoCluster(
+      clusterId,
+      farmerId,
+      connection
+    );
+
+    await connection.commit();
+
+    return res.status(201).json({
+      message: `User added to cluster successfully`,
+      status: true,
+      data: { clusterId, farmerId, nic },
+    });
+  } catch (err) {
+    if (connection) await connection.rollback();
+    console.error("Error adding farmer to cluster:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// Get all farmer clusters
+exports.getAllFarmerClusters = async (req, res) => {
+  let connection;
+  try {
+    connection = await plantcare.promise().getConnection();
+
+    const search = req.query.search ? req.query.search.trim() : "";
+
+    const clusters = await certificateCompanyDao.getAllFarmerClusters(
+      connection,
+      search
+    );
+
+    res.status(200).json({
+      message: "Farmer clusters fetched successfully",
+      status: true,
+      data: clusters,
+    });
+  } catch (err) {
+    console.error("Error fetching farmer clusters:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// Delete cluster endpoint
+exports.deleteFarmerCluster = async (req, res) => {
+  let connection;
+  try {
+    connection = await plantcare.promise().getConnection();
+
+    const clusterId = req.params.id;
+    if (!clusterId) {
+      return res.status(400).json({
+        message: "Cluster ID is required",
+        status: false,
+      });
+    }
+
+    const result = await certificateCompanyDao.deleteFarmClusterWithFarmers(
+      clusterId,
+      connection
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        message: "Cluster not found",
+        status: false,
+      });
+    }
+
+    res.status(200).json({
+      message: "Cluster and its farmers deleted successfully",
+      status: true,
+    });
+  } catch (err) {
+    console.error("Error deleting cluster:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// Get cluster users with optional search
+exports.getClusterUsers = async (req, res) => {
+  let connection;
+  try {
+    connection = await plantcare.promise().getConnection();
+
+    const clusterId = parseInt(req.params.clusterId);
+    const search = req.query.search ? req.query.search.trim() : "";
+
+    if (!clusterId) {
+      return res
+        .status(400)
+        .json({ message: "Cluster ID is required", status: false });
+    }
+
+    const users = await certificateCompanyDao.getUsersByClusterId(
+      clusterId,
+      search,
+      connection
+    );
+
+    res.status(200).json({
+      message: "Users fetched successfully",
+      status: true,
+      data: users,
+    });
+  } catch (err) {
+    console.error("Error fetching cluster users:", err);
+    res
+      .status(500)
+      .json({
+        message: "Internal server error",
+        status: false,
+        error: err.message,
+      });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// Delete specific user from a cluster
+exports.deleteClusterUser = async (req, res) => {
+  let connection;
+  try {
+    connection = await plantcare.promise().getConnection();
+
+    const clusterId = parseInt(req.params.clusterId);
+    const farmerId = parseInt(req.params.farmerId);
+
+    if (!clusterId || !farmerId) {
+      return res
+        .status(400)
+        .json({
+          message: "Cluster ID and Farmer ID are required",
+          status: false,
+        });
+    }
+
+    const deleted = await certificateCompanyDao.deleteClusterUser(
+      clusterId,
+      farmerId,
+      connection
+    );
+    if (!deleted) {
+      return res
+        .status(404)
+        .json({ message: "User not found in this cluster", status: false });
+    }
+
+    res
+      .status(200)
+      .json({
+        message: "User removed from cluster successfully",
+        status: true,
+      });
+  } catch (err) {
+    console.error("Error deleting cluster user:", err);
+    res
+      .status(500)
+      .json({
+        message: "Internal server error",
+        status: false,
+        error: err.message,
+      });
   } finally {
     if (connection) connection.release();
   }
