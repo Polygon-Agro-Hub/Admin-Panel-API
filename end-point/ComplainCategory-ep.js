@@ -607,3 +607,32 @@ exports.sendDistributedComplainReply = async (req, res) => {
       .json({ error: "An error occurred while creating Reply tasks" });
   }
 };
+
+exports.GetAllDistriutionCompanyForOfficerComplain = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    const result = await ComplainCategoryDAO.GetAllCompanyForOfficerComplain();
+
+    if (result.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No complain categories not found", data: result });
+    }
+
+    console.log("Successfully retrieved all complain categories");
+    res.json(result);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching news:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while complain categories" });
+  }
+};

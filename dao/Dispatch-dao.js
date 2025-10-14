@@ -2024,7 +2024,9 @@ exports.trackPackagePackDao = (userId, orderId) => {
     const sql = `
       UPDATE processorders
       SET 
-        adminPackby = ?
+        adminPackby = ?,
+        status = 'Out For Delivery',
+        outDlvrDate = NOW()
       WHERE 
         id = ?
     `;

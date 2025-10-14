@@ -412,14 +412,14 @@ exports.GetAllCenterComplainDAO = (
     // Add search functionality
     if (searchText) {
       countSql += `
-        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR coc.regCode LIKE ?)
+        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR coc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
       `;
       sql += `
-        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR coc.regCode LIKE ?)
+        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR coc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
       `;
       const searchQuery = `%${searchText}%`;
-      Sqlparams.push(searchQuery, searchQuery, searchQuery);
-      Counterparams.push(searchQuery, searchQuery, searchQuery);
+      Sqlparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+      Counterparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
     }
 
     if (rpstatus) {
@@ -1573,7 +1573,7 @@ exports.GetComplainCategoriesByRoleSuper = (appId) => {
 
 exports.GetAllCompanyForOfficerComplain = () => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT id, companyNameEnglish FROM company";
+    const sql = "SELECT id, companyNameEnglish FROM company WHERE isCollection = 1";
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
