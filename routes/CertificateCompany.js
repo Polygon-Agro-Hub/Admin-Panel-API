@@ -140,9 +140,44 @@ router.delete(
 
 // Create farmer cluster with bulk farmers
 router.post(
-  '/create-farmer-cluster',
+  "/create-farmer-cluster",
   authMiddleware,
   certificateCompanyEp.createFarmerCluster
+);
+
+// Add single farmer to existing cluster
+router.post(
+  '/add-single-farmer-to-cluster/:clusterId',
+  authMiddleware,
+  certificateCompanyEp.addSingleFarmerToCluster
+);
+
+// Get all farmer clusters
+router.get(
+  "/get-farmer-clusters",
+  authMiddleware,
+  certificateCompanyEp.getAllFarmerClusters
+);
+
+// Delete a farmer cluster and all its associated farmers
+router.delete(
+  "/delete-farmer-cluster/:id",
+  authMiddleware,
+  certificateCompanyEp.deleteFarmerCluster
+);
+
+// Get users of a cluster
+router.get(
+  "/get-cluster-users/:clusterId",
+  authMiddleware,
+  certificateCompanyEp.getClusterUsers
+);
+
+// Delete specific user from cluster
+router.delete(
+  "/delete-farmer-clusters/:clusterId/users/:farmerId",
+  authMiddleware,
+  certificateCompanyEp.deleteClusterUser
 );
 
 module.exports = router;
