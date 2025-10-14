@@ -1690,11 +1690,11 @@ exports.getMarketPlaceCustomePackagesDao = (page, limit, packageStatus, date, se
       }
     }
 
-    // if (date) {
-    //   whereClause += " AND DATE(o.sheduleDate) = ?";
-    //   params.push(date);
-    //   countParams.push(date);
-    // }
+    if (date) {
+      whereClause += " AND DATE(o.sheduleDate) = ?";
+      params.push(date);
+      countParams.push(date);
+    }
 
     if (search) {
       whereClause += ` AND (po.invNo LIKE ?)`;

@@ -1498,7 +1498,8 @@ exports.getOfficerByIdDAO = (id) => {
           branchName: officer.branchName,
           companyNameEnglish: officer.companyNameEnglish,
           centerName: officer.centerName,
-          distributedCenterName: officer.distributedCenterName || null
+          distributedCenterName: officer.distributedCenterName || null,
+          fullEmpId: officer.empId
         },
       });
     });
