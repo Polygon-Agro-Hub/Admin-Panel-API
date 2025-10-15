@@ -2105,3 +2105,16 @@ exports.checkCompanyRegNumberDao = (regNumber, id) => {
     );
   });
 };
+
+exports.GetAllCollectionCenterList = (companyId) => {
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT coc.id, coc.centerName FROM collection_officer.collectioncenter coc LEFT JOIN companycenter cc ON coc.id = cc.centerId WHERE cc.companyId = ?";
+    collectionofficer.query(sql, [companyId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
