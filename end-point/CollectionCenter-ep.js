@@ -1030,7 +1030,10 @@ exports.getCenterDashbord = async (req, res) => {
     const totExpences = await CollectionCenterDao.getTotExpencesDao(id);
     const difExpences = await CollectionCenterDao.differenceBetweenExpences(id);
 
-    const limitedResentCollection = resentCollection.slice(0, 5);
+    const limitedResentCollection = resentCollection
+    .filter(item => item.totPrice > 0)  
+    .slice(0, 5);  
+    console.log('limitedResentCollection', limitedResentCollection)
 
    console.log(transAmountCount);
    
