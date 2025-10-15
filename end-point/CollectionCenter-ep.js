@@ -745,11 +745,11 @@ exports.getAllManagerList = async (req, res) => {
       centerId
     );
 
-    if (result.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No collection Managers found", data: result });
-    }
+    // if (result.length === 0) {
+    //   return res
+    //     .status(404)
+    //     .json({ message: "No collection Managers found", data: result });
+    // }
 
     console.log("Successfully retrieved all collection Managers");
     res.json(result);
@@ -1474,5 +1474,37 @@ exports.downloadCurrentTarget = async (req, res) => {
 
     console.error("Error fetching Current Center Target:", error);
     return res.status(500).json({ error: "An error occurred while fetching Current Center Target" });
+  }
+};
+
+exports.getAllCollectionCenterList = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    const companyId = req.params.companyId;
+    console.log(companyId);
+
+    const result = await CollectionCenterDao.GetAllCollectionCenterList(
+      companyId
+    );
+
+    // if (result.length === 0) {
+    //   return res
+    //     .status(404)
+    //     .json({ message: "No collection Managers found", data: result });
+    // }
+
+    console.log("Successfully retrieved all collection centers");
+    res.json(result);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching news:", err);
+    res.status(500).json({ error: "An error occurred while fetching news" });
   }
 };
