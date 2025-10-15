@@ -1095,13 +1095,11 @@ exports.getClusterUsers = async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching cluster users:", err);
-    res
-      .status(500)
-      .json({
-        message: "Internal server error",
-        status: false,
-        error: err.message,
-      });
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
   } finally {
     if (connection) connection.release();
   }
@@ -1117,12 +1115,10 @@ exports.deleteClusterUser = async (req, res) => {
     const farmerId = parseInt(req.params.farmerId);
 
     if (!clusterId || !farmerId) {
-      return res
-        .status(400)
-        .json({
-          message: "Cluster ID and Farmer ID are required",
-          status: false,
-        });
+      return res.status(400).json({
+        message: "Cluster ID and Farmer ID are required",
+        status: false,
+      });
     }
 
     const deleted = await certificateCompanyDao.deleteClusterUser(
@@ -1136,22 +1132,93 @@ exports.deleteClusterUser = async (req, res) => {
         .json({ message: "User not found in this cluster", status: false });
     }
 
-    res
-      .status(200)
-      .json({
-        message: "User removed from cluster successfully",
-        status: true,
-      });
+    res.status(200).json({
+      message: "User removed from cluster successfully",
+      status: true,
+    });
   } catch (err) {
     console.error("Error deleting cluster user:", err);
-    res
-      .status(500)
-      .json({
-        message: "Internal server error",
-        status: false,
-        error: err.message,
-      });
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
   } finally {
     if (connection) connection.release();
+  }
+};
+
+// Update farmer cluster name
+exports.updateFarmerCluster = async (req, res) => {
+  try {
+    const { clusterId } = req.params;
+    const { clusterName } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        status: false,
+        message: "Unauthorized user",
+      });
+    }
+
+    // Validate input
+    const { error } = ValidateSchema.updateFarmerClusterSchema.validate({
+      clusterName,
+    });
+    if (error) {
+      return res.status(400).json({
+        status: false,
+        message: error.details[0].message,
+      });
+    }
+
+    const connection = await plantcare.promise().getConnection();
+
+    // Check if cluster exists
+    const [existing] = await connection.query(
+      `SELECT id FROM farmcluster WHERE id = ?`,
+      [clusterId]
+    );
+    if (existing.length === 0) {
+      connection.release();
+      return res.status(404).json({
+        status: false,
+        message: "Cluster not found",
+      });
+    }
+
+    // Check duplicate name
+    const nameExists = await certificateCompanyDao.isClusterNameExists(
+      clusterName,
+      connection
+    );
+    if (nameExists) {
+      connection.release();
+      return res.status(400).json({
+        status: false,
+        message: "Cluster name already exists",
+      });
+    }
+
+    // Update cluster name
+    await certificateCompanyDao.updateClusterName(
+      clusterId,
+      clusterName,
+      userId,
+      connection
+    );
+
+    connection.release();
+    return res.status(200).json({
+      status: true,
+      message: "Cluster name updated successfully",
+    });
+  } catch (err) {
+    console.error("Error updating cluster:", err);
+    return res.status(500).json({
+      status: false,
+      message: "Internal server error",
+    });
   }
 };
