@@ -4723,3 +4723,19 @@ exports.deleteFarmStaffDao = async (id) => {
     });
   });
 };
+
+
+exports.addFarmerQRCodeDao = async (qrcode, id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      UPDATE users
+      SET farmerQr = ?
+      WHERE id = ?
+    `;
+
+    plantcare.query(sql, [qrcode, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};

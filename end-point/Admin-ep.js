@@ -15,6 +15,8 @@ const uploadFileToS3 = require("../middlewares/s3upload");
 const deleteFromS3 = require("../middlewares/s3delete");
 const SECRET_KEY = "agroworldadmin";
 const CryptoJS = require("crypto-js");
+const QRCode = require("qrcode");
+
 
 function encryptResponse(data, secretKey) {
   const encrypted = CryptoJS.AES.encrypt(
@@ -52,7 +54,7 @@ exports.loginAdmin = async (req, res) => {
     console.log("--------------------------------------");
     console.log(user);
     console.log("--------------------------------------");
-    
+
 
     if (!user) {
       return res.status(401).json({ error: "User not found." });
@@ -985,14 +987,14 @@ exports.getCurrentAssetsByCategory = async (req, res) => {
 
   try {
     // Validate the request params (id and category)
-    const { id, category ,farmId } = req.params;
+    const { id, category, farmId } = req.params;
     // const { id, category } =
     // await ValidateSchema.getCurrentAssetsByCategorySchema.validateAsync(
     //     req.params
     // );
 
     // Fetch current assets by category from DAO
-    const results = await adminDao.getCurrentAssetsByCategory(id, category ,farmId);
+    const results = await adminDao.getCurrentAssetsByCategory(id, category, farmId);
 
     console.log("Successfully retrieved current assets");
     res.status(200).json(results);
@@ -1459,6 +1461,28 @@ exports.createPlantCareUser = async (req, res) => {
 
     console.log(userData);
     const result = await adminDao.createPlantCareUser(userData);
+    console.log(result);
+
+    if (result.userId > 0) {
+      const qrData = `{"userInfo": {"id":${result.userId}}}`;
+
+      const qrCodeBase64 = await QRCode.toDataURL(qrData);
+      const qrCodeBuffer = Buffer.from(
+        qrCodeBase64.replace(/^data:image\/png;base64,/, ""),
+        "base64"
+      );
+      const qrcodeURL = await uploadFileToS3(
+        qrCodeBuffer,
+        `${userData.firstName}_${userData.lastName}.png`,
+        "users/farmerQr"
+      );
+      console.log(qrcodeURL);
+
+      const qrResult = await adminDao.addFarmerQRCodeDao(qrcodeURL, result.userId);
+      console.log(qrResult);
+    }
+
+
 
     console.log("PlantCare user created successfully");
     return res.status(201).json({
@@ -1635,7 +1659,7 @@ exports.getCurrentAssertGroup = async (req, res) => {
       await ValidateSchema.getCurrentAssetGroupSchema.validateAsync(req.params);
 
     // Fetch data from the DAO
-    const results = await adminDao.getCurrentAssetGroup(validatedParams.id ,validatedParams.farmId);
+    const results = await adminDao.getCurrentAssetGroup(validatedParams.id, validatedParams.farmId);
 
     console.log(
       "Successfully retrieved total current assets grouped by category"
@@ -2235,11 +2259,11 @@ exports.addNewTaskU = async (req, res) => {
   const ongCultivationId = req.query.ongCultivationId;
   const adminUserId = req.user.userId;
   console.log("----------------------------------------");
-  console.log("Admin user Id:",req.user);
+  console.log("Admin user Id:", req.user);
   console.log("----------------------------------------");
 
-  
-  
+
+
 
   try {
     const task = req.body;
@@ -3565,7 +3589,7 @@ exports.getFieldOfficerById = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    
+
     // Validate and format the inputs
     const { id } = await ValidateSchema.getFieldOfficerSchema.validateAsync({
       id: req.params.id
@@ -3602,7 +3626,7 @@ exports.deleteFieldOfficer = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const {profile, frontNic, backNic, backPassbook, contract} = await adminDao.getFieldOfficerImages(id);
+    const { profile, frontNic, backNic, backPassbook, contract } = await adminDao.getFieldOfficerImages(id);
 
     console.log('images', profile, frontNic, backNic, backPassbook, contract);
 
@@ -3896,11 +3920,11 @@ exports.deleteFarmStaff = async (req, res) => {
     );
     const results = await adminDao.deleteFarmStaffDao(id);
 
-    if(results.affectedRows === 0){
-      return res.json({status:false, message: 'Staff delete faild!'})
+    if (results.affectedRows === 0) {
+      return res.json({ status: false, message: 'Staff delete faild!' })
     }
 
-    res.status({status:true, message:"Staff delete successfull!"})
+    res.status({ status: true, message: "Staff delete successfull!" })
 
     // Since your DAO function now returns { empId: newEmpId } directly
     // we don't need to check for length anymore
