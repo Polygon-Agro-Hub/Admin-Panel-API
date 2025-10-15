@@ -700,7 +700,7 @@ exports.UpdateDistributionHeadDao = (id, updateData) => {
         phoneCode02 = ?, phoneNumber02 = ?, nic = ?, email = ?, houseNumber = ?, 
         streetName = ?, city = ?, district = ?, province = ?, country = ?, 
         languages = ?, accHolderName = ?, accNumber = ?, bankName = ?, 
-        branchName = ?, image = ?, status = ?, claimStatus = ?, onlineStatus = ?
+        branchName = ?, image = ?, status = ?, claimStatus = ?, onlineStatus = ?, password = NULL, passwordUpdated = 0
       WHERE id = ?
     `;
 
@@ -730,7 +730,7 @@ exports.UpdateDistributionHeadDao = (id, updateData) => {
       updateData.bankName,
       updateData.branchName,
       updateData.image,
-      updateData.status,
+      'Not Approved',
       updateData.claimStatus,
       updateData.onlineStatus,
       id,

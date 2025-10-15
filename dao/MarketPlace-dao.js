@@ -2359,6 +2359,8 @@ exports.getUserOrdersDao = async (userId, status) => {
       sql += " AND P.status = 'Faild' ";
     } else if (status === "On the way") {
       sql += " AND P.status = 'On the way' ";
+    }else if (status === "Out For Delivery") {
+      sql += " AND P.status = 'Out For Delivery' ";
     }
 
     marketPlace.query(sql, [userId, status], (err, results) => {
