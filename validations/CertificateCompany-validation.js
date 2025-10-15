@@ -129,3 +129,18 @@ exports.createFarmerClusterSchema = Joi.object({
       "array.min": "At least one NIC number must be provided",
     }),
 });
+
+// Existing validation schemas
+exports.updateFarmerClusterSchema = Joi.object({
+  clusterName: Joi.string()
+    .trim()
+    .min(1)
+    .max(255)
+    .required()
+    .messages({
+      'string.empty': 'Cluster name is required',
+      'string.min': 'Cluster name must be at least 1 character long',
+      'string.max': 'Cluster name cannot exceed 255 characters',
+      'any.required': 'Cluster name is required'
+    })
+});

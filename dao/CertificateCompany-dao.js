@@ -673,3 +673,13 @@ exports.insertFarmerIntoCluster = async (clusterId, farmerId, connection) => {
     [clusterId, farmerId]
   );
 };
+
+// Update only clsName in farmcluster using existing connection
+exports.updateClusterName = async (clusterId, clusterName, userId, connection) => {
+  await connection.query(
+    `UPDATE farmcluster 
+     SET clsName = ?, modifyBy = ?, modifyDate = NOW() 
+     WHERE id = ?`,
+    [clusterName.trim(), userId, clusterId]
+  );
+};

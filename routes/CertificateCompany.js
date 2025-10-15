@@ -180,4 +180,11 @@ router.delete(
   certificateCompanyEp.deleteClusterUser
 );
 
+// Update farmer cluster name
+router.put(
+  "/update-farmer-cluster/:clusterId",
+  authMiddleware,
+  certificateCompanyEp.updateFarmerCluster
+);
+
 module.exports = router;
