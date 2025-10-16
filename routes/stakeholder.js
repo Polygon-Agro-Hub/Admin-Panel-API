@@ -25,4 +25,11 @@ router.get(
   StakeholderEp.getAllFieldOfficers
 );
 
+// Update status and send password field officers
+router.put(
+  "/update-status-send-password/:id/:status",
+  StakeholderEp.UpdateStatusAndSendPassword
+);
+
+
 module.exports = router;
