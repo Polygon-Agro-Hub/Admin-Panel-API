@@ -1358,7 +1358,7 @@ exports.getReseantCollectionDao = (centerId) => {
 
         return entries;
       });
-
+      console.log('transformData', transformData)
       resolve(transformData);
     });
   });
