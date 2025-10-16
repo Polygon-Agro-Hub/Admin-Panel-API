@@ -338,45 +338,32 @@ exports.updateSalesAgentDetails = async (req, res) => {
   // const qrCode = await collectionofficerDao.getQrImage(id);
   // const officerDataForImage = await DashDao.getSalesAgentDataById(id);
   console.log(officerData);
-const isExistingPhone1 = officerData.phoneNumber1
-  ? await DashDao.checkPhoneExistSaEdit(officerData.phoneNumber1, id)
-  : false;
-
-const isExistingPhone2 = officerData.phoneNumber2
-  ? await DashDao.checkPhoneExistSaEdit(officerData.phoneNumber2, id)
-  : false;
 
 
-  const isExistingNIC = await DashDao.checkNICExistSaEdit(
-    officerData.nic, id
-  );
-  const isExistingEmail = await DashDao.checkEmailExistSaEdit(
-    officerData.email, id
-  );
+  let validationErrors = [];
 
-  if (isExistingNIC) {
-    return res.status(500).json({
-      error: "NIC already exists",
-    });
-  }
+    // Check duplicates
+    const isExistingNIC = await DashDao.checkNICExistSaEdit(officerData.nic, id);
+    if (isExistingNIC) validationErrors.push('NIC');
 
-  if (isExistingEmail) {
-    return res.status(500).json({
-      error: "Email already exists",
-    });
-  }
+    const isExistingEmail = await DashDao.checkEmailExistSaEdit(officerData.email, id);
+    if (isExistingEmail) validationErrors.push('Email');
 
-  if (isExistingPhone1) {
-    return res.status(500).json({
-      error: "Mobile number 01 already exists",
-    });
-  }
+    const isExistingPhoneNumber01 = await DashDao.checkPhoneExistSaEdit(officerData.phoneNumber1, id);
+    if (isExistingPhoneNumber01) validationErrors.push('PhoneNumber01');
 
-  if (isExistingPhone2) {
-    return res.status(500).json({
-      error: "Mobile number 02 already exists",
-    });
-  }
+    if (officerData.phoneNumber02) {
+      const isExistingPhoneNumber02 = await DashDao.checkPhoneExistSaEdit(officerData.phoneNumber2, id);
+      if (isExistingPhoneNumber02) validationErrors.push('PhoneNumber02');
+    }
+
+    // If any validation errors, send all at once
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        errors: validationErrors,
+        status: false
+      });
+    }
 
 
   // let qrImageUrl;

@@ -1949,12 +1949,12 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText) => {
 
     if (searchText) {
       countSql +=
-        " AND (MP.firstName LIKE ? OR MP.lastName LIKE ? OR MP.phoneNumber LIKE ? OR MP.cusId LIKE ?) ";
+        " AND (MP.firstName LIKE ? OR MP.lastName LIKE ? OR MP.phoneNumber LIKE ? OR MP.cusId LIKE ? OR CONCAT(MP.firstName, ' ', MP.lastName) LIKE ? OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?) ";
       dataSql +=
-        " AND (MP.firstName LIKE ? OR MP.lastName LIKE ? OR MP.phoneNumber LIKE ? OR MP.cusId LIKE ?) ";
+        " AND (MP.firstName LIKE ? OR MP.lastName LIKE ? OR MP.phoneNumber LIKE ? OR MP.cusId LIKE ? OR CONCAT(MP.firstName, ' ', MP.lastName) LIKE ? OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?) ";
       const search = `%${searchText}%`;
-      countParms.push(search, search, search, search);
-      dataParms.push(search, search, search, search);
+      countParms.push(search, search, search, search, search, search);
+      dataParms.push(search, search, search, search, search, search);
     }
 
     dataSql += ` LIMIT ? OFFSET ? `;
@@ -2289,13 +2289,31 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText) => {
     console.log(searchText);
 
     if (searchText) {
-      countSql +=
-        " AND (MP.firstName LIKE ? OR MP.lastName LIKE ? OR MP.phoneNumber LIKE ? OR MP.cusId LIKE ?) ";
-      dataSql +=
-        " AND (MP.firstName LIKE ? OR MP.lastName LIKE ? OR MP.phoneNumber LIKE ? OR MP.cusId LIKE ?) ";
+      countSql += `
+        AND (
+          CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
+          OR MP.firstName LIKE ?
+          OR MP.lastName LIKE ?
+          OR MP.phoneNumber LIKE ?
+          OR MP.cusId LIKE ?
+          OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?
+        )
+      `;
+    
+      dataSql += `
+        AND (
+          CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
+          OR MP.firstName LIKE ?
+          OR MP.lastName LIKE ?
+          OR MP.phoneNumber LIKE ?
+          OR MP.cusId LIKE ?
+          OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?
+        )
+      `;
+    
       const search = `%${searchText}%`;
-      countParms.push(search, search, search, search);
-      dataParms.push(search, search, search, search);
+      countParms.push(search, search, search, search, search, search);
+      dataParms.push(search, search, search, search, search, search);
     }
 
     dataSql += ` LIMIT ? OFFSET ? `;
