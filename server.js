@@ -41,6 +41,7 @@ const DispatchRoutes  =require('./routes/Dispatch');
 const DistributionRoutes =require('./routes/DistributionRoutes')
 const GoviLinkRoutes =require('./routes/GoviLink')
 const CertificateCompanyRoutes =require('./routes/CertificateCompany')
+const financeRoutes = require("./routes/finance");
 
 const heathRoutes = require("./routes/heathRoutes");
 const DashRoutes = require("./routes/Dash");
@@ -143,6 +144,7 @@ app.use(BASE_PATH + '/api/dispatch', DispatchRoutes)
 app.use(BASE_PATH + '/api/distribution', DistributionRoutes)
 app.use(BASE_PATH + '/api/govi-link', GoviLinkRoutes)
 app.use(BASE_PATH + '/api/certificate-company', CertificateCompanyRoutes)
+app.use(BASE_PATH + '/api/finance', financeRoutes)
 
 
 app.use("/uploads", express.static("uploads"));
