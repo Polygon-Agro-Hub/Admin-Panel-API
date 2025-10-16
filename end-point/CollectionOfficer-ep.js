@@ -1207,7 +1207,7 @@ exports.claimOfficer = async (req, res) => {
     const result = await collectionofficerDao.claimOfficerDetailsDao(
       id,
       centerId,
-      managerId.id
+      managerId
     );
 
     // Send success response

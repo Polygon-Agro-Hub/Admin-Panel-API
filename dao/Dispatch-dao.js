@@ -1324,7 +1324,7 @@ exports.updateOrderStatuses = (orderId, addItemStatus, packItemStatus) => {
 //           FROM orderadditionalitems
 //           GROUP BY orderId
 //       )
-        
+
 //       SELECT 
 //           o.id,
 //           po.id AS processOrderId,
@@ -1404,7 +1404,7 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
         whereClause += ` 
       AND (
         (pic.totalItems > 0 AND pic.packedItems = 0) 
-        OR 
+        AND 
         (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = 0)
       )
     `;
@@ -1512,13 +1512,17 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
           COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
           COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
           pic.packageStatus,
-          COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus
+          COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
+          au.userName AS adminPackBy,
+          CONCAT(cof.firstNameEnglish, ' ', cof.lastNameEnglish) AS packBy
       FROM processorders po
       LEFT JOIN orders o ON po.orderId = o.id
       LEFT JOIN orderpackage op ON op.orderId = po.id 
       LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
       LEFT JOIN package_item_counts pic ON pic.orderId = po.id
       LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      LEFT JOIN agro_world_admin.adminusers au ON po.adminPackby = au.id
+      LEFT JOIN collection_officer.collectionofficer cof ON po.packBy = cof.id
       ${whereClause}
       GROUP BY
           o.id,
@@ -1749,11 +1753,17 @@ ${whereClause}
           COALESCE(aic.price, 0) AS additionalItemPrice,
           COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
           COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
-          COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus
+          COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
+          au.userName AS adminPackBy,
+          CONCAT(cof.firstNameEnglish, ' ', cof.lastNameEnglish) AS packBy
+
       FROM processorders po
       LEFT JOIN orders o ON po.orderId = o.id
       LEFT JOIN orderpackage op ON op.orderId = po.id 
       LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      LEFT JOIN agro_world_admin.adminusers au ON po.adminPackby = au.id
+      LEFT JOIN collection_officer.collectionofficer cof ON po.packBy = cof.id
+
       ${whereClause}
       GROUP BY
           o.id,
@@ -2034,7 +2044,7 @@ exports.trackPackagePackDao = (userId, orderId) => {
     marketPlace.query(sql, [parseInt(userId), parseInt(orderId)], (err, results) => {
       if (err) {
         console.log(err);
-        
+
         reject(err);
       } else {
         resolve(results);
