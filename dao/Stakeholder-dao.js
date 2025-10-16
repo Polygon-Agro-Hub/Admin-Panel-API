@@ -1,7 +1,14 @@
-const { admin, plantcare, collectionofficer, marketPlace } = require("../startup/database");
+const {
+  admin,
+  plantcare,
+  collectionofficer,
+  marketPlace,
+} = require("../startup/database");
 const { Upload } = require("@aws-sdk/lib-storage");
 const Joi = require("joi");
-
+const PDFDocument = require("pdfkit");
+const path = require("path");
+const nodemailer = require("nodemailer");
 
 exports.getAdminUsersByPosition = () => {
   return new Promise((resolve, reject) => {
@@ -19,13 +26,12 @@ exports.getAdminUsersByPosition = () => {
       const formattedResult = results.reduce((acc, item) => {
         acc[item.positionName] = item;
         return acc;
-      }, {})
+      }, {});
       // console.log('formatterResult-->', formattedResult);
       resolve(formattedResult); // Resolve the promise with the query results
     });
   });
 };
-
 
 exports.getNewAdminUsers = () => {
   return new Promise((resolve, reject) => {
@@ -61,7 +67,6 @@ exports.getAllAdminUsers = () => {
   });
 };
 
-
 exports.getCollectionOfficersByPosition = () => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -85,13 +90,12 @@ exports.getCollectionOfficersByPosition = () => {
       const formattedResult = results.reduce((acc, item) => {
         acc[item.job] = item;
         return acc;
-      }, {})
+      }, {});
 
       resolve(formattedResult); // Resolve the promise with the query results
     });
   });
 };
-
 
 exports.getNewCollectionOfficers = () => {
   return new Promise((resolve, reject) => {
@@ -110,7 +114,6 @@ exports.getNewCollectionOfficers = () => {
   });
 };
 
-
 //not usefull
 exports.getAllCollectionOfficers = () => {
   return new Promise((resolve, reject) => {
@@ -121,7 +124,7 @@ exports.getAllCollectionOfficers = () => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
-      console.log('result', results);
+      console.log("result", results);
 
       resolve(results); // Resolve the promise with the query results
     });
@@ -144,7 +147,6 @@ exports.getActiveCollectionOfficers = () => {
   });
 };
 
-
 exports.getPlantCareUserByQrRegistration = () => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -165,14 +167,13 @@ exports.getPlantCareUserByQrRegistration = () => {
       const formattedResult = results.reduce((acc, item) => {
         acc[item.qrStatus] = item;
         return acc;
-      }, {})
+      }, {});
       // console.log('formatterResult-->', formattedResult);
 
       resolve(formattedResult); // Resolve the promise with the query results
     });
   });
 };
-
 
 exports.getNewPlantCareUsers = () => {
   return new Promise((resolve, reject) => {
@@ -191,8 +192,6 @@ exports.getNewPlantCareUsers = () => {
   });
 };
 
-
-
 exports.getActivePlantCareUsers = () => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -209,8 +208,6 @@ exports.getActivePlantCareUsers = () => {
   });
 };
 
-
-
 exports.getActiveSalesAgents = () => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -226,7 +223,6 @@ exports.getActiveSalesAgents = () => {
     });
   });
 };
-
 
 exports.getNewSalesAgents = () => {
   return new Promise((resolve, reject) => {
@@ -245,7 +241,6 @@ exports.getNewSalesAgents = () => {
   });
 };
 
-
 exports.getAllSalesAgents = () => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -262,8 +257,6 @@ exports.getAllSalesAgents = () => {
   });
 };
 
-
-
 exports.getTodayRegAdmin = () => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -276,7 +269,7 @@ exports.getTodayRegAdmin = () => {
         return reject(err); // Reject promise if an error occurs
       }
       // console.log('Today ->', results);
-      
+
       resolve(results[0]); // Resolve the promise with the query results
     });
   });
@@ -295,4 +288,138 @@ exports.getAllFieldOfficers = () => {
       resolve(results); // Resolve with all rows
     });
   });
+};
+
+
+// Get officer email & name by ID
+exports.getFieldOfficerEmailDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT f.email, f.firstName, f.empId
+      FROM plant_care.feildofficer f
+      WHERE f.id = ?
+    `;
+    plantcare.query(sql, [id], (err, results) => { 
+      if (err) return reject(err);
+      if (results.length > 0) {
+        resolve({
+          email: results[0].email,
+          firstName: results[0].firstName,
+          empId: results[0].empId,
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  });
+};
+
+// Update status and password
+exports.UpdateFieldOfficerStatusAndPasswordDao = (params) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE plant_care.feildofficer
+      SET status = ?, password = ?, passwordUpdated = 0
+      WHERE id = ?
+    `;
+    plantcare.query(
+      sql,
+      [params.status, params.password, parseInt(params.id)],
+      (err, results) => {
+        if (err) return reject(err);
+        resolve(results);
+      }
+    );
+  });
+};
+
+// Send generated password email with attached PDF
+exports.SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
+  try {
+    const doc = new PDFDocument();
+    const pdfBuffer = [];
+    doc.on("data", pdfBuffer.push.bind(pdfBuffer));
+    doc.on("end", () => {});
+
+    // Watermark background
+    const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
+    doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
+
+    // Title
+    doc
+      .fontSize(20)
+      .fillColor("#071a51")
+      .text("Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation", {
+        align: "center",
+      });
+
+    doc.moveDown();
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+    doc.moveDown();
+
+    // Body content
+    doc.fontSize(12).text(`Dear ${firstName},`);
+    doc.moveDown();
+    doc
+      .text("Thank you for registering with us! We are excited to have you onboard.")
+      .moveDown()
+      .text(
+        "You have successfully created an account with PolygonAgro (Pvt) Ltd. Our platform provides agricultural support, guidance, and digital tools to help you grow and succeed.",
+        { align: "justify" }
+      )
+      .moveDown()
+      .text(`Your User Name/ID: ${empId}`)
+      .text(`Your Password: ${password}`)
+      .moveDown()
+      .text(
+        "If you need assistance, please reach out to our support team at polygonagro.inf@gmail.com",
+        { align: "justify" }
+      )
+      .moveDown()
+      .text("Best Regards,")
+      .text("The PolygonAgro Team")
+      .text("PolygonAgro (Pvt) Ltd. | All rights reserved.")
+      .moveDown()
+      .text("Address: No:14, Sir Baron Jayathilake Mawatha, Colombo 01.")
+      .text("Email: polygonagro.inf@gmail.com");
+
+    doc.end();
+    await new Promise((resolve) => doc.on("end", resolve));
+    const pdfData = Buffer.concat(pdfBuffer);
+
+    // Mail transport
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        family: 4,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
+      text: `Dear ${firstName},\n\nYour registration details are attached in the PDF.`,
+      attachments: [
+        {
+          filename: `password_${empId}.pdf`,
+          content: pdfData,
+        },
+      ],
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.response);
+
+    return { success: true, message: "Email sent successfully!" };
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return { success: false, message: "Failed to send email.", error };
+  }
 };
