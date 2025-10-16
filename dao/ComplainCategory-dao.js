@@ -544,14 +544,14 @@ exports.GetAllDistributedComplainDAO = (
     // Add search functionality
     if (searchText) {
       countSql += `
-        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ?)
+        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
       `;
       sql += `
-        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ?)
+        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
       `;
       const searchQuery = `%${searchText}%`;
-      Sqlparams.push(searchQuery, searchQuery, searchQuery);
-      Counterparams.push(searchQuery, searchQuery, searchQuery);
+      Sqlparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+      Counterparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
     }
 
     if (rpstatus) {
