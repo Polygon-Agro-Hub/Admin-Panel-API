@@ -3924,7 +3924,7 @@ exports.deleteFarmStaff = async (req, res) => {
       return res.json({ status: false, message: 'Staff delete faild!' })
     }
 
-    res.status({ status: true, message: "Staff delete successfull!" })
+    res.status({ status: true, message: "Staff member has been deleted." })
 
     // Since your DAO function now returns { empId: newEmpId } directly
     // we don't need to check for length anymore
