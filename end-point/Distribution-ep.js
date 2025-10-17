@@ -270,50 +270,55 @@ exports.createDistributionHead = async (req, res) => {
   try {
     const officerData = JSON.parse(req.body.officerData);
 
-    const isExistingNIC = await DistributionDao.checkNICExist(officerData.nic);
-    const isExistingEmail = await DistributionDao.checkEmailExist(
-      officerData.email
-    );
+    // Check all duplicates at once
+    const duplicateChecks = await Promise.all([
+      DistributionDao.checkNICExist(officerData.nic),
+      DistributionDao.checkEmailExist(officerData.email),
+      DistributionDao.checkPhoneExist(officerData.phoneNumber01),
+      officerData.phoneNumber02 ? DistributionDao.checkPhoneExist(officerData.phoneNumber02) : Promise.resolve(false)
+    ]);
 
-    if (isExistingNIC) {
-      return res.status(500).json({
-        error: "NIC already exists",
-      });
-    }
+    const [isExistingNIC, isExistingEmail, isExistingPhone1, isExistingPhone2] = duplicateChecks;
 
-    if (isExistingEmail) {
-      return res.status(500).json({
-        error: "Email already exists",
-      });
-    }
+    // Collect duplicate fields
+    const duplicateFields = [];
+    
+    if (isExistingNIC) duplicateFields.push("NIC");
+    if (isExistingEmail) duplicateFields.push("Email");
+    if (isExistingPhone1) duplicateFields.push("Mobile Number 1");
+    if (isExistingPhone2) duplicateFields.push("Mobile Number 2");
 
-
-    const isExistingPhone1 = await DistributionDao.checkPhoneExist(officerData.phoneNumber01);
-    if (isExistingPhone1) {
-      return res.status(500).json({ error: "Mobile number 1 already exists" });
-    }
-
-    // ✅ Optional: Check Phone Number 2
-    if (officerData.phoneNumber02) {
-      const isExistingPhone2 = await DistributionDao.checkPhoneExist(officerData.phoneNumber02);
-      if (isExistingPhone2) {
-        return res.status(500).json({ error: "Mobile number 2 already exists" });
+    // If any duplicates found, return combined error message
+    if (duplicateFields.length > 0) {
+      let errorMessage = "";
+      
+      if (duplicateFields.length === 1) {
+        errorMessage = `${duplicateFields[0]} already exists.`;
+      } else if (duplicateFields.length === 2) {
+        errorMessage = `${duplicateFields[0]} and ${duplicateFields[1]} already exist.`;
+      } else {
+        const lastField = duplicateFields.pop();
+        errorMessage = `${duplicateFields.join(", ")}, and ${lastField} already exist.`;
       }
+
+      return res.status(400).json({
+        error: errorMessage,
+        duplicateFields: duplicateFields
+      });
     }
 
-    let profileImageUrl = null; // Default to null if no image is provided
+    let profileImageUrl = null;
 
     // Check if an image file is provided
     if (req.body.file) {
       try {
-        const base64String = req.body.file.split(",")[1]; // Extract the Base64 content
-        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1]; // Extract MIME type
-        const fileBuffer = Buffer.from(base64String, "base64"); // Decode Base64 to buffer
+        const base64String = req.body.file.split(",")[1];
+        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
+        const fileBuffer = Buffer.from(base64String, "base64");
 
-        const fileExtension = mimeType.split("/")[1]; // Extract file extension from MIME type
+        const fileExtension = mimeType.split("/")[1];
         const fileName = `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}.${fileExtension}`;
 
-        // Upload image to S3
         profileImageUrl = await uploadFileToS3(
           fileBuffer,
           fileName,
@@ -327,15 +332,14 @@ exports.createDistributionHead = async (req, res) => {
       }
     }
 
-    const newEmpId = await DistributionDao.getDistributedIdforCreateEmpIdDao(officerData.jobRole)
+    const newEmpId = await DistributionDao.getDistributedIdforCreateEmpIdDao(officerData.jobRole);
 
-    // Save officer data (without image if no image is uploaded)
-    const resultsPersonal =
-      await DistributionDao.createDistributionHeadPersonal(
-        officerData,
-        profileImageUrl,
-        newEmpId
-      );
+    // Save officer data
+    const resultsPersonal = await DistributionDao.createDistributionHeadPersonal(
+      officerData,
+      profileImageUrl,
+      newEmpId
+    );
 
     console.log("Distribution Head created successfully");
     return res.status(201).json({
