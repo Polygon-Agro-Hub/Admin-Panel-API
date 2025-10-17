@@ -37,6 +37,13 @@ exports.createCertificateValidation = Joi.object({
   timeLine: Joi.number().integer().min(1).allow(null, ""),
   commission: Joi.number().min(0).max(100).allow(null, ""),
   scope: Joi.string().allow(null, ""),
+  cropIds: Joi.alternatives()
+    .try(Joi.array().items(Joi.number().integer()), Joi.string())
+    .required()
+    .messages({
+      "any.required": "Please select at least one crop.",
+      "array.includes": "Invalid crop IDs.",
+    }),
 });
 
 // Update certificate validations
@@ -122,25 +129,17 @@ exports.createFarmerClusterSchema = Joi.object({
     "string.min": "Cluster name must be at least 2 characters",
     "string.max": "Cluster name cannot exceed 55 characters",
   }),
-  farmerNICs: Joi.array()
-    .min(1)
-    .required()
-    .messages({
-      "array.min": "At least one NIC number must be provided",
-    }),
+  farmerNICs: Joi.array().min(1).required().messages({
+    "array.min": "At least one NIC number must be provided",
+  }),
 });
 
 // Existing validation schemas
 exports.updateFarmerClusterSchema = Joi.object({
-  clusterName: Joi.string()
-    .trim()
-    .min(1)
-    .max(255)
-    .required()
-    .messages({
-      'string.empty': 'Cluster name is required',
-      'string.min': 'Cluster name must be at least 1 character long',
-      'string.max': 'Cluster name cannot exceed 255 characters',
-      'any.required': 'Cluster name is required'
-    })
+  clusterName: Joi.string().trim().min(1).max(255).required().messages({
+    "string.empty": "Cluster name is required",
+    "string.min": "Cluster name must be at least 1 character long",
+    "string.max": "Cluster name cannot exceed 255 characters",
+    "any.required": "Cluster name is required",
+  }),
 });
