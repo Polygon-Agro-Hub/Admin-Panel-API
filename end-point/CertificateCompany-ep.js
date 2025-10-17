@@ -75,6 +75,14 @@ exports.createCertificateCompany = async (req, res) => {
       });
     }
 
+    const existingTaxId = await certificateCompanyDao.checkByTaxId(taxId);
+    if (existingTaxId.length > 0) {
+      return res.status(400).json({
+        message: `Tax ID "${taxId}" already exists. Please use a different one.`,
+        status: false,
+      });
+    }
+
     // Upload logo if provided
     let logoUrl = null;
     if (req.file) {
@@ -100,7 +108,7 @@ exports.createCertificateCompany = async (req, res) => {
     );
 
     res.status(201).json({
-      message: "Certificate company created successfully",
+      message: "Certificate Company Created  Successfully.",
       id: insertId,
       status: true,
     });
@@ -250,6 +258,14 @@ exports.updateCertificateCompany = async (req, res) => {
       }
     }
 
+    const existingTaxId = await certificateCompanyDao.checkByTaxId(taxId);
+    if (existingTaxId.length > 0) {
+      return res.status(400).json({
+        message: `Tax ID "${taxId}" already exists. Please use a different one.`,
+        status: false,
+      });
+    }
+
     let logoUrl = currentCompany?.logo || null;
 
     // If new logo uploaded
@@ -289,7 +305,7 @@ exports.updateCertificateCompany = async (req, res) => {
     }
 
     res.json({
-      message: "Certificate company updated successfully",
+      message: "Certificate Company Updated Successfully",
       status: true,
       logo: logoUrl,
     });

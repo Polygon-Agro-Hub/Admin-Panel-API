@@ -683,3 +683,14 @@ exports.updateClusterName = async (clusterId, clusterName, userId, connection) =
     [clusterName.trim(), userId, clusterId]
   );
 };
+
+// Check if a certificate company with the given tax ID exists
+exports.checkByTaxId = (taxId) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT id FROM certificatecompany WHERE taxId = ?";
+    plantcare.query(sql, [taxId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
