@@ -1913,6 +1913,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText) => {
     let dataSql = `
       SELECT 
         MP.id, 
+        MP.title,
         MP.firstName,
         MP.lastName,
         MP.phoneCode,
