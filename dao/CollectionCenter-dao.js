@@ -1259,7 +1259,7 @@ exports.getTransactionCountDao = (centerId) => {
           SELECT COUNT(RFP.id) AS transactionCount
           FROM registeredfarmerpayments RFP, collectionofficer COF
           WHERE DATE(RFP.createdAt) = CURDATE() AND RFP.collectionOfficerId = COF.id AND COF.centerId = ?
-          GROUP BY DATE(RFP.createdAt);
+
 
       `;
     collectionofficer.query(sql, [centerId], (err, results) => {
@@ -1279,20 +1279,32 @@ exports.getTransactionCountDao = (centerId) => {
 exports.getTransactionAmountCountDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-          SELECT SUM(gradeAprice)+SUM(gradeBprice)+SUM(gradeCprice) AS transAmountCount
-          FROM registeredfarmerpayments RFP, farmerpaymentscrops FPC, collectionofficer COF
-          WHERE DATE(RFP.createdAt) = '2024-12-31' AND RFP.collectionOfficerId = COF.id AND RFP.id = FPC.registerFarmerId AND COF.centerId = ?
-          GROUP BY DATE(RFP.createdAt);
+      SELECT 
+        SUM(
+          (IFNULL(FPC.gradeAprice, 0) * IFNULL(FPC.gradeAquan, 0)) +
+          (IFNULL(FPC.gradeBprice, 0) * IFNULL(FPC.gradeBquan, 0)) +
+          (IFNULL(FPC.gradeCprice, 0) * IFNULL(FPC.gradeCquan, 0))
+        ) AS transAmountCount
+      FROM registeredfarmerpayments RFP
+      JOIN farmerpaymentscrops FPC ON RFP.id = FPC.registerFarmerId
+      JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
+      WHERE DATE(RFP.createdAt) = CURDATE()
+        AND COF.centerId = ?
+    `;
 
-      `;
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
+        console.error('DB Error:', err);
         return reject(err);
       }
-      if (results.length === 0) {
-        return resolve({ transAmountCount: 0 })
-      }
-      resolve(results[0]);
+
+      // ✅ Always check results[0] first
+      const total =
+        results && results[0] && results[0].transAmountCount !== null
+          ? results[0].transAmountCount
+          : 0;
+
+      resolve({ transAmountCount: total });
     });
   });
 };
@@ -1368,13 +1380,19 @@ exports.getReseantCollectionDao = (centerId) => {
 exports.getTotExpencesDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT 
-          SUM(FPC.gradeAprice) + SUM(FPC.gradeBprice) + SUM(FPC.gradeCprice) AS totExpences
-      FROM registeredfarmerpayments RFP
-      JOIN farmerpaymentscrops FPC ON RFP.id = FPC.registerFarmerId
-      JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
-      WHERE RFP.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY) 
-      AND COF.centerId = ?
+    SELECT 
+    SUM(
+        (IFNULL(FPC.gradeAprice, 0) * IFNULL(FPC.gradeAquan, 0)) +
+        (IFNULL(FPC.gradeBprice, 0) * IFNULL(FPC.gradeBquan, 0)) +
+        (IFNULL(FPC.gradeCprice, 0) * IFNULL(FPC.gradeCquan, 0))
+    ) AS totExpences
+    FROM collection_officer.registeredfarmerpayments RFP
+    LEFT JOIN collection_officer.farmerpaymentscrops FPC 
+        ON RFP.id = FPC.registerFarmerId
+    LEFT JOIN collection_officer.collectionofficer COF 
+        ON RFP.collectionOfficerId = COF.id
+    WHERE RFP.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    AND COF.centerId = ?
       `;
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
