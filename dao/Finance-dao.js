@@ -158,3 +158,97 @@ exports.getAllDashboardData = () => {
     }
   });
 };
+
+
+// DAO Function
+exports.getAllPackagePayments = (page, limit, searchTerm, fromDate, toDate) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) as total
+      FROM membershippayment mp
+      INNER JOIN users u ON mp.userId = u.id
+      WHERE 1=1
+    `;
+
+    let dataSql = `
+      SELECT 
+        mp.id as transactionId,
+        CONCAT(u.firstName, ' ', u.lastName) as farmerName,
+        CONCAT(u.phoneNumber) as phoneNumber,
+        mp.plan as packagePeriod,
+        FORMAT(mp.payment, 2) as amount,
+        DATE_FORMAT(mp.createdAt, '%d %b, %Y %h:%i%p') as dateTime,
+        mp.createdAt as sortDate
+      FROM membershippayment mp
+      INNER JOIN users u ON mp.userId = u.id
+      WHERE 1=1
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    // Date filtering
+    if (fromDate) {
+      countSql += " AND DATE(mp.createdAt) >= ?";
+      dataSql += " AND DATE(mp.createdAt) >= ?";
+      countParams.push(fromDate);
+      dataParams.push(fromDate);
+    }
+
+    if (toDate) {
+      countSql += " AND DATE(mp.createdAt) <= ?";
+      dataSql += " AND DATE(mp.createdAt) <= ?";
+      countParams.push(toDate);
+      dataParams.push(toDate);
+    }
+
+    // Search filtering
+    if (searchTerm) {
+      const searchCondition = `
+        AND (
+          mp.id LIKE ?
+          OR u.firstName LIKE ?
+          OR u.lastName LIKE ?
+          OR u.phoneNumber LIKE ?
+          OR mp.plan LIKE ?
+          OR mp.payment LIKE ?
+        )
+      `;
+      countSql += searchCondition;
+      dataSql += searchCondition;
+      
+      const searchValue = `%${searchTerm}%`;
+      countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue, searchValue);
+      dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue, searchValue);
+    }
+
+    // Order by most recent first
+    dataSql += " ORDER BY mp.createdAt DESC";
+
+    // Add pagination
+    dataSql += " LIMIT ? OFFSET ?";
+    dataParams.push(limit, offset);
+
+    // Execute count query
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
+      }
+
+      const total = countResults[0].total;
+
+      // Execute data query
+      plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+
+        resolve({ items: dataResults, total });
+      });
+    });
+  });
+};
