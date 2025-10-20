@@ -64,21 +64,37 @@ exports.getAdminUserData = async (req, res) => {
   }
 };
 
+// Get all field officers with filters
 exports.getAllFieldOfficers = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Request URL:", fullUrl);
 
+  // Get filter parameters from query string
+  const { status, language, district, role, search } = req.query;
+
+  console.log("Filter parameters:", {
+    status,
+    language,
+    district,
+    role,
+    search,
+  });
+
   try {
-    const officers = await StakeholderDao.getAllFieldOfficers();
+    const officers = await StakeholderDao.getAllFieldOfficers({
+      status,
+      language,
+      district,
+      role,
+      search,
+    });
     res.status(200).json({ status: true, data: officers });
   } catch (error) {
     console.error("Error fetching field officers:", error);
-    res
-      .status(500)
-      .json({
-        status: false,
-        error: "An error occurred while fetching field officers",
-      });
+    res.status(500).json({
+      status: false,
+      error: "An error occurred while fetching field officers",
+    });
   }
 };
 
@@ -110,11 +126,12 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
 
     // Update status and password
-    const updateResult = await StakeholderDao.UpdateFieldOfficerStatusAndPasswordDao({
-      id,
-      status,
-      password: hashedPassword,
-    });
+    const updateResult =
+      await StakeholderDao.UpdateFieldOfficerStatusAndPasswordDao({
+        id,
+        status,
+        password: hashedPassword,
+      });
 
     if (updateResult.affectedRows === 0) {
       return res.status(400).json({
