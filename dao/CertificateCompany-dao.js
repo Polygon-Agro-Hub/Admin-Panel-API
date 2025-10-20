@@ -40,10 +40,17 @@ exports.createCertificateCompany = (
 };
 
 // Check if a certificate company with the given registration number exists
-exports.checkByRegNumber = (regNumber) => {
+exports.checkByRegNumber = (regNumber, excludeId = null) => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT id FROM certificatecompany WHERE regNumber = ?";
-    plantcare.query(sql, [regNumber], (err, results) => {
+    let sql = `SELECT id FROM certificatecompany WHERE regNumber = ?`;
+    const params = [regNumber];
+
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+
+    plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
@@ -195,14 +202,15 @@ exports.createCertificate = ({
   commission,
   tearms,
   scope,
+  logo,
   modifyBy,
 }) => {
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO certificates
       (srtcomapnyId, srtName, srtNumber, applicable, accreditation, serviceAreas,
-       price, timeLine, commission, tearms, scope, modifyBy, modifyDate)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+       price, timeLine, commission, tearms, scope, logo, modifyBy, modifyDate)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
 
     const values = [
@@ -217,11 +225,16 @@ exports.createCertificate = ({
       commission || null,
       tearms,
       scope,
+      logo,
       modifyBy,
     ];
 
     plantcare.query(sql, values, (err, result) => {
-      if (err) return reject(err);
+      if (err) {
+        console.error("Database error:", err);
+        return reject(err);
+      }
+      console.log("Certificate inserted with ID:", result.insertId);
       resolve(result.insertId);
     });
   });
@@ -338,6 +351,7 @@ exports.updateCertificate = ({
   commission,
   tearms,
   scope,
+  logo,
   modifyBy,
 }) => {
   return new Promise((resolve, reject) => {
@@ -355,6 +369,7 @@ exports.updateCertificate = ({
         commission = ?,
         tearms = COALESCE(?, tearms),
         scope = ?,
+        logo = COALESCE(?, logo),
         modifyBy = ?,
         modifyDate = NOW()
       WHERE id = ?
@@ -371,11 +386,20 @@ exports.updateCertificate = ({
       commission || null,
       tearms,
       scope,
+      logo,
       modifyBy,
       id,
     ];
+
     plantcare.query(sql, values, (err, result) => {
-      if (err) return reject(err);
+      if (err) {
+        console.error("Database error:", err);
+        return reject(err);
+      }
+      console.log(
+        "Certificate updated successfully, affected rows:",
+        result.affectedRows
+      );
       resolve(result);
     });
   });
@@ -675,7 +699,12 @@ exports.insertFarmerIntoCluster = async (clusterId, farmerId, connection) => {
 };
 
 // Update only clsName in farmcluster using existing connection
-exports.updateClusterName = async (clusterId, clusterName, userId, connection) => {
+exports.updateClusterName = async (
+  clusterId,
+  clusterName,
+  userId,
+  connection
+) => {
   await connection.query(
     `UPDATE farmcluster 
      SET clsName = ?, modifyBy = ?, modifyDate = NOW() 
@@ -685,10 +714,17 @@ exports.updateClusterName = async (clusterId, clusterName, userId, connection) =
 };
 
 // Check if a certificate company with the given tax ID exists
-exports.checkByTaxId = (taxId) => {
+exports.checkByTaxId = (taxId, excludeId = null) => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT id FROM certificatecompany WHERE taxId = ?";
-    plantcare.query(sql, [taxId], (err, results) => {
+    let sql = `SELECT id FROM certificatecompany WHERE taxId = ?`;
+    const params = [taxId];
+
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+
+    plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });

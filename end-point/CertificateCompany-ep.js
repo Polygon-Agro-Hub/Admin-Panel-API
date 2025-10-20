@@ -49,7 +49,7 @@ exports.createCertificateCompany = async (req, res) => {
       });
     }
 
-    if (!validatePhone(phoneCode2, phoneNumber2, false)) {
+    if (phoneNumber2 && !validatePhone(phoneCode2, phoneNumber2, false)) {
       return res.status(400).json({
         message:
           phoneCode2 === "+94"
@@ -66,15 +66,18 @@ exports.createCertificateCompany = async (req, res) => {
       });
     }
 
-    // Check duplicate regNumber
-    const existing = await certificateCompanyDao.checkByRegNumber(regNumber);
-    if (existing.length > 0) {
+    // Check duplicate regNumber (no excludeId needed for creation)
+    const existingRegNumber = await certificateCompanyDao.checkByRegNumber(
+      regNumber
+    );
+    if (existingRegNumber.length > 0) {
       return res.status(400).json({
         message: `Registration number "${regNumber}" already exists. Please use a different one.`,
         status: false,
       });
     }
 
+    // Check duplicate Tax ID (no excludeId needed for creation)
     const existingTaxId = await certificateCompanyDao.checkByTaxId(taxId);
     if (existingTaxId.length > 0) {
       return res.status(400).json({
@@ -108,7 +111,7 @@ exports.createCertificateCompany = async (req, res) => {
     );
 
     res.status(201).json({
-      message: "Certificate Company Created  Successfully.",
+      message: "Certificate Company Created Successfully.",
       id: insertId,
       status: true,
     });
@@ -258,12 +261,15 @@ exports.updateCertificateCompany = async (req, res) => {
       }
     }
 
-    const existingTaxId = await certificateCompanyDao.checkByTaxId(taxId);
-    if (existingTaxId.length > 0) {
-      return res.status(400).json({
-        message: `Tax ID "${taxId}" already exists. Please use a different one.`,
-        status: false,
-      });
+    // Check for duplicate Tax ID, excluding the current company
+    if (currentCompany.taxId !== taxId) {
+      const existingTaxId = await certificateCompanyDao.checkByTaxId(taxId);
+      if (existingTaxId.length > 0) {
+        return res.status(400).json({
+          message: `Tax ID "${taxId}" already exists. Please use a different one.`,
+          status: false,
+        });
+      }
     }
 
     let logoUrl = currentCompany?.logo || null;
@@ -437,17 +443,62 @@ exports.createCertificate = async (req, res) => {
     }
     if (!Array.isArray(cropIds)) cropIds = [cropIds];
 
-    // Upload PDF
+    // Upload PDF for terms (tearmsFile)
     let tearmsUrl = null;
-    if (req.file) {
+    if (req.files && req.files.tearmsFile && req.files.tearmsFile[0]) {
+      const termsFile = req.files.tearmsFile[0];
+
+      // Validate it's a PDF
+      if (termsFile.mimetype !== "application/pdf") {
+        return res.status(400).json({
+          message: "Terms file must be a PDF",
+          status: false,
+        });
+      }
+
       tearmsUrl = await uploadFileToS3(
-        req.file.buffer,
-        req.file.originalname,
+        termsFile.buffer,
+        termsFile.originalname,
         "certificate/terms"
+      );
+    } else {
+      // If no terms file was uploaded, return error
+      return res.status(400).json({
+        message: "Payment Terms File is required",
+        status: false,
+      });
+    }
+
+    // Upload logo file
+    let logoUrl = null;
+    if (req.files && req.files.logo && req.files.logo[0]) {
+      const logoFile = req.files.logo[0];
+
+      // Validate logo file type (image only)
+      if (!logoFile.mimetype.startsWith("image/")) {
+        return res.status(400).json({
+          message: "Logo must be a valid image file (JPEG, JPG, PNG, WebP)",
+          status: false,
+        });
+      }
+
+      // Validate file size (5MB limit for images)
+      const maxSizeBytes = 5 * 1024 * 1024;
+      if (logoFile.size > maxSizeBytes) {
+        return res.status(400).json({
+          message: "Logo must be smaller than 5 MB",
+          status: false,
+        });
+      }
+
+      logoUrl = await uploadFileToS3(
+        logoFile.buffer,
+        logoFile.originalname,
+        "certificate/logo"
       );
     }
 
-    // Insert certificat
+    // Insert certificate
     const certificateId = await certificateCompanyDao.createCertificate({
       srtcomapnyId,
       srtName,
@@ -460,6 +511,7 @@ exports.createCertificate = async (req, res) => {
       commission,
       tearms: tearmsUrl,
       scope,
+      logo: logoUrl,
       modifyBy: userId,
     });
 
@@ -595,14 +647,76 @@ exports.updateCertificate = async (req, res) => {
     }
     if (!Array.isArray(cropIds)) cropIds = [cropIds];
 
-    // Handle file upload
-    let tearmsUrl = null;
-    if (req.file) {
+    // Get current certificate data first
+    const currentCertificate = await certificateCompanyDao.getCertificateById(
+      id
+    );
+    if (!currentCertificate) {
+      return res
+        .status(404)
+        .json({ message: "Certificate not found", status: false });
+    }
+
+    let tearmsUrl = currentCertificate.tearms;
+    let logoUrl = currentCertificate.logo;
+
+    // Handle terms file upload
+    if (req.files && req.files.tearmsFile && req.files.tearmsFile[0]) {
+      const termsFile = req.files.tearmsFile[0];
+
+      // Validate it's a PDF
+      if (termsFile.mimetype !== "application/pdf") {
+        return res.status(400).json({
+          message: "Terms file must be a PDF",
+          status: false,
+        });
+      }
+
+      // Upload new terms file
       tearmsUrl = await uploadFileToS3(
-        req.file.buffer,
-        req.file.originalname,
+        termsFile.buffer,
+        termsFile.originalname,
         "certificate/terms"
       );
+
+      // Delete old terms file if exists
+      if (currentCertificate.tearms) {
+        await deleteFromS3(currentCertificate.tearms);
+      }
+    }
+
+    // Handle logo file upload
+    if (req.files && req.files.logo && req.files.logo[0]) {
+      const logoFile = req.files.logo[0];
+
+      // Validate logo file type (image only)
+      if (!logoFile.mimetype.startsWith("image/")) {
+        return res.status(400).json({
+          message: "Logo must be a valid image file (JPEG, JPG, PNG, WebP)",
+          status: false,
+        });
+      }
+
+      // Validate file size (5MB limit for images)
+      const maxSizeBytes = 5 * 1024 * 1024;
+      if (logoFile.size > maxSizeBytes) {
+        return res.status(400).json({
+          message: "Logo must be smaller than 5 MB",
+          status: false,
+        });
+      }
+
+      // Upload new logo file
+      logoUrl = await uploadFileToS3(
+        logoFile.buffer,
+        logoFile.originalname,
+        "certificate/logo"
+      );
+
+      // Delete old logo file if exists
+      if (currentCertificate.logo) {
+        await deleteFromS3(currentCertificate.logo);
+      }
     }
 
     // Update certificate
@@ -619,6 +733,7 @@ exports.updateCertificate = async (req, res) => {
       commission,
       tearms: tearmsUrl,
       scope,
+      logo: logoUrl,
       modifyBy: userId,
     });
 
@@ -626,7 +741,12 @@ exports.updateCertificate = async (req, res) => {
     await certificateCompanyDao.deleteCertificateCrops(id);
     await certificateCompanyDao.addCertificateCrops(id, cropIds);
 
-    res.json({ message: "Certificate updated successfully", status: true });
+    res.json({
+      message: "Certificate updated successfully",
+      status: true,
+      logo: logoUrl,
+      tearms: tearmsUrl,
+    });
   } catch (err) {
     console.error("Error updating certificate:", err);
     const message =

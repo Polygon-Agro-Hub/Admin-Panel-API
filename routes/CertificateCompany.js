@@ -77,7 +77,10 @@ router.get(
 router.post(
   "/create-certificate",
   authMiddleware,
-  upload.single("tearmsFile"),
+  upload.fields([
+    { name: "tearmsFile", maxCount: 1 },
+    { name: "logo", maxCount: 1 },
+  ]),
   certificateCompanyEp.createCertificate
 );
 
@@ -99,7 +102,10 @@ router.get(
 router.put(
   "/update-certificate/:id",
   authMiddleware,
-  upload.single("tearmsFile"),
+  upload.fields([
+    { name: "tearmsFile", maxCount: 1 },
+    { name: "logo", maxCount: 1 },
+  ]),
   certificateCompanyEp.updateCertificate
 );
 
@@ -147,7 +153,7 @@ router.post(
 
 // Add single farmer to existing cluster
 router.post(
-  '/add-single-farmer-to-cluster/:clusterId',
+  "/add-single-farmer-to-cluster/:clusterId",
   authMiddleware,
   certificateCompanyEp.addSingleFarmerToCluster
 );

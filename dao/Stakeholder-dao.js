@@ -275,21 +275,59 @@ exports.getTodayRegAdmin = () => {
   });
 };
 
-exports.getAllFieldOfficers = () => {
+// Get all field officers with filters
+exports.getAllFieldOfficers = (filters = {}) => {
   return new Promise((resolve, reject) => {
-    const sql = `
+    let sql = `
       SELECT * 
       FROM plant_care.feildofficer
+      WHERE 1=1
     `;
-    admin.query(sql, (err, results) => {
+
+    const params = [];
+
+    // Apply filters
+    if (filters.status && filters.status !== "") {
+      sql += ` AND status = ?`;
+      params.push(filters.status);
+    }
+
+    if (filters.district && filters.district !== "") {
+      sql += ` AND distrct = ?`;
+      params.push(filters.district);
+    }
+
+    if (filters.role && filters.role !== "") {
+      sql += ` AND JobRole = ?`;
+      params.push(filters.role);
+    }
+
+    if (filters.language && filters.language !== "") {
+      sql += ` AND language LIKE ?`;
+      params.push(`%${filters.language}%`);
+    }
+
+    if (filters.search && filters.search !== "") {
+      sql += ` AND (empId LIKE ? OR nic LIKE ?)`;
+      const searchTerm = `%${filters.search}%`;
+      params.push(searchTerm, searchTerm);
+    }
+
+    sql += ` ORDER BY createdAt DESC`;
+
+    console.log("SQL Query:", sql);
+    console.log("Query Parameters:", params);
+
+    admin.query(sql, params, (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        console.error("Database error:", err);
+        return reject(err);
       }
-      resolve(results); // Resolve with all rows
+      console.log("Results found:", results.length);
+      resolve(results);
     });
   });
 };
-
 
 // Get officer email & name by ID
 exports.getFieldOfficerEmailDao = (id) => {
@@ -299,7 +337,7 @@ exports.getFieldOfficerEmailDao = (id) => {
       FROM plant_care.feildofficer f
       WHERE f.id = ?
     `;
-    plantcare.query(sql, [id], (err, results) => { 
+    plantcare.query(sql, [id], (err, results) => {
       if (err) return reject(err);
       if (results.length > 0) {
         resolve({
@@ -334,7 +372,12 @@ exports.UpdateFieldOfficerStatusAndPasswordDao = (params) => {
 };
 
 // Send generated password email with attached PDF
-exports.SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
+exports.SendGeneratedPasswordDao = async (
+  email,
+  password,
+  empId,
+  firstName
+) => {
   try {
     const doc = new PDFDocument();
     const pdfBuffer = [];
@@ -361,7 +404,9 @@ exports.SendGeneratedPasswordDao = async (email, password, empId, firstName) => 
     doc.fontSize(12).text(`Dear ${firstName},`);
     doc.moveDown();
     doc
-      .text("Thank you for registering with us! We are excited to have you onboard.")
+      .text(
+        "Thank you for registering with us! We are excited to have you onboard."
+      )
       .moveDown()
       .text(
         "You have successfully created an account with PolygonAgro (Pvt) Ltd. Our platform provides agricultural support, guidance, and digital tools to help you grow and succeed.",
