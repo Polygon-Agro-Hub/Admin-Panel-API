@@ -4598,7 +4598,7 @@ exports.getFieldOfficerByIdDAO = (id) => {
               FC.companyName
           FROM 
               feildofficer FO
-          JOIN 
+          LEFT JOIN 
               feildcompany FC ON FO.companyId = FC.id
           WHERE 
               FO.id = ?`;
@@ -4622,6 +4622,10 @@ exports.getFieldOfficerByIdDAO = (id) => {
           id: officer.id,
           firstName: officer.firstName,
           lastName: officer.lastName,
+          firstNameSinhala: officer.firstNameSinhala,
+          firstNameTamil: officer.firstNameTamil,
+          lastNameSinhala: officer.lastNameSinhala,
+          lastNameTamil: officer.lastNameTamil,
           phoneNumber01: officer.phoneNumber1,
           phoneNumber02: officer.phoneNumber2,
           phoneCode01: officer.phoneCode1,
@@ -4706,10 +4710,13 @@ exports.updateFieldOfficer = (
       const sql = `
         UPDATE feildofficer 
         SET 
-          companyId = ?, 
           irmId = ?, 
           firstName = ?, 
-          lastName = ?, 
+          lastName = ?,
+          firstNameSinhala = ?,
+          firstNameTamil = ?,
+          lastNameSinhala = ?,
+          lastNameTamil = ?,
           empType = ?, 
           jobRole = ?, 
           phoneCode1 = ?, 
@@ -4744,10 +4751,13 @@ exports.updateFieldOfficer = (
       plantcare.query(
         sql,
         [
-          officerData.companyId,
           officerData.irmId,
           officerData.firstName,
           officerData.lastName,
+          officerData.firstNameSinhala,
+          officerData.firstNameTamil,
+          officerData.lastNameSinhala,
+          officerData.lastNameTamil,
           officerData.empType,
           officerData.jobRole,
           officerData.phoneCode1,
@@ -4774,7 +4784,7 @@ exports.updateFieldOfficer = (
           backPassbookUrl,
           contractUrlValue,
           officerData.assignDistrict,
-          officerData.status || "Not Aproved", // Keep existing status or default
+          officerData.status || "Not Approved", // Keep existing status or default
           officerId // WHERE condition
         ],
         (err, results) => {
