@@ -422,7 +422,8 @@ exports.getAllCollectionOfficers = (
                 coff.phoneNumber01,
                 coff.nic,
                 cm.companyNameEnglish,
-                cc.centerName
+                cc.centerName,
+                cc.regCode
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN collectioncenter cc ON coff.centerId = cc.id

@@ -134,7 +134,7 @@ exports.getAllCollectionOfficers = () => {
 exports.getActiveCollectionOfficers = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT COUNT(*) AS activeOfficerCount FROM collectionofficer WHERE onlineStatus = 1 AND companyId = '1' AND status = 'Approved';
+      SELECT COUNT(*) AS activeOfficerCount FROM collectionofficer WHERE  companyId = '1' AND status = 'Approved';
             `;
     collectionofficer.query(sql, (err, results) => {
       if (err) {
