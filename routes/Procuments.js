@@ -141,4 +141,9 @@ router.get(
   ProcumentsEP.getExcludedItems
 );
 
+router.get(
+  "/test-func",
+  ProcumentsEP.testFunc
+);
+
 module.exports = router;

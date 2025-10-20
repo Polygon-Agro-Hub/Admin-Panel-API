@@ -1612,3 +1612,23 @@ exports.trackDispatchOfficerDao = async (userId, orderId) => {
     );
   });
 };
+
+
+exports.testFuncDao = async () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT GetProcessOrderPackageDetails() AS process_order_data;
+    `;
+    marketPlace.query(sql, (err, results) => {
+      if (err) {
+        console.log("Error", err);
+        reject(err);
+      } else {
+        console.log("Function result", results[0]);
+        // The result will be in JSON format
+        const jsonData = JSON.parse(results[0].process_order_data || '[]');
+        resolve(jsonData);
+      }
+    });
+  });
+};

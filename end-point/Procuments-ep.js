@@ -706,3 +706,26 @@ exports.getExcludedItems = async (req, res) => {
     });
   }
 };
+
+
+exports.testFunc = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+
+    const data = await procumentDao.testFuncDao();
+
+
+    
+
+    res.json(data);
+  } catch (err) {
+    console.error("Error fetching order package items:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching order package items",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
