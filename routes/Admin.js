@@ -385,7 +385,7 @@ router.post("/resend-reset-password", AdminEp.resendResetLink);
 router.get("/get-all-companies", authMiddleware, AdminEp.getAllCompanies);
 
 router.get(
-  "/get-all-manager-list/:companyId",
+  "/get-all-manager-list",
   authMiddleware,
   AdminEp.getAllManagerList
 );

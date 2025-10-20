@@ -3322,18 +3322,12 @@ exports.getAllManagerList = async (req, res) => {
   console.log("Request URL:", fullUrl);
 
   try {
-    const companyId = req.params.companyId;
-    console.log(companyId);
-
-    const result = await adminDao.GetAllManagerList(
-      companyId
-      // Removed assignDistrict parameter
-    );
+    const result = await adminDao.GetAllManagerList();
 
     if (result.length === 0) {
       return res
         .status(404)
-        .json({ message: "No Fieald Officer found", data: result });
+        .json({ message: "No Field Officer Managers found", data: result });
     }
 
     console.log("Successfully retrieved all Field Officer Managers");
@@ -3532,15 +3526,13 @@ exports.createFieldOfficer = async (req, res) => {
     // Set modifyBy for the officer data
     officerData.modifyBy = tokenUserId;
 
-    // Handle irmId logic based on job role
-    if (
-      officerData.jobRole === "Field Officer" ||
-      officerData.jobRole === "Chief Field Officer"
-    ) {
+    // Handle irmId logic based on job role - FIXED: Only set to null for specific roles
+    if (officerData.jobRole === "Chief Field Officer") {
       officerData.irmId = null;
     }
 
-    console.log("Creating field officer with data:", {
+    console.log("Creating field officer with data:", officerData);
+    console.log("Document URLs:", {
       profileImageUrl,
       nicFrontUrl,
       nicBackUrl,
@@ -3548,7 +3540,7 @@ exports.createFieldOfficer = async (req, res) => {
       contractUrl,
     });
 
-    // Create field officer with all document URLs
+    // Create field officer with all document URLs - CORRECTED parameter order
     const results = await adminDao.createFieldOfficer(
       officerData,
       profileImageUrl,

@@ -4295,12 +4295,12 @@ exports.GetCompaniesDAO = () => {
   });
 };
 
-exports.GetAllManagerList = (companyId) => {
+exports.GetAllManagerList = () => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, firstName, lastName FROM feildofficer WHERE companyId = ? AND JobRole = 'Chief Field Officer' AND status = 'active'";
+      "SELECT id, firstName, lastName FROM feildofficer WHERE JobRole = 'Chief Field Officer' AND status = 'active'";
 
-    plantcare.query(sql, [companyId], (err, results) => {
+    plantcare.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -4428,6 +4428,85 @@ exports.getFOIDforCreateEmpIdDao = (employee) => {
   });
 };
 
+// exports.createFieldOfficer = (
+//   officerData,
+//   profileImageUrl,
+//   nicFrontUrl,
+//   nicBackUrl,
+//   passbookUrl,
+//   contractUrl,
+//   lastId
+// ) => {
+//   return new Promise((resolve, reject) => {
+//     try {
+//       // If no image URLs, set them to null
+//       const profileUrl = profileImageUrl || null;
+//       const frontNicUrl = nicFrontUrl || null;
+//       const backNicUrl = nicBackUrl || null;
+//       const backPassbookUrl = passbookUrl || null;
+//       const contractUrlValue = contractUrl || null;
+
+//       const sql = `
+//                 INSERT INTO feildofficer (
+//                     companyId, irmId, firstName, lastName, empType, empId, jobRole, 
+//                     phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, language, email, 
+//                     nic, house, street, city, distrct, province, country, comAmount, 
+//                     accName, accNumber, bank, branch, profile, frontNic, backNic, 
+//                     backPassbook, contract, assignDistrict, status
+//                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+//             `;
+
+//       // Replace 'db' with your actual database connection variable
+//       plantcare.query(
+//         sql,
+//         [
+//           officerData.companyId,
+//           officerData.irmId,
+//           officerData.firstName,
+//           officerData.lastName,
+//           officerData.empType,
+//           lastId,
+//           officerData.jobRole,
+//           officerData.phoneCode1,
+//           officerData.phoneNumber1,
+//           officerData.phoneCode2,
+//           officerData.phoneNumber2,
+//           officerData.language,
+//           officerData.email,
+//           officerData.nic,
+//           officerData.house,
+//           officerData.street,
+//           officerData.city,
+//           officerData.distrct,
+//           officerData.province,
+//           officerData.country,
+//           officerData.comAmount,
+//           officerData.accName,
+//           officerData.accNumber,
+//           officerData.bank,
+//           officerData.branch,
+//           profileUrl,
+//           frontNicUrl,
+//           backNicUrl,
+//           backPassbookUrl,
+//           contractUrlValue,
+//           officerData.assignDistrict,
+//           "Not Aproved",
+//         ],
+//         (err, results) => {
+//           if (err) {
+//             console.log(err);
+//             return reject(err); // Reject promise if an error occurs
+//           }
+//           resolve(results); // Resolve the promise with the query results
+//         }
+//       );
+//     } catch (error) {
+//       reject(error); // Reject if any error occurs
+//     }
+//   });
+// };
+
 exports.createFieldOfficer = (
   officerData,
   profileImageUrl,
@@ -4447,13 +4526,13 @@ exports.createFieldOfficer = (
       const contractUrlValue = contractUrl || null;
 
       const sql = `
-                INSERT INTO feildofficer (
-                    companyId, irmId, firstName, lastName, empType, empId, jobRole, 
+                INSERT INTO feildofficer (companyId, irmId, firstName, lastName, firstNameSinhala, firstNameTamil, lastNameSinhala,  
+                     lastNameTamil, empType, empId, jobRole, 
                     phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, language, email, 
                     nic, house, street, city, distrct, province, country, comAmount, 
                     accName, accNumber, bank, branch, profile, frontNic, backNic, 
                     backPassbook, contract, assignDistrict, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             `;
 
       // Replace 'db' with your actual database connection variable
@@ -4464,6 +4543,10 @@ exports.createFieldOfficer = (
           officerData.irmId,
           officerData.firstName,
           officerData.lastName,
+          officerData.firstNameSinhala,
+          officerData.firstNameTamil,
+          officerData.lastNameSinhala,
+          officerData.lastNameTamil,
           officerData.empType,
           lastId,
           officerData.jobRole,
@@ -4491,7 +4574,7 @@ exports.createFieldOfficer = (
           backPassbookUrl,
           contractUrlValue,
           officerData.assignDistrict,
-          "Not Aproved",
+          "Not Approved",
         ],
         (err, results) => {
           if (err) {
@@ -4506,7 +4589,6 @@ exports.createFieldOfficer = (
     }
   });
 };
-
 
 exports.getFieldOfficerByIdDAO = (id) => {
   return new Promise((resolve, reject) => {
