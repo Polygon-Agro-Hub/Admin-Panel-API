@@ -1055,7 +1055,8 @@ exports.getAllDistributionOfficers = (
                 coff.phoneNumber01,
                 coff.nic,
                 cm.companyNameEnglish,
-                dc.centerName
+                dc.centerName,
+                dc.regCode
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
