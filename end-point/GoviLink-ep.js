@@ -449,7 +449,7 @@ exports.getAllGoviLinkJobs = async (req, res) => {
     const { search, district, status, assignStatus, date } = req.query;
 
     const results = await GoviLinkDAO.getAllGoviLinkJobsDAO({
-      search,
+      searchTerm: search,
       district,
       status,
       assignStatus,

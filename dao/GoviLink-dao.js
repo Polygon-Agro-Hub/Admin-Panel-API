@@ -452,19 +452,17 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
 
     const params = [];
 
-    // Search filter (by farmer name, NIC, service, or officer name)
+    // Search filter (ONLY by farmer name, NIC, or service - as requested)
     if (searchTerm && searchTerm.trim()) {
       sql += `
         AND (
           CONCAT(u.firstName, ' ', u.lastName) LIKE ? OR
           u.NICnumber LIKE ? OR
-          os.englishName LIKE ? OR
-          CONCAT(fo.firstName, ' ', fo.lastName) LIKE ? OR
-          fo.empId LIKE ?
+          os.englishName LIKE ?
         )
       `;
       const trimmed = `%${searchTerm.trim()}%`;
-      params.push(trimmed, trimmed, trimmed, trimmed, trimmed);
+      params.push(trimmed, trimmed, trimmed);
     }
 
     // District filter
@@ -488,13 +486,16 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
       }
     }
 
-    // Date filter - filter by specific date
+    // Date filter - filter by SCHEDULED DATE (not created date)
     if (date && date.trim()) {
-      sql += ` AND DATE(gj.createdAt) = ?`;
+      sql += ` AND DATE(gj.sheduleDate) = ?`; // Changed from gj.createdAt to gj.sheduleDate
       params.push(date.trim());
     }
 
     sql += " ORDER BY gj.createdAt DESC";
+
+    console.log("Final SQL:", sql); // Debug log
+    console.log("Params:", params); // Debug log
 
     plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
@@ -502,7 +503,6 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
     });
   });
 };
-
 // Get field officers by job role
 exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate) => {
   return new Promise((resolve, reject) => {
