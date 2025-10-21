@@ -340,6 +340,7 @@ exports.createCropCallender = async (req, res) => {
       natureOfCultivation,
       cropDuration,
       suitableAreas,
+      specialNotes,
     } = req.body;
 
     const checkExist = await cropCalendarDao.checkExistanceCropCalander(
@@ -359,7 +360,8 @@ exports.createCropCallender = async (req, res) => {
       cultivationMethod,
       natureOfCultivation,
       cropDuration,
-      suitableAreas
+      suitableAreas,
+      specialNotes
     );
 
     console.log("Crop Calendar creation success");
