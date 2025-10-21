@@ -197,17 +197,19 @@ exports.createCropCallender = async (
   method,
   natOfCul,
   cropDuration,
-  suitableAreas
+  suitableAreas,
+  specialNotes
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO cropcalender (cropVarietyId  , method, natOfCul, cropDuration, suitableAreas) VALUES (?, ?, ?, ?, ?)";
+      "INSERT INTO cropcalender (cropVarietyId  , method, natOfCul, cropDuration, suitableAreas, specialNotes) VALUES (?, ?, ?, ?, ?, ?)";
     const values = [
       cropVarietyId,
       method,
       natOfCul,
       cropDuration,
       suitableAreas,
+      specialNotes,
     ];
 
     plantcare.query(sql, values, (err, results) => {
@@ -592,6 +594,7 @@ exports.updateCropCalender = async (id, updateData) => {
                 method = ?,
                 natOfCul = ?, 
                 cropDuration = ?,
+                specialNotes = ?,
                 suitableAreas = ?
         `;
 
@@ -600,6 +603,7 @@ exports.updateCropCalender = async (id, updateData) => {
       updateData.method,
       updateData.natOfCul,
       updateData.cropDuration,
+      updateData.specialNotes,
       updateData.suitableAreas,
     ];
 
