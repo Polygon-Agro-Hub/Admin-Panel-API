@@ -355,17 +355,51 @@ exports.deleteCompany = async (req, res) => {
   }
 };
 
+// Update officer service by ID
 exports.updateOfficerService = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Request URL:", fullUrl);
 
   try {
-    const { id } = req.params; // get ID from frontend URL
+    const { id } = req.params;
     const { englishName, tamilName, sinhalaName, srvFee, modifyBy } = req.body;
 
     // Validation (basic check)
     if (!englishName || !tamilName || !sinhalaName) {
       return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Check for duplicate service names (excluding current record)
+    const duplicateCheck = await GoviLinkDAO.checkDuplicateServiceNames(
+      id,
+      englishName,
+      tamilName,
+      sinhalaName
+    );
+
+    if (duplicateCheck.exists) {
+      const { field, duplicateValue, existingId } = duplicateCheck;
+      
+      // Create user-friendly error messages
+      const fieldNames = {
+        englishName: 'English Name',
+        tamilName: 'Tamil Name', 
+        sinhalaName: 'Sinhala Name'
+      };
+      
+      const errorMessage = `"${duplicateValue}" already exists as a ${fieldNames[field]}. Please use a different ${fieldNames[field].toLowerCase()}.`;
+      
+      return res.status(409).json({ 
+        success: false,
+        error: errorMessage,
+        duplicateDetails: {
+          field: field,
+          fieldDisplay: fieldNames[field],
+          duplicateValue: duplicateValue,
+          existingServiceId: existingId,
+          message: `Duplicate ${fieldNames[field]} found`
+        }
+      });
     }
 
     // Update via DAO
@@ -379,10 +413,17 @@ exports.updateOfficerService = async (req, res) => {
     );
 
     console.log(`Officer service with ID ${id} updated successfully`);
-    res.status(200).json(result);
+    res.status(200).json({
+      success: true,
+      message: "Officer service updated successfully",
+      data: result
+    });
   } catch (err) {
     console.error("Error updating officer service:", err);
-    res.status(500).json({ error: "An error occurred while updating data." });
+    res.status(500).json({ 
+      success: false,
+      error: "An error occurred while updating data." 
+    });
   }
 };
 

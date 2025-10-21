@@ -277,10 +277,15 @@ exports.updateOfficerService = (
 
     admin.query(
       sql,
-      [englishName, tamilName, sinhalaName, srvFee, modifyBy, id], // <-- include id here
+      [englishName, tamilName, sinhalaName, srvFee, modifyBy, id],
       (err, result) => {
         if (err) {
-          reject(err);
+          // Handle database unique constraint errors as fallback
+          if (err.code === 'ER_DUP_ENTRY') {
+            reject(new Error("Service name already exists in the database"));
+          } else {
+            reject(err);
+          }
         } else {
           if (result.affectedRows === 0) {
             reject(new Error("No officer service found with the given ID"));
@@ -288,6 +293,7 @@ exports.updateOfficerService = (
             resolve({
               message: "Officer service updated successfully",
               affectedRows: result.affectedRows,
+              serviceId: id
             });
           }
         }
@@ -503,6 +509,7 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
     });
   });
 };
+
 // Get field officers by job role
 exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate) => {
   return new Promise((resolve, reject) => {
@@ -643,5 +650,69 @@ exports.getJobBasicDetailsByIdDAO = (jobId) => {
         resolve(jobData);
       }
     });
+  });
+};
+
+// Check for duplicate service names
+exports.checkDuplicateServiceNames = (id, englishName, tamilName, sinhalaName) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id,
+        englishName,
+        tamilName,
+        sinhalaName,
+        CASE 
+          WHEN englishName = ? AND id != ? THEN 'englishName'
+          WHEN tamilName = ? AND id != ? THEN 'tamilName' 
+          WHEN sinhalaName = ? AND id != ? THEN 'sinhalaName'
+          ELSE NULL 
+        END as duplicateField
+      FROM plant_care.officerservices
+      WHERE (englishName = ? OR tamilName = ? OR sinhalaName = ?)
+        AND id != ?
+      LIMIT 1
+    `;
+
+    admin.query(
+      sql,
+      [
+        englishName, id,
+        tamilName, id,
+        sinhalaName, id,
+        englishName, tamilName, sinhalaName, id
+      ],
+      (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          if (results.length > 0) {
+            const duplicateRecord = results[0];
+            const duplicateField = duplicateRecord.duplicateField;
+            const duplicateValue = duplicateRecord[duplicateField];
+            
+            resolve({
+              exists: true,
+              field: duplicateField,
+              duplicateValue: duplicateValue,
+              existingId: duplicateRecord.id,
+              existingRecord: {
+                id: duplicateRecord.id,
+                englishName: duplicateRecord.englishName,
+                tamilName: duplicateRecord.tamilName,
+                sinhalaName: duplicateRecord.sinhalaName
+              }
+            });
+          } else {
+            resolve({
+              exists: false,
+              field: null,
+              duplicateValue: null,
+              existingId: null
+            });
+          }
+        }
+      }
+    );
   });
 };
