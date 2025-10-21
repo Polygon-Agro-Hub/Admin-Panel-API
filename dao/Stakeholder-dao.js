@@ -468,3 +468,87 @@ exports.SendGeneratedPasswordDao = async (
     return { success: false, message: "Failed to send email.", error };
   }
 };
+
+// Get Distribution Officers by Position
+exports.getDistributionOfficersByPosition = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        CASE 
+          WHEN jobRole = 'Distribution Centre Head' AND companyId = '2' AND status = 'Approved' THEN 'DCH'
+          WHEN jobRole = 'Distribution Centre Manager' AND companyId = '2' AND status = 'Approved' THEN 'DCM'
+          WHEN jobRole = 'Distribution Officer' AND companyId = '2' AND status = 'Approved' THEN 'DOO'
+        END AS job,
+        COUNT(id) AS officerCount
+      FROM collectionofficer
+      WHERE jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer')
+      GROUP BY job;
+    `;
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      const formattedResult = results.reduce((acc, item) => {
+        acc[item.job] = item;
+        return acc;
+      }, {});
+      resolve(formattedResult);
+    });
+  });
+};
+
+// Get New Distribution Officers (registered today)
+exports.getNewDistributionOfficers = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count 
+      FROM collectionofficer 
+      WHERE DATE(createdAt) = CURDATE() 
+        AND companyId = '2' 
+        AND status = 'Approved'
+        AND jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer');
+    `;
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0].count);
+    });
+  });
+};
+
+// Get Active Distribution Officers
+exports.getActiveDistributionOfficers = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS activeOfficerCount 
+      FROM collectionofficer 
+      WHERE companyId = '2' 
+        AND status = 'Approved'
+        AND jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer');
+    `;
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0].activeOfficerCount);
+    });
+  });
+};
+
+// Get Total Distribution Officers (all statuses)
+exports.getTotalDistributionOfficers = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS totalOfficerCount 
+      FROM collectionofficer 
+      WHERE jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer');
+    `;
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0].totalOfficerCount);
+    });
+  });
+};

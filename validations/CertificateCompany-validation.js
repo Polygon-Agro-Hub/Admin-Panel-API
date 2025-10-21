@@ -37,13 +37,6 @@ exports.createCertificateValidation = Joi.object({
   timeLine: Joi.number().integer().min(1).allow(null, ""),
   commission: Joi.number().min(0).max(100).allow(null, ""),
   scope: Joi.string().allow(null, ""),
-  cropIds: Joi.alternatives()
-    .try(Joi.array().items(Joi.number().integer()), Joi.string())
-    .required()
-    .messages({
-      "any.required": "Please select at least one crop.",
-      "array.includes": "Invalid crop IDs.",
-    }),
 });
 
 // Update certificate validations
@@ -122,7 +115,7 @@ exports.deleteQuestionnaireSchema = Joi.object({
   id: Joi.number().integer().required(),
 });
 
-// Validation for farm cluster
+// Validation for Farmer cluster
 exports.createFarmerClusterSchema = Joi.object({
   clusterName: Joi.string().min(2).max(55).required().messages({
     "string.empty": "Cluster name is required",

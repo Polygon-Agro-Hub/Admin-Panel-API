@@ -26,14 +26,19 @@ exports.getAdminUserData = async (req, res) => {
     const TodayFarmers = await StakeholderDao.getNewPlantCareUsers();
     const activeFarmers = await StakeholderDao.getActivePlantCareUsers();
 
-    const jobRoleOfficerCount =
-      await StakeholderDao.getCollectionOfficersByPosition();
+    const jobRoleOfficerCount = await StakeholderDao.getCollectionOfficersByPosition();
     const newOfficerCount = await StakeholderDao.getNewCollectionOfficers();
     const activeOfficers = await StakeholderDao.getActiveCollectionOfficers();
 
     const activeSalesAgents = await StakeholderDao.getActiveSalesAgents();
     const newSalesAgents = await StakeholderDao.getNewSalesAgents();
     const allSalesAgents = await StakeholderDao.getAllSalesAgents();
+
+    // Fifth row - Distribution Officers
+    const distributionOfficersByPosition = await StakeholderDao.getDistributionOfficersByPosition();
+    const newDistributionOfficers = await StakeholderDao.getNewDistributionOfficers();
+    const activeDistributionOfficers = await StakeholderDao.getActiveDistributionOfficers();
+    const totalDistributionOfficers = await StakeholderDao.getTotalDistributionOfficers();
 
     res.status(200).json({
       firstRow: {
@@ -54,6 +59,12 @@ exports.getAdminUserData = async (req, res) => {
         allSalesAgents: allSalesAgents,
         newSalesAgents: newSalesAgents,
         activeSalesAgents: activeSalesAgents,
+      },
+      fifthRow: {
+        distributionOfficersByPosition: distributionOfficersByPosition,
+        newDistributionOfficers: newDistributionOfficers,
+        activeDistributionOfficers: activeDistributionOfficers,
+        totalDistributionOfficers: totalDistributionOfficers,
       },
     });
   } catch (error) {
