@@ -1321,13 +1321,20 @@ exports.getReseantCollectionDao = (centerId) => {
       JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
       JOIN plant_care.cropvariety CV ON FPC.cropId = CV.id
       JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
+      JOIN (
+        SELECT DISTINCT DATE(RFP2.createdAt) AS recentDate
+        FROM registeredfarmerpayments RFP2
+        JOIN collectionofficer COF2 ON RFP2.collectionOfficerId = COF2.id
+        WHERE COF2.centerId = ?
+        ORDER BY DATE(RFP2.createdAt) DESC
+        LIMIT 5
+      ) AS RecentDates ON DATE(RFP.createdAt) = RecentDates.recentDate
       WHERE COF.centerId = ?
       GROUP BY CG.cropNameEnglish, CV.varietyNameEnglish, DATE(RFP.createdAt)
-      ORDER BY DATE(RFP.createdAt)
-      LIMIT 5
+      ORDER BY DATE(RFP.createdAt) DESC
     `;
 
-    collectionofficer.query(sql, [centerId], (err, results) => {
+    collectionofficer.query(sql, [centerId, centerId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1340,7 +1347,7 @@ exports.getReseantCollectionDao = (centerId) => {
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
             totQty: item.totAqty,
-            totPrice: item.totAprice * item.totAqty, // multiply price by quantity
+            totPrice: item.totAprice * item.totAqty,
             grade: "A",
             date: item.date,
           });
@@ -1351,7 +1358,7 @@ exports.getReseantCollectionDao = (centerId) => {
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
             totQty: item.totBqty,
-            totPrice: item.totBprice * item.totBqty, // multiply price by quantity
+            totPrice: item.totBprice * item.totBqty,
             grade: "B",
             date: item.date,
           });
@@ -1362,7 +1369,7 @@ exports.getReseantCollectionDao = (centerId) => {
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
             totQty: item.totCqty,
-            totPrice: item.totCprice * item.totCqty, // multiply price by quantity
+            totPrice: item.totCprice * item.totCqty,
             grade: "C",
             date: item.date,
           });
@@ -1370,7 +1377,8 @@ exports.getReseantCollectionDao = (centerId) => {
 
         return entries;
       });
-      console.log('transformData', transformData)
+      
+      console.log('transformData', transformData);
       resolve(transformData);
     });
   });
