@@ -421,19 +421,40 @@ exports.getAllCollectionOfficers = (
                 coff.phoneCode01,
                 coff.phoneNumber01,
                 coff.nic,
+                -- Show officer name instead of ID for officerModiyBy
+                CASE 
+                    WHEN coff.officerModiyBy IS NOT NULL THEN CONCAT(coff_modify.firstNameEnglish, ' ', coff_modify.lastNameEnglish)
+                    ELSE NULL
+                END as officerModiyBy,
+                -- Show admin username instead of ID for adminModifyBy
+                CASE 
+                    WHEN coff.adminModifyBy IS NOT NULL THEN admin_users.userName
+                    ELSE NULL
+                END as adminModifyBy,
                 cm.companyNameEnglish,
                 cc.centerName,
-                cc.regCode
+                cc.regCode,
+                CASE 
+                    WHEN coff.adminModifyBy IS NOT NULL THEN 'Admin'
+                    WHEN coff.officerModiyBy IS NOT NULL THEN 'Officer'
+                    ELSE 'None'
+                END as modifiedByType,
+                CASE 
+                    WHEN coff.adminModifyBy IS NOT NULL THEN admin_users.userName
+                    WHEN coff.officerModiyBy IS NOT NULL THEN CONCAT(coff_modify.firstNameEnglish, ' ', coff_modify.lastNameEnglish)
+                    ELSE 'Not Modified'
+                END as modifiedBy
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN collectioncenter cc ON coff.centerId = cc.id
+            LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
+            LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
             WHERE coff.jobRole IN ('Collection Centre Manager', 'Collection Officer') AND cm.id = 1
         `;
 
     const countParams = [];
     const dataParams = [];
 
-    // Apply filters for company ID
     if (companyid) {
       countSql += " AND cm.id = ?";
       dataSql += " AND cm.id = ?";
@@ -518,7 +539,6 @@ exports.getAllCollectionOfficers = (
       );
     }
 
-    // Modified ORDER BY to prioritize CCMs and sort by empId ASC, then others by createdAt DESC
     dataSql += `
       ORDER BY 
         CASE WHEN coff.jobRole = 'Collection Centre Manager' THEN 0 ELSE 1 END,
@@ -526,11 +546,9 @@ exports.getAllCollectionOfficers = (
         CASE WHEN coff.jobRole = 'Collection Officer' THEN coff.createdAt END DESC
     `;
 
-    // Add pagination to the data query
     dataSql += " LIMIT ? OFFSET ?";
     dataParams.push(limit, offset);
 
-    // Execute count query
     collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
@@ -539,7 +557,6 @@ exports.getAllCollectionOfficers = (
 
       const total = countResults[0].total;
 
-      // Execute data query
       collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
