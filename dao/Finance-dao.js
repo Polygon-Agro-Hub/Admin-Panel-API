@@ -252,3 +252,143 @@ exports.getAllPackagePayments = (page, limit, searchTerm, fromDate, toDate) => {
     });
   });
 };
+
+
+exports.getAllCertificateDashboardData = () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Get dashboard statistics
+      // Active enrollments: expireDate > current date
+      // Total certificates from certificates table
+      const statsQuery = `
+        SELECT 
+          COUNT(DISTINCT c.id) as totalCertificates,
+          COUNT(DISTINCT CASE 
+            WHEN cp.expireDate > CURRENT_TIMESTAMP()
+            THEN cp.id 
+          END) as activeEnrollments,
+          COUNT(DISTINCT CASE 
+            WHEN cp.expireDate <= CURRENT_TIMESTAMP() OR cp.expireDate IS NULL
+            THEN cp.id 
+          END) as expiredEnrollments
+        FROM certificates c
+        LEFT JOIN certificationpayment cp ON c.id = cp.certificateId
+      `;
+
+      // Get monthly income with comparison to previous month
+      // Monthly income = amount / timeline for each payment where expireDate covers the month
+      const incomeQuery = `
+        SELECT 
+          COALESCE(SUM(
+            CASE 
+              WHEN MONTH(CURRENT_TIMESTAMP()) >= MONTH(cp.createdAt)
+                AND YEAR(CURRENT_TIMESTAMP()) >= YEAR(cp.createdAt)
+                AND (YEAR(CURRENT_TIMESTAMP()) * 12 + MONTH(CURRENT_TIMESTAMP())) 
+                    <= (YEAR(cp.expireDate) * 12 + MONTH(cp.expireDate))
+                AND c.timeLine > 0
+              THEN cp.amount / c.timeLine
+              ELSE 0
+            END
+          ), 0) as currentMonthIncome,
+          COALESCE(SUM(
+            CASE 
+              WHEN MONTH(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)) >= MONTH(cp.createdAt)
+                AND YEAR(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)) >= YEAR(cp.createdAt)
+                AND (YEAR(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)) * 12 + 
+                     MONTH(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH))) 
+                    <= (YEAR(cp.expireDate) * 12 + MONTH(cp.expireDate))
+                AND c.timeLine > 0
+              THEN cp.amount / c.timeLine
+              ELSE 0
+            END
+          ), 0) as previousMonthIncome
+        FROM certificationpayment cp
+        INNER JOIN certificates c ON cp.certificateId = c.id
+        WHERE cp.expireDate > DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)
+      `;
+
+      // Get recent 6 payments with validity period calculation
+      const paymentsQuery = `
+        SELECT 
+          cp.transactionId,
+          CONCAT(u.firstName, ' ', u.lastName) as farmerName,
+          c.srtName as certificateName,
+          cp.payType,
+          FORMAT(cp.amount, 2) as amount,
+          DATE_FORMAT(cp.createdAt, '%Y-%m-%d %H:%i') as dateTime,
+          DATE_FORMAT(cp.expireDate, '%Y-%m-%d') as expiryDate,
+          TIMESTAMPDIFF(MONTH, CURRENT_TIMESTAMP(), cp.expireDate) as validityMonths
+        FROM certificationpayment cp
+        INNER JOIN users u ON cp.userId = u.id
+        INNER JOIN certificates c ON cp.certificateId = c.id
+        ORDER BY cp.createdAt DESC
+        LIMIT 6
+      `;
+
+      // Get certificate type breakdown by payType from certificationpayment table
+      const certificateTypesQuery = `
+        SELECT 
+          cp.payType,
+          COUNT(DISTINCT cp.id) as count
+        FROM certificationpayment cp
+        WHERE cp.payType IS NOT NULL
+        GROUP BY cp.payType
+      `;
+
+      // Get monthly statistics for last 12 months
+      const monthlyStatsQuery = `
+        SELECT 
+          DATE_FORMAT(cp.createdAt, '%Y-%m') as month,
+          DATE_FORMAT(cp.createdAt, '%b') as monthName,
+          COUNT(*) as payments,
+          SUM(
+            CASE 
+              WHEN c.timeLine > 0 
+              THEN cp.amount / c.timeLine
+              ELSE 0
+            END
+          ) as revenue
+        FROM certificationpayment cp
+        INNER JOIN certificates c ON cp.certificateId = c.id
+        WHERE cp.createdAt >= DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(cp.createdAt, '%Y-%m'), DATE_FORMAT(cp.createdAt, '%b')
+        ORDER BY month ASC
+      `;
+
+      // Execute all queries
+      plantcare.query(statsQuery, (err1, statsResults) => {
+        if (err1) return reject("Error in stats query: " + err1);
+
+        plantcare.query(incomeQuery, (err2, incomeResults) => {
+          if (err2) return reject("Error in income query: " + err2);
+
+          plantcare.query(paymentsQuery, (err3, paymentsResults) => {
+            if (err3) return reject("Error in payments query: " + err3);
+
+            plantcare.query(certificateTypesQuery, (err4, certificateTypesResults) => {
+              if (err4) return reject("Error in certificate types query: " + err4);
+
+              plantcare.query(monthlyStatsQuery, (err5, monthlyStatsResults) => {
+                if (err5) return reject("Error in monthly stats query: " + err5);
+
+                // Combine all results
+                const dashboardData = {
+                  stats: statsResults[0],
+                  income: incomeResults[0],
+                  recentPayments: paymentsResults,
+                  certificateTypes: certificateTypesResults,
+                  monthlyStatistics: monthlyStatsResults
+                };
+
+                resolve(dashboardData);
+              });
+            });
+          });
+        });
+      });
+
+    } catch (error) {
+      reject("Error executing certificate dashboard queries: " + error);
+    }
+  });
+};
