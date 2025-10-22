@@ -2052,3 +2052,44 @@ exports.trackPackagePackDao = (userId, orderId) => {
     });
   });
 };
+
+exports.createdashNotificationDao = (id) => {
+  return new Promise((resolve, reject) => {
+    // First, select the orderApp value
+    const selectSql = `
+      SELECT o1.orderApp
+      FROM processorders po1
+      JOIN orders o1 ON po1.orderId = o1.id
+      WHERE po1.id = ?
+    `;
+
+    marketPlace.query(selectSql, [parseInt(id)], (err, results) => {
+      if (err) {
+        console.log(err);
+        reject(err);
+        return;
+      }
+
+      // Check if we got results and if orderApp is 'Dash'
+      if (results.length > 0 && results[0].orderApp === 'Dash') {
+        // Execute INSERT only if condition is met
+        const insertSql = `
+          INSERT INTO dashnotification (orderId, title)
+          VALUES (?, 'Order is Out for Delivery')
+        `;
+
+        marketPlace.query(insertSql, [parseInt(id)], (insertErr, insertResults) => {
+          if (insertErr) {
+            console.log(insertErr);
+            reject(insertErr);
+          } else {
+            resolve(insertResults);
+          }
+        });
+      } else {
+        // Resolve with empty result or appropriate message when condition not met
+        resolve({ message: 'No notification created - orderApp is not Dash' });
+      }
+    });
+  });
+};
