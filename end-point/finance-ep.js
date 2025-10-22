@@ -122,3 +122,75 @@ exports.getAllPackagePayments = async (req, res) => {
       .json({ error: "An error occurred while fetching package payments" });
   }
 };
+
+// Function for govi job dashboard data
+exports.getGovijobDashboardData = async (req, res) => {
+  try {
+    const dashboardData = await financeDao.getAllGovijobDashboardData();
+
+    // ===== Income comparison logic =====
+    const currentIncome = parseFloat(dashboardData.income.currentMonthIncome) || 0;
+    const previousIncome = parseFloat(dashboardData.income.previousMonthIncome) || 0;
+
+    let incomeChangePercentage = 0;
+    let incomeStatus = 'stable';
+
+    if (previousIncome > 0) {
+      incomeChangePercentage = ((currentIncome - previousIncome) / previousIncome) * 100;
+      if (incomeChangePercentage > 0) incomeStatus = 'increased';
+      else if (incomeChangePercentage < 0) incomeStatus = 'decreased';
+    } else if (currentIncome > 0) {
+      incomeChangePercentage = 100;
+      incomeStatus = 'increased';
+    }
+
+    // ===== Build chart data (current year until this month) =====
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1;
+    const currentYear = currentDate.getFullYear();
+
+    const fullYearData = monthNames.slice(0, currentMonth).map((monthName, index) => {
+      const monthNum = index + 1;
+      const existingData = dashboardData.monthlyStatistics.find(stat => {
+        const statMonth = new Date(`${stat.month}-01`).getMonth() + 1;
+        return statMonth === monthNum;
+      });
+
+      return {
+        month: `${currentYear}-${String(monthNum).padStart(2, '0')}`,
+        monthName,
+        payments: existingData ? existingData.payments : 0,
+        revenue: existingData ? parseFloat(existingData.revenue) : 0
+      };
+    });
+
+    const monthlyLabels = fullYearData.map(stat => stat.monthName);
+    const monthlyValues = fullYearData.map(stat => stat.revenue);
+
+    res.json({
+      status: true,
+      data: {
+        statistics: {
+          totalIncome: currentIncome,
+          relativeIncomeValue: Math.abs(parseFloat(incomeChangePercentage.toFixed(2))),
+          incomeStatus,
+          serviceRequestsThisMonth: dashboardData.stats.requestsThisMonth,
+          serviceRequestsToday: dashboardData.stats.requestsToday,
+        },
+        recentPayments: dashboardData.recentPayments,
+        monthlyStatistics: fullYearData,
+        areaChartData: {
+          labels: monthlyLabels,
+          values: monthlyValues
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching Govijob dashboard data:', error);
+    res.status(500).json({
+      status: false,
+      error: 'An error occurred while fetching Govijob dashboard data'
+    });
+  }
+};
