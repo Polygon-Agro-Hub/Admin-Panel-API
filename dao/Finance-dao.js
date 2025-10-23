@@ -134,31 +134,33 @@ exports.getAllDashboardData = () => {
             plantcare.query(enrollmentsQuery, (err4, enrollmentsResults) => {
               if (err4) return reject("Error in enrollments query: " + err4);
 
-              plantcare.query(monthlyStatsQuery, (err5, monthlyStatsResults) => {
-                if (err5) return reject("Error in monthly stats query: " + err5);
+              plantcare.query(
+                monthlyStatsQuery,
+                (err5, monthlyStatsResults) => {
+                  if (err5)
+                    return reject("Error in monthly stats query: " + err5);
 
-                // Combine all results
-                const dashboardData = {
-                  stats: statsResults[0],
-                  income: incomeResults[0],
-                  recentPayments: paymentsResults,
-                  enrollments: enrollmentsResults,
-                  monthlyStatistics: monthlyStatsResults
-                };
+                  // Combine all results
+                  const dashboardData = {
+                    stats: statsResults[0],
+                    income: incomeResults[0],
+                    recentPayments: paymentsResults,
+                    enrollments: enrollmentsResults,
+                    monthlyStatistics: monthlyStatsResults,
+                  };
 
-                resolve(dashboardData);
-              });
+                  resolve(dashboardData);
+                }
+              );
             });
           });
         });
       });
-
     } catch (error) {
       reject("Error executing dashboard queries: " + error);
     }
   });
 };
-
 
 // DAO Function
 exports.getAllPackagePayments = (page, limit, searchTerm, fromDate, toDate) => {
@@ -218,10 +220,24 @@ exports.getAllPackagePayments = (page, limit, searchTerm, fromDate, toDate) => {
       `;
       countSql += searchCondition;
       dataSql += searchCondition;
-      
+
       const searchValue = `%${searchTerm}%`;
-      countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue, searchValue);
-      dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue, searchValue);
+      countParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
+      dataParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
     }
 
     // Order by most recent first
@@ -311,22 +327,22 @@ exports.getAllGovijobDashboardData = () => {
 
       // ===== Execute all queries =====
       plantcare.query(statsQuery, (err1, statsResults) => {
-        if (err1) return reject('Error in stats query: ' + err1);
+        if (err1) return reject("Error in stats query: " + err1);
 
         plantcare.query(incomeQuery, (err2, incomeResults) => {
-          if (err2) return reject('Error in income query: ' + err2);
+          if (err2) return reject("Error in income query: " + err2);
 
           plantcare.query(recentPaymentsQuery, (err3, paymentsResults) => {
-            if (err3) return reject('Error in recent payments query: ' + err3);
+            if (err3) return reject("Error in recent payments query: " + err3);
 
             plantcare.query(monthlyStatsQuery, (err4, monthlyStatsResults) => {
-              if (err4) return reject('Error in monthly stats query: ' + err4);
+              if (err4) return reject("Error in monthly stats query: " + err4);
 
               const dashboardData = {
                 stats: statsResults[0],
                 income: incomeResults[0],
                 recentPayments: paymentsResults,
-                monthlyStatistics: monthlyStatsResults
+                monthlyStatistics: monthlyStatsResults,
               };
 
               resolve(dashboardData);
@@ -335,7 +351,7 @@ exports.getAllGovijobDashboardData = () => {
         });
       });
     } catch (error) {
-      reject('Error executing Govijob dashboard queries: ' + error);
+      reject("Error executing Govijob dashboard queries: " + error);
     }
   });
 };
@@ -398,22 +414,22 @@ exports.getAllGovijobDashboardData = () => {
 
       // ===== Execute all queries =====
       plantcare.query(statsQuery, (err1, statsResults) => {
-        if (err1) return reject('Error in stats query: ' + err1);
+        if (err1) return reject("Error in stats query: " + err1);
 
         plantcare.query(incomeQuery, (err2, incomeResults) => {
-          if (err2) return reject('Error in income query: ' + err2);
+          if (err2) return reject("Error in income query: " + err2);
 
           plantcare.query(recentPaymentsQuery, (err3, paymentsResults) => {
-            if (err3) return reject('Error in recent payments query: ' + err3);
+            if (err3) return reject("Error in recent payments query: " + err3);
 
             plantcare.query(monthlyStatsQuery, (err4, monthlyStatsResults) => {
-              if (err4) return reject('Error in monthly stats query: ' + err4);
+              if (err4) return reject("Error in monthly stats query: " + err4);
 
               const dashboardData = {
                 stats: statsResults[0],
                 income: incomeResults[0],
                 recentPayments: paymentsResults,
-                monthlyStatistics: monthlyStatsResults
+                monthlyStatistics: monthlyStatsResults,
               };
 
               resolve(dashboardData);
@@ -422,11 +438,10 @@ exports.getAllGovijobDashboardData = () => {
         });
       });
     } catch (error) {
-      reject('Error executing Govijob dashboard queries: ' + error);
+      reject("Error executing Govijob dashboard queries: " + error);
     }
   });
 };
-
 
 exports.getAllCertificateDashboardData = () => {
   return new Promise(async (resolve, reject) => {
@@ -539,30 +554,315 @@ exports.getAllCertificateDashboardData = () => {
           plantcare.query(paymentsQuery, (err3, paymentsResults) => {
             if (err3) return reject("Error in payments query: " + err3);
 
-            plantcare.query(certificateTypesQuery, (err4, certificateTypesResults) => {
-              if (err4) return reject("Error in certificate types query: " + err4);
+            plantcare.query(
+              certificateTypesQuery,
+              (err4, certificateTypesResults) => {
+                if (err4)
+                  return reject("Error in certificate types query: " + err4);
 
-              plantcare.query(monthlyStatsQuery, (err5, monthlyStatsResults) => {
-                if (err5) return reject("Error in monthly stats query: " + err5);
+                plantcare.query(
+                  monthlyStatsQuery,
+                  (err5, monthlyStatsResults) => {
+                    if (err5)
+                      return reject("Error in monthly stats query: " + err5);
 
-                // Combine all results
-                const dashboardData = {
-                  stats: statsResults[0],
-                  income: incomeResults[0],
-                  recentPayments: paymentsResults,
-                  certificateTypes: certificateTypesResults,
-                  monthlyStatistics: monthlyStatsResults
-                };
+                    // Combine all results
+                    const dashboardData = {
+                      stats: statsResults[0],
+                      income: incomeResults[0],
+                      recentPayments: paymentsResults,
+                      certificateTypes: certificateTypesResults,
+                      monthlyStatistics: monthlyStatsResults,
+                    };
 
-                resolve(dashboardData);
-              });
-            });
+                    resolve(dashboardData);
+                  }
+                );
+              }
+            );
           });
         });
       });
-
     } catch (error) {
       reject("Error executing certificate dashboard queries: " + error);
     }
+  });
+};
+
+// Get all agent commissions with user information and formatted range
+exports.getAllAgentCommissions = (page, limit, searchTerm = "") => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `SELECT COUNT(*) as total FROM agentcommission WHERE 1=1`;
+    let dataSql = `
+      SELECT 
+        ac.id,
+        ac.slot,
+        ac.minRange,
+        ac.maxRange,
+        CONCAT(ac.minRange, '-', ac.maxRange) AS rangeText, -- formatted range
+        ac.value,
+        ac.modifyDate,
+        ac.modifyBy,
+        ac.createdAt,
+        au.userName as modifyByName,
+        au.mail as modifyByEmail
+      FROM agentcommission ac
+      LEFT JOIN agro_world_admin.adminusers au ON ac.modifyBy = au.id
+      WHERE 1=1
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    // Search filtering
+    if (searchTerm) {
+      const searchCondition = `
+        AND (
+          ac.slot LIKE ?
+          OR ac.minRange LIKE ?
+          OR ac.maxRange LIKE ?
+          OR ac.value LIKE ?
+          OR au.userName LIKE ?
+        )
+      `;
+      countSql += searchCondition;
+      dataSql += searchCondition;
+
+      const searchValue = `%${searchTerm}%`;
+      countParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
+      dataParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
+    }
+
+    // Order by minRange and maxRange for sequential ranges
+    dataSql += " ORDER BY ac.minRange ASC, ac.maxRange ASC";
+
+    // Add pagination
+    dataSql += " LIMIT ? OFFSET ?";
+    dataParams.push(limit, offset);
+
+    // Execute count query
+    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
+      }
+
+      const total = countResults[0].total;
+
+      // Execute data query
+      marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+
+        resolve({
+          items: dataResults,
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        });
+      });
+    });
+  });
+};
+
+// Get agent commission by ID
+exports.getAgentCommissionById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        ac.id,
+        ac.slot,
+        ac.minRange,
+        ac.maxRange,
+        ac.value,
+        ac.modifyDate,
+        ac.modifyBy,
+        ac.createdAt,
+        au.userName as modifyByName,
+        au.mail as modifyByEmail
+      FROM agentcommission ac
+      LEFT JOIN agro_world_admin.adminusers au ON ac.modifyBy = au.id
+      WHERE ac.id = ?
+    `;
+
+    marketPlace.query(sql, [id], (err, results) => {
+      if (err) {
+        console.error("Error fetching agent commission:", err);
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
+// Create new agent commission
+exports.createAgentCommission = (commissionData) => {
+  return new Promise((resolve, reject) => {
+    const { minRange, maxRange, value, modifyBy } = commissionData;
+
+    const sql = `
+      INSERT INTO agentcommission (minRange, maxRange, value, modifyBy, modifyDate)
+      VALUES (?, ?, ?, ?, NOW())
+    `;
+
+    marketPlace.query(
+      sql,
+      [minRange, maxRange, value, modifyBy],
+      (err, results) => {
+        if (err) {
+          console.error("Error creating agent commission:", err);
+          return reject(err);
+        }
+
+        // Get the newly created commission with user info
+        this.getAgentCommissionById(results.insertId)
+          .then((newCommission) => resolve(newCommission))
+          .catch(reject);
+      }
+    );
+  });
+};
+
+// Update agent commission with previous value check
+// Update agent commission only if values changed
+exports.updateAgentCommission = (id, updateData) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Fetch existing commission
+      const existingCommission = await this.getAgentCommissionById(id);
+      if (!existingCommission) return resolve(null);
+
+      const fields = [];
+      const values = [];
+
+      // Compare and include only changed fields
+      if (
+        updateData.slot !== undefined &&
+        updateData.slot !== existingCommission.slot
+      ) {
+        fields.push("slot = ?");
+        values.push(updateData.slot);
+      }
+
+      if (
+        updateData.minRange !== undefined &&
+        updateData.minRange !== existingCommission.minRange
+      ) {
+        fields.push("minRange = ?");
+        values.push(updateData.minRange);
+      }
+
+      if (
+        updateData.maxRange !== undefined &&
+        updateData.maxRange !== existingCommission.maxRange
+      ) {
+        fields.push("maxRange = ?");
+        values.push(updateData.maxRange);
+      }
+
+      if (
+        updateData.value !== undefined &&
+        parseFloat(updateData.value) !== parseFloat(existingCommission.value)
+      ) {
+        fields.push("value = ?");
+        values.push(updateData.value);
+      }
+
+      // If nothing changed, just return existing row
+      if (fields.length === 0) {
+        return resolve(existingCommission);
+      }
+
+      // Include modifyBy and modifyDate
+      if (updateData.modifyBy !== undefined) {
+        fields.push("modifyBy = ?");
+        values.push(updateData.modifyBy);
+      }
+      fields.push("modifyDate = NOW()");
+
+      // Add id for WHERE clause
+      values.push(id);
+
+      const sql = `UPDATE agentcommission SET ${fields.join(
+        ", "
+      )} WHERE id = ?`;
+
+      // Execute update
+      marketPlace.query(sql, values, (err, results) => {
+        if (err) {
+          console.error("Error updating agent commission:", err);
+          return reject(err);
+        }
+
+        if (results.affectedRows === 0) return resolve(null);
+
+        // Return updated row
+        this.getAgentCommissionById(id).then(resolve).catch(reject);
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+// Delete agent commission
+exports.deleteAgentCommission = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `DELETE FROM agentcommission WHERE id = ?`;
+
+    marketPlace.query(sql, [id], (err, results) => {
+      if (err) {
+        console.error("Error deleting agent commission:", err);
+        return reject(err);
+      }
+      resolve(results.affectedRows > 0);
+    });
+  });
+};
+
+// Check for overlapping ranges
+exports.checkRangeOverlap = (minRange, maxRange, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT COUNT(*) as count
+      FROM agentcommission
+      WHERE (
+        (minRange <= ? AND maxRange >= ?) OR
+        (minRange <= ? AND maxRange >= ?) OR
+        (minRange >= ? AND maxRange <= ?)
+      )
+    `;
+
+    const params = [minRange, minRange, maxRange, maxRange, minRange, maxRange];
+
+    if (excludeId) {
+      sql += " AND id != ?";
+      params.push(excludeId);
+    }
+
+    marketPlace.query(sql, params, (err, results) => {
+      if (err) {
+        console.error("Error checking range overlap:", err);
+        return reject(err);
+      }
+      resolve(results[0].count > 0);
+    });
   });
 };
