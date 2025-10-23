@@ -515,6 +515,7 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
+    const adminId = req.user.userId
 
     if (!id) {
       return res.status(400).json({
@@ -588,7 +589,7 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
     }
 
 
-    const result = await DistributionDao.UpdateDistributionHeadDao(id, updateData);
+    const result = await DistributionDao.UpdateDistributionHeadDao(id, updateData, adminId);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
@@ -1482,6 +1483,7 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   const { id } = req.params;
+  const adminId = req.user.userId
 
   try {
     const officerData = JSON.parse(req.body.officerData);
@@ -1599,7 +1601,8 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       accNumber,
       bankName,
       branchName,
-      profileImageUrl
+      profileImageUrl,
+      adminId
     );
 
     res.json({ message: "Collection officer details updated successfully" });

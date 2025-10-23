@@ -918,7 +918,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => {});
+    doc.on("end", () => { });
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -1331,7 +1331,8 @@ exports.updateOfficerDetails = (
   accNumber,
   bankName,
   branchName,
-  profileImageUrl
+  profileImageUrl,
+  adminId
 ) => {
   return new Promise((resolve, reject) => {
     let sql = `
@@ -1339,7 +1340,7 @@ exports.updateOfficerDetails = (
                 SET centerId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
                     firstNameTamil = ?, lastNameTamil = ?, jobRole = ?, empId = ?, empType = ?, phoneCode01 = ?, phoneNumber01 = ?, phoneCode02 = ?, phoneNumber02 = ?,
                     nic = ?, email = ?, houseNumber = ?, streetName = ?, city = ?, district = ?, province = ?, country = ?, languages = ?,
-                    accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?, status = 'Not Approved'
+                    accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?, adminModifyBy = ?, status = 'Not Approved', officerModiyBy = NULL
           `;
     let values = [
       centerId,
@@ -1372,6 +1373,7 @@ exports.updateOfficerDetails = (
       bankName,
       branchName,
       profileImageUrl,
+      adminId
     ];
 
     sql += ` WHERE id = ?`;
@@ -1737,13 +1739,13 @@ exports.getAllCenterManagerDao = (centerId) => {
         AND status = 'Approved' 
         AND centerId = ?
     `;
-    
+
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
         console.error('Database error in getAllCenterManagerDao:', err);
         return reject(new Error('Failed to fetch center managers'));
       }
-      
+
       resolve(results || []);
     });
   });

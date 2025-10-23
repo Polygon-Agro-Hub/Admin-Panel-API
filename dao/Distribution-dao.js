@@ -335,7 +335,8 @@ exports.getAllDistributionCentreHead = (
 ) => {
   return new Promise((resolve, reject) => {
     let countSql = `SELECT COUNT(*) AS total FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Centre Head'`;
-    let dataSql = `SELECT 
+    let dataSql = `
+    SELECT 
         co.id,
         co.empId,
         co.firstNameEnglish,
@@ -346,7 +347,13 @@ exports.getAllDistributionCentreHead = (
         co.phoneNumber01,
         co.phoneCode02,
         co.phoneNumber02,
-        co.createdAt FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Centre Head'`;
+        CONCAT(coff_mod.firstNameEnglish, ' ', coff_mod.lastNameEnglish) AS officeModify,
+        au.userName AS adminModify,
+        co.createdAt 
+    FROM collectionofficer co
+    LEFT JOIN collectionofficer coff_mod ON co.officerModiyBy = coff_mod.id
+    LEFT JOIN agro_world_admin.adminusers au ON co.adminModifyBy = au.id
+    WHERE co.companyId = ? AND co.jobRole = 'Distribution Centre Head'`;
     const countParams = [companyId];
     const dataParams = [companyId];
 
@@ -687,7 +694,7 @@ exports.GetDistributionHeadDetailsByIdDao = (id) => {
 };
 
 
-exports.UpdateDistributionHeadDao = (id, updateData) => {
+exports.UpdateDistributionHeadDao = (id, updateData, adminId) => {
   console.log("id", id);
   console.log("updateData", updateData);
 
@@ -700,7 +707,7 @@ exports.UpdateDistributionHeadDao = (id, updateData) => {
         phoneCode02 = ?, phoneNumber02 = ?, nic = ?, email = ?, houseNumber = ?, 
         streetName = ?, city = ?, district = ?, province = ?, country = ?, 
         languages = ?, accHolderName = ?, accNumber = ?, bankName = ?, 
-        branchName = ?, image = ?, status = ?, claimStatus = ?, onlineStatus = ?, password = NULL, passwordUpdated = 0
+        branchName = ?, image = ?, status = ?, claimStatus = ?, onlineStatus = ?, adminModifyBy = ?, officerModiyBy = NULL, password = NULL, passwordUpdated = 0
       WHERE id = ?
     `;
 
@@ -733,6 +740,7 @@ exports.UpdateDistributionHeadDao = (id, updateData) => {
       'Not Approved',
       updateData.claimStatus,
       updateData.onlineStatus,
+      adminId,
       id,
     ];
 
@@ -1056,10 +1064,14 @@ exports.getAllDistributionOfficers = (
                 coff.nic,
                 cm.companyNameEnglish,
                 dc.centerName,
-                dc.regCode
+                dc.regCode,
+                CONCAT(coff_mod.firstNameEnglish, ' ', coff_mod.lastNameEnglish) AS officeModify,
+                au.userName AS adminModify
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
+            LEFT JOIN collectionofficer coff_mod ON coff.officerModiyBy = coff_mod.id
+            LEFT JOIN agro_world_admin.adminusers au ON coff.adminModifyBy = au.id
             WHERE coff.jobRole IN ('Distribution Centre Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
@@ -2063,7 +2075,8 @@ exports.updateDistributionOfficerDetails = (
   accNumber,
   bankName,
   branchName,
-  profileImageUrl
+  profileImageUrl,
+  adminId
 ) => {
   return new Promise((resolve, reject) => {
     let sql = `
@@ -2071,7 +2084,7 @@ exports.updateDistributionOfficerDetails = (
                 SET distributedCenterId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
                     firstNameTamil = ?, lastNameTamil = ?, jobRole = ?, empId = ?, empType = ?, phoneCode01 = ?, phoneNumber01 = ?, phoneCode02 = ?, phoneNumber02 = ?,
                     nic = ?, email = ?, houseNumber = ?, streetName = ?, city = ?, district = ?, province = ?, country = ?, languages = ?,
-                    accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?, status = 'Not Approved'
+                    accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?,  adminModifyBy = ?, status = 'Not Approved', officerModiyBy = NULL
           `;
     let values = [
       centerId,
@@ -2104,6 +2117,7 @@ exports.updateDistributionOfficerDetails = (
       bankName,
       branchName,
       profileImageUrl,
+      adminId
     ];
 
     sql += ` WHERE id = ?`;

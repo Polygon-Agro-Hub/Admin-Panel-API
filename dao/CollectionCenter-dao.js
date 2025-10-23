@@ -1475,20 +1475,24 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
 
     let dataSql = `
       SELECT 
-        collectionofficer.id,
-        collectionofficer.empId,
-        collectionofficer.firstNameEnglish,
-        collectionofficer.lastNameEnglish,
-        collectionofficer.email,
-        collectionofficer.status,
-        collectionofficer.phoneCode01,
-        collectionofficer.phoneNumber01,
-        collectionofficer.phoneCode02,
-        collectionofficer.phoneNumber02,
-        collectionofficer.createdAt
+        coff.id,
+        coff.empId,
+        coff.firstNameEnglish,
+        coff.lastNameEnglish,
+        coff.email,
+        coff.status,
+        coff.phoneCode01,
+        coff.phoneNumber01,
+        coff.phoneCode02,
+        coff.phoneNumber02,
+        coff.createdAt,
+        CONCAT(coff_mod.firstNameEnglish, ' ', coff_mod.lastNameEnglish) AS officeModify,
+        au.userName AS adminModify
       FROM 
-        collectionofficer
-      WHERE companyId = ? AND jobRole = 'Collection Centre Head'
+        collectionofficer coff
+        LEFT JOIN collectionofficer coff_mod ON coff.officerModiyBy = coff_mod.id
+        LEFT JOIN agro_world_admin.adminusers au ON coff.adminModifyBy = au.id
+      WHERE coff.companyId = ? AND coff.jobRole = 'Collection Centre Head'
     `;
 
     const countParams = [companyId];
@@ -1497,14 +1501,14 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
     if (searchText) {
       const searchCondition = `
           AND (
-            collectionofficer.empID LIKE ?
-              OR collectionofficer.firstNameEnglish LIKE ?
-              OR collectionofficer.lastNameEnglish LIKE ?
-              OR collectionofficer.email LIKE ?
-              OR collectionofficer.status LIKE ?
-              OR collectionofficer.phoneNumber01 LIKE ?
-              OR collectionofficer.phoneNumber02 LIKE ?
-              OR collectionofficer.createdAt LIKE ?
+            coff.empID LIKE ?
+              OR coff.firstNameEnglish LIKE ?
+              OR coff.lastNameEnglish LIKE ?
+              OR coff.email LIKE ?
+              OR coff.status LIKE ?
+              OR coff.phoneNumber01 LIKE ?
+              OR coff.phoneNumber02 LIKE ?
+              OR coff.createdAt LIKE ?
           )
       `;
       countSql += searchCondition;
@@ -1536,7 +1540,7 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
     offset = parseInt(offset, 10) || 0; // Default offset to 0 if not provided
 
     // Add ORDER BY before LIMIT
-    dataSql += ` ORDER BY collectionofficer.createdAt DESC LIMIT ? OFFSET ?`;
+    dataSql += ` ORDER BY coff.createdAt DESC LIMIT ? OFFSET ?`;
     dataParams.push(limit, offset);
 
     collectionofficer.query(countSql, countParams, (countErr, countResults) => {
