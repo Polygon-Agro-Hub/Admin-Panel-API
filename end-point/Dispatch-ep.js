@@ -565,7 +565,14 @@ exports.dispatchPackage = async (req, res) => {
     const orderId = req.body.orderId;
     const isLastOrder = req.body.isLastOrder
     const userId = req.user.userId
-    console.log(orderId, isLastOrder);
+    console.log(packageArr);
+    const allPacked = packageArr.every(item => item.isPacked === 1);
+    console.log("All pack:", allPacked);
+
+
+    // if (true) {
+    //   return
+    // }
 
     for (let i = 0; i < packageArr.length; i++) {
       const packageData = await DispatchDao.dispatchPackageDao(packageArr[i]);
@@ -577,10 +584,14 @@ exports.dispatchPackage = async (req, res) => {
       }
     }
 
-    if (isLastOrder) {
+    if (isLastOrder && allPacked) {
       const packResult = await DispatchDao.trackPackagePackDao(userId, orderId);
-      console.log("pack officer->",packResult);
-      
+      console.log("pack officer->", packResult);
+
+      const dashnotify = await DispatchDao.createdashNotificationDao(orderId);
+      console.log(dashnotify);
+
+
     }
 
     res.json({
@@ -638,6 +649,8 @@ exports.dispatchAdditonalPackage = async (req, res) => {
     const orderId = req.body.orderId;
     const isLastOrder = req.body.isLastOrder
     const userId = req.user.userId
+    const allPacked = packageArr.every(item => item.isPacked === 1);
+
 
     for (let i = 0; i < packageArr.length; i++) {
       const packageData = await DispatchDao.dispatchAdditionalItemsDao(packageArr[i]);
@@ -649,10 +662,12 @@ exports.dispatchAdditonalPackage = async (req, res) => {
       }
     }
 
-    if (isLastOrder) {
+    if (isLastOrder && allPacked) {
       const packResult = await DispatchDao.trackPackagePackDao(userId, orderId);
-      console.log("pack officer->",packResult);
-      
+      console.log("pack officer->", packResult);
+
+      const dashnotify = await DispatchDao.createdashNotificationDao(orderId);
+      console.log(dashnotify);
     }
 
     res.json({
