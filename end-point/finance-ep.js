@@ -332,3 +332,45 @@ exports.getAllServicePayments = async (req, res) => {
       .json({ error: "An error occurred while fetching service payments" });
   }
 };
+
+exports.getAllCertificatePayments = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    // Extract and set default values for query parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const fromDate = req.query.fromDate || '';
+    const toDate = req.query.toDate || '';
+
+    // Basic validation
+    if (page < 1) {
+      return res.status(400).json({ error: "Page must be greater than 0" });
+    }
+
+    if (limit < 1 || limit > 100) {
+      return res.status(400).json({ error: "Limit must be between 1 and 100" });
+    }
+
+    console.log("Query params:", { page, limit, search, fromDate, toDate });
+
+    // Call the DAO to get all certificate payments
+    const result = await financeDao.getAllCertificatePayments(
+      page,
+      limit,
+      search,
+      fromDate,
+      toDate
+    );
+
+    console.log("Successfully fetched certificate payments");
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("Error fetching certificate payments:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching certificate payments" });
+  }
+};
