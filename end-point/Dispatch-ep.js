@@ -591,6 +591,9 @@ exports.dispatchPackage = async (req, res) => {
       const dashnotify = await DispatchDao.createdashNotificationDao(orderId);
       console.log(dashnotify);
 
+      const targetUpdate = await DispatchDao.distributedOfficerTargetUpdateDao(orderId);
+      console.log(targetUpdate);
+
 
     }
 
@@ -668,6 +671,9 @@ exports.dispatchAdditonalPackage = async (req, res) => {
 
       const dashnotify = await DispatchDao.createdashNotificationDao(orderId);
       console.log(dashnotify);
+
+      const targetUpdate = await DispatchDao.distributedOfficerTargetUpdateDao(orderId);
+      console.log(targetUpdate);
     }
 
     res.json({

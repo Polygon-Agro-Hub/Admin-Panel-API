@@ -2093,3 +2093,61 @@ exports.createdashNotificationDao = (id) => {
     });
   });
 };
+
+
+exports.distributedOfficerTargetUpdateDao = (id) => {
+  return new Promise((resolve, reject) => {
+    // First, select the orderApp value
+    const selectSql = `
+      SELECT 
+        dti.id AS itemId,
+        dt.id AS targetId,
+        dt.target,
+        dt.complete 
+      FROM distributedtarget dt
+      LEFT JOIN distributedtargetitems dti ON dt.id = dti.targetId
+      WHERE dti.orderId = ?
+    `;
+
+    collectionofficer.query(selectSql, [parseInt(id)], (err, results) => {
+      if (err) {
+        console.log(err);
+        reject(err);
+        return;
+      }
+
+      if (results.length > 0 && results[0].target > 0) {
+        const targetSql = `
+          UPDATE
+            distributedtarget dt
+            LEFT JOIN distributedtargetitems dti ON dt.id = dti.targetId
+          SET 
+            dt.complete = ?,
+            dti.isComplete = 1,
+            dti.completeTime = NOW()
+          WHERE
+            dti.orderId = ?
+        `;
+
+        collectionofficer.query(
+          targetSql, 
+          [
+            (parseInt(results[0].complete) + 1),
+            parseInt(id)
+          ], 
+          (targetErr, targetResults) => {
+            if (targetErr) {
+              console.log(targetErr);
+              reject(targetErr);
+            } else {
+              resolve(targetResults);
+            }
+          }
+        );
+      } else {
+        // Resolve with empty result or appropriate message when condition not met
+        resolve({ message: 'No Target Available for update' });
+      }
+    });
+  });
+};
