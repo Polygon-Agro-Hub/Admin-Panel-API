@@ -566,3 +566,97 @@ exports.getAllCertificateDashboardData = () => {
     }
   });
 };
+
+exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) as total
+      FROM govijobpayment gjp
+      INNER JOIN govilinkjobs gj ON gj.id = gjp.jobId
+      INNER JOIN users u ON gj.farmerId = u.id
+      INNER JOIN officerservices os ON gj.serviceId = os.id
+      WHERE 1=1
+    `;
+
+    let dataSql = `
+      SELECT 
+        gjp.transactionId,
+        CONCAT(u.firstName, ' ', u.lastName) AS farmerName,
+        os.englishName AS serviceName,
+        FORMAT(gjp.amount, 2) AS amount,
+        DATE_FORMAT(gjp.createdAt, '%Y-%m-%d %H:%i') AS dateTime,
+        gjp.createdAt as sortDate
+      FROM govijobpayment gjp
+      INNER JOIN govilinkjobs gj ON gj.id = gjp.jobId
+      INNER JOIN users u ON gj.farmerId = u.id
+      INNER JOIN officerservices os ON gj.serviceId = os.id
+      WHERE 1=1
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    // Date filtering
+    if (fromDate) {
+      countSql += " AND DATE(gjp.createdAt) >= ?";
+      dataSql += " AND DATE(gjp.createdAt) >= ?";
+      countParams.push(fromDate);
+      dataParams.push(fromDate);
+    }
+
+    if (toDate) {
+      countSql += " AND DATE(gjp.createdAt) <= ?";
+      dataSql += " AND DATE(gjp.createdAt) <= ?";
+      countParams.push(toDate);
+      dataParams.push(toDate);
+    }
+
+    // Search filtering
+    if (searchTerm) {
+      const searchCondition = `
+        AND (
+          gjp.transactionId LIKE ?
+          OR u.firstName LIKE ?
+          OR u.lastName LIKE ?
+          OR os.englishName LIKE ?
+          OR gjp.amount LIKE ?
+        )
+      `;
+      countSql += searchCondition;
+      dataSql += searchCondition;
+      
+      const searchValue = `%${searchTerm}%`;
+      countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+      dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+    }
+
+    // Order by most recent first
+    dataSql += " ORDER BY gjp.createdAt DESC";
+
+    // Add pagination
+    dataSql += " LIMIT ? OFFSET ?";
+    dataParams.push(limit, offset);
+
+    // Execute count query
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
+      }
+
+      const total = countResults[0].total;
+
+      // Execute data query
+      plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+
+        resolve({ items: dataResults, total });
+      });
+    });
+  });
+};

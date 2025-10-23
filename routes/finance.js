@@ -8,5 +8,6 @@ router.get('/certificate-dashboard', financeController.getCertificateDashboardDa
 
 // Get govi job dashboard data
 router.get('/govi-job-dashboard-data', financeController.getGovijobDashboardData);
+router.get('/service-payments', financeController.getAllServicePayments);
 
 module.exports = router;
