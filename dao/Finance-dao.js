@@ -566,3 +566,105 @@ exports.getAllCertificateDashboardData = () => {
     }
   });
 };
+
+exports.getAllCertificatePayments = (page, limit, searchTerm, fromDate, toDate) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) as total
+      FROM certificationpayment cp
+      LEFT JOIN users u ON cp.userId = u.id
+      LEFT JOIN farmcluster fc ON cp.clusterId = fc.id
+      WHERE 1=1
+    `;
+
+    let dataSql = `
+      SELECT 
+        cp.transactionId,
+        CASE 
+          WHEN cp.payType = 'Cluster' THEN fc.clsName
+          ELSE CONCAT(u.firstName, ' ', u.lastName)
+        END as farmerName,
+        FORMAT(cp.amount, 2) as amount,
+        DATE_FORMAT(cp.createdAt, '%d %b, %Y %h:%i%p') as dateTime,
+        cp.expireDate,
+        cp.createdAt as sortDate,
+        CASE 
+          WHEN cp.expireDate < NOW() THEN 'Expired'
+          ELSE CONCAT(
+            FLOOR(DATEDIFF(cp.expireDate, NOW()) / 30), ' months, ',
+            MOD(DATEDIFF(cp.expireDate, NOW()), 30), ' days'
+          )
+        END as validityPeriod
+      FROM certificationpayment cp
+      LEFT JOIN users u ON cp.userId = u.id
+      LEFT JOIN farmcluster fc ON cp.clusterId = fc.id
+      WHERE 1=1
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    // Date filtering
+    if (fromDate) {
+      countSql += " AND DATE(cp.createdAt) >= ?";
+      dataSql += " AND DATE(cp.createdAt) >= ?";
+      countParams.push(fromDate);
+      dataParams.push(fromDate);
+    }
+
+    if (toDate) {
+      countSql += " AND DATE(cp.createdAt) <= ?";
+      dataSql += " AND DATE(cp.createdAt) <= ?";
+      countParams.push(toDate);
+      dataParams.push(toDate);
+    }
+
+    // Search filtering
+    if (searchTerm) {
+      const searchCondition = `
+        AND (
+          cp.transactionId LIKE ?
+          OR u.firstName LIKE ?
+          OR u.lastName LIKE ?
+          OR fc.clsName LIKE ?
+          OR cp.amount LIKE ?
+        )
+      `;
+      countSql += searchCondition;
+      dataSql += searchCondition;
+      
+      const searchValue = `%${searchTerm}%`;
+      countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+      dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+    }
+
+    // Order by most recent first
+    dataSql += " ORDER BY cp.createdAt DESC";
+
+    // Add pagination
+    dataSql += " LIMIT ? OFFSET ?";
+    dataParams.push(limit, offset);
+
+    // Execute count query
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
+      }
+
+      const total = countResults[0].total;
+
+      // Execute data query
+      plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+
+        resolve({ items: dataResults, total });
+      });
+    });
+  });
+};
