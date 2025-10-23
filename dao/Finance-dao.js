@@ -741,7 +741,6 @@ exports.createAgentCommission = (commissionData) => {
 };
 
 // Update agent commission with previous value check
-// Update agent commission only if values changed
 exports.updateAgentCommission = (id, updateData) => {
   return new Promise(async (resolve, reject) => {
     try {

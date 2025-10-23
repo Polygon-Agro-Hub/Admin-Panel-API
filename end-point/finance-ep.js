@@ -471,8 +471,6 @@ exports.createAgentCommission = async (req, res) => {
     // Get user ID from authenticated request
     const userId = req.user?.id || req.user?.userId;
 
-       console.log("[CREATE] Authenticated User ID:", userId);
-
     if (!userId) {
       return res.status(401).json({
         status: false,
@@ -505,11 +503,8 @@ exports.createAgentCommission = async (req, res) => {
 };
 
 // Update agent commission
-// Update agent commission
 exports.updateAgentCommission = async (req, res) => {
   try {
-    // Log req.user for debugging
-    console.log("[UPDATE] req.user:", req.user);
 
     // Validate ID parameter
     const idValidation = idSchema.validate({ id: req.params.id });
@@ -562,7 +557,6 @@ exports.updateAgentCommission = async (req, res) => {
         message: "User authentication required",
       });
     }
-    console.log("[UPDATE] Authenticated User ID:", userId);
 
     // Prepare update data
     const updateData = {
@@ -570,8 +564,6 @@ exports.updateAgentCommission = async (req, res) => {
       modifyBy: userId, // always set who updated
       modifyDate: new Date(),
     };
-
-    console.log("[UPDATE] Data to Update:", updateData);
 
     const updatedCommission = await financeDao.updateAgentCommission(id, updateData);
 
