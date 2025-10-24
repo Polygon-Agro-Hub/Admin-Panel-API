@@ -1946,36 +1946,81 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText) => {
         AND MP.isMarketPlaceUser = 1   
       `;
 
-    console.log(searchText);
-
     if (searchText) {
-      countSql +=
-        " AND (MP.firstName LIKE ? OR MP.lastName LIKE ? OR MP.phoneNumber LIKE ? OR MP.cusId LIKE ? OR CONCAT(MP.firstName, ' ', MP.lastName) LIKE ? OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?) ";
-      dataSql +=
-        " AND (MP.firstName LIKE ? OR MP.lastName LIKE ? OR MP.phoneNumber LIKE ? OR MP.cusId LIKE ? OR CONCAT(MP.firstName, ' ', MP.lastName) LIKE ? OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?) ";
+      countSql += `
+        AND (
+          CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
+          OR MP.firstName LIKE ?
+          OR MP.lastName LIKE ?
+          OR MP.phoneNumber LIKE ?
+          OR MP.cusId LIKE ?
+          OR CONCAT(MP.phoneCode, ' - ', MP.phoneNumber) LIKE ?
+          OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?
+          OR CONCAT(MP.phoneCode, MP.phoneNumber) LIKE ?
+          OR REPLACE(CONCAT(MP.phoneCode, ' - ', MP.phoneNumber), ' ', '') LIKE ?
+          OR REPLACE(CONCAT(MP.phoneCode, '-', MP.phoneNumber), ' ', '') LIKE ?
+        )
+      `;
+
+      dataSql += `
+        AND (
+          CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
+          OR MP.firstName LIKE ?
+          OR MP.lastName LIKE ?
+          OR MP.phoneNumber LIKE ?
+          OR MP.cusId LIKE ?
+          OR CONCAT(MP.phoneCode, ' - ', MP.phoneNumber) LIKE ?
+          OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?
+          OR CONCAT(MP.phoneCode, MP.phoneNumber) LIKE ?
+          OR REPLACE(CONCAT(MP.phoneCode, ' - ', MP.phoneNumber), ' ', '') LIKE ?
+          OR REPLACE(CONCAT(MP.phoneCode, '-', MP.phoneNumber), ' ', '') LIKE ?
+        )
+      `;
+
       const search = `%${searchText}%`;
-      countParms.push(search, search, search, search, search, search);
-      dataParms.push(search, search, search, search, search, search);
+      const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
+      
+      countParms.push(
+        search,
+        search,
+        search,
+        search,
+        search,
+        search,
+        search,
+        searchWithoutSpaces,
+        searchWithoutSpaces,
+        searchWithoutSpaces
+      );
+      
+      dataParms.push(
+        search,
+        search,
+        search,
+        search,
+        search,
+        search,
+        search,
+        searchWithoutSpaces,
+        searchWithoutSpaces,
+        searchWithoutSpaces
+      );
     }
 
-    dataSql += ` LIMIT ? OFFSET ? `;
+    dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
     dataParms.push(limit);
     dataParms.push(offset);
 
     marketPlace.query(countSql, countParms, (countErr, countResults) => {
       if (countErr) {
         console.log(countErr);
-
         reject(countErr);
       } else {
         marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
           if (dataErr) {
             console.log(dataErr);
-
             reject(dataErr);
           } else {
-            // console.log(dataResults);
-
             resolve({
               total: countResults[0].total,
               items: dataResults,
