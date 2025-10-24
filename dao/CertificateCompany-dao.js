@@ -203,14 +203,15 @@ exports.createCertificate = ({
   tearms,
   scope,
   logo,
+  noOfVisit,
   modifyBy,
 }) => {
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO certificates
       (srtcomapnyId, srtName, srtNumber, applicable, accreditation, serviceAreas,
-       price, timeLine, commission, tearms, scope, logo, modifyBy, modifyDate)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+       price, timeLine, commission, tearms, scope, logo, noOfVisit, modifyBy, modifyDate)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
 
     const values = [
@@ -226,6 +227,7 @@ exports.createCertificate = ({
       tearms,
       scope,
       logo,
+      noOfVisit || null,
       modifyBy,
     ];
 
@@ -244,14 +246,27 @@ exports.createCertificate = ({
 exports.addCertificateCrops = (certificateId, cropIds) => {
   return new Promise((resolve, reject) => {
     if (!cropIds || cropIds.length === 0) return resolve([]);
+
+    // Ensure cropIds are numbers and valid
+    const validCropIds = cropIds
+      .map((cropId) => parseInt(cropId))
+      .filter((cropId) => !isNaN(cropId) && cropId > 0);
+
+    if (validCropIds.length === 0) {
+      return resolve({ message: "No valid crop IDs provided" });
+    }
+
     const sql = `
       INSERT INTO certificatecrops (certificateId, cropId)
       VALUES ?
     `;
-    const values = cropIds.map((cropId) => [certificateId, cropId]);
+    const values = validCropIds.map((cropId) => [certificateId, cropId]);
 
     plantcare.query(sql, [values], (err, result) => {
-      if (err) return reject(err);
+      if (err) {
+        console.error("Error adding certificate crops:", err);
+        return reject(err);
+      }
       resolve(result);
     });
   });
@@ -352,6 +367,7 @@ exports.updateCertificate = ({
   tearms,
   scope,
   logo,
+  noOfVisit, 
   modifyBy,
 }) => {
   return new Promise((resolve, reject) => {
@@ -370,6 +386,7 @@ exports.updateCertificate = ({
         tearms = COALESCE(?, tearms),
         scope = ?,
         logo = COALESCE(?, logo),
+        noOfVisit = ?,  -- Added noOfVisit
         modifyBy = ?,
         modifyDate = NOW()
       WHERE id = ?
@@ -387,6 +404,7 @@ exports.updateCertificate = ({
       tearms,
       scope,
       logo,
+      noOfVisit || null, 
       modifyBy,
       id,
     ];

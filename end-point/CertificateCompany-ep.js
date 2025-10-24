@@ -395,8 +395,7 @@ exports.createCertificate = async (req, res) => {
     }
 
     // Validate request body
-    const validated =
-      await ValidateSchema.createCertificateValidation.validateAsync(req.body);
+    const validated = await ValidateSchema.createCertificateValidation.validateAsync(req.body);
 
     let {
       srtcomapnyId,
@@ -410,6 +409,7 @@ exports.createCertificate = async (req, res) => {
       serviceAreas,
       cropIds,
       scope,
+      noOfVisit, 
     } = validated;
 
     // Normalize serviceAreas
@@ -428,20 +428,31 @@ exports.createCertificate = async (req, res) => {
       serviceAreas = serviceAreas.join(",");
     }
 
-    // Normalize cropIds
-    if (typeof cropIds === "string") {
-      try {
-        const parsed = JSON.parse(cropIds);
-        if (Array.isArray(parsed)) {
-          cropIds = parsed;
-        } else {
-          cropIds = [parsed];
+    // Normalize and validate cropIds
+    let normalizedCropIds = [];
+    if (cropIds) {
+      if (typeof cropIds === 'string') {
+        try {
+          const parsed = JSON.parse(cropIds);
+          if (Array.isArray(parsed)) {
+            normalizedCropIds = parsed;
+          } else {
+            normalizedCropIds = [parsed];
+          }
+        } catch {
+          normalizedCropIds = cropIds.split(",").map((s) => s.trim()).filter(s => s);
         }
-      } catch {
-        cropIds = cropIds.split(",").map((s) => s.trim());
+      } else if (Array.isArray(cropIds)) {
+        normalizedCropIds = cropIds;
       }
     }
-    if (!Array.isArray(cropIds)) cropIds = [cropIds];
+
+    // Convert to numbers and validate
+    normalizedCropIds = normalizedCropIds
+      .map(cropId => parseInt(cropId))
+      .filter(cropId => !isNaN(cropId) && cropId > 0);
+
+    console.log("Processed crop IDs:", normalizedCropIds);
 
     // Upload PDF for terms (tearmsFile)
     let tearmsUrl = null;
@@ -498,7 +509,7 @@ exports.createCertificate = async (req, res) => {
       );
     }
 
-    // Insert certificate
+    // Insert certificate with noOfVisit
     const certificateId = await certificateCompanyDao.createCertificate({
       srtcomapnyId,
       srtName,
@@ -512,10 +523,14 @@ exports.createCertificate = async (req, res) => {
       tearms: tearmsUrl,
       scope,
       logo: logoUrl,
+      noOfVisit, 
       modifyBy: userId,
     });
 
-    await certificateCompanyDao.addCertificateCrops(certificateId, cropIds);
+    // Add crops only if we have valid crop IDs
+    if (normalizedCropIds.length > 0) {
+      await certificateCompanyDao.addCertificateCrops(certificateId, normalizedCropIds);
+    }
 
     res.json({
       message: "Certificate created successfully",
@@ -623,6 +638,7 @@ exports.updateCertificate = async (req, res) => {
       serviceAreas,
       cropIds,
       scope,
+      noOfVisit, 
     } = validated;
 
     // Normalize fields (same as create)
@@ -734,12 +750,15 @@ exports.updateCertificate = async (req, res) => {
       tearms: tearmsUrl,
       scope,
       logo: logoUrl,
+      noOfVisit, 
       modifyBy: userId,
     });
 
     // Update crops
     await certificateCompanyDao.deleteCertificateCrops(id);
-    await certificateCompanyDao.addCertificateCrops(id, cropIds);
+    if (cropIds && cropIds.length > 0) {
+      await certificateCompanyDao.addCertificateCrops(id, cropIds);
+    }
 
     res.json({
       message: "Certificate updated successfully",

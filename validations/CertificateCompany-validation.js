@@ -37,6 +37,10 @@ exports.createCertificateValidation = Joi.object({
   timeLine: Joi.number().integer().min(1).allow(null, ""),
   commission: Joi.number().min(0).max(100).allow(null, ""),
   scope: Joi.string().allow(null, ""),
+  noOfVisit: Joi.number().integer().min(0).allow(null, ""),
+  cropIds: Joi.alternatives()
+    .try(Joi.array().items(Joi.number().integer().min(1)), Joi.string())
+    .optional(),
 });
 
 // Update certificate validations
@@ -58,6 +62,7 @@ exports.updateCertificateValidation = Joi.object({
     Joi.string()
   ),
   scope: Joi.string().allow(null, ""),
+  noOfVisit: Joi.number().integer().min(0).allow(null, ""), 
 });
 
 // Get All Companies Schema
