@@ -127,8 +127,25 @@ exports.createFarmerClusterSchema = Joi.object({
     "string.min": "Cluster name must be at least 2 characters",
     "string.max": "Cluster name cannot exceed 55 characters",
   }),
-  farmerNICs: Joi.array().min(1).required().messages({
-    "array.min": "At least one NIC number must be provided",
+  district: Joi.string().max(55).required().messages({
+    "string.empty": "District is required",
+    "string.max": "District cannot exceed 55 characters",
+  }),
+  certificateId: Joi.number().integer().positive().required().messages({
+    "number.base": "Certificate ID must be a number",
+    "number.positive": "Certificate ID must be a positive number",
+  }),
+  farmers: Joi.array().min(1).required().items(
+    Joi.object({
+      farmerNIC: Joi.string().required().messages({
+        "string.empty": "Farmer NIC is required"
+      }),
+      regCode: Joi.string().required().messages({
+        "string.empty": "Registration code is required"
+      })
+    })
+  ).messages({
+    "array.min": "At least one farmer must be provided",
   }),
 });
 
