@@ -203,14 +203,15 @@ exports.createCertificate = ({
   tearms,
   scope,
   logo,
+  noOfVisit,
   modifyBy,
 }) => {
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO certificates
       (srtcomapnyId, srtName, srtNumber, applicable, accreditation, serviceAreas,
-       price, timeLine, commission, tearms, scope, logo, modifyBy, modifyDate)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+       price, timeLine, commission, tearms, scope, logo, noOfVisit, modifyBy, modifyDate)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
 
     const values = [
@@ -226,6 +227,7 @@ exports.createCertificate = ({
       tearms,
       scope,
       logo,
+      noOfVisit || null,
       modifyBy,
     ];
 
@@ -244,14 +246,27 @@ exports.createCertificate = ({
 exports.addCertificateCrops = (certificateId, cropIds) => {
   return new Promise((resolve, reject) => {
     if (!cropIds || cropIds.length === 0) return resolve([]);
+
+    // Ensure cropIds are numbers and valid
+    const validCropIds = cropIds
+      .map((cropId) => parseInt(cropId))
+      .filter((cropId) => !isNaN(cropId) && cropId > 0);
+
+    if (validCropIds.length === 0) {
+      return resolve({ message: "No valid crop IDs provided" });
+    }
+
     const sql = `
       INSERT INTO certificatecrops (certificateId, cropId)
       VALUES ?
     `;
-    const values = cropIds.map((cropId) => [certificateId, cropId]);
+    const values = validCropIds.map((cropId) => [certificateId, cropId]);
 
     plantcare.query(sql, [values], (err, result) => {
-      if (err) return reject(err);
+      if (err) {
+        console.error("Error adding certificate crops:", err);
+        return reject(err);
+      }
       resolve(result);
     });
   });
@@ -352,6 +367,7 @@ exports.updateCertificate = ({
   tearms,
   scope,
   logo,
+  noOfVisit,
   modifyBy,
 }) => {
   return new Promise((resolve, reject) => {
@@ -370,6 +386,7 @@ exports.updateCertificate = ({
         tearms = COALESCE(?, tearms),
         scope = ?,
         logo = COALESCE(?, logo),
+        noOfVisit = ?,  -- Added noOfVisit
         modifyBy = ?,
         modifyDate = NOW()
       WHERE id = ?
@@ -387,6 +404,7 @@ exports.updateCertificate = ({
       tearms,
       scope,
       logo,
+      noOfVisit || null,
       modifyBy,
       id,
     ];
@@ -519,10 +537,17 @@ exports.checkNICsExist = async (nicList, connection) => {
 };
 
 // Create farm cluster
-exports.createFarmCluster = async (clusterName, modifyBy, connection) => {
+exports.createFarmCluster = async (
+  clusterName,
+  district,
+  certificateId,
+  modifyBy,
+  connection
+) => {
   const [result] = await connection.query(
-    `INSERT INTO farmcluster (clsName, modifyBy, modifyDate) VALUES (?, ?, NOW())`,
-    [clusterName, modifyBy]
+    `INSERT INTO farmcluster (clsName, district, certificateId, modifyBy, modifyDate) 
+     VALUES (?, ?, ?, ?, NOW())`,
+    [clusterName, district, certificateId, modifyBy]
   );
   return result;
 };
@@ -531,32 +556,32 @@ exports.createFarmCluster = async (clusterName, modifyBy, connection) => {
 exports.isClusterNameExists = async (clusterName, connection) => {
   const [rows] = await connection.query(
     `SELECT id FROM farmcluster WHERE clsName = ?`,
-    [clusterName.trim()]
+    [clusterName]
   );
   return rows.length > 0;
 };
 
-// Get farmer IDs by NIC
-exports.getFarmerIdsByNICs = async (nicList, connection) => {
-  const [rows] = await connection.query(
-    `SELECT id, NICnumber FROM users WHERE NICnumber IN (?)`,
-    [nicList]
-  );
-  const map = {};
-  rows.forEach((r) => (map[r.NICnumber] = r.id));
-  return map;
-};
+// // Get farmer IDs by NIC
+// exports.getFarmerIdsByNICs = async (nicList, connection) => {
+//   const [rows] = await connection.query(
+//     `SELECT id, NICnumber FROM users WHERE NICnumber IN (?)`,
+//     [nicList]
+//   );
+//   const map = {};
+//   rows.forEach((r) => (map[r.NICnumber] = r.id));
+//   return map;
+// };
 
-// Bulk insert farmers into cluster
-exports.bulkInsertClusterFarmers = async (clusterId, farmerIds, connection) => {
-  if (farmerIds.length === 0) return { affectedRows: 0 };
-  const values = farmerIds.map((id) => [clusterId, id]);
-  const [result] = await connection.query(
-    `INSERT INTO farmclusterfarmers (clusterId, farmerId) VALUES ?`,
-    [values]
-  );
-  return result;
-};
+// // Bulk insert farmers into cluster
+// exports.bulkInsertClusterFarmers = async (clusterId, farmerIds, connection) => {
+//   if (farmerIds.length === 0) return { affectedRows: 0 };
+//   const values = farmerIds.map((id) => [clusterId, id]);
+//   const [result] = await connection.query(
+//     `INSERT INTO farmclusterfarmers (clusterId, farmerId) VALUES ?`,
+//     [values]
+//   );
+//   return result;
+// };
 
 // Get all farmer clusters with member count and last modified info
 exports.getAllFarmerClusters = async (connection, search = "") => {
@@ -729,4 +754,150 @@ exports.checkByTaxId = (taxId, excludeId = null) => {
       resolve(results);
     });
   });
+};
+
+// Get certificates with name and ID only where applicable = 'For Farmer Cluster'
+exports.getFarmerClusterCertificates = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, srtName, srtNumber 
+      FROM certificates 
+      WHERE applicable = 'For Farmer Cluster'
+      ORDER BY srtName ASC
+    `;
+
+    plantcare.query(sql, (err, results) => {
+      if (err) {
+        console.error(
+          "Database error fetching farmer cluster certificates:",
+          err
+        );
+        return reject(err);
+      }
+      console.log("Farmer cluster certificates fetched:", results.length);
+      resolve(results);
+    });
+  });
+};
+
+// Check if certificate exists
+exports.checkCertificateExists = async (certificateId, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id FROM certificates WHERE id = ?`,
+    [certificateId]
+  );
+  return rows.length > 0;
+};
+
+// Validate farmers and their farms
+exports.validateFarmersWithFarms = async (
+  nicList,
+  regCodeList,
+  farmers,
+  connection
+) => {
+  // Check NICs existence
+  const [userRows] = await connection.query(
+    `SELECT id, NICnumber FROM users WHERE NICnumber IN (?)`,
+    [nicList]
+  );
+
+  const existingNICs = userRows.map((r) => r.NICnumber);
+  const missingNICs = nicList.filter((nic) => !existingNICs.includes(nic));
+  const validNICs = existingNICs;
+
+  // Create user ID to NIC mapping
+  const userMap = {};
+  userRows.forEach((r) => (userMap[r.NICnumber] = r.id));
+
+  // Check if farms exist for these users with provided regCodes
+  const [farmRows] = await connection.query(
+    `SELECT f.id, f.regCode, f.userId, u.NICnumber 
+     FROM farms f 
+     INNER JOIN users u ON f.userId = u.id 
+     WHERE u.NICnumber IN (?) AND f.regCode IN (?)`,
+    [nicList, regCodeList]
+  );
+
+  // Create validation result
+  const validFarmers = [];
+  const mismatchedFarmers = [];
+
+  nicList.forEach((nic) => {
+    const userFarms = farmRows.filter((farm) => farm.NICnumber === nic);
+
+    // Find the requested registration code for this NIC from the farmers array
+    const farmerData = farmers.find((f) => f.farmerNIC === nic);
+    const requestedRegCode = farmerData ? farmerData.regCode : null;
+
+    if (
+      requestedRegCode &&
+      userFarms.some((farm) => farm.regCode === requestedRegCode)
+    ) {
+      validFarmers.push({
+        farmerNIC: nic,
+        regCode: requestedRegCode,
+        userId: userMap[nic],
+      });
+    } else {
+      mismatchedFarmers.push({
+        farmerNIC: nic,
+        regCode: requestedRegCode,
+        reason: !requestedRegCode
+          ? "Registration code not provided"
+          : "Farmer doesn't have a farm with this registration code",
+      });
+    }
+  });
+
+  return {
+    missingNICs,
+    validNICs,
+    validFarmers,
+    mismatchedFarmers,
+  };
+};
+
+// Get farm IDs for valid farmers
+exports.getFarmIdsForValidFarmers = async (validFarmers, connection) => {
+  if (validFarmers.length === 0) return [];
+
+  const conditions = validFarmers
+    .map((f) => `(f.userId = ? AND f.regCode = ?)`)
+    .join(" OR ");
+
+  const params = validFarmers.flatMap((f) => [f.userId, f.regCode]);
+
+  const [rows] = await connection.query(
+    `SELECT f.id FROM farms f WHERE ${conditions}`,
+    params
+  );
+
+  return rows.map((r) => r.id);
+};
+
+// Bulk insert farms into cluster
+exports.bulkInsertClusterFarms = async (clusterId, farmIds, connection) => {
+  if (farmIds.length === 0) return { affectedRows: 0 };
+
+  const values = farmIds.map((farmId) => [clusterId, farmId]);
+
+  const [result] = await connection.query(
+    `INSERT INTO farmclusterfarmers (clusterId, farmId) VALUES ?`,
+    [values]
+  );
+  return result;
+};
+
+// Check if registration codes exist in farms table
+exports.checkRegCodesExist = async (regCodeList, connection) => {
+  const [rows] = await connection.query(
+    `SELECT regCode FROM farms WHERE regCode IN (?)`,
+    [regCodeList]
+  );
+  const existingRegCodes = rows.map((r) => r.regCode);
+  const missingRegCodes = regCodeList.filter(
+    (regCode) => !existingRegCodes.includes(regCode)
+  );
+  return { existingRegCodes, missingRegCodes };
 };
