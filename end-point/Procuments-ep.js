@@ -729,3 +729,63 @@ exports.testFunc = async (req, res) => {
     });
   }
 };
+
+exports.getDistributionOrders = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      centerId, 
+      deliveryDate, 
+      search 
+    } = req.query;
+
+    console.log("Fetching distribution orders:", { 
+      page, 
+      limit, 
+      centerId, 
+      deliveryDate, 
+      search 
+    });
+
+    const reportData = await procumentDao.getDistributionOrders(
+      page,
+      limit,
+      centerId,
+      deliveryDate,
+      search
+    );
+
+    console.log("Distribution orders fetched:", reportData);
+    res.json(reportData);
+  } catch (err) {
+    console.error("Error fetching distribution orders:", err);
+    res.status(500).send("An error occurred while fetching the distribution orders.");
+  }
+};
+
+exports.getAllDistributionCenters = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  
+  try {
+    const centers = await procumentDao.getAllDistributionCenters();
+
+    res.json({
+      success: true,
+      data: centers,
+      total: centers.length,
+      message: "Distribution centers fetched successfully"
+    });
+  } catch (err) {
+    console.error("Error fetching distribution centers:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching distribution centers.",
+      error: err.message
+    });
+  }
+};

@@ -1632,3 +1632,170 @@ exports.testFuncDao = async () => {
     });
   });
 };
+
+exports.getDistributionOrders = (page, limit, centerId, deliveryDate, search) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let baseJoinSql = `
+      FROM market_place.processorders po
+      JOIN market_place.orders o ON po.orderId = o.id
+      JOIN collection_officer.distributedcenter dc ON o.centerId = dc.id
+      LEFT JOIN market_place.orderpackage op ON op.orderId = po.id
+      LEFT JOIN market_place.orderpackageitems opi ON opi.orderPackageId = op.id
+      LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
+    `;
+
+    let whereSql = ` WHERE po.status = 'processing' `;
+    const queryParams = [];
+
+    // Filter by center
+    if (centerId) {
+      whereSql += ` AND o.centerId = ?`;
+      queryParams.push(centerId);
+    }
+
+    // Filter by delivery date (schedule date)
+    if (deliveryDate) {
+      whereSql += ` AND DATE(o.sheduleDate) = ?`;
+      queryParams.push(deliveryDate);
+    }
+
+    // Subquery to get all items with their product details
+    const itemsSubquery = `
+      SELECT 
+        po.id AS processOrderId,
+        o.id AS orderId,
+        o.centerId,
+        DATE(o.sheduleDate) AS sheduleDate,
+        mpi.varietyId,
+        CASE 
+          WHEN opi.id IS NOT NULL THEN 
+            CASE 
+              WHEN opi.qty < 1 THEN opi.qty * 1000
+              ELSE opi.qty 
+            END
+          WHEN oai.id IS NOT NULL THEN 
+            CASE 
+              WHEN oai.unit = 'g' THEN oai.qty / 1000
+              ELSE oai.qty 
+            END
+        END AS quantity
+      ${baseJoinSql}
+      LEFT JOIN market_place.marketplaceitems mpi ON (opi.productId = mpi.id OR oai.productId = mpi.id)
+      ${whereSql}
+        AND (opi.id IS NOT NULL OR oai.id IS NOT NULL)
+        AND mpi.varietyId IS NOT NULL
+    `;
+
+    // Add search filter for the grouped query
+    let havingSql = '';
+    const searchParams = [];
+    
+    if (search) {
+      havingSql = ` HAVING 
+        cg.cropNameEnglish LIKE ? OR 
+        cv.varietyNameEnglish LIKE ? OR 
+        dc.regCode LIKE ? OR 
+        dc.centerName LIKE ? OR
+        CAST(ROUND(SUM(items.quantity), 3) AS CHAR) LIKE ? OR
+        DATE_FORMAT(MAX(items.sheduleDate), '%Y-%m-%d') LIKE ?
+      `;
+      const likeSearch = `%${search}%`;
+      searchParams.push(likeSearch, likeSearch, likeSearch, likeSearch, likeSearch, likeSearch);
+    }
+
+    // Count Query - Fixed to include sheduleDate in SELECT
+    const countSql = `
+      SELECT COUNT(*) AS total FROM (
+        SELECT 1
+        FROM (${itemsSubquery}) items
+        JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
+        JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+        JOIN collection_officer.distributedcenter dc ON items.centerId = dc.id
+        GROUP BY 
+          cg.cropNameEnglish,
+          cv.varietyNameEnglish,
+          dc.regCode,
+          dc.centerName,
+          items.sheduleDate
+        ${havingSql}
+      ) AS grouped
+    `;
+
+    // Data Query
+    const dataSql = `
+      SELECT 
+        cg.cropNameEnglish,
+        cv.varietyNameEnglish,
+        ROUND(SUM(items.quantity), 3) AS quantity,
+        items.sheduleDate,
+        dc.regCode,
+        dc.centerName
+      FROM (${itemsSubquery}) items
+      JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
+      JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      JOIN collection_officer.distributedcenter dc ON items.centerId = dc.id
+      GROUP BY 
+        cg.cropNameEnglish,
+        cv.varietyNameEnglish,
+        dc.regCode,
+        dc.centerName,
+        items.sheduleDate
+      ${havingSql}
+      ORDER BY 
+        items.sheduleDate DESC,
+        dc.centerName ASC,
+        cg.cropNameEnglish ASC,
+        cv.varietyNameEnglish ASC
+      LIMIT ? OFFSET ?
+    `;
+
+    const countParams = [...queryParams, ...searchParams];
+    const dataParams = [...queryParams, ...searchParams, Number(limit), Number(offset)];
+
+    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
+      }
+
+      const total = countResults[0].total;
+
+      marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+
+        const processedResults = dataResults.map(item => ({
+          ...item,
+          quantity: parseFloat(item.quantity),
+        }));
+
+        resolve({ items: processedResults, total });
+      });
+    });
+  });
+};
+
+exports.getAllDistributionCenters = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id,
+        CONCAT(regCode, ' - ', centerName) AS centerName
+      FROM collection_officer.distributedcenter
+      ORDER BY centerName ASC
+    `;
+
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error("Error fetching distribution centers:", err);
+        return reject(err);
+      }
+
+      resolve(results);
+    });
+  });
+};

@@ -19,6 +19,14 @@ router.get(
 );
 
 router.get(
+  "/get-distribution-orders",
+  authMiddleware,
+  ProcumentsEP.getDistributionOrders
+);
+
+router.get("/get-all-distribution-centers", authMiddleware,ProcumentsEP.getAllDistributionCenters);
+
+router.get(
   "/orders-process-info",
   authMiddleware,
   ProcumentsEP.getAllOrdersWithProcessInfo
