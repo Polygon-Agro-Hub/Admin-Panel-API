@@ -37,6 +37,10 @@ exports.createCertificateValidation = Joi.object({
   timeLine: Joi.number().integer().min(1).allow(null, ""),
   commission: Joi.number().min(0).max(100).allow(null, ""),
   scope: Joi.string().allow(null, ""),
+  noOfVisit: Joi.number().integer().min(0).allow(null, ""),
+  cropIds: Joi.alternatives()
+    .try(Joi.array().items(Joi.number().integer().min(1)), Joi.string())
+    .optional(),
 });
 
 // Update certificate validations
@@ -58,6 +62,7 @@ exports.updateCertificateValidation = Joi.object({
     Joi.string()
   ),
   scope: Joi.string().allow(null, ""),
+  noOfVisit: Joi.number().integer().min(0).allow(null, ""), 
 });
 
 // Get All Companies Schema
@@ -122,8 +127,25 @@ exports.createFarmerClusterSchema = Joi.object({
     "string.min": "Cluster name must be at least 2 characters",
     "string.max": "Cluster name cannot exceed 55 characters",
   }),
-  farmerNICs: Joi.array().min(1).required().messages({
-    "array.min": "At least one NIC number must be provided",
+  district: Joi.string().max(55).required().messages({
+    "string.empty": "District is required",
+    "string.max": "District cannot exceed 55 characters",
+  }),
+  certificateId: Joi.number().integer().positive().required().messages({
+    "number.base": "Certificate ID must be a number",
+    "number.positive": "Certificate ID must be a positive number",
+  }),
+  farmers: Joi.array().min(1).required().items(
+    Joi.object({
+      farmerNIC: Joi.string().required().messages({
+        "string.empty": "Farmer NIC is required"
+      }),
+      regCode: Joi.string().required().messages({
+        "string.empty": "Registration code is required"
+      })
+    })
+  ).messages({
+    "array.min": "At least one farmer must be provided",
   }),
 });
 

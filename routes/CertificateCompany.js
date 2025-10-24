@@ -193,4 +193,11 @@ router.put(
   certificateCompanyEp.updateFarmerCluster
 );
 
+// Get farmer cluster certificates (name and ID only)
+router.get(
+  "/get-farmer-cluster-certificates",
+  authMiddleware,
+  certificateCompanyEp.getFarmerClusterCertificates
+);
+
 module.exports = router;

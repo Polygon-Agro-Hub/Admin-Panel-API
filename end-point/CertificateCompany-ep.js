@@ -410,6 +410,7 @@ exports.createCertificate = async (req, res) => {
       serviceAreas,
       cropIds,
       scope,
+      noOfVisit,
     } = validated;
 
     // Normalize serviceAreas
@@ -428,20 +429,34 @@ exports.createCertificate = async (req, res) => {
       serviceAreas = serviceAreas.join(",");
     }
 
-    // Normalize cropIds
-    if (typeof cropIds === "string") {
-      try {
-        const parsed = JSON.parse(cropIds);
-        if (Array.isArray(parsed)) {
-          cropIds = parsed;
-        } else {
-          cropIds = [parsed];
+    // Normalize and validate cropIds
+    let normalizedCropIds = [];
+    if (cropIds) {
+      if (typeof cropIds === "string") {
+        try {
+          const parsed = JSON.parse(cropIds);
+          if (Array.isArray(parsed)) {
+            normalizedCropIds = parsed;
+          } else {
+            normalizedCropIds = [parsed];
+          }
+        } catch {
+          normalizedCropIds = cropIds
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => s);
         }
-      } catch {
-        cropIds = cropIds.split(",").map((s) => s.trim());
+      } else if (Array.isArray(cropIds)) {
+        normalizedCropIds = cropIds;
       }
     }
-    if (!Array.isArray(cropIds)) cropIds = [cropIds];
+
+    // Convert to numbers and validate
+    normalizedCropIds = normalizedCropIds
+      .map((cropId) => parseInt(cropId))
+      .filter((cropId) => !isNaN(cropId) && cropId > 0);
+
+    console.log("Processed crop IDs:", normalizedCropIds);
 
     // Upload PDF for terms (tearmsFile)
     let tearmsUrl = null;
@@ -498,7 +513,7 @@ exports.createCertificate = async (req, res) => {
       );
     }
 
-    // Insert certificate
+    // Insert certificate with noOfVisit
     const certificateId = await certificateCompanyDao.createCertificate({
       srtcomapnyId,
       srtName,
@@ -512,10 +527,17 @@ exports.createCertificate = async (req, res) => {
       tearms: tearmsUrl,
       scope,
       logo: logoUrl,
+      noOfVisit,
       modifyBy: userId,
     });
 
-    await certificateCompanyDao.addCertificateCrops(certificateId, cropIds);
+    // Add crops only if we have valid crop IDs
+    if (normalizedCropIds.length > 0) {
+      await certificateCompanyDao.addCertificateCrops(
+        certificateId,
+        normalizedCropIds
+      );
+    }
 
     res.json({
       message: "Certificate created successfully",
@@ -623,6 +645,7 @@ exports.updateCertificate = async (req, res) => {
       serviceAreas,
       cropIds,
       scope,
+      noOfVisit,
     } = validated;
 
     // Normalize fields (same as create)
@@ -734,12 +757,15 @@ exports.updateCertificate = async (req, res) => {
       tearms: tearmsUrl,
       scope,
       logo: logoUrl,
+      noOfVisit,
       modifyBy: userId,
     });
 
     // Update crops
     await certificateCompanyDao.deleteCertificateCrops(id);
-    await certificateCompanyDao.addCertificateCrops(id, cropIds);
+    if (cropIds && cropIds.length > 0) {
+      await certificateCompanyDao.addCertificateCrops(id, cropIds);
+    }
 
     res.json({
       message: "Certificate updated successfully",
@@ -945,12 +971,14 @@ exports.createFarmerCluster = async (req, res) => {
     }
 
     // Validate input
-    const { clusterName, farmerNICs } =
+    const { clusterName, district, certificateId, farmers } =
       await ValidateSchema.createFarmerClusterSchema.validateAsync(req.body, {
         abortEarly: false,
       });
 
-    const uniqueNICs = [...new Set(farmerNICs.map((nic) => nic.trim()))];
+    // Extract unique NICs and regCodes
+    const farmerNICs = [...new Set(farmers.map((f) => f.farmerNIC.trim()))];
+    const regCodes = [...new Set(farmers.map((f) => f.regCode.trim()))];
 
     // Check duplicate cluster name
     const clusterExists = await certificateCompanyDao.isClusterNameExists(
@@ -965,43 +993,88 @@ exports.createFarmerCluster = async (req, res) => {
       });
     }
 
-    // Check NICs existence
-    const nicCheckResult = await certificateCompanyDao.checkNICsExist(
-      uniqueNICs,
+    // Check if certificate exists
+    const certificateExists =
+      await certificateCompanyDao.checkCertificateExists(
+        certificateId,
+        connection
+      );
+    if (!certificateExists) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "Certificate ID does not exist",
+        status: false,
+      });
+    }
+
+    // Check if registration codes exist in farms table
+    const regCodeCheckResult = await certificateCompanyDao.checkRegCodesExist(
+      regCodes,
       connection
     );
-    if (nicCheckResult.missingNICs.length > 0) {
+    if (regCodeCheckResult.missingRegCodes.length > 0) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "Some registration codes are not found in the system",
+        status: false,
+        missingFarmers: regCodeCheckResult.missingFarmers,
+        missingRegCodes: regCodeCheckResult.missingRegCodes,
+        existingRegCodes: regCodeCheckResult.existingRegCodes,
+      });
+    }
+
+    // Check NICs existence and match with farms
+    const farmerValidation =
+      await certificateCompanyDao.validateFarmersWithFarms(
+        farmerNICs,
+        regCodes,
+        farmers,
+        connection
+      );
+
+    if (farmerValidation.missingNICs.length > 0) {
       await connection.rollback();
       return res.status(400).json({
         message: "Some NIC numbers are not registered in the system",
         status: false,
-        missingNICs: nicCheckResult.missingNICs,
-        existingNICs: nicCheckResult.existingNICs,
+        missingNICs: farmerValidation.missingNICs,
+        validNICs: farmerValidation.validNICs,
       });
     }
 
-    // Create cluster
+    if (farmerValidation.mismatchedFarmers.length > 0) {
+      await connection.rollback();
+      return res.status(400).json({
+        message:
+          "Some farmers don't have farms with the provided registration codes",
+        status: false,
+        mismatchedFarmers: farmerValidation.mismatchedFarmers,
+        validFarmers: farmerValidation.validFarmers,
+      });
+    }
+
+    // Create cluster with additional fields
     const clusterResult = await certificateCompanyDao.createFarmCluster(
       clusterName,
+      district,
+      certificateId,
       userId,
       connection
     );
     const clusterId = clusterResult.insertId;
 
-    // Get farmer IDs
-    const farmerMap = await certificateCompanyDao.getFarmerIdsByNICs(
-      uniqueNICs,
+    // Get farm IDs for valid farmers
+    const farmIds = await certificateCompanyDao.getFarmIdsForValidFarmers(
+      farmerValidation.validFarmers,
       connection
     );
-    const farmerIds = uniqueNICs.map((nic) => farmerMap[nic]);
 
-    // Bulk insert farmers
-    const bulkInsertResult =
-      await certificateCompanyDao.bulkInsertClusterFarmers(
-        clusterId,
-        farmerIds,
-        connection
-      );
+    // Bulk insert farms into cluster
+    const bulkInsertResult = await certificateCompanyDao.bulkInsertClusterFarms(
+      clusterId,
+      farmIds,
+      connection
+    );
 
     await connection.commit();
 
@@ -1011,8 +1084,11 @@ exports.createFarmerCluster = async (req, res) => {
       data: {
         clusterId,
         clusterName,
-        farmersAdded: bulkInsertResult.affectedRows,
-        totalFarmers: uniqueNICs.length,
+        district,
+        certificateId,
+        farmsAdded: bulkInsertResult.affectedRows,
+        totalFarms: farmIds.length,
+        validFarmers: farmerValidation.validFarmers,
       },
     });
   } catch (err) {
@@ -1355,6 +1431,26 @@ exports.updateFarmerCluster = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: "Internal server error",
+    });
+  }
+};
+
+// Get farmer cluster certificates
+exports.getFarmerClusterCertificates = async (req, res) => {
+  try {
+    const certificates =
+      await certificateCompanyDao.getFarmerClusterCertificates();
+
+    res.json({
+      message: "Farmer cluster certificates fetched successfully",
+      status: true,
+      data: certificates,
+    });
+  } catch (err) {
+    console.error("Error fetching farmer cluster certificates:", err);
+    res.status(500).json({
+      message: "Failed to fetch farmer cluster certificates",
+      status: false,
     });
   }
 };
