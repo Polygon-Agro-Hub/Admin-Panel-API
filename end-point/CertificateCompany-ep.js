@@ -1135,30 +1135,44 @@ exports.addSingleFarmerToCluster = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized", status: false });
     }
 
+    const validationData = {
+      nic: req.body.nic,
+      farmId: req.body.farmId,
+      clusterId: parseInt(req.params.clusterId),
+    };
+
+    const { error } =
+      ValidateSchema.addSingleFarmerToClusterSchema.validate(validationData);
+    if (error) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: error.details[0].message,
+        status: false,
+      });
+    }
+
     const clusterId = parseInt(req.params.clusterId);
-    if (!clusterId) {
+    const { nic, farmId } = req.body;
+
+    // Step 1: Check if cluster exists
+    const clusterExists = await certificateCompanyDao.checkClusterExists(
+      clusterId,
+      connection
+    );
+    if (!clusterExists) {
       await connection.rollback();
-      return res.status(400).json({
-        message: "Cluster ID is required",
+      return res.status(404).json({
+        message: "Cluster not found",
         status: false,
       });
     }
 
-    const { nic } = req.body;
-    if (!nic?.trim()) {
-      await connection.rollback();
-      return res.status(400).json({
-        message: "NIC number is required",
-        status: false,
-      });
-    }
-
-    // Step 1: Check if user with NIC exists
-    const farmerId = await certificateCompanyDao.getFarmerIdByNIC(
+    // Step 2: Check if user with NIC exists
+    const farmerInfo = await certificateCompanyDao.getFarmerInfoByNIC(
       nic.trim(),
       connection
     );
-    if (!farmerId) {
+    if (!farmerInfo) {
       await connection.rollback();
       return res.status(400).json({
         message: `No farmer exists using this NIC`,
@@ -1166,33 +1180,82 @@ exports.addSingleFarmerToCluster = async (req, res) => {
       });
     }
 
-    // Step 2: Check if farmer already in cluster
-    const exists = await certificateCompanyDao.isFarmerInCluster(
-      clusterId,
-      farmerId,
+    // Step 3: Check if farm exists (regCode exists in farms table)
+    const farmExists = await certificateCompanyDao.checkFarmExists(
+      farmId.trim(),
       connection
     );
-    if (exists) {
+    if (!farmExists) {
       await connection.rollback();
       return res.status(400).json({
-        message: `This farmer already added to the cluster`,
+        message: `No farm exists using this ID`,
         status: false,
       });
     }
 
-    // Step 3: Insert farmer into cluster
-    await certificateCompanyDao.insertFarmerIntoCluster(
+    // Step 4: Check if farm exists and belongs to the farmer
+    const farmValidation = await certificateCompanyDao.validateFarmerFarm(
+      farmerInfo.id,
+      farmId.trim(),
+      connection
+    );
+
+    if (!farmValidation.farmExists) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `This farm does not belong to the specified farmer`,
+        status: false,
+      });
+    }
+
+    // Step 5: Check if farm is already in cluster
+    const farmExistsInCluster = await certificateCompanyDao.isFarmInCluster(
       clusterId,
-      farmerId,
+      farmValidation.farmId,
+      connection
+    );
+    if (farmExistsInCluster) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `The farm already added to the cluster`,
+        status: false,
+      });
+    }
+
+    // Optional: Check if farmer already has any farm in cluster
+    const farmerExistsInCluster = await certificateCompanyDao.isFarmerInCluster(
+      clusterId,
+      farmerInfo.id,
+      connection
+    );
+    if (farmerExistsInCluster) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `This farmer already has a farm in the cluster`,
+        status: false,
+      });
+    }
+
+    // Step 6: Insert farm into cluster
+    await certificateCompanyDao.insertFarmIntoCluster(
+      clusterId,
+      farmValidation.farmId,
       connection
     );
 
     await connection.commit();
 
     return res.status(201).json({
-      message: `User added to cluster successfully`,
+      message: `Farmer Added to Cluster Successfully`,
       status: true,
-      data: { clusterId, farmerId, nic },
+      data: {
+        clusterId,
+        farmerId: farmerInfo.id,
+        farmerName: farmerInfo.name,
+        nic: nic.trim(),
+        farmId: farmId.trim(),
+        farmDbId: farmValidation.farmId,
+      },
     });
   } catch (err) {
     if (connection) await connection.rollback();
@@ -1362,9 +1425,10 @@ exports.deleteClusterUser = async (req, res) => {
 
 // Update farmer cluster name
 exports.updateFarmerCluster = async (req, res) => {
+  let connection;
   try {
     const { clusterId } = req.params;
-    const { clusterName } = req.body;
+    const { clusterName, district, certificateId } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -1377,6 +1441,8 @@ exports.updateFarmerCluster = async (req, res) => {
     // Validate input
     const { error } = ValidateSchema.updateFarmerClusterSchema.validate({
       clusterName,
+      district,
+      certificateId,
     });
     if (error) {
       return res.status(400).json({
@@ -1385,46 +1451,70 @@ exports.updateFarmerCluster = async (req, res) => {
       });
     }
 
-    const connection = await plantcare.promise().getConnection();
+    connection = await plantcare.promise().getConnection();
 
     // Check if cluster exists
     const [existing] = await connection.query(
-      `SELECT id FROM farmcluster WHERE id = ?`,
+      `SELECT id, clsName, district, certificateId FROM farmcluster WHERE id = ?`,
       [clusterId]
     );
     if (existing.length === 0) {
-      connection.release();
+      await connection.release();
       return res.status(404).json({
         status: false,
         message: "Cluster not found",
       });
     }
 
-    // Check duplicate name
-    const nameExists = await certificateCompanyDao.isClusterNameExists(
-      clusterName,
-      connection
-    );
-    if (nameExists) {
-      connection.release();
-      return res.status(400).json({
-        status: false,
-        message: "Cluster name already exists",
-      });
+    const currentCluster = existing[0];
+
+    // Check if certificate exists (if certificateId is provided)
+    if (certificateId) {
+      const [certificateExists] = await connection.query(
+        `SELECT id FROM certificates WHERE id = ?`,
+        [certificateId]
+      );
+      if (certificateExists.length === 0) {
+        await connection.release();
+        return res.status(400).json({
+          status: false,
+          message: "Certificate not found",
+        });
+      }
     }
 
-    // Update cluster name
-    await certificateCompanyDao.updateClusterName(
+    // Check duplicate name (only if clusterName is changing)
+    if (clusterName && clusterName !== currentCluster.clsName) {
+      const nameExists =
+        await certificateCompanyDao.isClusterNameExistsExcludingCurrent(
+          clusterName,
+          clusterId,
+          connection
+        );
+      if (nameExists) {
+        await connection.release();
+        return res.status(400).json({
+          status: false,
+          message: "Cluster name already exists",
+        });
+      }
+    }
+
+    // Update cluster
+    const result = await certificateCompanyDao.updateFarmerCluster(
       clusterId,
-      clusterName,
+      { clusterName, district, certificateId },
       userId,
       connection
     );
 
-    connection.release();
+    await connection.release();
+
     return res.status(200).json({
       status: true,
-      message: "Cluster name updated successfully",
+      message: "Cluster updated successfully",
+      data: result.updatedCluster,
+      changes: result.changes,
     });
   } catch (err) {
     console.error("Error updating cluster:", err);
@@ -1432,6 +1522,8 @@ exports.updateFarmerCluster = async (req, res) => {
       status: false,
       message: "Internal server error",
     });
+  } finally {
+    if (connection) await connection.release();
   }
 };
 
@@ -1452,5 +1544,63 @@ exports.getFarmerClusterCertificates = async (req, res) => {
       message: "Failed to fetch farmer cluster certificates",
       status: false,
     });
+  }
+};
+
+// Update farmer cluster status
+exports.updateClusterStatus = async (req, res) => {
+  let connection;
+  try {
+    connection = await plantcare.promise().getConnection();
+
+    const { clusterId, status } = req.body;
+    const userId = req.user?.userId;
+    if (!userId) {
+      await connection.rollback();
+      return res.status(401).json({
+        message: "Unauthorized",
+        status: false,
+      });
+    }
+
+    // Validate required fields
+    if (!clusterId || !status) {
+      return res.status(400).json({
+        message: "Cluster ID and status are required",
+        status: false,
+      });
+    }
+
+    // Validate status value
+    const validStatuses = ["Started", "Not Started"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        message: "Invalid status value. Allowed values: Started, Not Started",
+        status: false,
+      });
+    }
+
+    const result = await certificateCompanyDao.updateClusterStatus(
+      connection,
+      clusterId,
+      status,
+      userId
+    );
+
+    res.status(200).json({
+      message: result.message,
+      status: true,
+      data: result.data,
+      changes: result.changes,
+    });
+  } catch (err) {
+    console.error("Error updating cluster status:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
   }
 };

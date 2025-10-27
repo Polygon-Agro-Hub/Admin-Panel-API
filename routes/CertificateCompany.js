@@ -200,4 +200,11 @@ router.get(
   certificateCompanyEp.getFarmerClusterCertificates
 );
 
+// Update farmer cluster status
+router.patch(
+  "/update-cluster-status",
+  authMiddleware,
+  certificateCompanyEp.updateClusterStatus
+);
+
 module.exports = router;

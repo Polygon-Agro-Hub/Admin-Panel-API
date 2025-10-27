@@ -589,29 +589,65 @@ exports.getAllFarmerClusters = async (connection, search = "") => {
     SELECT 
       fc.id AS clusterId,
       fc.clsName AS clusterName,
-      COUNT(fcf.farmerId) AS memberCount,
+      fc.district AS district,
+      c.srtName AS certificateName,
+      COUNT(fcf.farmId) AS memberCount,
+      fc.clsStatus AS status,
       au.userName AS lastModifiedBy,
-      fc.modifyDate AS lastModifiedDate
+      DATE_FORMAT(fc.modifyDate, '%Y-%m-%d %H:%i:%s') AS lastModifiedOn,
+      fc.modifyDate AS rawModifyDate
     FROM farmcluster fc
     LEFT JOIN farmclusterfarmers fcf ON fc.id = fcf.clusterId
+    LEFT JOIN certificates c ON fc.certificateId = c.id
     LEFT JOIN agro_world_admin.adminusers au ON fc.modifyBy = au.id
   `;
 
   const params = [];
 
   if (search) {
-    query += ` WHERE fc.clsName LIKE ? `;
-    params.push(`%${search}%`);
+    query += ` WHERE (
+      fc.clsName LIKE ? 
+      OR fc.district LIKE ? 
+      OR c.srtName LIKE ? 
+      OR fc.clsStatus LIKE ?
+      OR au.userName LIKE ?
+    ) `;
+    const searchPattern = `%${search}%`;
+    params.push(
+      searchPattern,
+      searchPattern,
+      searchPattern,
+      searchPattern,
+      searchPattern
+    );
   }
 
-  // Sort by cluster name alphabetically (A → Z)
   query += `
-    GROUP BY fc.id, fc.clsName, au.userName, fc.modifyDate
+    GROUP BY 
+      fc.id, 
+      fc.clsName, 
+      fc.district, 
+      c.srtName, 
+      fc.clsStatus, 
+      au.userName, 
+      fc.modifyDate
     ORDER BY fc.clsName ASC
   `;
 
   const [rows] = await connection.query(query, params);
-  return rows;
+
+  return rows.map((cluster, index) => ({
+    no: index + 1,
+    clusterId: cluster.clusterId,
+    clusterName: cluster.clusterName,
+    district: cluster.district,
+    certificateName: cluster.certificateName || "No Certificate",
+    memberCount: cluster.memberCount,
+    viewMembers: cluster.memberCount,
+    status: cluster.status,
+    lastModifiedBy: cluster.lastModifiedBy || "N/A",
+    lastModifiedOn: cluster.lastModifiedOn || "N/A",
+  }));
 };
 
 // Delete a farm cluster and its associated farmers
@@ -644,11 +680,30 @@ exports.deleteFarmClusterWithFarmers = async (clusterId, connection) => {
 
 // Get all users for a given cluster ID with optional search
 exports.getUsersByClusterId = async (clusterId, search = "", connection) => {
+  // Get complete cluster details including certificate and district
   const [clusterRows] = await connection.query(
-    `SELECT clsName AS clusterName FROM farmcluster WHERE id = ?`,
+    `SELECT 
+      fc.clsName AS clusterName, 
+      fc.clsStatus AS clusterStatus,
+      fc.district,
+      fc.certificateId,
+      c.srtName AS certificateName,
+      c.srtNumber AS certificateNumber,
+      au.userName AS lastModifiedBy,
+      DATE_FORMAT(fc.modifyDate, '%Y-%m-%d %H:%i:%s') AS lastModifiedOn,
+      DATE_FORMAT(fc.createdAt, '%Y-%m-%d %H:%i:%s') AS createdAt
+    FROM farmcluster fc
+    LEFT JOIN certificates c ON fc.certificateId = c.id
+    LEFT JOIN agro_world_admin.adminusers au ON fc.modifyBy = au.id
+    WHERE fc.id = ?`,
     [clusterId]
   );
-  const clusterName = clusterRows.length ? clusterRows[0].clusterName : null;
+
+  if (clusterRows.length === 0) {
+    throw new Error("Cluster not found");
+  }
+
+  const clusterDetails = clusterRows[0];
 
   let query = `
     SELECT 
@@ -656,43 +711,106 @@ exports.getUsersByClusterId = async (clusterId, search = "", connection) => {
       u.firstName,
       u.lastName,
       u.NICnumber AS NIC,
-      u.phoneNumber
-    FROM users u
-    INNER JOIN farmclusterfarmers fcf ON u.id = fcf.farmerId
+      u.phoneNumber,
+      f.id AS farmId,
+      f.regCode AS farmRegCode,
+      f.farmName,
+      f.extentha,
+      f.extentac,
+      f.extentp,
+      DATE_FORMAT(fcf.createdAt, '%Y-%m-%d %H:%i:%s') AS addedDate
+    FROM farmclusterfarmers fcf
+    INNER JOIN farms f ON fcf.farmId = f.id
+    INNER JOIN users u ON f.userId = u.id
     WHERE fcf.clusterId = ?
   `;
   const params = [clusterId];
 
   if (search) {
-    query += ` AND (u.NICnumber LIKE ? OR u.phoneNumber LIKE ?)`;
-    params.push(`%${search}%`, `%${search}%`);
+    query += ` AND (
+      u.NICnumber LIKE ? 
+      OR u.phoneNumber LIKE ? 
+      OR CONCAT(u.firstName, ' ', u.lastName) LIKE ?
+      OR f.regCode LIKE ?
+      OR f.farmName LIKE ?
+      OR CAST(f.id AS CHAR) LIKE ?
+    )`;
+    const searchPattern = `%${search}%`;
+    params.push(
+      searchPattern,
+      searchPattern,
+      searchPattern,
+      searchPattern,
+      searchPattern,
+      searchPattern
+    );
   }
 
   query += ` ORDER BY u.firstName ASC, u.lastName ASC`;
 
   const [rows] = await connection.query(query, params);
-  const members = rows.map((user, index) => ({
-    no: String(index + 1).padStart(2, "0"),
-    id: user.id,
-    farmerId: user.id,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    nic: user.NIC,
-    phoneNumber: user.phoneNumber,
-  }));
+
+  const members = rows.map((user, index) => {
+    // Format farm size with all units
+    let farmSize = "";
+    if (user.extentha || user.extentac || user.extentp) {
+      const parts = [];
+      if (user.extentha) parts.push(`${user.extentha} ha`);
+      if (user.extentac) parts.push(`${user.extentac} ac`);
+      if (user.extentp) parts.push(`${user.extentp} p`);
+      farmSize = parts.join(", ");
+    } else {
+      farmSize = "N/A";
+    }
+
+    return {
+      no: String(index + 1).padStart(2, "0"),
+      id: user.id,
+      farmerId: user.id,
+      farmerName: `${user.firstName} ${user.lastName}`,
+      farmId: user.farmId,
+      farmRegCode: user.farmRegCode,
+      farmName: user.farmName || "N/A",
+      farmSize: farmSize,
+      nic: user.NIC,
+      phoneNumber: user.phoneNumber,
+      addedDate: user.addedDate,
+    };
+  });
 
   return {
     clusterId,
-    clusterName,
+    clusterName: clusterDetails.clusterName,
+    clusterStatus: clusterDetails.clusterStatus || "Not Started",
+    district: clusterDetails.district,
+    certificateId: clusterDetails.certificateId,
+    certificateName: clusterDetails.certificateName || "No Certificate",
+    certificateNumber: clusterDetails.certificateNumber || "N/A",
+    lastModifiedBy: clusterDetails.lastModifiedBy || "N/A",
+    lastModifiedOn: clusterDetails.lastModifiedOn || "N/A",
+    createdAt: clusterDetails.createdAt,
     members,
+    totalMembers: members.length,
   };
 };
 
 // Delete specific user from a cluster
 exports.deleteClusterUser = async (clusterId, farmerId, connection) => {
+  // First get the farmId for this farmer
+  const [farms] = await connection.query(
+    `SELECT id FROM farms WHERE userId = ?`,
+    [farmerId]
+  );
+
+  if (farms.length === 0) {
+    return false;
+  }
+
+  const farmId = farms[0].id;
+
   const [result] = await connection.query(
-    `DELETE FROM farmclusterfarmers WHERE clusterId = ? AND farmerId = ?`,
-    [clusterId, farmerId]
+    `DELETE FROM farmclusterfarmers WHERE clusterId = ? AND farmId = ?`,
+    [clusterId, farmId]
   );
   return result.affectedRows > 0;
 };
@@ -709,7 +827,7 @@ exports.getFarmerIdByNIC = async (nic, connection) => {
 // Check if farmer already in cluster
 exports.isFarmerInCluster = async (clusterId, farmerId, connection) => {
   const [rows] = await connection.query(
-    `SELECT id FROM farmclusterfarmers WHERE clusterId = ? AND farmerId = ?`,
+    `SELECT id FROM farmclusterfarmers WHERE clusterId = ? AND farmId = ?`,
     [clusterId, farmerId]
   );
   return rows.length > 0;
@@ -718,24 +836,142 @@ exports.isFarmerInCluster = async (clusterId, farmerId, connection) => {
 // Insert farmer into cluster
 exports.insertFarmerIntoCluster = async (clusterId, farmerId, connection) => {
   await connection.query(
-    `INSERT INTO farmclusterfarmers (clusterId, farmerId, createdAt) VALUES (?, ?, NOW())`,
+    `INSERT INTO farmclusterfarmers (clusterId, farmId, createdAt) VALUES (?, ?, NOW())`,
     [clusterId, farmerId]
   );
 };
 
-// Update only clsName in farmcluster using existing connection
-exports.updateClusterName = async (
+// Update farmer cluster (name, district, certificate)
+exports.updateFarmerCluster = async (
   clusterId,
-  clusterName,
+  updateData,
   userId,
   connection
 ) => {
-  await connection.query(
-    `UPDATE farmcluster 
-     SET clsName = ?, modifyBy = ?, modifyDate = NOW() 
-     WHERE id = ?`,
-    [clusterName.trim(), userId, clusterId]
+  try {
+    const { clusterName, district, certificateId } = updateData;
+
+    // Get current cluster data
+    const [currentCluster] = await connection.query(
+      `SELECT clsName, district, certificateId FROM farmcluster WHERE id = ?`,
+      [clusterId]
+    );
+
+    if (currentCluster.length === 0) {
+      throw new Error("Cluster not found");
+    }
+
+    const currentData = currentCluster[0];
+    const changes = {};
+    const updateFields = [];
+    const updateValues = [];
+
+    // Build dynamic update query based on provided fields
+    if (clusterName !== undefined && clusterName !== currentData.clsName) {
+      updateFields.push("clsName = ?");
+      updateValues.push(clusterName.trim());
+      changes.clusterName = {
+        old: currentData.clsName,
+        new: clusterName.trim(),
+      };
+    }
+
+    if (district !== undefined && district !== currentData.district) {
+      updateFields.push("district = ?");
+      updateValues.push(district);
+      changes.district = {
+        old: currentData.district,
+        new: district,
+      };
+    }
+
+    if (
+      certificateId !== undefined &&
+      certificateId !== currentData.certificateId
+    ) {
+      updateFields.push("certificateId = ?");
+      updateValues.push(certificateId);
+      changes.certificateId = {
+        old: currentData.certificateId,
+        new: certificateId,
+      };
+    }
+
+    // If no fields to update
+    if (updateFields.length === 0) {
+      return {
+        message: "No changes detected",
+        changes: {},
+      };
+    }
+
+    // Add modifyBy and modifyDate
+    updateFields.push("modifyBy = ?");
+    updateValues.push(userId);
+    updateFields.push("modifyDate = NOW()");
+
+    // Add clusterId for WHERE clause
+    updateValues.push(clusterId);
+
+    const updateQuery = `
+      UPDATE farmcluster 
+      SET ${updateFields.join(", ")} 
+      WHERE id = ?
+    `;
+
+    const [result] = await connection.query(updateQuery, updateValues);
+
+    if (result.affectedRows === 0) {
+      throw new Error("Failed to update cluster");
+    }
+
+    // Get updated cluster data
+    const [updatedCluster] = await connection.query(
+      `
+      SELECT 
+        fc.id AS clusterId,
+        fc.clsName AS clusterName,
+        fc.district,
+        fc.clsStatus AS status,
+        c.srtName AS certificateName,
+        c.id AS certificateId,
+        c.srtNumber AS certificateNumber,
+        COUNT(fcf.farmId) AS memberCount,
+        au.userName AS lastModifiedBy,
+        DATE_FORMAT(fc.modifyDate, '%Y-%m-%d %H:%i:%s') AS lastModifiedOn,
+        DATE_FORMAT(fc.createdAt, '%Y-%m-%d %H:%i:%s') AS createdAt
+      FROM farmcluster fc
+      LEFT JOIN farmclusterfarmers fcf ON fc.id = fcf.clusterId
+      LEFT JOIN certificates c ON fc.certificateId = c.id
+      LEFT JOIN agro_world_admin.adminusers au ON fc.modifyBy = au.id
+      WHERE fc.id = ?
+      GROUP BY fc.id
+    `,
+      [clusterId]
+    );
+
+    return {
+      message: "Cluster updated successfully",
+      updatedCluster: updatedCluster[0],
+      changes: changes,
+    };
+  } catch (error) {
+    console.error("DAO Error updating farmer cluster:", error);
+    throw error;
+  }
+};
+
+// Check if cluster name exists excluding current cluster
+exports.isClusterNameExistsExcludingCurrent = async (
+  clusterName,
+  excludeClusterId,
+  connection
+) => {
+  const [rows] = await connection.query(
+    `SELECT id FROM farmcluster WHERE clsName = ? AND id != ?`,
+    [clusterName.trim(), excludeClusterId]
   );
+  return rows.length > 0;
 };
 
 // Check if a certificate company with the given tax ID exists
@@ -900,4 +1136,144 @@ exports.checkRegCodesExist = async (regCodeList, connection) => {
     (regCode) => !existingRegCodes.includes(regCode)
   );
   return { existingRegCodes, missingRegCodes };
+};
+
+// Update farmer cluster status
+exports.updateClusterStatus = async (
+  connection,
+  clusterId,
+  status,
+  modifyBy
+) => {
+  try {
+    // Check if cluster exists
+    const [clusterExists] = await connection.query(
+      "SELECT id, clsName, clsStatus FROM farmcluster WHERE id = ?",
+      [clusterId]
+    );
+
+    if (clusterExists.length === 0) {
+      throw new Error("Cluster not found");
+    }
+
+    const oldStatus = clusterExists[0].clsStatus;
+    const clusterName = clusterExists[0].clsName;
+
+    // Update cluster status with modifyBy and modifyDate
+    const updateQuery = `
+      UPDATE farmcluster 
+      SET clsStatus = ?, modifyBy = ?, modifyDate = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `;
+
+    const [result] = await connection.query(updateQuery, [
+      status,
+      modifyBy,
+      clusterId,
+    ]);
+
+    if (result.affectedRows === 0) {
+      throw new Error("Failed to update cluster status");
+    }
+
+    // Get updated cluster data with last modified info
+    const [updatedCluster] = await connection.query(
+      `
+      SELECT 
+        fc.id AS clusterId,
+        fc.clsName AS clusterName,
+        fc.district,
+        fc.clsStatus AS status,
+        c.srtName AS certificateName,
+        c.id AS certificateId,
+        COUNT(fcf.farmId) AS memberCount,
+        au.userName AS lastModifiedBy,
+        DATE_FORMAT(fc.modifyDate, '%Y-%m-%d %H:%i:%s') AS lastModifiedOn,
+        DATE_FORMAT(fc.createdAt, '%Y-%m-%d %H:%i:%s') AS createdAt
+      FROM farmcluster fc
+      LEFT JOIN farmclusterfarmers fcf ON fc.id = fcf.clusterId
+      LEFT JOIN certificates c ON fc.certificateId = c.id
+      LEFT JOIN agro_world_admin.adminusers au ON fc.modifyBy = au.id
+      WHERE fc.id = ?
+      GROUP BY fc.id
+    `,
+      [clusterId]
+    );
+
+    return {
+      message: `Cluster status updated from ${
+        oldStatus || "Not Started"
+      } to ${status} successfully`,
+      data: updatedCluster[0],
+      changes: {
+        oldStatus: oldStatus || "Not Started",
+        newStatus: status,
+        clusterName: clusterName,
+        modifiedBy: modifyBy,
+        modifiedAt: new Date().toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error("DAO Error updating cluster status:", error);
+    throw error;
+  }
+};
+
+// Check if cluster exists
+exports.checkClusterExists = async (clusterId, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id FROM farmcluster WHERE id = ?`,
+    [clusterId]
+  );
+  return rows.length > 0;
+};
+
+// Get farmer information by NIC
+exports.getFarmerInfoByNIC = async (nic, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id, firstName FROM users WHERE NICnumber = ?`,
+    [nic]
+  );
+  return rows.length > 0 ? rows[0] : null;
+};
+
+// Validate farmer's farm and get farm ID
+exports.validateFarmerFarm = async (farmerId, farmRegCode, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id, regCode FROM farms WHERE userId = ? AND regCode = ?`,
+    [farmerId, farmRegCode]
+  );
+
+  return {
+    farmExists: rows.length > 0,
+    farmId: rows.length > 0 ? rows[0].id : null,
+    regCode: rows.length > 0 ? rows[0].regCode : null,
+  };
+};
+
+// Check if farm is already in cluster
+exports.isFarmInCluster = async (clusterId, farmId, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id FROM farmclusterfarmers WHERE clusterId = ? AND farmId = ?`,
+    [clusterId, farmId]
+  );
+  return rows.length > 0;
+};
+
+// Insert farm into cluster
+exports.insertFarmIntoCluster = async (clusterId, farmId, connection) => {
+  const [result] = await connection.query(
+    `INSERT INTO farmclusterfarmers (clusterId, farmId, createdAt) VALUES (?, ?, NOW())`,
+    [clusterId, farmId]
+  );
+  return result;
+};
+
+// Check if farm exists (by regCode)
+exports.checkFarmExists = async (farmRegCode, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id FROM farms WHERE regCode = ?`,
+    [farmRegCode]
+  );
+  return rows.length > 0;
 };

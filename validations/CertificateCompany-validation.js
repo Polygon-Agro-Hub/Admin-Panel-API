@@ -62,7 +62,7 @@ exports.updateCertificateValidation = Joi.object({
     Joi.string()
   ),
   scope: Joi.string().allow(null, ""),
-  noOfVisit: Joi.number().integer().min(0).allow(null, ""), 
+  noOfVisit: Joi.number().integer().min(0).allow(null, ""),
 });
 
 // Get All Companies Schema
@@ -135,26 +135,62 @@ exports.createFarmerClusterSchema = Joi.object({
     "number.base": "Certificate ID must be a number",
     "number.positive": "Certificate ID must be a positive number",
   }),
-  farmers: Joi.array().min(1).required().items(
-    Joi.object({
-      farmerNIC: Joi.string().required().messages({
-        "string.empty": "Farmer NIC is required"
-      }),
-      regCode: Joi.string().required().messages({
-        "string.empty": "Registration code is required"
+  farmers: Joi.array()
+    .min(1)
+    .required()
+    .items(
+      Joi.object({
+        farmerNIC: Joi.string().required().messages({
+          "string.empty": "Farmer NIC is required",
+        }),
+        regCode: Joi.string().required().messages({
+          "string.empty": "Registration code is required",
+        }),
       })
-    })
-  ).messages({
-    "array.min": "At least one farmer must be provided",
-  }),
+    )
+    .messages({
+      "array.min": "At least one farmer must be provided",
+    }),
 });
 
 // Existing validation schemas
 exports.updateFarmerClusterSchema = Joi.object({
-  clusterName: Joi.string().trim().min(1).max(255).required().messages({
-    "string.empty": "Cluster name is required",
+  clusterName: Joi.string().trim().min(1).max(55).optional().messages({
+    "string.empty": "Cluster name cannot be empty",
     "string.min": "Cluster name must be at least 1 character long",
-    "string.max": "Cluster name cannot exceed 255 characters",
-    "any.required": "Cluster name is required",
+    "string.max": "Cluster name cannot exceed 55 characters",
+  }),
+  district: Joi.string().trim().min(1).max(55).optional().messages({
+    "string.empty": "District cannot be empty",
+    "string.min": "District must be at least 1 character long",
+    "string.max": "District cannot exceed 55 characters",
+  }),
+  certificateId: Joi.number().integer().min(1).optional().messages({
+    "number.base": "Certificate ID must be a number",
+    "number.integer": "Certificate ID must be an integer",
+    "number.min": "Certificate ID must be a positive number",
+  }),
+})
+  .or("clusterName", "district", "certificateId")
+  .messages({
+    "object.missing":
+      "At least one field (clusterName, district, or certificateId) is required",
+  });
+
+// Validation for adding a single farmer to an existing cluster
+exports.addSingleFarmerToClusterSchema = Joi.object({
+  nic: Joi.string()
+    .required()
+    .pattern(/^(?:\d{9}[Vv]|\d{12})$/)
+    .messages({
+      "string.empty": "NIC number is required",
+      "string.pattern.base": "Invalid NIC format",
+    }),
+  farmId: Joi.string().trim().required().messages({
+    "string.empty": "Farm ID is required",
+  }),
+  clusterId: Joi.number().integer().positive().required().messages({
+    "number.base": "Cluster ID must be a number",
+    "any.required": "Cluster ID is required",
   }),
 });
