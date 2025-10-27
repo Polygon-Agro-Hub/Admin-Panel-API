@@ -1055,33 +1055,41 @@ exports.validateFarmersWithFarms = async (
     [nicList, regCodeList]
   );
 
-  // Create validation result
+  // Create validation result - PROCESS EACH FARMER-REGCODE PAIR INDIVIDUALLY
   const validFarmers = [];
   const mismatchedFarmers = [];
 
-  nicList.forEach((nic) => {
-    const userFarms = farmRows.filter((farm) => farm.NICnumber === nic);
+  // Process each farmer-regCode pair from the original farmers array
+  farmers.forEach((farmer) => {
+    const nic = farmer.farmerNIC.trim();
+    const regCode = farmer.regCode.trim();
 
-    // Find the requested registration code for this NIC from the farmers array
-    const farmerData = farmers.find((f) => f.farmerNIC === nic);
-    const requestedRegCode = farmerData ? farmerData.regCode : null;
+    // Check if NIC exists
+    if (!existingNICs.includes(nic)) {
+      mismatchedFarmers.push({
+        farmerNIC: nic,
+        regCode: regCode,
+        reason: "NIC number not registered in system",
+      });
+      return;
+    }
 
-    if (
-      requestedRegCode &&
-      userFarms.some((farm) => farm.regCode === requestedRegCode)
-    ) {
+    // Check if this specific farmer has a farm with this specific regCode
+    const userFarms = farmRows.filter(
+      (farm) => farm.NICnumber === nic && farm.regCode === regCode
+    );
+
+    if (userFarms.length > 0) {
       validFarmers.push({
         farmerNIC: nic,
-        regCode: requestedRegCode,
+        regCode: regCode,
         userId: userMap[nic],
       });
     } else {
       mismatchedFarmers.push({
         farmerNIC: nic,
-        regCode: requestedRegCode,
-        reason: !requestedRegCode
-          ? "Registration code not provided"
-          : "Farmer doesn't have a farm with this registration code",
+        regCode: regCode,
+        reason: "Farmer doesn't have a farm with this registration code",
       });
     }
   });
@@ -1098,18 +1106,32 @@ exports.validateFarmersWithFarms = async (
 exports.getFarmIdsForValidFarmers = async (validFarmers, connection) => {
   if (validFarmers.length === 0) return [];
 
-  const conditions = validFarmers
-    .map((f) => `(f.userId = ? AND f.regCode = ?)`)
+  // Create conditions for each specific farmer-regCode pair
+  const placeholders = validFarmers
+    .map(() => `(f.userId = ? AND f.regCode = ?)`)
     .join(" OR ");
 
   const params = validFarmers.flatMap((f) => [f.userId, f.regCode]);
 
   const [rows] = await connection.query(
-    `SELECT f.id FROM farms f WHERE ${conditions}`,
+    `SELECT f.id, f.userId, f.regCode FROM farms f WHERE ${placeholders}`,
     params
   );
 
-  return rows.map((r) => r.id);
+  // Match farms to the exact validFarmers order to preserve duplicates
+  const farmIds = [];
+
+  validFarmers.forEach((validFarmer) => {
+    const farm = rows.find(
+      (row) =>
+        row.userId === validFarmer.userId && row.regCode === validFarmer.regCode
+    );
+    if (farm) {
+      farmIds.push(farm.id);
+    }
+  });
+
+  return farmIds;
 };
 
 // Bulk insert farms into cluster
@@ -1276,4 +1298,71 @@ exports.checkFarmExists = async (farmRegCode, connection) => {
     [farmRegCode]
   );
   return rows.length > 0;
+};
+
+// Get certificate details including price and timeline
+exports.getCertificateDetails = async (certificateId, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id, price, timeLine FROM certificates WHERE id = ?`,
+    [certificateId]
+  );
+  return rows.length > 0 ? rows[0] : null;
+};
+
+// Create certification payment record
+exports.createCertificationPayment = async (paymentData, connection) => {
+  const { certificateId, clusterId, payType, price, timeLine, farmsCount } =
+    paymentData;
+
+  const amount = parseFloat(price) * farmsCount;
+
+  const expireDate = new Date();
+  expireDate.setMonth(expireDate.getMonth() + parseInt(timeLine));
+
+  // Await since generateTransactionId is async
+  const transactionId = await generateTransactionId();
+
+  const [result] = await connection.query(
+    `INSERT INTO certificationpayment 
+     (certificateId, userId, clusterId, payType, transactionId, amount, expireDate) 
+     VALUES (?, NULL, ?, ?, ?, ?, ?)`,
+    [certificateId, clusterId, payType, transactionId, amount, expireDate]
+  );
+
+  return {
+    insertId: result.insertId,
+    transactionId,
+    amount,
+    expireDate,
+  };
+};
+
+// Generate transaction ID function (local)
+const generateTransactionId = async (prefix = "CTID") => {
+  const latestId = await getLatestTransactionId(prefix);
+
+  if (latestId) {
+    const numericPart = parseInt(latestId.replace(prefix, ""), 10) + 1;
+    return `${prefix}${numericPart.toString().padStart(7, "0")}`;
+  } else {
+    return `${prefix}0000001`;
+  }
+};
+
+// Sequential version using database
+const getLatestTransactionId = async (prefix) => {
+  try {
+    const connection = await plantcare.promise().getConnection();
+    const [rows] = await connection.query(
+      `SELECT transactionId FROM certificationpayment 
+       WHERE transactionId LIKE ? 
+       ORDER BY id DESC LIMIT 1`,
+      [`${prefix}%`]
+    );
+    connection.release();
+    return rows.length > 0 ? rows[0].transactionId : null;
+  } catch (error) {
+    console.error("Error getting latest transaction ID:", error);
+    return null;
+  }
 };

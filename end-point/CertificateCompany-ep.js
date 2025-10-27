@@ -977,8 +977,8 @@ exports.createFarmerCluster = async (req, res) => {
       });
 
     // Extract unique NICs and regCodes
-    const farmerNICs = [...new Set(farmers.map((f) => f.farmerNIC.trim()))];
-    const regCodes = [...new Set(farmers.map((f) => f.regCode.trim()))];
+    const farmerNICs = farmers.map((f) => f.farmerNIC.trim());
+    const regCodes = farmers.map((f) => f.regCode.trim());
 
     // Check duplicate cluster name
     const clusterExists = await certificateCompanyDao.isClusterNameExists(
@@ -993,13 +993,13 @@ exports.createFarmerCluster = async (req, res) => {
       });
     }
 
-    // Check if certificate exists
-    const certificateExists =
-      await certificateCompanyDao.checkCertificateExists(
+    // Check if certificate exists and get certificate details
+    const certificateDetails =
+      await certificateCompanyDao.getCertificateDetails(
         certificateId,
         connection
       );
-    if (!certificateExists) {
+    if (!certificateDetails) {
       await connection.rollback();
       return res.status(400).json({
         message: "Certificate ID does not exist",
@@ -1076,6 +1076,20 @@ exports.createFarmerCluster = async (req, res) => {
       connection
     );
 
+    // Create certification payment record
+    const paymentResult =
+      await certificateCompanyDao.createCertificationPayment(
+        {
+          certificateId,
+          clusterId,
+          payType: "Cluster",
+          price: certificateDetails.price,
+          timeLine: certificateDetails.timeLine,
+          farmsCount: farmIds.length,
+        },
+        connection
+      );
+
     await connection.commit();
 
     res.status(201).json({
@@ -1089,6 +1103,12 @@ exports.createFarmerCluster = async (req, res) => {
         farmsAdded: bulkInsertResult.affectedRows,
         totalFarms: farmIds.length,
         validFarmers: farmerValidation.validFarmers,
+        paymentRecord: {
+          paymentId: paymentResult.insertId,
+          transactionId: paymentResult.transactionId,
+          amount: paymentResult.amount,
+          expireDate: paymentResult.expireDate,
+        },
       },
     });
   } catch (err) {
