@@ -479,12 +479,12 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
     }
 
     if (filters.completedDateFrom) {
-      filterConditions.push('DATE(fa.completeDate) >= ?');
+      filterConditions.push('DATE(fa.completeDate) = ?');
       filterParams.push(filters.completedDateFrom);
     }
 
     if (filters.completedDateTo) {
-      filterConditions.push('DATE(fa.completeDate) <= ?');
+      filterConditions.push('DATE(fa.completeDate) = ?');
       filterParams.push(filters.completedDateTo);
     }
 
