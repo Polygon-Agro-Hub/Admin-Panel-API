@@ -433,3 +433,166 @@ exports.checkDuplicateServiceNames = (id, englishName, tamilName, sinhalaName) =
     );
   });
 };
+
+
+exports.getFieldAuditDetails = (filters = {}, search = {}) => {
+  return new Promise((resolve, reject) => {
+    // Build WHERE conditions for searches
+    let searchConditions = [];
+    const searchParams = [];
+    
+    // Job ID search
+    if (search.jobId) {
+      searchConditions.push('fa.jobId LIKE ?');
+      searchParams.push(`%${search.jobId}%`);
+    }
+    
+    // Farm regCode search
+    if (search.farmId) {
+      searchConditions.push('f.regCode LIKE ?');
+      searchParams.push(`%${search.farmId}%`);
+    }
+    
+    // NIC search
+    if (search.nic) {
+      searchConditions.push('u.NICnumber LIKE ?');
+      searchParams.push(`%${search.nic}%`);
+    }
+    
+    const searchWhereClause = searchConditions.length > 0 
+      ? `AND (${searchConditions.join(' OR ')})` 
+      : '';
+
+    // Build filter conditions
+    const filterConditions = [];
+    const filterParams = [];
+
+    if (filters.status) {
+      filterConditions.push('fa.status = ?');
+      filterParams.push(filters.status);
+    }
+
+    // Fixed district filter - checks both fc.district and f.district
+    if (filters.district) {
+      filterConditions.push('(fc.district = ? OR f.district = ?)');
+      filterParams.push(filters.district, filters.district);
+    }
+
+    if (filters.completedDateFrom) {
+      filterConditions.push('DATE(fa.completeDate) >= ?');
+      filterParams.push(filters.completedDateFrom);
+    }
+
+    if (filters.completedDateTo) {
+      filterConditions.push('DATE(fa.completeDate) <= ?');
+      filterParams.push(filters.completedDateTo);
+    }
+
+    const filterWhereClause = filterConditions.length > 0
+      ? `AND ${filterConditions.join(' AND ')}`
+      : '';
+
+    const sql = `
+      SELECT 
+        fa.jobId,
+        fo.empId,
+        fa.propose AS visitPurpose,
+        fa.sheduleDate AS scheduledDate,
+        fa.completeDate AS completedDate,
+        fa.onScreenTime,
+        fa.status,
+        fa.assignDate AS assignedOn,
+        
+        -- For Cluster: get district from farmcluster, for others from farms
+        CASE 
+          WHEN fa.propose = 'Cluster' THEN fc.district
+          ELSE f.district
+        END AS district,
+        
+        -- Aggregate farm IDs for clusters
+        CASE 
+          WHEN fa.propose = 'Cluster' THEN GROUP_CONCAT(DISTINCT f.id ORDER BY f.id SEPARATOR ',')
+          ELSE f.id
+        END AS farmId,
+        
+        -- Aggregate regCodes for clusters
+        CASE 
+          WHEN fa.propose = 'Cluster' THEN GROUP_CONCAT(DISTINCT f.regCode ORDER BY f.regCode SEPARATOR ',')
+          ELSE f.regCode
+        END AS regCode,
+        
+        -- Aggregate NICs for clusters
+        CASE 
+          WHEN fa.propose = 'Cluster' THEN GROUP_CONCAT(DISTINCT u.NICnumber ORDER BY u.NICnumber SEPARATOR ',')
+          ELSE u.NICnumber
+        END AS farmerNIC
+        
+      FROM feildaudits fa
+      
+      -- Join field officer
+      INNER JOIN feildofficer fo ON fa.assignOfficerId = fo.id
+      
+      -- Join certification payment
+      INNER JOIN certificationpayment cp ON fa.paymentId = cp.id
+      
+      -- Left join for Cluster scenario
+      LEFT JOIN farmcluster fc ON fa.propose = 'Cluster' AND cp.clusterId = fc.id
+      LEFT JOIN farmclusterfarmers fcf ON fa.propose = 'Cluster' AND fc.id = fcf.clusterId
+      
+      -- Left join for Individual/Request scenario OR farms from cluster
+      LEFT JOIN farms f ON (
+        (fa.propose IN ('Request', 'Individual') AND f.userId = cp.userId)
+        OR (fa.propose = 'Cluster' AND f.id = fcf.farmId)
+      )
+      
+      -- Join users (farmer owner)
+      LEFT JOIN users u ON f.userId = u.id
+      
+      WHERE 1=1
+        -- Cluster: only completed
+        AND (
+          (fa.propose = 'Cluster' AND fa.status = 'Completed')
+          OR
+          -- Request/Individual: both completed and pending
+          (fa.propose IN ('Request', 'Individual') AND fa.status IN ('Completed', 'Pending'))
+        )
+        ${filterWhereClause}
+        ${searchWhereClause}
+      
+      GROUP BY 
+        fa.id,
+        fa.jobId,
+        fo.empId,
+        fa.propose,
+        fa.sheduleDate,
+        fa.completeDate,
+        fa.onScreenTime,
+        fa.status,
+        fa.assignDate,
+        fc.district,
+        f.district,
+        f.id,
+        f.regCode,
+        u.NICnumber
+      
+      ORDER BY fa.completeDate DESC, fa.sheduleDate DESC
+    `;
+
+    // Combine all parameters in correct order
+    const params = [...filterParams, ...searchParams];
+
+    console.log('Filters received in DAO:', filters);
+    console.log('Search received in DAO:', search);
+    console.log('SQL Query:', sql);
+    console.log('Parameters:', params);
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        console.error("Error fetching field audit details:", err);
+        return reject(err);
+      }
+
+      resolve(results);
+    });
+  });
+};

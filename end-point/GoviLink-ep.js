@@ -288,3 +288,56 @@ exports.getJobBasicDetailsById = async (req, res) => {
     });
   }
 };
+
+
+exports.getFieldAuditDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  
+  try {
+    // Filters
+    const filters = {
+      status: req.query.status,
+      district: req.query.district,
+      completedDateFrom: req.query.completedDateFrom,
+      completedDateTo: req.query.completedDateTo
+    };
+
+    // Search parameters
+    const search = {
+      jobId: req.query.searchJobId,
+      farmId: req.query.searchFarmId,
+      nic: req.query.searchNic
+    };
+
+    // Remove undefined/null/empty filters and search params
+    Object.keys(filters).forEach(key => {
+      if (!filters[key]) delete filters[key];
+    });
+    
+    Object.keys(search).forEach(key => {
+      if (!search[key]) delete search[key];
+    });
+
+    console.log('Filters being passed:', filters);
+    console.log('Search being passed:', search);
+
+    const auditDetails = await GoviLinkDAO.getFieldAuditDetails(filters, search);
+
+    res.json({
+      success: true,
+      data: auditDetails,
+      total: auditDetails.length,
+      filters: filters,
+      search: search,
+      message: "Field audit details fetched successfully"
+    });
+  } catch (err) {
+    console.error("Error fetching field audit details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching field audit details.",
+      error: err.message
+    });
+  }
+};
