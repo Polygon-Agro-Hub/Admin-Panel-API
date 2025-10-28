@@ -63,4 +63,10 @@ router.get(
   GoviLinkEp.getJobBasicDetailsById
 );
 
+router.get(
+  "/get-field-audit-history",
+  authMiddleware,
+  GoviLinkEp.getFieldAuditDetails
+);
+
 module.exports = router;
