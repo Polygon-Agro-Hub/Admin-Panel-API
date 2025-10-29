@@ -3427,12 +3427,16 @@ exports.createFieldOfficer = async (req, res) => {
     // Process profile image
     if (req.files && req.files.profileImage) {
       try {
-        const file = req.files.profileImage[0];
-        const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_profile.${fileExtension}`;
+
+        const base64String = req.body.file.split(",")[1];
+        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
+        const fileBuffer = Buffer.from(base64String, "base64");
+
+        const fileExtension = mimeType.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_profile.png`;
 
         profileImageUrl = await uploadFileToS3(
-          file.buffer,
+          fileBuffer,
           fileName,
           "fieldofficer/profile"
         );
@@ -3448,7 +3452,7 @@ exports.createFieldOfficer = async (req, res) => {
       try {
         const file = req.files.nicFront[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.png`;
 
         nicFrontUrl = await uploadFileToS3(
           file.buffer,
@@ -3469,7 +3473,7 @@ exports.createFieldOfficer = async (req, res) => {
       try {
         const file = req.files.nicBack[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.png`;
 
         nicBackUrl = await uploadFileToS3(
           file.buffer,
@@ -3488,7 +3492,7 @@ exports.createFieldOfficer = async (req, res) => {
       try {
         const file = req.files.passbook[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.png`;
 
         passbookUrl = await uploadFileToS3(
           file.buffer,
@@ -3507,7 +3511,7 @@ exports.createFieldOfficer = async (req, res) => {
       try {
         const file = req.files.contract[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_contract.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_contract.png`;
 
         contractUrl = await uploadFileToS3(
           file.buffer,
@@ -3754,7 +3758,7 @@ exports.updateFieldOfficer = async (req, res) => {
       try {
         const file = req.files.profileImage[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_profile.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_profile.png`;
 
         profileImageUrl = await uploadFileToS3(
           file.buffer,
@@ -3773,7 +3777,7 @@ exports.updateFieldOfficer = async (req, res) => {
       try {
         const file = req.files.nicFront[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.png`;
 
         nicFrontUrl = await uploadFileToS3(
           file.buffer,
@@ -3794,7 +3798,7 @@ exports.updateFieldOfficer = async (req, res) => {
       try {
         const file = req.files.nicBack[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.png`;
 
         nicBackUrl = await uploadFileToS3(
           file.buffer,
@@ -3813,7 +3817,7 @@ exports.updateFieldOfficer = async (req, res) => {
       try {
         const file = req.files.passbook[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.png`;
 
         passbookUrl = await uploadFileToS3(
           file.buffer,
@@ -3832,7 +3836,7 @@ exports.updateFieldOfficer = async (req, res) => {
       try {
         const file = req.files.contract[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_contract.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_contract.png`;
 
         contractUrl = await uploadFileToS3(
           file.buffer,
