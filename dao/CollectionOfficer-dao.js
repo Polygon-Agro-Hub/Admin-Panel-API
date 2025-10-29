@@ -1455,6 +1455,7 @@ exports.getOfficerByIdDAO = (id) => {
               COF.*,
               COM.companyNameEnglish,
               CEN.centerName,
+              CEN.regCode AS centerRegCode,
               DC.centerName AS distributedCenterName
           FROM 
               collectionofficer COF
@@ -1519,7 +1520,8 @@ exports.getOfficerByIdDAO = (id) => {
           companyNameEnglish: officer.companyNameEnglish,
           centerName: officer.centerName,
           distributedCenterName: officer.distributedCenterName || null,
-          fullEmpId: officer.empId
+          fullEmpId: officer.empId,
+          centerRegCode: officer.centerRegCode,
         },
       });
     });
