@@ -1174,12 +1174,12 @@ exports.addSingleFarmerToCluster = async (req, res) => {
     const clusterId = parseInt(req.params.clusterId);
     const { nic, farmId } = req.body;
 
-    // Step 1: Check if cluster exists
-    const clusterExists = await certificateCompanyDao.checkClusterExists(
+    // Step 1: Check if cluster exists and get certificate info
+    const clusterInfo = await certificateCompanyDao.getClusterWithCertificate(
       clusterId,
       connection
     );
-    if (!clusterExists) {
+    if (!clusterInfo) {
       await connection.rollback();
       return res.status(404).json({
         message: "Cluster not found",
@@ -1256,12 +1256,34 @@ exports.addSingleFarmerToCluster = async (req, res) => {
       });
     }
 
-    // Step 6: Insert farm into cluster
+    // Step 6: Get existing certification payment for this cluster
+    const existingPayment = await certificateCompanyDao.getClusterPaymentRecord(
+      clusterId,
+      connection
+    );
+
+    if (!existingPayment) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `No certification payment record found for this cluster`,
+        status: false,
+      });
+    }
+
+    // Step 7: Insert farm into cluster
     await certificateCompanyDao.insertFarmIntoCluster(
       clusterId,
       farmValidation.farmId,
       connection
     );
+
+    // Step 8: Update certification payment amount
+    const updateResult =
+      await certificateCompanyDao.updateCertificationPaymentAmount(
+        clusterId,
+        clusterInfo.certificatePrice,
+        connection
+      );
 
     await connection.commit();
 
@@ -1275,6 +1297,12 @@ exports.addSingleFarmerToCluster = async (req, res) => {
         nic: nic.trim(),
         farmId: farmId.trim(),
         farmDbId: farmValidation.farmId,
+        paymentUpdate: {
+          updated: updateResult.updated,
+          newAmount: updateResult.newAmount,
+          farmsCount: updateResult.farmsCount,
+          certificatePrice: clusterInfo.certificatePrice,
+        },
       },
     });
   } catch (err) {
@@ -1405,33 +1433,81 @@ exports.deleteClusterUser = async (req, res) => {
   let connection;
   try {
     connection = await plantcare.promise().getConnection();
+    await connection.beginTransaction();
 
     const clusterId = parseInt(req.params.clusterId);
     const farmerId = parseInt(req.params.farmerId);
 
     if (!clusterId || !farmerId) {
+      await connection.rollback();
       return res.status(400).json({
         message: "Cluster ID and Farmer ID are required",
         status: false,
       });
     }
 
+    // Step 1: Get cluster info with certificate price before deletion
+    const clusterInfo = await certificateCompanyDao.getClusterWithCertificate(
+      clusterId,
+      connection
+    );
+    if (!clusterInfo) {
+      await connection.rollback();
+      return res.status(404).json({
+        message: "Cluster not found",
+        status: false,
+      });
+    }
+
+    // Step 2: Check if certification payment exists for this cluster
+    const existingPayment = await certificateCompanyDao.getClusterPaymentRecord(
+      clusterId,
+      connection
+    );
+    if (!existingPayment) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "No certification payment record found for this cluster",
+        status: false,
+      });
+    }
+
+    // Step 3: Delete user from cluster
     const deleted = await certificateCompanyDao.deleteClusterUser(
       clusterId,
       farmerId,
       connection
     );
     if (!deleted) {
+      await connection.rollback();
       return res
         .status(404)
         .json({ message: "User not found in this cluster", status: false });
     }
 
+    // Step 4: Update certification payment amount after deletion
+    const updateResult = await certificateCompanyDao.updateCertificationPaymentAmount(
+      clusterId,
+      clusterInfo.certificatePrice,
+      connection
+    );
+
+    await connection.commit();
+
     res.status(200).json({
       message: "User removed from cluster successfully",
       status: true,
+      data: {
+        paymentUpdate: {
+          updated: updateResult.updated,
+          newAmount: updateResult.newAmount,
+          farmsCount: updateResult.farmsCount,
+          certificatePrice: clusterInfo.certificatePrice
+        }
+      },
     });
   } catch (err) {
+    if (connection) await connection.rollback();
     console.error("Error deleting cluster user:", err);
     res.status(500).json({
       message: "Internal server error",

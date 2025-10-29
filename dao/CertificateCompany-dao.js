@@ -1366,3 +1366,55 @@ const getLatestTransactionId = async (prefix) => {
     return null;
   }
 };
+
+// Get cluster information with certificate price
+exports.getClusterWithCertificate = async (clusterId, connection) => {
+  const [rows] = await connection.query(
+    `SELECT fc.id, fc.clsName, fc.certificateId, c.price as certificatePrice
+     FROM farmcluster fc
+     INNER JOIN certificates c ON fc.certificateId = c.id
+     WHERE fc.id = ?`,
+    [clusterId]
+  );
+  return rows.length > 0 ? rows[0] : null;
+};
+
+// Get existing payment record for cluster
+exports.getClusterPaymentRecord = async (clusterId, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id, amount, transactionId, certificateId, clusterId
+     FROM certificationpayment 
+     WHERE clusterId = ? AND payType = 'Cluster' 
+     ORDER BY id DESC LIMIT 1`,
+    [clusterId]
+  );
+  return rows.length > 0 ? rows[0] : null;
+};
+
+// Update certification payment amount
+exports.updateCertificationPaymentAmount = async (clusterId, certificatePrice, connection) => {
+  // Get current farms count in cluster (after new farm was added)
+  const [farmsCountRows] = await connection.query(
+    `SELECT COUNT(*) as farmsCount FROM farmclusterfarmers WHERE clusterId = ?`,
+    [clusterId]
+  );
+  
+  const farmsCount = farmsCountRows[0].farmsCount;
+  
+  // Calculate new amount (certificate price × farms count)
+  const newAmount = parseFloat(certificatePrice) * farmsCount;
+  
+  // Update the certification payment record
+  const [updateResult] = await connection.query(
+    `UPDATE certificationpayment 
+     SET amount = ? 
+     WHERE clusterId = ? AND payType = 'Cluster'`,
+    [newAmount, clusterId]
+  );
+  
+  return {
+    updated: updateResult.affectedRows > 0,
+    newAmount,
+    farmsCount
+  };
+};
