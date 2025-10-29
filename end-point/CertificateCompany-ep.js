@@ -1486,11 +1486,12 @@ exports.deleteClusterUser = async (req, res) => {
     }
 
     // Step 4: Update certification payment amount after deletion
-    const updateResult = await certificateCompanyDao.updateCertificationPaymentAmount(
-      clusterId,
-      clusterInfo.certificatePrice,
-      connection
-    );
+    const updateResult =
+      await certificateCompanyDao.updateCertificationPaymentAmount(
+        clusterId,
+        clusterInfo.certificatePrice,
+        connection
+      );
 
     await connection.commit();
 
@@ -1502,8 +1503,8 @@ exports.deleteClusterUser = async (req, res) => {
           updated: updateResult.updated,
           newAmount: updateResult.newAmount,
           farmsCount: updateResult.farmsCount,
-          certificatePrice: clusterInfo.certificatePrice
-        }
+          certificatePrice: clusterInfo.certificatePrice,
+        },
       },
     });
   } catch (err) {
@@ -1691,6 +1692,118 @@ exports.updateClusterStatus = async (req, res) => {
     });
   } catch (err) {
     console.error("Error updating cluster status:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// Get all field audits
+exports.getFieldAudits = async (req, res) => {
+  let connection;
+
+  try {
+    connection = await plantcare.promise().getConnection();
+
+    const { search } = req.query;
+    const searchTerm = search || "";
+
+    const audits = await certificateCompanyDao.getFieldAudits(
+      searchTerm,
+      connection
+    );
+
+    res.status(200).json({
+      message: "Field audits retrieved successfully",
+      status: true,
+      data: audits,
+    });
+  } catch (err) {
+    console.error("Error getting field audits:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// Get crops for a field audit by paymentId
+exports.getCropsByPaymentId = async (req, res) => {
+  let connection;
+
+  try {
+    connection = await plantcare.promise().getConnection();
+
+    const paymentId = parseInt(req.params.paymentId);
+
+    if (!paymentId || isNaN(paymentId)) {
+      return res.status(400).json({
+        message: "Valid paymentId is required",
+        status: false,
+      });
+    }
+
+    const crops = await certificateCompanyDao.getCropsByPaymentId(paymentId, connection);
+
+    res.status(200).json({
+      message: "Crops retrieved successfully",
+      status: true,
+      data: crops,
+    });
+  } catch (err) {
+    console.error("Error getting crops by paymentId:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// Get crops for a field audit by fieldaudits id
+exports.getCropsByFieldAuditId = async (req, res) => {
+  let connection;
+
+  try {
+    connection = await plantcare.promise().getConnection();
+
+    const fieldAuditId = parseInt(req.params.fieldAuditId);
+
+    if (!fieldAuditId || isNaN(fieldAuditId)) {
+      return res.status(400).json({
+        message: "Valid fieldAuditId is required",
+        status: false,
+      });
+    }
+
+    const result = await certificateCompanyDao.getCropsByFieldAuditId(fieldAuditId, connection);
+
+    if (!result.certificateInfo) {
+      return res.status(404).json({
+        message: "Field audit not found or no certificate associated",
+        status: false,
+      });
+    }
+
+    res.status(200).json({
+      message: "Crops retrieved successfully",
+      status: true,
+      data: {
+        certificate: result.certificateInfo,
+        crops: result.crops
+      },
+    });
+  } catch (err) {
+    console.error("Error getting crops by fieldAuditId:", err);
     res.status(500).json({
       message: "Internal server error",
       status: false,

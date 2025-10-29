@@ -1392,18 +1392,22 @@ exports.getClusterPaymentRecord = async (clusterId, connection) => {
 };
 
 // Update certification payment amount
-exports.updateCertificationPaymentAmount = async (clusterId, certificatePrice, connection) => {
+exports.updateCertificationPaymentAmount = async (
+  clusterId,
+  certificatePrice,
+  connection
+) => {
   // Get current farms count in cluster (after new farm was added)
   const [farmsCountRows] = await connection.query(
     `SELECT COUNT(*) as farmsCount FROM farmclusterfarmers WHERE clusterId = ?`,
     [clusterId]
   );
-  
+
   const farmsCount = farmsCountRows[0].farmsCount;
-  
+
   // Calculate new amount (certificate price × farms count)
   const newAmount = parseFloat(certificatePrice) * farmsCount;
-  
+
   // Update the certification payment record
   const [updateResult] = await connection.query(
     `UPDATE certificationpayment 
@@ -1411,10 +1415,155 @@ exports.updateCertificationPaymentAmount = async (clusterId, certificatePrice, c
      WHERE clusterId = ? AND payType = 'Cluster'`,
     [newAmount, clusterId]
   );
-  
+
   return {
     updated: updateResult.affectedRows > 0,
     newAmount,
-    farmsCount
+    farmsCount,
+  };
+};
+
+// Get field audits with related data
+exports.getFieldAudits = async (searchTerm, connection) => {
+  let query = `
+    SELECT 
+      fa.id as auditNo,
+      fa.status,
+      u.firstName as farmerFirstName,
+      u.lastName as farmerLastName,
+      u.district as farmerDistrict,
+      u.phoneNumber as farmerPhoneNumber,
+      fo.firstName as officerFirstName,
+      fo.lastName as officerLastName,
+      c.applicable as certificateApplicable,
+      c.srtName as certificateName
+    FROM feildaudits fa
+    LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
+    LEFT JOIN users u ON cp.userId = u.id
+    LEFT JOIN feildofficer fo ON fa.assignOfficerId = fo.id
+    LEFT JOIN certificates c ON cp.certificateId = c.id
+  `;
+
+  const params = [];
+  const conditions = [];
+
+  // Add certificate applicable condition
+  conditions.push(
+    `(c.applicable = 'For Farm' OR c.applicable = 'For Selected Crops')`
+  );
+
+  // Add search conditions if searchTerm is provided
+  if (searchTerm && searchTerm.trim() !== "") {
+    const searchPattern = `%${searchTerm.trim()}%`;
+    const searchConditions = [
+      "u.firstName LIKE ?",
+      "u.lastName LIKE ?",
+      'CONCAT(u.firstName, " ", u.lastName) LIKE ?',
+      "u.phoneNumber LIKE ?",
+      "u.district LIKE ?",
+      "fo.firstName LIKE ?",
+      "fo.lastName LIKE ?",
+      "c.srtName LIKE ?",
+      "c.applicable LIKE ?",
+    ];
+
+    conditions.push(`(${searchConditions.join(" OR ")})`);
+
+    // Add the same parameter multiple times for each LIKE condition
+    for (let i = 0; i < 9; i++) {
+      params.push(searchPattern);
+    }
+  }
+
+  // Combine all conditions with AND
+  if (conditions.length > 0) {
+    query += ` WHERE ${conditions.join(" AND ")}`;
+  }
+
+  query += ` ORDER BY fa.createdAt DESC`;
+
+  const [rows] = await connection.query(query, params);
+  return rows;
+};
+
+// Get crops for a field audit by paymentId
+exports.getCropsByPaymentId = async (paymentId, connection) => {
+  const [rows] = await connection.query(
+    `SELECT 
+      cg.id as cropId,
+      cg.cropNameEnglish,
+      cg.cropNameSinhala,
+      cg.cropNameTamil,
+      cg.category,
+      cg.image,
+      cg.bgColor
+    FROM feildaudits fa
+    INNER JOIN certificationpayment cp ON fa.paymentId = cp.id
+    INNER JOIN certificates cert ON cp.certificateId = cert.id
+    INNER JOIN certificatecrops cc ON cert.id = cc.certificateId
+    INNER JOIN cropgroup cg ON cc.cropId = cg.id
+    WHERE fa.paymentId = ?
+    ORDER BY cg.cropNameEnglish`,
+    [paymentId]
+  );
+
+  return rows;
+};
+
+// Get crops for a field audit by fieldaudits
+exports.getCropsByFieldAuditId = async (fieldAuditId, connection) => {
+  // First, get the certificate applicable type and certificateId
+  const [certificateInfo] = await connection.query(
+    `SELECT 
+      cert.applicable,
+      cert.id as certificateId,
+      cert.srtName as certificateName
+    FROM feildaudits fa
+    INNER JOIN certificationpayment cp ON fa.paymentId = cp.id
+    INNER JOIN certificates cert ON cp.certificateId = cert.id
+    WHERE fa.id = ?`,
+    [fieldAuditId]
+  );
+
+  if (certificateInfo.length === 0) {
+    return { crops: [], certificateInfo: null };
+  }
+
+  const applicable = certificateInfo[0].applicable;
+  const certificateId = certificateInfo[0].certificateId;
+  const certificateName = certificateInfo[0].certificateName;
+
+  let crops = [];
+
+  if (applicable === "For Farm") {
+    // If applicable is "For Farm", get all crops from cropgroup
+    [crops] = await connection.query(
+      `SELECT 
+        id as cropId,
+        cropNameEnglish
+      FROM cropgroup 
+      ORDER BY cropNameEnglish`
+    );
+  } else {
+    // For other applicable types, get only certificate-specific crops
+    [crops] = await connection.query(
+      `SELECT 
+        cg.id as cropId,
+        cg.cropNameEnglish
+      FROM certificatecrops cc
+      INNER JOIN cropgroup cg ON cc.cropId = cg.id
+      WHERE cc.certificateId = ?
+      ORDER BY cg.cropNameEnglish`,
+      [certificateId]
+    );
+  }
+
+  return {
+    crops,
+    certificateInfo: {
+      certificateId,
+      certificateName,
+      applicable,
+    },
   };
 };
