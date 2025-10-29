@@ -2029,19 +2029,24 @@ exports.replaceDispatchPackageItemsDao = (oldItem, newItem) => {
 };
 
 
-exports.trackPackagePackDao = (userId, orderId) => {
+exports.trackPackagePackDao = (userId, orderId, delivaryMethod) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE processorders
       SET 
         adminPackby = ?,
-        status = 'Out For Delivery',
+        status = ?,
         outDlvrDate = NOW()
       WHERE 
         id = ?
     `;
 
-    marketPlace.query(sql, [parseInt(userId), parseInt(orderId)], (err, results) => {
+    let delivaryStatus = 'Out For Delivery';
+    if(delivaryMethod === 'Pickup'){
+      delivaryStatus = 'Ready for Pickup';
+    }
+
+    marketPlace.query(sql, [parseInt(userId), delivaryStatus, parseInt(orderId)], (err, results) => {
       if (err) {
         console.log(err);
 
@@ -2057,7 +2062,7 @@ exports.createdashNotificationDao = (id) => {
   return new Promise((resolve, reject) => {
     // First, select the orderApp value
     const selectSql = `
-      SELECT o1.orderApp
+      SELECT o1.orderApp, o1.delivaryMethod
       FROM processorders po1
       JOIN orders o1 ON po1.orderId = o1.id
       WHERE po1.id = ?
@@ -2083,12 +2088,12 @@ exports.createdashNotificationDao = (id) => {
             console.log(insertErr);
             reject(insertErr);
           } else {
-            resolve(insertResults);
+            resolve({insertResults, delivaryMethod: results[0].delivaryMethod});
           }
         });
       } else {
         // Resolve with empty result or appropriate message when condition not met
-        resolve({ message: 'No notification created - orderApp is not Dash' });
+        resolve({ message: 'No notification created - orderApp is not Dash' , delivaryMethod: results[0].delivaryMethod});
       }
     });
   });
