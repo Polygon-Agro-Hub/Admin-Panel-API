@@ -1750,7 +1750,10 @@ exports.getCropsByPaymentId = async (req, res) => {
       });
     }
 
-    const crops = await certificateCompanyDao.getCropsByPaymentId(paymentId, connection);
+    const crops = await certificateCompanyDao.getCropsByPaymentId(
+      paymentId,
+      connection
+    );
 
     res.status(200).json({
       message: "Crops retrieved successfully",
@@ -1785,7 +1788,10 @@ exports.getCropsByFieldAuditId = async (req, res) => {
       });
     }
 
-    const result = await certificateCompanyDao.getCropsByFieldAuditId(fieldAuditId, connection);
+    const result = await certificateCompanyDao.getCropsByFieldAuditId(
+      fieldAuditId,
+      connection
+    );
 
     if (!result.certificateInfo) {
       return res.status(404).json({
@@ -1799,7 +1805,7 @@ exports.getCropsByFieldAuditId = async (req, res) => {
       status: true,
       data: {
         certificate: result.certificateInfo,
-        crops: result.crops
+        crops: result.crops,
       },
     });
   } catch (err) {
@@ -1811,5 +1817,144 @@ exports.getCropsByFieldAuditId = async (req, res) => {
     });
   } finally {
     if (connection) connection.release();
+  }
+};
+
+// Get farmer clusters audits
+exports.getFarmerClustersAudits = async (req, res) => {
+  let connection;
+
+  try {
+    connection = await plantcare.promise().getConnection();
+
+    const { search } = req.query;
+    const searchTerm = search || "";
+
+    const clustersAudits = await certificateCompanyDao.getFarmerClustersAudits(
+      searchTerm,
+      connection
+    );
+
+    res.status(200).json({
+      message: "Farmer clusters audits retrieved successfully",
+      status: true,
+      data: clustersAudits,
+    });
+  } catch (err) {
+    console.error("Error getting farmer clusters audits:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// Get field officers by district and job role
+exports.getOfficersByDistrictAndRole = async (req, res) => {
+  try {
+    const { district, jobRole } = req.query;
+
+    if (!district || !jobRole) {
+      return res.status(400).json({
+        message: "district and jobRole parameters are required",
+        status: false,
+      });
+    }
+
+    const officers =
+      await certificateCompanyDao.getOfficersByDistrictAndRoleDAO(
+        district,
+        jobRole
+      );
+
+    res.status(200).json({
+      message: "Officers retrieved successfully",
+      status: true,
+      data: officers,
+      total: officers.length,
+    });
+  } catch (err) {
+    console.error("Error fetching officers by district and role:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  }
+};
+
+// Update field audit assign officer
+exports.assignOfficerToAudit = async (req, res) => {
+  try {
+    const { auditId, officerId, scheduleDate } = req.body;
+
+    // Validate required fields
+    if (!auditId || !officerId) {
+      return res.status(400).json({
+        message: "auditId and officerId are required",
+        status: false,
+      });
+    }
+
+    // Validate auditId is a number
+    const fieldAuditId = parseInt(auditId);
+    if (isNaN(fieldAuditId)) {
+      return res.status(400).json({
+        message: "auditId must be a valid number",
+        status: false,
+      });
+    }
+
+    // Validate officerId is a number
+    const assignOfficerId = parseInt(officerId);
+    if (isNaN(assignOfficerId)) {
+      return res.status(400).json({
+        message: "officerId must be a valid number",
+        status: false,
+      });
+    }
+
+    // Validate scheduleDate if provided
+    let parsedScheduleDate = null;
+    if (scheduleDate) {
+      parsedScheduleDate = new Date(scheduleDate);
+      if (isNaN(parsedScheduleDate.getTime())) {
+        return res.status(400).json({
+          message: "scheduleDate must be a valid date",
+          status: false,
+        });
+      }
+    }
+
+    // Update field audit officer using DAO
+    const result = await certificateCompanyDao.assignOfficerToAuditDAO(
+      fieldAuditId,
+      assignOfficerId,
+      parsedScheduleDate
+    );
+
+    res.status(200).json({
+      message: "Officer assigned successfully",
+      status: true,
+      data: result,
+    });
+  } catch (err) {
+    console.error("Error updating field audit officer:", err);
+
+    if (err.message.includes("not found")) {
+      return res.status(404).json({
+        message: err.message,
+        status: false,
+      });
+    }
+
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
   }
 };
