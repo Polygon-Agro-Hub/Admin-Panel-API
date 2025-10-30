@@ -20,17 +20,29 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
       if (packageStatus === 'Pending') {
         whereClause += ` 
       AND (
-        (pc.packedItems = 0 AND pc.totalItems > 0) 
-        OR 
-        (COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0)
+        (pc.packedItems = 0 AND pc.totalItems > 0 AND COALESCE(aic.totalAdditionalItems, 0) = 0)
+        OR
+        (COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0 AND (pc.totalItems = 0 OR pc.totalItems IS NULL))
+        OR
+        (pc.packedItems = 0 AND pc.totalItems > 0 AND COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0)
       )
     `;
       } else if (packageStatus === 'Completed') {
         whereClause += ` 
       AND (
-        (pc.totalItems > 0 AND pc.packedItems = pc.totalItems) 
-        OR 
-        (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0))
+        (
+          (pc.totalItems > 0 AND pc.packedItems = pc.totalItems) 
+          OR 
+          (pc.totalItems = 0 OR pc.totalItems IS NULL)
+        )
+        AND
+        (
+          (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0))
+          OR
+          COALESCE(aic.totalAdditionalItems, 0) = 0
+        )
+        AND
+        (pc.totalItems > 0 OR COALESCE(aic.totalAdditionalItems, 0) > 0)
       )
     `;
       } else if (packageStatus === 'Opened') {
@@ -2042,7 +2054,7 @@ exports.trackPackagePackDao = (userId, orderId, delivaryMethod) => {
     `;
 
     let delivaryStatus = 'Out For Delivery';
-    if(delivaryMethod === 'Pickup'){
+    if (delivaryMethod === 'Pickup') {
       delivaryStatus = 'Ready for Pickup';
     }
 
@@ -2088,12 +2100,12 @@ exports.createdashNotificationDao = (id) => {
             console.log(insertErr);
             reject(insertErr);
           } else {
-            resolve({insertResults, delivaryMethod: results[0].delivaryMethod});
+            resolve({ insertResults, delivaryMethod: results[0].delivaryMethod });
           }
         });
       } else {
         // Resolve with empty result or appropriate message when condition not met
-        resolve({ message: 'No notification created - orderApp is not Dash' , delivaryMethod: results[0].delivaryMethod});
+        resolve({ message: 'No notification created - orderApp is not Dash', delivaryMethod: results[0].delivaryMethod });
       }
     });
   });
@@ -2135,11 +2147,11 @@ exports.distributedOfficerTargetUpdateDao = (id) => {
         `;
 
         collectionofficer.query(
-          targetSql, 
+          targetSql,
           [
             (parseInt(results[0].complete) + 1),
             parseInt(id)
-          ], 
+          ],
           (targetErr, targetResults) => {
             if (targetErr) {
               console.log(targetErr);
