@@ -2055,7 +2055,7 @@ exports.trackPackagePackDao = (userId, orderId, delivaryMethod) => {
 
     let delivaryStatus = 'Out For Delivery';
     if (delivaryMethod === 'Pickup') {
-      delivaryStatus = 'Ready for Pickup';
+      delivaryStatus = 'Ready to Pickup';
     }
 
     marketPlace.query(sql, [parseInt(userId), delivaryStatus, parseInt(orderId)], (err, results) => {
