@@ -718,7 +718,9 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
         u.firstName AS userFirstName,
         u.lastName AS userLastName,
         (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
-        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks
+        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasksm,
+        f.farmName,
+        occ.planType
       FROM 
         ongoingcultivationscrops occ
       JOIN 
@@ -731,6 +733,8 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
         cropvariety cv ON cc.cropVarietyId = cv.id
       JOIN 
         cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN 
+        farms f ON occ.farmId = f.id
       LEFT JOIN
         agro_world_admin.adminusers au ON occ.modifyBy = au.id
       WHERE
@@ -746,6 +750,7 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
         resolve({
           userFirstName: results[0].userFirstName,
           userLastName: results[0].userLastName,
+          farmName: results[0].farmName,
           cultivations: results,
         });
       } else {
