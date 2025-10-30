@@ -585,11 +585,12 @@ exports.dispatchPackage = async (req, res) => {
     }
 
     if (isLastOrder && allPacked) {
-      const packResult = await DispatchDao.trackPackagePackDao(userId, orderId);
-      console.log("pack officer->", packResult);
-
       const dashnotify = await DispatchDao.createdashNotificationDao(orderId);
       console.log(dashnotify);
+
+      const packResult = await DispatchDao.trackPackagePackDao(userId, orderId, dashnotify.delivaryMethod);
+      console.log("pack officer->", packResult);
+
 
       const targetUpdate = await DispatchDao.distributedOfficerTargetUpdateDao(orderId);
       console.log(targetUpdate);
@@ -666,11 +667,16 @@ exports.dispatchAdditonalPackage = async (req, res) => {
     }
 
     if (isLastOrder && allPacked) {
-      const packResult = await DispatchDao.trackPackagePackDao(userId, orderId);
-      console.log("pack officer->", packResult);
 
       const dashnotify = await DispatchDao.createdashNotificationDao(orderId);
-      console.log(dashnotify);
+      console.log('----------------------------------------------------------------');
+      console.log(dashnotify.delivaryMethod);
+      console.log('----------------------------------------------------------------');
+
+
+    
+      const packResult = await DispatchDao.trackPackagePackDao(userId, orderId, dashnotify.delivaryMethod);
+      console.log("pack officer->", packResult);
 
       const targetUpdate = await DispatchDao.distributedOfficerTargetUpdateDao(orderId);
       console.log(targetUpdate);

@@ -207,4 +207,18 @@ router.patch(
   certificateCompanyEp.updateClusterStatus
 );
 
+// Get field audits
+router.get(
+  "/get-field-audits",
+  authMiddleware,
+  certificateCompanyEp.getFieldAudits
+);
+
+// Get crops by field audit id
+router.get(
+  '/crops-by-field-audit/:fieldAuditId', 
+  authMiddleware, 
+  certificateCompanyEp.getCropsByFieldAuditId
+);
+
 module.exports = router;

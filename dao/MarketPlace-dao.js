@@ -2233,6 +2233,10 @@ exports.getUserOrdersDao = async (userId, status) => {
       sql += " AND P.status = 'On the way' ";
     } else if (status === "Out For Delivery") {
       sql += " AND P.status = 'Out For Delivery' ";
+    }else if (status === "Ready to Pickup") {
+      sql += " AND P.status = 'Ready to Pickup' ";
+    }else if (status === "Picked up") {
+      sql += " AND P.status = 'Picked up' ";
     }
 
     marketPlace.query(sql, [userId, status], (err, results) => {
