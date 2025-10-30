@@ -1429,19 +1429,23 @@ exports.getFieldAudits = async (searchTerm, connection) => {
     SELECT 
       fa.id as auditNo,
       fa.status,
+      fa.sheduleDate,
       u.firstName as farmerFirstName,
       u.lastName as farmerLastName,
       u.district as farmerDistrict,
       u.phoneNumber as farmerPhoneNumber,
+      c.applicable as certificateApplicable,
+      c.srtName as certificateName,
+      fo.id as officerId,
       fo.firstName as officerFirstName,
       fo.lastName as officerLastName,
-      c.applicable as certificateApplicable,
-      c.srtName as certificateName
+      fo.empId as officerEmpId,
+      fo.JobRole as officerJobRole
     FROM feildaudits fa
     LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
     LEFT JOIN users u ON cp.userId = u.id
-    LEFT JOIN feildofficer fo ON fa.assignOfficerId = fo.id
     LEFT JOIN certificates c ON cp.certificateId = c.id
+    LEFT JOIN feildofficer fo ON fa.assignOfficerId = fo.id
   `;
 
   const params = [];
@@ -1461,16 +1465,19 @@ exports.getFieldAudits = async (searchTerm, connection) => {
       'CONCAT(u.firstName, " ", u.lastName) LIKE ?',
       "u.phoneNumber LIKE ?",
       "u.district LIKE ?",
-      "fo.firstName LIKE ?",
-      "fo.lastName LIKE ?",
       "c.srtName LIKE ?",
       "c.applicable LIKE ?",
+      "fo.firstName LIKE ?",
+      "fo.lastName LIKE ?",
+      "fa.status LIKE ?",
+      "fo.empId LIKE ?",
+      "fo.JobRole LIKE ?",
     ];
 
     conditions.push(`(${searchConditions.join(" OR ")})`);
 
     // Add the same parameter multiple times for each LIKE condition
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 12; i++) {
       params.push(searchPattern);
     }
   }
@@ -1566,4 +1573,178 @@ exports.getCropsByFieldAuditId = async (fieldAuditId, connection) => {
       applicable,
     },
   };
+};
+
+// Get farmer clusters audits with related data
+exports.getFarmerClustersAudits = async (searchTerm, connection) => {
+  let query = `
+    SELECT 
+      fa.id as auditNo,
+      fa.status,
+      fa.sheduleDate,
+      fc.clsName as clusterName,
+      fc.district as clusterDistrict,
+      c.srtName as certificateName,
+      fo.id as officerId,
+      fo.firstName as officerFirstName,
+      fo.lastName as officerLastName,
+      fo.empId as officerEmpId,
+      fo.JobRole as officerJobRole
+    FROM feildaudits fa
+    LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
+    LEFT JOIN farmcluster fc ON cp.clusterId = fc.id
+    LEFT JOIN certificates c ON cp.certificateId = c.id
+    LEFT JOIN feildofficer fo ON fa.assignOfficerId = fo.id
+  `;
+
+  const params = [];
+  const conditions = [];
+
+  // Add certificate applicable condition for Farmer Cluster
+  conditions.push(`(c.applicable = 'For Farmer Cluster')`);
+
+  // Add search conditions if searchTerm is provided
+  if (searchTerm && searchTerm.trim() !== "") {
+    const searchPattern = `%${searchTerm.trim()}%`;
+    const searchConditions = [
+      "fc.clsName LIKE ?",
+      "fc.district LIKE ?",
+      "c.srtName LIKE ?",
+      "fo.firstName LIKE ?",
+      "fo.lastName LIKE ?",
+      "fa.status LIKE ?",
+      "fo.empId LIKE ?",
+      "fo.JobRole LIKE ?",
+    ];
+
+    conditions.push(`(${searchConditions.join(" OR ")})`);
+
+    // Add the same parameter multiple times for each LIKE condition
+    for (let i = 0; i < 8; i++) {
+      params.push(searchPattern);
+    }
+  }
+
+  // Combine all conditions with AND
+  if (conditions.length > 0) {
+    query += ` WHERE ${conditions.join(" AND ")}`;
+  }
+
+  query += ` ORDER BY fa.createdAt DESC`;
+
+  const [rows] = await connection.query(query, params);
+  return rows;
+};
+
+// Get field officers by district and job role
+exports.getOfficersByDistrictAndRoleDAO = (district, jobRole) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id,
+        empId,
+        firstName,
+        lastName,
+        JobRole,
+        distrct as district
+      FROM 
+        feildofficer 
+      WHERE 
+        distrct = ? 
+        AND JobRole = ?
+        AND status = 'Approved'
+      ORDER BY 
+        firstName, lastName
+    `;
+
+    const params = [district, jobRole];
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+// Update field audit assign officer
+exports.assignOfficerToAuditDAO = (
+  fieldAuditId,
+  assignOfficerId,
+  scheduleDate = null
+) => {
+  return new Promise(async (resolve, reject) => {
+    let connection;
+
+    try {
+      connection = await plantcare.promise().getConnection();
+      await connection.beginTransaction();
+
+      // Check if field audit exists
+      const [auditExists] = await connection.query(
+        `SELECT id FROM feildaudits WHERE id = ?`,
+        [fieldAuditId]
+      );
+
+      if (auditExists.length === 0) {
+        await connection.rollback();
+        return reject(new Error("Field audit not found"));
+      }
+
+      // Check if officer exists and is active
+      const [officerExists] = await connection.query(
+        `SELECT id FROM feildofficer WHERE id = ? AND status = 'Approved'`,
+        [assignOfficerId]
+      );
+
+      if (officerExists.length === 0) {
+        await connection.rollback();
+        return reject(new Error("Officer not found or not Approved"));
+      }
+
+      // Build dynamic update query based on whether scheduleDate is provided
+      let updateQuery = `
+        UPDATE feildaudits 
+        SET assignOfficerId = ?, assignDate = NOW(), status = 'Pending'
+      `;
+      const queryParams = [assignOfficerId];
+
+      // Add scheduleDate to update if provided
+      if (scheduleDate) {
+        updateQuery += `, sheduleDate = ?`;
+        queryParams.push(scheduleDate);
+      }
+
+      updateQuery += ` WHERE id = ?`;
+      queryParams.push(fieldAuditId);
+
+      // Update the field audit with the assigned officer and optional schedule date
+      const [result] = await connection.query(updateQuery, queryParams);
+
+      if (result.affectedRows === 0) {
+        await connection.rollback();
+        return reject(new Error("Field audit not found or no changes made"));
+      }
+
+      await connection.commit();
+
+      // Prepare response data
+      const responseData = {
+        fieldAuditId,
+        assignOfficerId,
+        assignDate: new Date(),
+      };
+
+      // Add scheduleDate to response if provided
+      if (scheduleDate) {
+        responseData.sheduleDate = scheduleDate;
+      }
+
+      resolve(responseData);
+    } catch (err) {
+      if (connection) await connection.rollback();
+      reject(err);
+    } finally {
+      if (connection) connection.release();
+    }
+  });
 };

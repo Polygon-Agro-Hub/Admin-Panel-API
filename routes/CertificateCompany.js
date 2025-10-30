@@ -221,4 +221,25 @@ router.get(
   certificateCompanyEp.getCropsByFieldAuditId
 );
 
+// Get farmer clusters audits
+router.get(
+  "/get-farmer-clusters-audits",
+  authMiddleware,
+  certificateCompanyEp.getFarmerClustersAudits
+);
+
+// Get field officers by district and job role
+router.get(
+  "/get-officers-by-district-role",
+  authMiddleware,
+  certificateCompanyEp.getOfficersByDistrictAndRole
+);
+
+// Assign officer to audit
+router.put(
+  "/assign-officer-to-audit",
+  authMiddleware,
+  certificateCompanyEp.assignOfficerToAudit
+);
+
 module.exports = router;
