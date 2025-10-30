@@ -1885,7 +1885,7 @@ exports.getAllDispatchMarketplaceItems = (category, userId) => {
         XL.id AS isExcluded
       FROM marketplaceitems MPI
       LEFT JOIN excludelist XL ON MPI.id = XL.mpItemId AND XL.userId = ?
-      WHERE category = ?
+      WHERE MPI.category = ?
       ORDER BY 
         MPI.displayName
     `;
