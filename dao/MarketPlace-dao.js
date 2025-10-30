@@ -4,9 +4,6 @@ const {
   marketPlace,
   dash,
 } = require("../startup/database");
-const { error } = require("console");
-const Joi = require("joi");
-const path = require("path");
 const XLSX = require("xlsx");
 
 exports.getAllCropNameDAO = () => {
@@ -52,9 +49,9 @@ exports.getAllCropNameDAO = () => {
         });
       });
 
-      // Format the final result with variety sorting
+
       const formattedResult = Object.keys(groupedData).map((cropName) => {
-        // Sort varieties alphabetically by varietyEnglish
+
         const sortedVarieties = groupedData[cropName].variety.sort((a, b) =>
           a.varietyEnglish.localeCompare(b.varietyEnglish)
         );
@@ -71,34 +68,7 @@ exports.getAllCropNameDAO = () => {
   });
 };
 
-// exports.createMarketProductDao = async (product) => {
-//   return new Promise((resolve, reject) => {
-//     const sql =
-//       "INSERT INTO marketplaceitems (cropId, displayName, normalPrice, discountedPrice, promo, unitType, startValue, changeby, tags, category, discount, displayType) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-//     const values = [
-//       product.variety,
-//       product.cropName,
-//       product.normalPrice,
-//       product.discountedPrice,
-//       product.promo,
-//       product.unitType,
-//       product.startValue,
-//       product.changeby,
-//       product.tags,
-//       product.category,
-//       product.discount,
-//       product.displaytype,
-//     ];
 
-//     marketPlace.query(sql, values, (err, results) => {
-//       if (err) {
-//         reject(err);
-//       } else {
-//         resolve(results);
-//       }
-//     });
-//   });
-// };
 exports.checkMarketProductExistsDao = async (varietyId, displayName, category) => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT * FROM marketplaceitems WHERE category = ? AND (varietyId = ? OR displayName = ?)";
@@ -108,7 +78,7 @@ exports.checkMarketProductExistsDao = async (varietyId, displayName, category) =
       if (err) {
         reject(err);
       } else {
-        // Check for specific cases
+
         const varietyExists = results.some(item => item.varietyId === varietyId);
         const nameExists = results.some(item => item.displayName === displayName);
 
@@ -124,7 +94,7 @@ exports.checkMarketProductExistsDao = async (varietyId, displayName, category) =
 
 exports.checkMarketEditProductExistsDao = async (varietyId, displayName, category, id) => {
   return new Promise((resolve, reject) => {
-    // Exclude current record by id when checking duplicates
+
     const sql = `
       SELECT * 
       FROM marketplaceitems 
@@ -139,7 +109,7 @@ exports.checkMarketEditProductExistsDao = async (varietyId, displayName, categor
       if (err) {
         reject(err);
       } else {
-        // Check separately if conflicts are with varietyId or displayName
+
         const varietyExists = results.some(item => item.varietyId === varietyId);
         const nameExists = results.some(item => item.displayName === displayName);
 
@@ -184,22 +154,7 @@ exports.createMarketProductDao = async (product) => {
   });
 };
 
-// exports.getMarketplaceItems = () => {
-//   return new Promise((resolve, reject) => {
-//     const dataSql = `
-//     SELECT m.id, m.cropId, cg.cropNameEnglish, m.displayName , cv.varietyNameEnglish, m.discountedPrice, m.startValue, m.promo, m.unitType, m.changeby, m.normalPrice, m.category
-//     FROM marketplaceitems m, plant_care.cropgroup cg, plant_care.cropvariety cv
-//     WHERE m.cropId = cv.id AND cv.cropGroupId = cg.id
-//     `;
-//     marketPlace.query(dataSql, (error, results) => {
-//       if (error) {
-//         reject(error);
-//       } else {
-//         resolve(results);
-//       }
-//     });
-//   });
-// };
+
 
 exports.getMarketplaceItems = (
   limit,
@@ -207,14 +162,14 @@ exports.getMarketplaceItems = (
   searchItem,
   displayTypeValue,
   categoryValue,
-  discountFilter // Add new parameter
+  discountFilter
 ) => {
   return new Promise((resolve, reject) => {
     let whereConditions = [];
     const countParams = [];
     const dataParams = [];
 
-    // Base SQL queries
+
     let countSql = `SELECT COUNT(*) as total 
                     FROM marketplaceitems m
                     JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
@@ -227,7 +182,7 @@ exports.getMarketplaceItems = (
                     JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
                     JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id`;
 
-    // Add search condition if provided
+
     if (searchItem) {
       whereConditions.push(
         "(m.displayName LIKE ? OR cg.cropNameEnglish LIKE ? OR cv.varietyNameEnglish LIKE ?)"
@@ -237,38 +192,37 @@ exports.getMarketplaceItems = (
       dataParams.push(searchQuery, searchQuery, searchQuery);
     }
 
-    // Add display type condition if provided
+
     if (displayTypeValue) {
       whereConditions.push("m.displayType LIKE ?");
       countParams.push(displayTypeValue);
       dataParams.push(displayTypeValue);
     }
 
-    // Add category condition if provided
+
     if (categoryValue) {
       whereConditions.push("m.category = ?");
       countParams.push(categoryValue);
       dataParams.push(categoryValue);
     }
 
-    // Add discount filter condition if provided
+
     if (discountFilter === 'zero') {
       whereConditions.push("m.discount = 0");
-      // No parameters to add for this condition
+
     }
 
-    // Combine WHERE conditions if any exist
+
     if (whereConditions.length > 0) {
       const whereClause = " WHERE " + whereConditions.join(" AND ");
       countSql += whereClause;
       dataSql += whereClause;
     }
 
-    // Add limit and offset to data query
     dataSql += " ORDER BY m.displayName LIMIT ? OFFSET ?";
     dataParams.push(parseInt(limit), parseInt(offset));
 
-    // Execute queries
+
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) return reject(countErr);
 
@@ -326,7 +280,7 @@ exports.createCoupenDAO = async (coupen) => {
 };
 
 exports.getAllCoupenDAO = (limit, offset, status, types, searchText) => {
-  console.log(status);
+
 
   return new Promise((resolve, reject) => {
     let countParms = [];
@@ -456,7 +410,7 @@ exports.getAllProductCropCatogoryDAO = () => {
         });
       });
 
-      // Format the final result
+
       const formattedResult = Object.keys(groupedData).map((cropName) => ({
         cropId: groupedData[cropName].cropId,
         cropNameEnglish: cropName,
@@ -628,7 +582,7 @@ exports.updateMarketProductDao = async (product, id) => {
       }
     });
   });
-};exports.getAllMarketplacePackagesDAO = (searchText, date) => {
+}; exports.getAllMarketplacePackagesDAO = (searchText, date) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [];
     let sql = `
@@ -820,7 +774,7 @@ exports.deleteMarketplacePckages = async (id) => {
 
 exports.updateMarketplacePackageDAO = (packageId, updateData) => {
   return new Promise((resolve, reject) => {
-    // Extract fields from updateData that we want to allow updating
+
     const {
       displayName,
       image,
@@ -881,8 +835,7 @@ exports.getMarketplacePackageByIdDAO = async (id) => {
       FROM market_place.marketplacepackages mpp
       WHERE mpp.id = ?;
     `;
-    // JOIN market_place.packagedetails pd ON mpp.id = pd.packageId
-    //   JOIN market_place.producttypes pt ON pd.productTypeId = pt.id
+
 
     marketPlace.query(sql, [id], (err, results) => {
       if (err) {
@@ -895,95 +848,7 @@ exports.getMarketplacePackageByIdDAO = async (id) => {
     });
   });
 };
-// exports.getMarketplacePackageByIdDAO = (packageId) => {
-//   return new Promise((resolve, reject) => {
-//     const sql = `
-//       SELECT
-//         mp.id,
-//         mp.displayName,
-//         mp.image,
-//         mp.description,
-//         mp.status,
-//         mp.total,
-//         mp.discount,
-//         mp.subtotal,
-//         mp.created_at,
-//         pd.id AS detailId,
-//         pd.packageId,
-//         pd.mpItemId,
-//         pd.quantityType,
-//         pd.quantity,
-//         pd.price AS detailPrice,
-//         pd.discount AS detailDiscount,
-//         pd.discountedPrice AS detailDiscountedPrice,
-//         mi.varietyId,
-//         mi.displayName AS itemDisplayName,
-//         mi.category,
-//         mi.normalPrice,
-//         mi.discountedPrice,
-//         mi.discount AS itemDiscount,
-//         mi.promo,
-//         mi.unitType
-//       FROM marketplacepackages mp
-//       LEFT JOIN packagedetails pd ON mp.id = pd.packageId
-//       LEFT JOIN marketplaceitems mi ON pd.mpItemId = mi.id
-//       WHERE mp.id = ?
-//     `;
 
-//     marketPlace.query(sql, [packageId], (err, results) => {
-//       if (err) {
-//         return reject(err);
-//       }
-
-//       if (results.length === 0) {
-//         return reject(new Error("Package not found"));
-//       }
-
-//       // The first row contains the package info
-//       const pkg = {
-//         id: results[0].id,
-//         displayName: results[0].displayName,
-//         image: results[0].image,
-//         description: results[0].description,
-//         status: results[0].status,
-//         total: results[0].total,
-//         discount: results[0].discount,
-//         subtotal: results[0].subtotal,
-//         createdAt: results[0].created_at,
-//         packageDetails: [],
-//       };
-
-//       // Add all package details (there might be multiple)
-//       results.forEach((row) => {
-//         if (row.detailId) {
-//           // Check if there are any package details
-//           pkg.packageDetails.push({
-//             id: row.detailId,
-//             packageId: row.packageId,
-//             mpItemId: row.mpItemId,
-//             quantityType: row.quantityType,
-//             quantity: row.quantity, // Add this line to include quantity
-//             price: row.detailPrice,
-//             detailDiscount: row.detailDiscount,
-//             detailDiscountedPrice: row.detailDiscountedPrice,
-//             itemDetails: {
-//               varietyId: row.varietyId,
-//               displayName: row.itemDisplayName,
-//               category: row.category,
-//               normalPrice: row.normalPrice,
-//               discountedPrice: row.discountedPrice,
-//               discount: row.itemDiscount,
-//               promo: row.promo,
-//               unitType: row.unitType,
-//             },
-//           });
-//         }
-//       });
-
-//       resolve(pkg);
-//     });
-//   });
-// };
 
 exports.getMarketplacePackageByIdWithDetailsDAO = (packageId) => {
   return new Promise((resolve, reject) => {
@@ -1052,7 +917,6 @@ exports.getMarketplacePackageByIdWithDetailsDAO = (packageId) => {
       });
 
       resolve(pkg);
-      console.log("Package with details:", pkg);
     });
   });
 };
@@ -1075,7 +939,7 @@ exports.updatePackageDAO = async (data, profileImageUrl, packageId) => {
         console.log(err);
         reject(err);
       } else {
-        resolve(results.affectedRows); // Returns number of rows affected
+        resolve(results.affectedRows);
       }
     });
   });
@@ -1097,7 +961,7 @@ exports.updatePackageDetailsDAO = async (data, detailId) => {
       if (err) {
         reject(err);
       } else {
-        resolve(results.affectedRows); // Returns number of rows affected
+        resolve(results.affectedRows);
       }
     });
   });
@@ -1167,10 +1031,10 @@ exports.getNextBannerIndexRetail = () => {
 
     marketPlace.query(query, (error, results) => {
       if (error) {
-        return reject(error); // Handle error
+        return reject(error);
       }
 
-      resolve(results[0].nextOrderNumber); // Return the next order number
+      resolve(results[0].nextOrderNumber);
     });
   });
 };
@@ -1185,10 +1049,10 @@ exports.getNextBannerIndexWholesale = () => {
 
     marketPlace.query(query, (error, results) => {
       if (error) {
-        return reject(error); // Handle error
+        return reject(error);
       }
 
-      resolve(results[0].nextOrderNumber); // Return the next order number
+      resolve(results[0].nextOrderNumber);
     });
   });
 };
@@ -1251,10 +1115,10 @@ exports.getAllBanners = () => {
 
     marketPlace.query(sql, (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err);
       }
 
-      resolve(results); // No need to wrap in arrays, return results directly
+      resolve(results);
     });
   });
 };
@@ -1266,10 +1130,10 @@ exports.getAllBannersWholesale = () => {
 
     marketPlace.query(sql, (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err);
       }
 
-      resolve(results); // No need to wrap in arrays, return results directly
+      resolve(results);
     });
   });
 };
@@ -1426,10 +1290,9 @@ exports.editPackageDAO = async (data, profileImageUrl, id) => {
       data.serviceFee,
       profileImageUrl,
       data.description,
-      parseFloat(id), // Used in WHERE clause
+      parseFloat(id),
     ];
 
-    console.log("Main package:", values);
 
     marketPlace.query(sql, values, (err, results) => {
       if (err) {
@@ -1462,72 +1325,7 @@ exports.editPackageDetailsDAO = async (data) => {
   });
 };
 
-// exports.getAllRetailOrderDetails = (
-//   limit,
-//   offset,
-//   status,
-//   method,
-//   searchItem,
-//   formattedDate
-// ) => {
-//   return new Promise((resolve, reject) => {
-//     let countSql =
-//       "SELECT COUNT(*) as total FROM market_place.orders o LEFT JOIN market_place.processorders po ON o.id = po.orderId";
-//     let sql = `
-//     SELECT o.id, o.fullName AS customerName, o.delivaryMethod AS method, po.amount, po.invNo, po.status, o.createdAt AS orderdDate FROM market_place.orders o
-//     LEFT JOIN market_place.processorders po ON o.id = po.orderId
-//     `;
 
-//     let whereClause = " WHERE 1=1";
-//     const searchParams = [];
-
-//     if (searchItem) {
-//       // Turn "ap" into "%a%p%" to match "apple"
-//       const searchQuery = `%${searchItem.split("").join("%")}%`;
-//       whereClause += " AND (po.invNo LIKE ? OR o.fullName LIKE ?)";
-//       searchParams.push(searchQuery, searchQuery);
-//     }
-
-//     if (status) {
-//       whereClause += " AND po.status = ?";
-//       searchParams.push(status);
-//     }
-
-//     if (method) {
-//       whereClause += " AND o.delivaryMethod = ?";
-//       searchParams.push(method);
-//     }
-
-//     if (formattedDate) {
-//       whereClause += " AND DATE(o.createdAt) = ?";
-//       searchParams.push(formattedDate);
-//     }
-
-//     // Add where clause to both count and main SQL
-//     countSql += whereClause;
-//     sql += whereClause + " ORDER BY o.createdAt ASC LIMIT ? OFFSET ?";
-//     const dataParams = [...searchParams, limit, offset];
-
-//     marketPlace.query(countSql, searchParams, (countErr, countResults) => {
-//       if (countErr) {
-//         return reject(countErr);
-//       }
-
-//       const total = countResults[0].total;
-
-//       marketPlace.query(sql, dataParams, (dataErr, dataResults) => {
-//         if (dataErr) {
-//           return reject(dataErr);
-//         }
-
-//         resolve({
-//           total: total,
-//           items: dataResults,
-//         });
-//       });
-//     });
-//   });
-// };
 
 exports.getAllRetailOrderDetails = (
   limit,
@@ -1556,7 +1354,7 @@ exports.getAllRetailOrderDetails = (
     let whereClause = " WHERE 1=1";
     const searchParams = [];
 
-    // Add the new conditions
+
     whereClause += " AND mu.buyerType = 'Retail'";
     whereClause += " AND o.orderApp = 'Marketplace'";
 
@@ -1680,7 +1478,6 @@ exports.getAllDeliveryCharges = (searchItem, city) => {
       sql += " WHERE " + whereConditions.join(" AND ");
     }
 
-    // Changed from ORDER BY createdAt DESC to ORDER BY city ASC for A-Z ordering
     sql += " ORDER BY dc.city ASC";
 
     collectionofficer.query(sql, params, (err, results) => {
@@ -1696,13 +1493,12 @@ exports.getAllDeliveryCharges = (searchItem, city) => {
 exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Read the Excel file
+
       const workbook = XLSX.read(fileBuffer, { type: "buffer" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(worksheet);
-      console.log(data);
 
-      // Validate data structure
+
       if (data.length === 0) {
         return reject(new Error("Excel file is empty"));
       }
@@ -1718,9 +1514,8 @@ exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
         );
       }
 
-      // Process data and remove duplicates within the file
       const chargesToProcess = [];
-      const uniqueKeyMap = new Map(); // Use composite key for uniqueness
+      const uniqueKeyMap = new Map();
 
       for (const row of data) {
         const province = row["Province"]?.toString().trim();
@@ -1729,13 +1524,13 @@ exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
         const charge = parseFloat(row["Charge"]);
 
         if (!province || !district || !city || isNaN(charge)) {
-          continue; // Skip invalid rows
+          continue;
         }
 
-        // Create a unique key using province, district, and city
+
         const uniqueKey = `${province.toLowerCase()}-${district.toLowerCase()}-${city.toLowerCase()}`;
 
-        // Check if this combination already exists in this batch
+
         if (!uniqueKeyMap.has(uniqueKey)) {
           uniqueKeyMap.set(uniqueKey, { province, district, city, charge });
         }
@@ -1750,7 +1545,7 @@ exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
         });
       }
 
-      // Get existing delivery charges with their current values
+
       const existingCharges = await new Promise((resolve, reject) => {
         const sql = "SELECT province, district, city, charge FROM deliverycharge";
         collectionofficer.query(sql, (err, results) => {
@@ -1759,28 +1554,28 @@ exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
         });
       });
 
-      // Separate into inserts and updates
+
       const chargesToInsert = [];
       const chargesToUpdate = [];
 
-      // Create a map of existing charges for easy lookup
+
       const existingChargeMap = new Map();
       existingCharges.forEach(c => {
         const uniqueKey = `${c.province.toLowerCase()}-${c.district.toLowerCase()}-${c.city.toLowerCase()}`;
         existingChargeMap.set(uniqueKey, c);
       });
 
-      // Process each record from the Excel file
+
       uniqueKeyMap.forEach((excelData, uniqueKey) => {
         const existingCharge = existingChargeMap.get(uniqueKey);
 
         if (existingCharge) {
-          // Record exists, check if charge is different
+
           if (existingCharge.charge !== excelData.charge) {
             chargesToUpdate.push(excelData);
           }
         } else {
-          // Record doesn't exist, needs to be inserted
+
           chargesToInsert.push(excelData);
         }
       });
@@ -1788,7 +1583,7 @@ exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
       let insertedCount = 0;
       let updatedCount = 0;
 
-      // Process inserts if any
+
       if (chargesToInsert.length > 0) {
         const insertSql = "INSERT INTO deliverycharge (province, district, city, charge, editBy) VALUES ?";
         const insertValues = chargesToInsert.map((charge) => [
@@ -1811,7 +1606,7 @@ exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
         });
       }
 
-      // Process updates if any - using batch update
+
       if (chargesToUpdate.length > 0) {
         const updatePromises = chargesToUpdate.map((charge) => {
           return new Promise((resolve, reject) => {
@@ -1859,7 +1654,7 @@ exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
   });
 };
 
-exports.editDeliveryChargeDAO = async (data, id, userId) => {  
+exports.editDeliveryChargeDAO = async (data, id, userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE deliverycharge 
@@ -1892,7 +1687,7 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
       if (err) {
         reject(err);
       } else {
-        resolve(results.length > 0); // true if exists
+        resolve(results.length > 0);
       }
     });
   });
@@ -1979,7 +1774,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText) => {
 
       const search = `%${searchText}%`;
       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
-      
+
       countParms.push(
         search,
         search,
@@ -1992,7 +1787,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText) => {
         searchWithoutSpaces,
         searchWithoutSpaces
       );
-      
+
       dataParms.push(
         search,
         search,
@@ -2033,7 +1828,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText) => {
 };
 
 exports.getOrderDetailsById = (orderId) => {
-  console.log(`[getOrderDetailsById] Fetching details for orderId: ${orderId}`);
+
 
   return new Promise((resolve, reject) => {
     const sql = `
@@ -2059,7 +1854,7 @@ exports.getOrderDetailsById = (orderId) => {
       }
 
       if (!results || results.length === 0) {
-        console.log(`[getOrderDetailsById] No order found with id: ${orderId}`);
+
         return resolve(null);
       }
 
@@ -2083,7 +1878,7 @@ exports.getOrderDetailsById = (orderId) => {
           if (row.productTypeId) {
             const qty = parseInt(row.qty, 10) || 0;
             if (qty > 0) {
-              // Create individual objects for each unit
+
               for (let i = 0; i < qty; i++) {
                 packagesMap.get(packageId).productTypes.push({
                   id: row.productTypeId,
@@ -2092,12 +1887,12 @@ exports.getOrderDetailsById = (orderId) => {
                 });
               }
             } else {
-              // Handle zero/negative quantities or invalid values
+
               packagesMap.get(packageId).productTypes.push({
                 id: row.productTypeId,
                 typeName: row.typeName,
                 shortCode: row.shortCode,
-                qty: row.qty, // Preserve original value
+                qty: row.qty,
               });
             }
           }
@@ -2108,7 +1903,7 @@ exports.getOrderDetailsById = (orderId) => {
           packages: Array.from(packagesMap.values()),
         };
 
-        console.log(`[getOrderDetailsById] Successfully fetched order details`);
+
         resolve(response);
       } catch (error) {
         console.error(`[getOrderDetailsById] Processing error:`, error);
@@ -2144,9 +1939,8 @@ exports.getAllMarketplaceItems = (category) => {
         createdAt DESC
     `;
 
-    console.log(`[getAllMarketplaceItems] Executing SQL query:`, sql);
 
-    console.log("hello category", category);
+
 
     marketPlace.query(sql, [category], (err, results) => {
       if (err) {
@@ -2157,12 +1951,9 @@ exports.getAllMarketplaceItems = (category) => {
         return reject(err);
       }
 
-      console.log(
-        `[getAllMarketplaceItems] Query results count:`,
-        results.length
-      );
 
-      // Structure the data
+
+
       const items = results.map((row) => ({
         id: row.id,
         varietyId: row.varietyId,
@@ -2181,9 +1972,7 @@ exports.getAllMarketplaceItems = (category) => {
         maxQuantity: row.maxQuantity,
       }));
 
-      console.log(
-        `[getAllMarketplaceItems] Successfully retrieved ${items.length} items`
-      );
+
       resolve(items);
     });
   });
@@ -2203,7 +1992,7 @@ exports.getOrderTypeDao = async (id) => {
         reject(err);
       } else {
         resolve(results[0]);
-        console.log("``````````result``````````", results[0]);
+
       }
     });
   });
@@ -2212,7 +2001,7 @@ exports.getOrderTypeDao = async (id) => {
 exports.createDefinePackageDao = (packageData, userId) => {
   return new Promise((resolve, reject) => {
     try {
-      // Validate inputs
+
       if (!packageData || !packageData.packageId || !packageData.price) {
         throw new Error("Invalid input parameters");
       }
@@ -2229,7 +2018,7 @@ exports.createDefinePackageDao = (packageData, userId) => {
         parseInt(userId),
       ];
 
-      // Database query
+
       marketPlace.query(sql, values, (err, results) => {
         if (err) {
           console.log("Database error:", err);
@@ -2247,12 +2036,12 @@ exports.createDefinePackageDao = (packageData, userId) => {
 exports.createDefinePackageItemsDao = (definePackageId, products) => {
   return new Promise((resolve, reject) => {
     try {
-      // Validate inputs
+
       if (!definePackageId || !products || !Array.isArray(products)) {
         throw new Error("Invalid input parameters");
       }
 
-      // Create an array of value arrays for the batch insert
+
       const values = products.map((product) => [
         definePackageId,
         product.productType,
@@ -2267,7 +2056,7 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
         ) VALUES ?
       `;
 
-      // Database query with batch insert
+
       marketPlace.query(sql, [values], (err, results) => {
         if (err) {
           console.log("Database error:", err);
@@ -2333,10 +2122,10 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText) => {
         AND MP.isMarketPlaceUser = 1   
       `;
 
-    console.log(searchText);
+
 
     if (searchText) {
-  countSql += `
+      countSql += `
     AND (
       CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
       OR MP.firstName LIKE ?
@@ -2351,7 +2140,7 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText) => {
     )
   `;
 
-  dataSql += `
+      dataSql += `
     AND (
       CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
       OR MP.firstName LIKE ?
@@ -2366,21 +2155,20 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText) => {
     )
   `;
 
-  const search = `%${searchText}%`;
-  const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
-  
-  // Push parameters for count query
-  countParms.push(
-    search, search, search, search, search, 
-    search, search, searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces
-  );
-  
-  // Push parameters for data query  
-  dataParms.push(
-    search, search, search, search, search,
-    search, search, searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces
-  );
-}
+      const search = `%${searchText}%`;
+      const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
+
+      countParms.push(
+        search, search, search, search, search,
+        search, search, searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces
+      );
+
+
+      dataParms.push(
+        search, search, search, search, search,
+        search, search, searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces
+      );
+    }
 
     dataSql += ` LIMIT ? OFFSET ? `;
     dataParms.push(limit);
@@ -2398,7 +2186,7 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText) => {
 
             reject(dataErr);
           } else {
-            // console.log(dataResults);
+
 
             resolve({
               total: countResults[0].total,
@@ -2429,7 +2217,7 @@ exports.getUserOrdersDao = async (userId, status) => {
       WHERE O.userId = ? 
     `;
 
-    console.log(status, "-------");
+
 
     if (status === "Assinged") {
       sql += " AND P.status = 'Ordered' ";
@@ -2443,7 +2231,7 @@ exports.getUserOrdersDao = async (userId, status) => {
       sql += " AND P.status = 'Faild' ";
     } else if (status === "On the way") {
       sql += " AND P.status = 'On the way' ";
-    }else if (status === "Out For Delivery") {
+    } else if (status === "Out For Delivery") {
       sql += " AND P.status = 'Out For Delivery' ";
     }
 
@@ -2453,7 +2241,7 @@ exports.getUserOrdersDao = async (userId, status) => {
         reject(err);
       } else {
         resolve(results);
-        // console.log("``````````result``````````", results);
+
       }
     });
   });
@@ -2711,7 +2499,7 @@ exports.updateCoupenDAO = async (coupen) => {
       if (err) {
         reject(err);
       } else {
-        resolve(results.affectedRows); // you can return affected rows or true
+        resolve(results.affectedRows);
       }
     });
   });
@@ -2765,7 +2553,7 @@ exports.getAllWholesaleOrderDetails = (
     let whereClause = " WHERE 1=1";
     const searchParams = [];
 
-    // Add the new conditions
+
     whereClause += " AND mu.buyerType = 'Wholesale'";
     whereClause += " AND o.orderApp = 'Marketplace'";
 
@@ -3087,23 +2875,23 @@ exports.areaOrderDataDao = async () => {
         const allMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-        // Get current month (1-12)
+
         const currentMonth = new Date().getMonth() + 1;
 
-        // Initialize with zeros
+
         const monthlyData = {
           months: [],
           salesCount: [],
           total: []
         };
 
-        // Only include months up to previous month
+
         allMonths.forEach((month, index) => {
           const monthNumber = index + 1;
           if (monthNumber < currentMonth) {
             monthlyData.months.push(month);
 
-            // Find data for this month
+
             const monthData = results.find(r => r.monthNum === monthNumber);
             monthlyData.salesCount.push(monthData ? monthData.salesCount : 0);
             monthlyData.total.push(monthData ? monthData.total : 0);
@@ -3153,16 +2941,16 @@ exports.pieDataDao = async () => {
       if (err) {
         reject(err);
       } else {
-        // Define the desired category order
+
         const categoryOrder = ["Vegetables", "Grain", "Fruit", "Mushrooms"];
 
-        // Create a map for quick lookup
+
         const resultMap = {};
         results.forEach(item => {
           resultMap[item.category] = parseInt(item.count);
         });
 
-        // Build the ordered arrays
+
         const orderedResponse = {
           category: [],
           count: []
@@ -3238,7 +3026,7 @@ exports.toDayUserCountDao = async (isToday) => {
 
 exports.getDefinePackageItemsBeforeDateDAO = async (packageId, providedDate) => {
   return new Promise((resolve, reject) => {
-    // Ensure the provided date includes the full day by appending 23:59:59 if no time is specified
+
     const formattedDate = providedDate.includes(" ") ? providedDate : `${providedDate} 23:59:59`;
 
     const sql = `
@@ -3276,7 +3064,7 @@ exports.getDefinePackageItemsBeforeDateDAO = async (packageId, providedDate) => 
 
       const totalPrice = items.reduce((sum, item) => {
         const price = parseFloat(item.price) || 0;
-        const qty = parseFloat(item.qty) || 1; // Use parseFloat for qty to handle decimal values
+        const qty = parseFloat(item.qty) || 1;
         return sum + price * qty;
       }, 0);
 
@@ -3293,12 +3081,12 @@ exports.getCouponByCodeDao = async (code) => {
       WHERE code = ?
     `;
 
-    // Assuming 'marketPlace' is your database connection pool
+
     marketPlace.query(sql, [code], (err, results) => {
       if (err) {
         reject(err);
       } else {
-        // Return the first matching coupon (or null if not found)
+
         resolve(results[0] || null);
       }
     });
@@ -3338,7 +3126,7 @@ exports.checkMarketProductExistsDaoEdit = async (varietyId, displayName, exclude
       if (err) {
         reject(err);
       } else {
-        // Check for specific cases
+
         const varietyExists = results.some(item => item.varietyId == varietyId);
         const nameExists = results.some(item => item.displayName === displayName);
 
