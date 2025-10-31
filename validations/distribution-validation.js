@@ -70,7 +70,7 @@ exports.getDistributedCenterOfficersShema = Joi.object({
 
 exports.getDistributionOutForDlvrOrderShema = Joi.object({
     id: Joi.number().integer().positive().required(),
-    date: Joi.date().iso().optional(),
+    date: Joi.string().allow('').optional(),
     status: Joi.string().optional(),
     searchText: Joi.string().optional()
 })

@@ -1998,12 +1998,12 @@ exports.getCenterAndCompanyIdDao = (companyCenteerId) => {
 };
 
 
-exports.getDistributionOutForDlvrOrderDao = (id, searchText, filterDate) => {
+exports.getDistributionOutForDlvrOrderDao = (id, searchText, filterDate, status) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [id];
     let sql = `
         SELECT 
-        po.id,
+            po.id,
             po.invNo,
             cof.firstNameEnglish,
             cof.lastNameEnglish,
@@ -2031,6 +2031,15 @@ exports.getDistributionOutForDlvrOrderDao = (id, searchText, filterDate) => {
     if (filterDate) {
       sql += ` AND DATE(po.outDlvrDate) = ? `;
       sqlParams.push(filterDate);
+    }
+
+    // Add status filter (only 'On Time' or 'Late')
+    if (status) {
+      if (status === 'On Time') {
+        sql += ` AND po.outDlvrDate IS NOT NULL AND po.outDlvrDate <= o.sheduleDate `;
+      } else if (status === 'Late') {
+        sql += ` AND po.outDlvrDate IS NOT NULL AND po.outDlvrDate > o.sheduleDate `;
+      }
     }
 
     collectionofficer.query(sql, sqlParams, (err, results) => {
