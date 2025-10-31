@@ -1637,27 +1637,34 @@ exports.getFarmerClustersAudits = async (searchTerm, connection) => {
 };
 
 // Get field officers by district and job role
-exports.getOfficersByDistrictAndRoleDAO = (district, jobRole) => {
+exports.getOfficersByDistrictAndRoleDAO = (district, jobRole, scheduleDate) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-        id,
-        empId,
-        firstName,
-        lastName,
-        JobRole,
-        distrct as district
+        fo.id,
+        fo.empId,
+        fo.firstName,
+        fo.lastName,
+        fo.JobRole,
+        fo.distrct as district,
+        COUNT(fa.id) as jobCount
       FROM 
-        feildofficer 
+        feildofficer fo
+      LEFT JOIN 
+        feildaudits fa ON fo.id = fa.assignOfficerId 
+        AND DATE(fa.sheduleDate) = ? 
+        AND fa.status IN ('Pending', 'Completed')
       WHERE 
-        distrct = ? 
-        AND JobRole = ?
-        AND status = 'Approved'
+        fo.distrct = ? 
+        AND fo.JobRole = ?
+        AND fo.status = 'Approved'
+      GROUP BY 
+        fo.id, fo.empId, fo.firstName, fo.lastName, fo.JobRole, fo.distrct
       ORDER BY 
-        firstName, lastName
+        fo.firstName, fo.lastName
     `;
 
-    const params = [district, jobRole];
+    const params = [scheduleDate, district, jobRole];
 
     plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);

@@ -1855,20 +1855,29 @@ exports.getFarmerClustersAudits = async (req, res) => {
 // Get field officers by district and job role
 exports.getOfficersByDistrictAndRole = async (req, res) => {
   try {
-    const { district, jobRole } = req.query;
+    const { district, jobRole, scheduleDate } = req.query;
 
-    if (!district || !jobRole) {
+    if (!district || !jobRole || !scheduleDate) {
       return res.status(400).json({
-        message: "district and jobRole parameters are required",
+        message: "district, jobRole, and scheduleDate parameters are required",
         status: false,
       });
     }
 
-    const officers =
-      await certificateCompanyDao.getOfficersByDistrictAndRoleDAO(
-        district,
-        jobRole
-      );
+    // Validate scheduleDate format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(scheduleDate)) {
+      return res.status(400).json({
+        message: "scheduleDate must be in YYYY-MM-DD format",
+        status: false,
+      });
+    }
+
+    const officers = await certificateCompanyDao.getOfficersByDistrictAndRoleDAO(
+      district,
+      jobRole,
+      scheduleDate
+    );
 
     res.status(200).json({
       message: "Officers retrieved successfully",
