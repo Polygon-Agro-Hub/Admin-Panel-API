@@ -1210,6 +1210,7 @@ exports.updateOrderStatuses = (orderId, addItemStatus, packItemStatus) => {
 
 
 
+
 // exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, search) => {
 //   return new Promise((resolve, reject) => {
 //     const offset = (page - 1) * limit;
@@ -1223,39 +1224,39 @@ exports.updateOrderStatuses = (orderId, addItemStatus, packItemStatus) => {
 //     const params = [];
 //     const countParams = [];
 
-//     // if (packageStatus) {
-//     //   if (packageStatus === 'Pending') {
-//     //     whereClause += ` 
-//     //   AND (
-//     //     (pc.packedItems = 0 AND pc.totalItems > 0) 
-//     //     OR 
-//     //     (COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0)
-//     //   )
-//     // `;
-//     //   } else if (packageStatus === 'Completed') {
-//     //     whereClause += ` 
-//     //   AND (
-//     //     (pc.totalItems > 0 AND pc.packedItems = pc.totalItems) 
-//     //     OR 
-//     //     (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0))
-//     //   )
-//     // `;
-//     //   } else if (packageStatus === 'Opened') {
-//     //     whereClause += ` 
-//     //   AND (
-//     //     (pc.packedItems > 0 AND pc.totalItems > pc.packedItems) 
-//     //     OR 
-//     //     (COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0))
-//     //   )
-//     // `;
-//     //   }
-//     // }
+//     if (packageStatus) {
+//       if (packageStatus === 'Pending') {
+//         whereClause += ` 
+//       AND (
+//         (pic.totalItems > 0 AND pic.packedItems = 0) 
+//         AND 
+//         (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = 0)
+//       )
+//     `;
+//       } else if (packageStatus === 'Completed') {
+//         whereClause += ` 
+//       AND (
+//         (pic.totalItems > 0 AND pic.packedItems = pic.totalItems) 
+//         OR 
+//         (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0))
+//       )
+//     `;
+//       } else if (packageStatus === 'Opened') {
+//         whereClause += ` 
+//       AND (
+//         (pic.packedItems > 0 AND pic.totalItems > pic.packedItems) 
+//         OR 
+//         (COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0))
+//       )
+//     `;
+//       }
+//     }
 
-//     // if (date) {
-//     //   whereClause += " AND DATE(o.sheduleDate) = ?";
-//     //   params.push(date);
-//     //   countParams.push(date);
-//     // }
+//     if (date) {
+//       whereClause += " AND DATE(o.sheduleDate) = ?";
+//       params.push(date);
+//       countParams.push(date);
+//     }
 
 //     if (search) {
 //       whereClause += ` AND (po.invNo LIKE ?)`;
@@ -1265,43 +1266,30 @@ exports.updateOrderStatuses = (orderId, addItemStatus, packItemStatus) => {
 //     }
 
 //     const countSql = `
-//     WITH package_item_counts AS (
-//       SELECT 
-//           op.orderId,
-//           COUNT(*) AS totalItems,
-//           SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
-//       FROM orderpackageitems opi
-//       JOIN orderpackage op ON opi.orderPackageId = op.id
-//       GROUP BY op.orderId
-//         ),
-//       additional_items_counts AS (
-//           SELECT 
-//               orderId,
-//               COUNT(*) AS totalAdditionalItems,
-//               SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
-//           FROM orderadditionalitems
-//           GROUP BY orderId
-//       )
-
-//       SELECT COUNT(*) as total
-//       FROM processorders po
-//       LEFT JOIN orders o ON po.orderId = o.id
-//       LEFT JOIN orderpackage op ON op.orderId = po.id 
-//       LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
-//       LEFT JOIN package_item_counts pic ON pic.orderId = po.id
-//       LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
-//       ${whereClause}
-//       GROUP BY
-//         o.id,
-//         po.id,
-//         po.invNo,
-//         o.sheduleDate,
-//         pic.totalItems,
-//         pic.packedItems,
-//         aic.totalAdditionalItems,
-//         aic.packedAdditionalItems
+//     SELECT COUNT(DISTINCT po.id) as total
+//     FROM processorders po
+//     LEFT JOIN orders o ON po.orderId = o.id
+//     LEFT JOIN orderpackage op ON op.orderId = po.id 
+//     LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
+//     LEFT JOIN (
+//         SELECT 
+//             op.orderId,
+//             COUNT(*) AS totalItems,
+//             SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
+//         FROM orderpackageitems opi
+//         JOIN orderpackage op ON opi.orderPackageId = op.id
+//         GROUP BY op.orderId
+//     ) pic ON pic.orderId = po.id
+//     LEFT JOIN (
+//         SELECT 
+//             orderId,
+//             COUNT(*) AS totalAdditionalItems,
+//             SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
+//         FROM orderadditionalitems
+//         GROUP BY orderId
+//     ) aic ON aic.orderId = o.id
+//     ${whereClause}
 //     `;
-
 
 //     const dataSql = `
 //       WITH package_item_counts AS (
@@ -1336,7 +1324,7 @@ exports.updateOrderStatuses = (orderId, addItemStatus, packItemStatus) => {
 //           FROM orderadditionalitems
 //           GROUP BY orderId
 //       )
-
+        
 //       SELECT 
 //           o.id,
 //           po.id AS processOrderId,
@@ -1349,13 +1337,17 @@ exports.updateOrderStatuses = (orderId, addItemStatus, packItemStatus) => {
 //           COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
 //           COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
 //           pic.packageStatus,
-//           COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus
+//           COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
+//           au.userName AS adminPackBy,
+//           CONCAT(cof.firstNameEnglish, ' ', cof.lastNameEnglish) AS packBy
 //       FROM processorders po
 //       LEFT JOIN orders o ON po.orderId = o.id
 //       LEFT JOIN orderpackage op ON op.orderId = po.id 
 //       LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
 //       LEFT JOIN package_item_counts pic ON pic.orderId = po.id
 //       LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+//       LEFT JOIN agro_world_admin.adminusers au ON po.adminPackby = au.id
+//       LEFT JOIN collection_officer.collectionofficer cof ON po.packBy = cof.id
 //       ${whereClause}
 //       GROUP BY
 //           o.id,
@@ -1402,95 +1394,165 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
-    let whereClause = ` 
+    let dataWhereClause = ` 
     WHERE 
       o.orderApp = 'Marketplace' 
       AND op.packingStatus = 'Dispatch' 
       AND op.id IS NOT NULL
      `;
-    const params = [];
+    let countWhereClause = ` 
+    WHERE 
+      o.orderApp = 'Marketplace' 
+      AND op.packingStatus = 'Dispatch' 
+      AND op.id IS NOT NULL
+     `;
+    
+    const dataParams = [];
     const countParams = [];
 
+    // Add filters for data query - use the actual logic instead of finalStatus column
     if (packageStatus) {
       if (packageStatus === 'Pending') {
-        whereClause += ` 
-      AND (
-        (pic.totalItems > 0 AND pic.packedItems = 0) 
-        AND 
-        (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = 0)
-      )
-    `;
+        dataWhereClause += ` AND (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending')`;
       } else if (packageStatus === 'Completed') {
-        whereClause += ` 
-      AND (
-        (pic.totalItems > 0 AND pic.packedItems = pic.totalItems) 
-        OR 
-        (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0))
-      )
-    `;
+        dataWhereClause += ` AND (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown'))`;
       } else if (packageStatus === 'Opened') {
-        whereClause += ` 
-      AND (
-        (pic.packedItems > 0 AND pic.totalItems > pic.packedItems) 
-        OR 
-        (COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0))
-      )
-    `;
+        dataWhereClause += ` AND (NOT (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending') AND NOT (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown')))`;
       }
     }
 
     if (date) {
-      whereClause += " AND DATE(o.sheduleDate) = ?";
-      params.push(date);
+      dataWhereClause += " AND DATE(o.sheduleDate) = ?";
+      dataParams.push(date);
+    }
+
+    if (search) {
+      dataWhereClause += ` AND (po.invNo LIKE ?)`;
+      dataParams.push(`%${search}%`);
+    }
+
+    // Add filters for count query
+    if (packageStatus) {
+      if (packageStatus === 'Pending') {
+        countWhereClause += ` AND (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending')`;
+      } else if (packageStatus === 'Completed') {
+        countWhereClause += ` AND (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown'))`;
+      } else if (packageStatus === 'Opened') {
+        countWhereClause += ` AND (NOT (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending') AND NOT (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown')))`;
+      }
+    }
+
+    if (date) {
+      countWhereClause += " AND DATE(o.sheduleDate) = ?";
       countParams.push(date);
     }
 
     if (search) {
-      whereClause += ` AND (po.invNo LIKE ?)`;
-      const searchPattern = `%${search}%`;
-      params.push(searchPattern);
-      countParams.push(searchPattern);
+      countWhereClause += ` AND (po.invNo LIKE ?)`;
+      countParams.push(`%${search}%`);
     }
 
     const countSql = `
+    WITH individual_package_status AS (
+        SELECT 
+            op.orderId,
+            op.id as packageId,
+            COUNT(opi.id) AS packageItemCount,
+            SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedPackageItems,
+            CASE
+                WHEN COUNT(opi.id) = 0 THEN 'Unknown'
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                     AND SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(opi.id) THEN 'Opened'
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(opi.id) THEN 'Completed'
+                ELSE 'Unknown'
+            END AS individualPackageStatus
+        FROM orderpackage op
+        LEFT JOIN orderpackageitems opi ON op.id = opi.orderPackageId
+        GROUP BY op.orderId, op.id
+    ),
+    package_final_status AS (
+        SELECT 
+            orderId,
+            COUNT(*) as totalPackages,
+            SUM(CASE WHEN individualPackageStatus = 'Pending' THEN 1 ELSE 0 END) as pendingPackages,
+            SUM(CASE WHEN individualPackageStatus = 'Opened' THEN 1 ELSE 0 END) as openedPackages,
+            SUM(CASE WHEN individualPackageStatus = 'Completed' THEN 1 ELSE 0 END) as completedPackages,
+            CASE 
+                WHEN SUM(CASE WHEN individualPackageStatus = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
+                WHEN SUM(CASE WHEN individualPackageStatus = 'Completed' THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+                ELSE 'Opened'
+            END AS finalPackageStatus
+        FROM individual_package_status
+        GROUP BY orderId
+    ),
+    additional_items_counts AS (
+        SELECT 
+            orderId,
+            COUNT(*) AS totalAdditionalItems,
+            SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
+            CASE
+                WHEN COUNT(*) = 0 THEN 'Unknown'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                     AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+                ELSE 'Unknown'
+            END AS additionalItemsStatus
+        FROM orderadditionalitems
+        GROUP BY orderId
+    )
     SELECT COUNT(DISTINCT po.id) as total
     FROM processorders po
     LEFT JOIN orders o ON po.orderId = o.id
     LEFT JOIN orderpackage op ON op.orderId = po.id 
     LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
-    LEFT JOIN (
-        SELECT 
-            op.orderId,
-            COUNT(*) AS totalItems,
-            SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
-        FROM orderpackageitems opi
-        JOIN orderpackage op ON opi.orderPackageId = op.id
-        GROUP BY op.orderId
-    ) pic ON pic.orderId = po.id
-    LEFT JOIN (
-        SELECT 
-            orderId,
-            COUNT(*) AS totalAdditionalItems,
-            SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
-        FROM orderadditionalitems
-        GROUP BY orderId
-    ) aic ON aic.orderId = o.id
-    ${whereClause}
+    LEFT JOIN package_final_status pfs ON pfs.orderId = po.id
+    LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+    LEFT JOIN agro_world_admin.adminusers au ON po.adminPackby = au.id
+    LEFT JOIN collection_officer.collectionofficer cof ON po.packBy = cof.id
+    ${countWhereClause}
     `;
 
     const dataSql = `
-      WITH package_item_counts AS (
+      WITH individual_package_status AS (
+          SELECT 
+              op.orderId,
+              op.id as packageId,
+              COUNT(opi.id) AS packageItemCount,
+              SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedPackageItems,
+              CASE
+                  WHEN COUNT(opi.id) = 0 THEN 'Unknown'
+                  WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
+                  WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                       AND SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(opi.id) THEN 'Opened'
+                  WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(opi.id) THEN 'Completed'
+                  ELSE 'Unknown'
+              END AS individualPackageStatus
+          FROM orderpackage op
+          LEFT JOIN orderpackageitems opi ON op.id = opi.orderPackageId
+          GROUP BY op.orderId, op.id
+      ),
+      package_final_status AS (
+          SELECT 
+              orderId,
+              COUNT(*) as totalPackages,
+              SUM(CASE WHEN individualPackageStatus = 'Pending' THEN 1 ELSE 0 END) as pendingPackages,
+              SUM(CASE WHEN individualPackageStatus = 'Opened' THEN 1 ELSE 0 END) as openedPackages,
+              SUM(CASE WHEN individualPackageStatus = 'Completed' THEN 1 ELSE 0 END) as completedPackages,
+              CASE 
+                  WHEN SUM(CASE WHEN individualPackageStatus = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
+                  WHEN SUM(CASE WHEN individualPackageStatus = 'Completed' THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+                  ELSE 'Opened'
+              END AS finalPackageStatus
+          FROM individual_package_status
+          GROUP BY orderId
+      ),
+      package_item_counts AS (
           SELECT 
               op.orderId,
               COUNT(*) AS totalItems,
-              SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems,
-              CASE
-                  WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 AND COUNT(*) > 0 THEN 'Pending'
-                  WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) > 0 
-                       AND SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
-                  WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
-                  ELSE 'Unknown'
-              END AS packageStatus
+              SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
           FROM orderpackageitems opi
           JOIN orderpackage op ON opi.orderPackageId = op.id
           GROUP BY op.orderId
@@ -1523,19 +1585,32 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
           COALESCE(pic.packedItems, 0) AS packPackageItems,
           COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
           COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
-          pic.packageStatus,
+          pfs.finalPackageStatus as packageStatus,
           COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
           au.userName AS adminPackBy,
-          CONCAT(cof.firstNameEnglish, ' ', cof.lastNameEnglish) AS packBy
+          CONCAT(cof.firstNameEnglish, ' ', cof.lastNameEnglish) AS packBy,
+          -- Calculate final status considering both packages and additional items
+          CASE
+              WHEN pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending' THEN 'Pending'
+              WHEN pfs.finalPackageStatus = 'Completed' AND 
+                   (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR 
+                    COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown') THEN 'Completed'
+              ELSE 'Opened'
+          END AS finalStatus,
+          pfs.pendingPackages,
+          pfs.openedPackages,
+          pfs.completedPackages,
+          pfs.totalPackages
       FROM processorders po
       LEFT JOIN orders o ON po.orderId = o.id
       LEFT JOIN orderpackage op ON op.orderId = po.id 
       LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
+      LEFT JOIN package_final_status pfs ON pfs.orderId = po.id
       LEFT JOIN package_item_counts pic ON pic.orderId = po.id
       LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
       LEFT JOIN agro_world_admin.adminusers au ON po.adminPackby = au.id
       LEFT JOIN collection_officer.collectionofficer cof ON po.packBy = cof.id
-      ${whereClause}
+      ${dataWhereClause}
       GROUP BY
           o.id,
           po.id,
@@ -1543,17 +1618,25 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
           o.sheduleDate,
           pic.totalItems,
           pic.packedItems,
-          pic.packageStatus,
+          pfs.finalPackageStatus,
           aic.totalAdditionalItems,
           aic.packedAdditionalItems,
-          aic.additionalItemsStatus
+          aic.additionalItemsStatus,
+          pfs.pendingPackages,
+          pfs.openedPackages,
+          pfs.completedPackages,
+          pfs.totalPackages
       ORDER BY po.createdAt DESC
       LIMIT ? OFFSET ?
       `;
 
-    params.push(parseInt(limit), parseInt(offset));
+    // Add limit and offset to data params
+    dataParams.push(parseInt(limit), parseInt(offset));
 
     console.log('Executing Count Query...');
+    console.log('Count SQL:', countSql);
+    console.log('Count Params:', countParams);
+    
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
@@ -1563,7 +1646,10 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
       const total = countResults[0]?.total || 0;
 
       console.log('Executing Data Query...');
-      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+      console.log('Data SQL:', dataSql);
+      console.log('Data Params:', dataParams);
+      
+      marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
@@ -1576,7 +1662,6 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
     });
   });
 };
-
 
 
 exports.getMarketPlacePremadePackagesItemsDao = (orderId) => {
