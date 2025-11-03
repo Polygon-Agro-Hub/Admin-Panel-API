@@ -444,7 +444,10 @@ exports.getAllOrdersWithProcessInfo = (
     // Get only the latest orderpackage for each processorder
     const dataSql = `
       SELECT 
-        o.fullTotal AS total,
+        (SELECT SUM(mp.productPrice * op2.qty)
+         FROM orderpackage op2
+         JOIN marketplacepackages mp ON op2.packageId = mp.id
+         WHERE op2.orderId = po.id) AS total,
         o.sheduleDate,
         o.orderApp,
         po.id AS processOrderId,
@@ -535,7 +538,6 @@ exports.getAllOrdersWithProcessInfo = (
     });
   });
 };
-
 
 exports.getAllProductTypes = () => {
   return new Promise((resolve, reject) => {
@@ -1268,7 +1270,10 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     let dataSql = `
         SELECT DISTINCT
           po.id AS processOrderId,
-          o.fullTotal AS total,
+          (SELECT SUM(mp.productPrice * op2.qty)
+           FROM orderpackage op2
+           JOIN marketplacepackages mp ON op2.packageId = mp.id
+           WHERE op2.orderId = po.id) AS total,
           o.sheduleDate,
           o.orderApp,
           po.invNo,
