@@ -94,9 +94,15 @@ const getAllSchema = Joi.object({
   search: Joi.string().allow('').optional()
 });
 
+const getAllFarmerPaymentsSchema = Joi.object({
+  date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  bank: Joi.string().allow('').optional(),
+});
+
 module.exports = {
   createAgentCommissionSchema,
   updateAgentCommissionSchema,
   idSchema,
-  getAllSchema
+  getAllSchema,
+  getAllFarmerPaymentsSchema
 };

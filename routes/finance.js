@@ -51,4 +51,10 @@ router.delete(
   financeController.deleteAgentCommission
 );
 
+router.get(
+  "/get-all-farmer-payments",
+  // authMiddleware,
+  financeController.getALlFarmerPayments
+);
+
 module.exports = router;

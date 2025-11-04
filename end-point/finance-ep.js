@@ -4,6 +4,7 @@ const {
   updateAgentCommissionSchema,
   getAllSchema,
   idSchema,
+  getAllFarmerPaymentsSchema,
 } = require("../validations/finance-validation");
 
 exports.getDashboardData = async (req, res) => {
@@ -332,9 +333,8 @@ exports.getCertificateDashboardData = async (req, res) => {
         farmerName: payment.farmerName,
         validityPeriod:
           payment.validityMonths > 0
-            ? `${payment.validityMonths} month${
-                payment.validityMonths !== 1 ? "s" : ""
-              }`
+            ? `${payment.validityMonths} month${payment.validityMonths !== 1 ? "s" : ""
+            }`
             : "Expired",
         amount: payment.amount,
         dateTime: payment.dateTime,
@@ -564,7 +564,7 @@ exports.createAgentCommission = async (req, res) => {
 
     const commissionData = {
       ...value,
-      modifyBy: userId, 
+      modifyBy: userId,
     };
 
     const newCommission = await financeDao.createAgentCommission(
@@ -695,6 +695,45 @@ exports.deleteAgentCommission = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: "Agent commission deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting agent commission:", error);
+    return res.status(500).json({
+      status: false,
+      message: "An error occurred while deleting agent commission",
+      error: error.message,
+    });
+  }
+};
+
+
+exports.getALlFarmerPayments = async (req, res) => {
+  try {
+    // Validate ID parameter
+    const { error, value } = getAllFarmerPaymentsSchema.validate(req.query);
+    if (error) {
+      return res.status(400).json({
+        status: false,
+        message: "Validation error",
+        error: error.details[0].message,
+      });
+    }
+    console.log(value.date);
+
+
+    // Check if commission exists
+    const result = await financeDao.getAllFarmerPaymentDao(value.date, value.bank);
+    if (!result) {
+      return res.status(404).json({
+        status: false,
+        message: "Farmer Payemnt not found",
+      });
+    }
+
+
+    return res.status(200).json({
+      status: true,
+      data: result,
     });
   } catch (error) {
     console.error("Error deleting agent commission:", error);

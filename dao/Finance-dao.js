@@ -648,7 +648,7 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
       `;
       countSql += searchCondition;
       dataSql += searchCondition;
-      
+
       const searchValue = `%${searchTerm}%`;
       countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
       dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
@@ -750,7 +750,7 @@ exports.getAllCertificatePayments = (page, limit, searchTerm, fromDate, toDate) 
       `;
       countSql += searchCondition;
       dataSql += searchCondition;
-      
+
       const searchValue = `%${searchTerm}%`;
       countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
       dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
@@ -1058,6 +1058,63 @@ exports.checkRangeOverlap = (minRange, maxRange, excludeId = null) => {
         return reject(err);
       }
       resolve(results[0].count > 0);
+    });
+  });
+};
+
+
+exports.getAllFarmerPaymentDao = (date, bank) => {
+  return new Promise((resolve, reject) => {
+    const params = [];
+    let sql = `
+      SELECT 
+        rfp.id,
+        rfp.invNo,
+        CONCAT(u.firstName, ' ', u.lastName) AS farmerName,
+        u.NICnumber,
+        u.phoneNumber,
+        SUM(fpc.gradeAprice * fpc.gradeAquan + fpc.gradeBprice * fpc.gradeBquan + fpc.gradeCprice * fpc.gradeCquan) AS totalPayment,
+        ub.bankName,
+        ub.branchName,
+        ub.accNumber,
+        rfp.createdAt
+      FROM registeredfarmerpayments rfp
+      LEFT JOIN farmerpaymentscrops fpc ON rfp.id = fpc.registerFarmerId
+      LEFT JOIN plant_care.users u ON rfp.userId = u.id
+      LEFT JOIN plant_care.userbankdetails ub ON u.id = ub.userId
+      WHERE 1=1
+    `;
+
+    if (date) {
+      sql += ` AND DATE(rfp.createdAt) = ? `;
+      params.push(date);
+    }
+
+    if (bank) {
+      sql += ` AND ub.bankName = ? `;
+      params.push(bank);
+    }
+
+    sql += ` 
+      GROUP BY 
+        rfp.id,
+        rfp.invNo,
+        u.firstName,
+        u.lastName,
+        u.NICnumber,
+        u.phoneNumber,
+        ub.bankName,
+        ub.branchName,
+        ub.accNumber,
+        rfp.createdAt
+      ORDER BY rfp.createdAt DESC `;
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        console.error("Error fetching farmer payments:", err);
+        return reject(err);
+      }
+      resolve(results);
     });
   });
 };
