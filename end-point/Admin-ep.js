@@ -3626,6 +3626,7 @@ exports.deleteFieldOfficer = async (req, res) => {
 
     console.log('images', profile, frontNic, backNic, backPassbook, contract);
 
+    // Delete images from S3
     if (profile) {
       try {
         await deleteFromS3(profile);
@@ -3633,7 +3634,6 @@ exports.deleteFieldOfficer = async (req, res) => {
         console.error("Failed to delete Front Profile image from S3:", s3Error);
       }
     }
-
 
     if (frontNic) {
       try {
@@ -3667,19 +3667,22 @@ exports.deleteFieldOfficer = async (req, res) => {
       }
     }
 
-    console.log('success')
-
-    res.status(200).json({ massage: 'deleted', status: true });
-
-    const results = await collectionofficerDao.DeleteFieldOfficerDao(
-      id
-    );
+    // Delete from database
+    const results = await adminDao.DeleteFieldOfficerDao(id);
 
     console.log("Successfully Delete Status");
+    
+    // Send response only once ✅
     if (results.affectedRows > 0) {
-      res.status(200).json({ results: results, status: true });
+      return res.status(200).json({ 
+        message: 'Field Officer deleted successfully', 
+        status: true 
+      });
     } else {
-      res.json({ results: results, status: false });
+      return res.status(404).json({ 
+        message: 'Field Officer not found', 
+        status: false 
+      });
     }
   } catch (error) {
     if (error.isJoi) {
@@ -3691,7 +3694,7 @@ exports.deleteFieldOfficer = async (req, res) => {
     console.error("Error retrieving Updated Status:", error);
     return res
       .status(500)
-      .json({ error: "An error occurred while Updated Statuss" });
+      .json({ error: "An error occurred while deleting Field Officer" });
   }
 };
 
