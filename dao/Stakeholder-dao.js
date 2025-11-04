@@ -279,8 +279,9 @@ exports.getTodayRegAdmin = () => {
 exports.getAllFieldOfficers = (filters = {}) => {
   return new Promise((resolve, reject) => {
     let sql = `
-      SELECT * 
-      FROM plant_care.feildofficer
+      SELECT f.*, a.UserName AS modifyBy
+      FROM plant_care.feildofficer f
+      LEFT JOIN agro_world_admin.adminusers a ON f.modifyBy = a.id
       WHERE 1=1
     `;
 
@@ -288,32 +289,32 @@ exports.getAllFieldOfficers = (filters = {}) => {
 
     // Apply filters
     if (filters.status && filters.status !== "") {
-      sql += ` AND status = ?`;
+      sql += ` AND f.status = ?`;
       params.push(filters.status);
     }
 
     if (filters.district && filters.district !== "") {
-      sql += ` AND distrct = ?`;
+      sql += ` AND f.distrct = ?`;
       params.push(filters.district);
     }
 
     if (filters.role && filters.role !== "") {
-      sql += ` AND JobRole = ?`;
+      sql += ` AND f.JobRole = ?`;
       params.push(filters.role);
     }
 
     if (filters.language && filters.language !== "") {
-      sql += ` AND language LIKE ?`;
+      sql += ` AND f.language LIKE ?`;
       params.push(`%${filters.language}%`);
     }
 
     if (filters.search && filters.search !== "") {
-      sql += ` AND (empId LIKE ? OR nic LIKE ?)`;
+      sql += ` AND (f.empId LIKE ? OR f.nic LIKE ?)`;
       const searchTerm = `%${filters.search}%`;
       params.push(searchTerm, searchTerm);
     }
 
-    sql += ` ORDER BY createdAt DESC`;
+    sql += ` ORDER BY f.createdAt DESC`;
 
     console.log("SQL Query:", sql);
     console.log("Query Parameters:", params);

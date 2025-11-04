@@ -4701,7 +4701,8 @@ exports.updateFieldOfficer = (
   nicFrontUrl,
   nicBackUrl,
   passbookUrl,
-  contractUrl
+  contractUrl,
+  tokenUserId
 ) => {
   return new Promise((resolve, reject) => {
     try {
@@ -4748,7 +4749,8 @@ exports.updateFieldOfficer = (
           backPassbook = ?, 
           contract = ?, 
           assignDistrict = ?, 
-          status = ?
+          status = ?,
+          modifyBy = ?
         WHERE id = ?;
       `;
 
@@ -4790,6 +4792,7 @@ exports.updateFieldOfficer = (
           contractUrlValue,
           officerData.assignDistrict,
           officerData.status || "Not Approved", // Keep existing status or default
+          tokenUserId,
           officerId // WHERE condition
         ],
         (err, results) => {
