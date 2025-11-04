@@ -3702,7 +3702,7 @@ exports.updateFieldOfficer = async (req, res) => {
   console.log("Update request received", req.body);
   console.log("Files:", req.files);
 
-  const tokenUserId = req.user?.id || req.user?.userId;
+  const tokenUserId = req.user.userId;
   const officerId = req.params.id; // Get officer ID from URL params
 
   try {
@@ -3883,7 +3883,8 @@ exports.updateFieldOfficer = async (req, res) => {
       nicFrontUrl,
       nicBackUrl,
       passbookUrl,
-      contractUrl
+      contractUrl,
+      tokenUserId
     );
 
     console.log("Field Officer updated successfully");
