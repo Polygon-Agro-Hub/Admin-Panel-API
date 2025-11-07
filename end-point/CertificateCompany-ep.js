@@ -1076,6 +1076,13 @@ exports.createFarmerCluster = async (req, res) => {
       connection
     );
 
+    console.log("-------------------------------------------");
+    console.log(bulkInsertResult);
+    console.log("-------------------------------------------");
+
+
+
+
     // Create certification payment record
     const paymentResult =
       await certificateCompanyDao.createCertificationPayment(
@@ -1089,6 +1096,29 @@ exports.createFarmerCluster = async (req, res) => {
         },
         connection
       );
+
+    if (bulkInsertResult.insertedIds && bulkInsertResult.insertedIds.length > 0) {
+      await certificateCompanyDao.bulkInsertSlaveQuestionnaire(
+        paymentResult.insertId, // crtPaymentId
+        bulkInsertResult.insertedIds, // clusterFarmIds array
+        connection
+      );
+    }
+
+    // Get all slavequestionnaire IDs that were just inserted
+    const slaveQuestionnaireIds = await certificateCompanyDao.getSlaveQuestionnaireIds(
+      paymentResult.insertId,
+      connection
+    );
+
+    // Insert into slavequestionnaireitems
+    if (slaveQuestionnaireIds.length > 0) {
+      await certificateCompanyDao.bulkInsertSlaveQuestionnaireItems(
+        slaveQuestionnaireIds,
+        certificateId,
+        connection
+      );
+    }
 
     await connection.commit();
 
@@ -1234,6 +1264,7 @@ exports.addSingleFarmerToCluster = async (req, res) => {
       farmValidation.farmId,
       connection
     );
+
     if (farmExistsInCluster) {
       await connection.rollback();
       return res.status(400).json({
@@ -1271,11 +1302,35 @@ exports.addSingleFarmerToCluster = async (req, res) => {
     }
 
     // Step 7: Insert farm into cluster
-    await certificateCompanyDao.insertFarmIntoCluster(
+    const insertFarmIntoClusterResult = await certificateCompanyDao.insertFarmIntoCluster(
       clusterId,
       farmValidation.farmId,
       connection
     );
+
+    const slaveInsertResult = await certificateCompanyDao.singleInsertSlaveQuestionnaire(existingPayment.id, insertFarmIntoClusterResult.insertId, connection)
+    console.log("slaveInsertResult", slaveInsertResult);
+    if (slaveInsertResult.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(500).json({
+        message: `Failed to insert slave questionnaire for the new farm`,
+        status: false,
+      });
+    }
+
+    const slaveItemsInsertResult = await certificateCompanyDao.singleInsertSlaveQuestionnaireItems(
+      slaveInsertResult.insertId,
+      clusterInfo.certificateId,
+      connection
+    )
+
+    if (slaveItemsInsertResult.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(500).json({
+        message: `Failed to insert slave questionnaire items for the new farm`,
+        status: false,
+      });
+    }
 
     // Step 8: Update certification payment amount
     const updateResult =

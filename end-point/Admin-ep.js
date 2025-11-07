@@ -3034,9 +3034,7 @@ exports.getFarmsByUser = async (req, res) => {
     // Call DAO to fetch farms
     const { total, items } = await adminDao.getAllFarmsWithCultivations(
       userId,
-      searchItem,
-      limit,
-      offset
+      queryParams.searchText
     );
 
     res.json({
