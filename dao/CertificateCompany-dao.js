@@ -996,9 +996,11 @@ exports.checkByTaxId = (taxId, excludeId = null) => {
 exports.getFarmerClusterCertificates = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT id, srtName, srtNumber 
-      FROM certificates 
-      WHERE applicable = 'For Farmer Cluster'
+      SELECT c.id, c.srtName, c.srtNumber 
+      FROM certificates c
+      LEFT JOIN questionnaire q ON c.id = q.certificateId
+      WHERE c.applicable = 'For Farmer Cluster' AND q.id IS NOT NULL
+      GROUP BY c.id, c.srtName, c.srtNumber 
       ORDER BY srtName ASC
     `;
 
