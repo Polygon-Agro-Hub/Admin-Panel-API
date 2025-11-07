@@ -3950,14 +3950,11 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
     if (searchItem) {
       searchSql = `
         AND (
-          U.NICnumber LIKE ? OR
-          U.firstName LIKE ? OR
-          U.lastName LIKE ? OR
-          F.farmName LIKE ?
+          F.regCode LIKE ?
         )
       `;
       const searchQuery = `%${searchItem}%`;
-      params.push(searchQuery, searchQuery, searchQuery, searchQuery);
+      params.push(searchQuery);
     }
 
     if (userId) {
@@ -3973,6 +3970,7 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
         F.staffCount,
         F.district AS farmDistrict,
         F.createdAt AS farmCreatedAt,
+        F.regCode,
         U.id AS userId,
         U.firstName,
         U.lastName,
@@ -4007,6 +4005,7 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
         usersMap[row.userId].farms.push({
           farmId: row.farmId,
           farmName: row.farmName,
+          regCode:row.regCode,
           farmIndex: row.farmIndex,
           staffCount: row.staffCount,
           farmDistrict: row.farmDistrict,
