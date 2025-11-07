@@ -1168,7 +1168,7 @@ exports.bulkInsertClusterFarms = async (clusterId, farmIds, connection) => {
   );
 
   const insertedIds = insertedRows.map(row => row.id);
-  
+
   return {
     affectedRows: result.affectedRows,
     insertId: result.insertId,
@@ -1252,9 +1252,8 @@ exports.updateClusterStatus = async (
     );
 
     return {
-      message: `Cluster status updated from ${
-        oldStatus || "Not Started"
-      } to ${status} successfully`,
+      message: `Cluster status updated from ${oldStatus || "Not Started"
+        } to ${status} successfully`,
       data: updatedCluster[0],
       changes: {
         oldStatus: oldStatus || "Not Started",
@@ -1812,7 +1811,7 @@ exports.getSlaveQuestionnaireIds = async (crtPaymentId, connection) => {
     `SELECT id FROM slavequestionnaire WHERE crtPaymentId = ? ORDER BY id ASC`,
     [crtPaymentId]
   );
-  
+
   return rows.map(row => row.id);
 };
 
@@ -1849,6 +1848,56 @@ exports.bulkInsertSlaveQuestionnaireItems = async (slaveIds, certificateId, conn
       ]);
     }
   }
+
+  const [result] = await connection.query(
+    `INSERT INTO slavequestionnaireitems (slaveId, type, qNo, qEnglish, qSinhala, qTamil) VALUES ?`,
+    [values]
+  );
+
+  return result;
+};
+
+exports.singleInsertSlaveQuestionnaire = async (crtPaymentId, clusterFarmId, connection) => {
+  const values = [
+    crtPaymentId,
+    clusterFarmId,
+    1 // isCluster = true
+  ];
+
+  const [result] = await connection.query(
+    `INSERT INTO slavequestionnaire (crtPaymentId, clusterFarmId, isCluster) VALUES (?)`,
+    [values]
+  );
+
+  return result;
+};
+
+exports.singleInsertSlaveQuestionnaireItems = async (slaveId, certificateId, connection) => {
+  // First, get all questionnaire items for the certificate
+  const [questionnaireItems] = await connection.query(
+    `SELECT type, qNo, qEnglish, qSinhala, qTamil 
+     FROM questionnaire 
+     WHERE certificateId = ?`,
+    [certificateId]
+  );
+
+  if (questionnaireItems.length === 0) {
+    return { affectedRows: 0 };
+  }
+
+  // Create values for all slaveIds with all questionnaire items
+  const values = [];
+  for (const item of questionnaireItems) {
+    values.push([
+      slaveId,
+      item.type,
+      item.qNo,
+      item.qEnglish,
+      item.qSinhala,
+      item.qTamil
+    ]);
+  }
+
 
   const [result] = await connection.query(
     `INSERT INTO slavequestionnaireitems (slaveId, type, qNo, qEnglish, qSinhala, qTamil) VALUES ?`,
