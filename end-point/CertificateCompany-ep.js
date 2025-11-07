@@ -1076,6 +1076,13 @@ exports.createFarmerCluster = async (req, res) => {
       connection
     );
 
+    console.log("-------------------------------------------");
+    console.log(bulkInsertResult);
+    console.log("-------------------------------------------");
+
+
+
+
     // Create certification payment record
     const paymentResult =
       await certificateCompanyDao.createCertificationPayment(
@@ -1089,6 +1096,29 @@ exports.createFarmerCluster = async (req, res) => {
         },
         connection
       );
+
+    if (bulkInsertResult.insertedIds && bulkInsertResult.insertedIds.length > 0) {
+      await certificateCompanyDao.bulkInsertSlaveQuestionnaire(
+        paymentResult.insertId, // crtPaymentId
+        bulkInsertResult.insertedIds, // clusterFarmIds array
+        connection
+      );
+    }
+
+    // Get all slavequestionnaire IDs that were just inserted
+    const slaveQuestionnaireIds = await certificateCompanyDao.getSlaveQuestionnaireIds(
+      paymentResult.insertId,
+      connection
+    );
+
+    // Insert into slavequestionnaireitems
+    if (slaveQuestionnaireIds.length > 0) {
+      await certificateCompanyDao.bulkInsertSlaveQuestionnaireItems(
+        slaveQuestionnaireIds,
+        certificateId,
+        connection
+      );
+    }
 
     await connection.commit();
 

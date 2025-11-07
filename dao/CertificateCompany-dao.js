@@ -1135,16 +1135,45 @@ exports.getFarmIdsForValidFarmers = async (validFarmers, connection) => {
 };
 
 // Bulk insert farms into cluster
+// exports.bulkInsertClusterFarms = async (clusterId, farmIds, connection) => {
+//   if (farmIds.length === 0) return { affectedRows: 0 };
+
+//   const values = farmIds.map((farmId) => [clusterId, farmId]);
+
+//   const [result] = await connection.query(
+//     `INSERT INTO farmclusterfarmers (clusterId, farmId) VALUES ?`,
+//     [values]
+//   );  
+//   return result;
+// };
+
 exports.bulkInsertClusterFarms = async (clusterId, farmIds, connection) => {
-  if (farmIds.length === 0) return { affectedRows: 0 };
+  if (farmIds.length === 0) return { affectedRows: 0, insertedIds: [] };
 
   const values = farmIds.map((farmId) => [clusterId, farmId]);
 
+  // Perform bulk insert
   const [result] = await connection.query(
     `INSERT INTO farmclusterfarmers (clusterId, farmId) VALUES ?`,
     [values]
   );
-  return result;
+
+  // Get all inserted farmclusterfarmers IDs
+  const [insertedRows] = await connection.query(
+    `SELECT id FROM farmclusterfarmers 
+     WHERE clusterId = ? 
+     ORDER BY id ASC 
+     LIMIT ?`,
+    [clusterId, farmIds.length]
+  );
+
+  const insertedIds = insertedRows.map(row => row.id);
+  
+  return {
+    affectedRows: result.affectedRows,
+    insertId: result.insertId,
+    insertedIds: insertedIds
+  };
 };
 
 // Check if registration codes exist in farms table
@@ -1754,4 +1783,77 @@ exports.assignOfficerToAuditDAO = (
       if (connection) connection.release();
     }
   });
+};
+
+
+// certificateCompanyDao.js or appropriate DAO file
+
+exports.bulkInsertSlaveQuestionnaire = async (crtPaymentId, clusterFarmIds, connection) => {
+  if (!clusterFarmIds || clusterFarmIds.length === 0) {
+    return { affectedRows: 0 };
+  }
+
+  const values = clusterFarmIds.map(clusterFarmId => [
+    crtPaymentId,
+    clusterFarmId,
+    1 // isCluster = true
+  ]);
+
+  const [result] = await connection.query(
+    `INSERT INTO slavequestionnaire (crtPaymentId, clusterFarmId, isCluster) VALUES ?`,
+    [values]
+  );
+
+  return result;
+};
+
+exports.getSlaveQuestionnaireIds = async (crtPaymentId, connection) => {
+  const [rows] = await connection.query(
+    `SELECT id FROM slavequestionnaire WHERE crtPaymentId = ? ORDER BY id ASC`,
+    [crtPaymentId]
+  );
+  
+  return rows.map(row => row.id);
+};
+
+// certificateCompanyDao.js
+
+exports.bulkInsertSlaveQuestionnaireItems = async (slaveIds, certificateId, connection) => {
+  if (!slaveIds || slaveIds.length === 0) {
+    return { affectedRows: 0 };
+  }
+
+  // First, get all questionnaire items for the certificate
+  const [questionnaireItems] = await connection.query(
+    `SELECT type, qNo, qEnglish, qSinhala, qTamil 
+     FROM questionnaire 
+     WHERE certificateId = ?`,
+    [certificateId]
+  );
+
+  if (questionnaireItems.length === 0) {
+    return { affectedRows: 0 };
+  }
+
+  // Create values for all slaveIds with all questionnaire items
+  const values = [];
+  for (const slaveId of slaveIds) {
+    for (const item of questionnaireItems) {
+      values.push([
+        slaveId,
+        item.type,
+        item.qNo,
+        item.qEnglish,
+        item.qSinhala,
+        item.qTamil
+      ]);
+    }
+  }
+
+  const [result] = await connection.query(
+    `INSERT INTO slavequestionnaireitems (slaveId, type, qNo, qEnglish, qSinhala, qTamil) VALUES ?`,
+    [values]
+  );
+
+  return result;
 };
