@@ -126,6 +126,7 @@ exports.getAllOfficerServices = async (req, res) => {
 
 // Delete officer service by ID
 exports.deleteOfficerService = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   const id = req.params.id; // get ID from URL params
 
   try {

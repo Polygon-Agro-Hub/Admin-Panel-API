@@ -121,8 +121,7 @@ exports.getAllOfficerServices = () => {
 // Delete an officer service by ID
 exports.deleteOfficerServiceById = (id) => {
   return new Promise((resolve, reject) => {
-    const sql = `UPDATE plant_care.officerservices 
-                 SET isValid = 0 
+    const sql = `DELETE FROM plant_care.officerservices 
                  WHERE id = ?`;
 
     admin.query(sql, [id], (err, results) => {
@@ -130,7 +129,7 @@ exports.deleteOfficerServiceById = (id) => {
         reject(err);
       } else {
         resolve({
-          message: "Service marked as invalid successfully",
+          message: "Service deleted successfully",
           affectedRows: results.affectedRows,
         });
       }
@@ -502,6 +501,8 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         fa.onScreenTime,
         fa.status,
         fa.assignDate AS assignedOn,
+        fa.assignBy,
+        admin.userName AS assignedByName,
         
         -- For Cluster: get district from farmcluster, for others from farms
         CASE 
@@ -534,6 +535,9 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
       
       -- Join certification payment
       INNER JOIN certificationpayment cp ON fa.paymentId = cp.id
+      
+      -- Join admin user for assignBy (from different database)
+      LEFT JOIN agro_world_admin.adminusers admin ON fa.assignBy = admin.id
       
       -- Left join for Cluster scenario
       LEFT JOIN farmcluster fc ON fa.propose = 'Cluster' AND cp.clusterId = fc.id
@@ -569,6 +573,8 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         fa.onScreenTime,
         fa.status,
         fa.assignDate,
+        fa.assignBy,
+        admin.userName,
         fc.district,
         f.district,
         f.id,
