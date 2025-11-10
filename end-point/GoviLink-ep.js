@@ -55,17 +55,17 @@ exports.updateOfficerService = async (req, res) => {
 
     if (duplicateCheck.exists) {
       const { field, duplicateValue, existingId } = duplicateCheck;
-      
+
       // Create user-friendly error messages
       const fieldNames = {
         englishName: 'English Name',
-        tamilName: 'Tamil Name', 
+        tamilName: 'Tamil Name',
         sinhalaName: 'Sinhala Name'
       };
-      
+
       const errorMessage = `"${duplicateValue}" already exists as a ${fieldNames[field]}. Please use a different ${fieldNames[field].toLowerCase()}.`;
-      
-      return res.status(409).json({ 
+
+      return res.status(409).json({
         success: false,
         error: errorMessage,
         duplicateDetails: {
@@ -96,9 +96,9 @@ exports.updateOfficerService = async (req, res) => {
     });
   } catch (err) {
     console.error("Error updating officer service:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: "An error occurred while updating data." 
+      error: "An error occurred while updating data."
     });
   }
 };
@@ -294,7 +294,7 @@ exports.getJobBasicDetailsById = async (req, res) => {
 exports.getFieldAuditDetails = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
-  
+
   try {
     // Filters
     const filters = {
@@ -315,7 +315,7 @@ exports.getFieldAuditDetails = async (req, res) => {
     Object.keys(filters).forEach(key => {
       if (!filters[key]) delete filters[key];
     });
-    
+
     Object.keys(search).forEach(key => {
       if (!search[key]) delete search[key];
     });
@@ -339,6 +339,77 @@ exports.getFieldAuditDetails = async (req, res) => {
       success: false,
       message: "An error occurred while fetching field audit details.",
       error: err.message
+    });
+  }
+};
+
+
+exports.getFieldOfficerComplainById = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = req.params;
+
+    console.log("Fetching field officer complain with ID:", id);
+
+    const result = await GoviLinkDAO.GetFieldOfficerComplainByIdDAO(id);
+
+    if (!result) {
+      console.log("Field officer complain not found");
+      return res.status(404).json({
+        error: "Field officer complain not found"
+      });
+    }
+
+    console.log("Successfully retrieved field officer complain");
+    res.json(result);
+  } catch (err) {
+    console.error("Error fetching field officer complain by ID:", err);
+    res.status(500).json({
+      error: "An error occurred while fetching field officer complain"
+    });
+  }
+};
+
+
+exports.replyFieldOfficerComplain = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reply } = req.body;
+    const replyBy = req.user.id;
+
+    console.log('Replying to field officer complaint:', id);
+
+
+    if (!reply || reply.trim() === '') {
+      return res.status(400).json({ 
+        error: 'Reply cannot be empty' 
+      });
+    }
+
+
+    await GoviLinkDAO.ReplyFieldOfficerComplainDAO(
+      id,
+      reply.trim(),
+      replyBy
+    );
+
+    console.log('Successfully replied to field officer complaint');
+    res.json({ 
+      message: 'Reply sent successfully',
+      success: true 
+    });
+  } catch (err) {
+    if (err.message === 'Complaint not found') {
+      console.error('Complaint not found:', err);
+      return res.status(404).json({ 
+        error: 'Complaint not found' 
+      });
+    }
+
+    console.error('Error replying to field officer complaint:', err);
+    res.status(500).json({ 
+      error: 'An error occurred while sending the reply' 
     });
   }
 };
