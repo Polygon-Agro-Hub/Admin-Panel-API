@@ -4856,7 +4856,7 @@ exports.GetAllFiealdofficerComplainDAO = (
       FROM feildofficercomplains fc
       LEFT JOIN feildofficer fo ON fc.officerId = fo.id
       LEFT JOIN agro_world_admin.complaincategory cc ON fc.complainCategory = cc.id
-      LEFT JOIN collection_officer.company c ON fo.companyId = c.id
+      LEFT JOIN feildcompany foc ON fo.companyId = foc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
       WHERE fc.complainAssign = 'Admin'
     `;
@@ -4870,7 +4870,7 @@ exports.GetAllFiealdofficerComplainDAO = (
         CONCAT(fo.firstName, ' ', fo.lastName) AS officerName,
         CONCAT(fo.firstNameSinhala, ' ', fo.lastNameSinhala) AS officerNameSinhala,
         CONCAT(fo.firstNameTamil, ' ', fo.lastNameTamil) AS officerNameTamil,
-        c.companyNameEnglish AS companyName,
+        foc.companyName,
         cc.categoryEnglish AS complainCategory,
         ar.role,
         fc.createdAt,
@@ -4881,7 +4881,7 @@ exports.GetAllFiealdofficerComplainDAO = (
       FROM feildofficercomplains fc
       LEFT JOIN feildofficer fo ON fc.officerId = fo.id
       LEFT JOIN agro_world_admin.complaincategory cc ON fc.complainCategory = cc.id
-      LEFT JOIN collection_officer.company c ON fo.companyId = c.id
+      LEFT JOIN feildcompany foc ON fo.companyId = foc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
       WHERE fc.complainAssign = 'Admin'
     `;
