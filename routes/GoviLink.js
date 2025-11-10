@@ -69,4 +69,12 @@ router.get(
   GoviLinkEp.getFieldAuditDetails
 );
 
+
+router.get(
+  "/get-complain-details/:id",
+  authMiddleware,
+  GoviLinkEp.getFieldOfficerComplainById
+);
+
+ router.put('/reply-field-officer-complain/:id', authMiddleware, GoviLinkEp.replyFieldOfficerComplain);
 module.exports = router;

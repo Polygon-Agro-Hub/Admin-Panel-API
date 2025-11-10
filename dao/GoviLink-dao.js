@@ -602,3 +602,95 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
     });
   });
 };
+
+exports.GetFieldOfficerComplainByIdDAO = (id) => {
+  console.log("DAO - GetFieldOfficerComplainByIdDAO called with ID:", id);
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        foc.id, 
+        foc.refNo,
+        foc.officerId,
+        fo.empId AS empId,
+        CONCAT(fo.firstName, ' ', fo.lastName) AS officerName,
+        CONCAT(fo.firstNameSinhala, ' ', fo.lastNameSinhala) AS officerNameSinhala,
+        CONCAT(fo.firstNameTamil, ' ', fo.lastNameTamil) AS officerNameTamil,
+        fo.phoneNumber1,
+        fo.email,
+        fc.id AS companyId,
+        fc.companyName AS companyName,
+        foc.complainCategory AS complainCategoryId,
+        cc.categoryEnglish AS complainCategory,
+        cc.categorySinhala AS complainCategorySinhala,
+        cc.categoryTamil AS complainCategoryTamil,
+        ar.role,
+        foc.createdAt,
+        foc.complain,
+        foc.FIOStatus,
+        foc.FCOStatus,
+        foc.AdminStatus,
+        foc.complainAssign,
+        foc.reply,
+        foc.replyBy,
+        foc.replyTime,
+        foc.language,
+        fo.JobRole,
+        CONCAT(replyOfficer.firstName, ' ', replyOfficer.lastName) AS replyByName
+      FROM feildofficercomplains foc
+      LEFT JOIN feildofficer fo ON foc.officerId = fo.id
+      LEFT JOIN agro_world_admin.complaincategory cc ON foc.complainCategory = cc.id
+      LEFT JOIN feildcompany fc ON fo.companyId = fc.id
+      LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      LEFT JOIN feildofficer replyOfficer ON foc.replyBy = replyOfficer.id
+      WHERE foc.id = ?
+    `;
+
+    console.log("Executing SQL:", sql);
+    console.log("With parameters:", [id]);
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        console.error("Database error:", err);
+        return reject(err);
+      }
+
+      console.log("Query results:", results);
+      console.log("Number of results:", results.length);
+
+      if (results.length === 0) {
+        console.log("No data found for ID:", id);
+        return resolve(null);
+      }
+
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.ReplyFieldOfficerComplainDAO = (complainId, reply, replyBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE feildofficercomplains 
+      SET 
+        reply = ?,
+        replyBy = ?,
+        replyTime = NOW(),
+        FCOStatus = 'Closed',
+        FIOStatus = 'Closed',
+        AdminStatus = 'Closed'
+      WHERE id = ?
+    `;
+
+    plantcare.query(sql, [reply, replyBy, complainId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.affectedRows === 0) {
+        return reject(new Error('Complaint not found'));
+      }
+
+      resolve(results);
+    });
+  });
+};
