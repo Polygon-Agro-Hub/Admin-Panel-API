@@ -3636,9 +3636,9 @@ exports.getFarmerStaffDao = (ownerId, role, searchText) => {
 
   if (searchText) {
     sql += ` AND (f.firstName LIKE ? OR f.lastName LIKE ? OR f.nic LIKE ? )`;
-    const searchParam = `%${searchText}%`
+    const searchParam = `%${searchText}%`;
     console.log(searchParam);
-    
+
     sqlParams.push(searchParam, searchParam, searchParam);
   }
 
@@ -4005,7 +4005,7 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
         usersMap[row.userId].farms.push({
           farmId: row.farmId,
           farmName: row.farmName,
-          regCode:row.regCode,
+          regCode: row.regCode,
           farmIndex: row.farmIndex,
           staffCount: row.staffCount,
           farmDistrict: row.farmDistrict,
@@ -4045,7 +4045,6 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
 //     });
 //   });
 // };
-
 
 exports.deleteFarmById = (farmId) => {
   return new Promise((resolve, reject) => {
@@ -4127,7 +4126,6 @@ exports.deleteFarmById = (farmId) => {
     });
   });
 };
-
 
 exports.tracktaskAddOngoingCultivation = (userId, id) => {
   return new Promise((resolve, reject) => {
@@ -4452,10 +4450,10 @@ exports.getFOIDforCreateEmpIdDao = (employee) => {
 
 //       const sql = `
 //                 INSERT INTO feildofficer (
-//                     companyId, irmId, firstName, lastName, empType, empId, jobRole, 
-//                     phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, language, email, 
-//                     nic, house, street, city, distrct, province, country, comAmount, 
-//                     accName, accNumber, bank, branch, profile, frontNic, backNic, 
+//                     companyId, irmId, firstName, lastName, empType, empId, jobRole,
+//                     phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, language, email,
+//                     nic, house, street, city, distrct, province, country, comAmount,
+//                     accName, accNumber, bank, branch, profile, frontNic, backNic,
 //                     backPassbook, contract, assignDistrict, status
 //                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 //             `;
@@ -4619,7 +4617,7 @@ exports.getFieldOfficerByIdDAO = (id) => {
       const officer = results[0];
 
       const assignDistrictsArray = officer.assignDistrict
-        ? officer.assignDistrict.split(',').map(d => d.trim())
+        ? officer.assignDistrict.split(",").map((d) => d.trim())
         : [];
       resolve({
         fieldOfficer: {
@@ -4668,7 +4666,8 @@ exports.getFieldOfficerByIdDAO = (id) => {
 
 exports.getFieldOfficerImages = (id) => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT profile, frontNic, backNic, backPassbook, contract  FROM plant_care.feildofficer WHERE id = ?";
+    const sql =
+      "SELECT profile, frontNic, backNic, backPassbook, contract  FROM plant_care.feildofficer WHERE id = ?";
     collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
@@ -4792,7 +4791,7 @@ exports.updateFieldOfficer = (
           officerData.assignDistrict,
           officerData.status || "Not Approved", // Keep existing status or default
           tokenUserId,
-          officerId // WHERE condition
+          officerId, // WHERE condition
         ],
         (err, results) => {
           if (err) {
@@ -4808,7 +4807,6 @@ exports.updateFieldOfficer = (
   });
 };
 
-
 exports.deleteFarmStaffDao = async (id) => {
   return new Promise((resolve, reject) => {
     let sql = `
@@ -4823,7 +4821,6 @@ exports.deleteFarmStaffDao = async (id) => {
   });
 };
 
-
 exports.addFarmerQRCodeDao = async (qrcode, id) => {
   return new Promise((resolve, reject) => {
     let sql = `
@@ -4834,6 +4831,157 @@ exports.addFarmerQRCodeDao = async (qrcode, id) => {
 
     plantcare.query(sql, [qrcode, id], (err, results) => {
       if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+exports.GetAllFiealdofficerComplainDAO = (
+  page,
+  limit,
+  status,
+  category,
+  comCategory,
+  searchText,
+  rpstatus
+) => {
+  return new Promise((resolve, reject) => {
+    const Sqlparams = [];
+    const Counterparams = [];
+    const offset = (page - 1) * limit;
+
+    // SQL to count total records - Updated with new table names and consistent aliases
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM feildofficercomplains fc
+      LEFT JOIN feildofficer fo ON fc.officerId = fo.id
+      LEFT JOIN agro_world_admin.complaincategory cc ON fc.complainCategory = cc.id
+      LEFT JOIN collection_officer.company c ON fo.companyId = c.id
+      LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      WHERE fc.complainAssign = 'Admin'
+    `;
+
+    // SQL to fetch paginated data - Updated with new table names and consistent aliases
+    let sql = `
+      SELECT 
+        fc.id, 
+        fc.refNo,
+        fo.empId AS empId,
+        CONCAT(fo.firstName, ' ', fo.lastName) AS officerName,
+        CONCAT(fo.firstNameSinhala, ' ', fo.lastNameSinhala) AS officerNameSinhala,
+        CONCAT(fo.firstNameTamil, ' ', fo.lastNameTamil) AS officerNameTamil,
+        c.companyNameEnglish AS companyName,
+        cc.categoryEnglish AS complainCategory,
+        ar.role,
+        fc.createdAt,
+        fc.complain,
+        fc.AdminStatus AS status,
+        fc.reply,
+        fc.language
+      FROM feildofficercomplains fc
+      LEFT JOIN feildofficer fo ON fc.officerId = fo.id
+      LEFT JOIN agro_world_admin.complaincategory cc ON fc.complainCategory = cc.id
+      LEFT JOIN collection_officer.company c ON fo.companyId = c.id
+      LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      WHERE fc.complainAssign = 'Admin'
+    `;
+
+    // Add filter for status
+    if (status) {
+      countSql += " AND fc.AdminStatus = ? ";
+      sql += " AND fc.AdminStatus = ? ";
+      Sqlparams.push(status);
+      Counterparams.push(status);
+    }
+
+    // Fixed category filter to use the correct alias
+    if (category) {
+      countSql += " AND ar.role = ? ";
+      sql += " AND ar.role = ? ";
+      Sqlparams.push(category);
+      Counterparams.push(category);
+    }
+
+    if (comCategory) {
+      countSql += " AND fc.complainCategory = ? ";
+      sql += " AND fc.complainCategory = ? ";
+      Sqlparams.push(comCategory);
+      Counterparams.push(comCategory);
+    }
+
+    // Add search functionality - ONLY for empId
+    if (searchText) {
+      countSql += " AND fo.empId LIKE ? ";
+      sql += " AND fo.empId LIKE ? ";
+      const searchQuery = `%${searchText}%`;
+      Sqlparams.push(searchQuery);
+      Counterparams.push(searchQuery);
+    }
+
+    if (rpstatus) {
+      if (rpstatus === "Yes") {
+        countSql += " AND fc.reply IS NOT NULL ";
+        sql += " AND fc.reply IS NOT NULL ";
+      } else {
+        countSql += " AND fc.reply IS NULL ";
+        sql += " AND fc.reply IS NULL ";
+      }
+    }
+
+    // Add pagination
+    sql += " ORDER BY fc.createdAt DESC LIMIT ? OFFSET ?";
+    Sqlparams.push(parseInt(limit), parseInt(offset));
+
+    // Execute count query to get total records
+    plantcare.query(countSql, Counterparams, (countErr, countResults) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResults[0]?.total || 0;
+
+      // Execute main query to get paginated results
+      plantcare.query(sql, Sqlparams, (dataErr, results) => {
+        if (dataErr) {
+          return reject(dataErr);
+        }
+
+        resolve({ results, total });
+      });
+    });
+  });
+};
+
+exports.getFiealdOfficerComplainById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = ` 
+    SELECT 
+      foc.id, 
+      foc.refNo, 
+      foc.createdAt, 
+      foc.language, 
+      foc.complain, 
+      foc.complainCategory, 
+      foc.reply, 
+      fo.firstName AS firstName, 
+      fo.lastName AS lastName, 
+      fo.phoneCode1 AS phoneCode01, 
+      fo.phoneNumber1 AS phoneNumber01,  
+      cc.categoryEnglish AS complainCategory, 
+      fo.empId AS empId, 
+      fo.JobRole AS jobRole,
+      CONCAT(fo.firstName, ' ', fo.lastName) AS officerName,
+      CONCAT(fo.firstNameSinhala, ' ', fo.lastNameSinhala) AS officerNameSinhala,
+      CONCAT(fo.firstNameTamil, ' ', fo.lastNameTamil) AS officerNameTamil
+    FROM feildofficercomplains foc
+    LEFT JOIN feildofficer fo ON foc.officerId = fo.id
+    LEFT JOIN agro_world_admin.complaincategory cc ON foc.complainCategory = cc.id
+    WHERE foc.id = ? 
+    `;
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
       resolve(results);
     });
   });

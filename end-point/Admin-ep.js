@@ -3935,3 +3935,73 @@ exports.deleteFarmStaff = async (req, res) => {
     res.status(500).send("An error occurred while fetching data.");
   }
 };
+
+exports.getAllFiealdofficerComplains = async (req, res) => {
+  try {
+    console.log(req.query);
+    const {
+      page,
+      limit,
+      status,
+      category,
+      comCategory,
+      searchText,
+      rpstatus,
+    } = req.query;
+
+    console.log("searchText", searchText);
+
+    const { results, total } =
+      await adminDao.GetAllFiealdofficerComplainDAO(
+        page || 1,
+        limit || 10,
+        status,
+        category,
+        comCategory,
+        searchText,
+        rpstatus
+      );
+
+    console.log("Successfully retrieved all field officer complaints");
+    console.log("results", results);
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching field officer complaints:", err);
+    res.status(500).json({ error: "An error occurred while fetching field officer complaints" });
+  }
+};
+
+exports.getFiealdOfficerComplainById = async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const result = await adminDao.getFiealdOfficerComplainById(id);
+    console.log(result[0]);
+
+    if (result.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No Center Complain found", data: result[0] });
+    }
+
+    console.log("Successfully retrieved collection centre Complains");
+    res.json(result[0]);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching center complain:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching center complains" });
+  }
+};
