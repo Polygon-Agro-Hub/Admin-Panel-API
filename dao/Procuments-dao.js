@@ -469,7 +469,7 @@ exports.getAllOrdersWithProcessInfo = (
 
     // Get only the latest orderpackage for each processorder
     const dataSql = `
-      SELECT 
+      SELECT DISTINCT
         (SELECT SUM(mp.productPrice * op2.qty)
          FROM orderpackage op2
          JOIN marketplacepackages mp ON op2.packageId = mp.id
