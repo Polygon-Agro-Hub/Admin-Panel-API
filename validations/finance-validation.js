@@ -99,10 +99,30 @@ const getAllFarmerPaymentsSchema = Joi.object({
   bank: Joi.string().allow('').optional(),
 });
 
+const createPaymentHistorySchema = Joi.object({
+  receivers: Joi.string().required().trim().min(1).max(255),
+  amount: Joi.number().required().positive().precision(2),
+  paymentReference: Joi.string().required().trim().min(1).max(255)
+});
+
+const updatePaymentHistorySchema = Joi.object({
+  receivers: Joi.string().required().trim().min(1).max(255),
+  amount: Joi.number().required().positive().precision(2),
+  paymentReference: Joi.string().required().trim().min(1).max(255)
+});
+
+const paymentHistoryIdSchema = Joi.object({
+  id: Joi.number().integer().positive().required()
+});
+
+
 module.exports = {
   createAgentCommissionSchema,
   updateAgentCommissionSchema,
   idSchema,
   getAllSchema,
-  getAllFarmerPaymentsSchema
+  getAllFarmerPaymentsSchema,
+   createPaymentHistorySchema,
+  updatePaymentHistorySchema,
+  paymentHistoryIdSchema
 };

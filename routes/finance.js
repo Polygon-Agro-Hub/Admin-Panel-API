@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../middlewares/authMiddleware");
 const financeController = require("../end-point/finance-ep");
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() });
 
 router.get("/dashboard", financeController.getDashboardData);
 router.get("/package-payments", financeController.getAllPackagePayments);
@@ -56,5 +58,9 @@ router.get(
   // authMiddleware,
   financeController.getALlFarmerPayments
 );
+
+router.post('/payment-history', authMiddleware, upload.single('file'), financeController.createPaymentHistory);
+router.put('/payment-history/:id', authMiddleware, upload.single('file'),financeController.updatePaymentHistory);
+router.get('/payment-history/:id', authMiddleware, financeController.getPaymentHistoryById);
 
 module.exports = router;

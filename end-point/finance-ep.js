@@ -5,7 +5,13 @@ const {
   getAllSchema,
   idSchema,
   getAllFarmerPaymentsSchema,
+  createPaymentHistorySchema,
+  updatePaymentHistorySchema,
+  paymentHistoryIdSchema
 } = require("../validations/finance-validation");
+
+const uploadFileToS3 = require("../middlewares/s3upload");
+const deleteFromS3 = require("../middlewares/s3delete");
 
 exports.getDashboardData = async (req, res) => {
   try {
@@ -741,6 +747,204 @@ exports.getALlFarmerPayments = async (req, res) => {
       status: false,
       message: "An error occurred while deleting agent commission",
       error: error.message,
+    });
+  }
+};
+
+
+exports.createPaymentHistory = async (req, res) => {
+  try {
+    // Joi validation
+    const validatedBody = await createPaymentHistorySchema.validateAsync(
+      req.body
+    );
+
+    const { receivers, amount, paymentReference } = validatedBody;
+    const issueBy = req.user.id; // From JWT token
+
+    console.log('Creating payment history:', { receivers, amount, paymentReference });
+
+    // File validation
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'Excel file is required'
+      });
+    }
+
+    // Validate file type
+    const allowedExtensions = ['.xlsx', '.xls', '.csv'];
+    const fileExtension = req.file.originalname.substring(
+      req.file.originalname.lastIndexOf('.')
+    ).toLowerCase();
+
+    if (!allowedExtensions.includes(fileExtension)) {
+      return res.status(400).json({
+        error: 'Invalid file type. Only Excel files (.xlsx, .xls, .csv) are allowed'
+      });
+    }
+
+    // Upload file to Cloudflare R2
+    const xlLink = await uploadFileToS3(
+      req.file.buffer,
+      req.file.originalname,
+      'payment-history'
+    );
+
+    console.log('File uploaded to R2:', xlLink);
+
+    // Insert into database
+    const result = await financeDao.InsertPaymentHistoryDAO(
+      receivers,
+      parseFloat(amount),
+      paymentReference,
+      xlLink,
+      issueBy
+    );
+
+    console.log('Payment history created successfully');
+    res.status(201).json({
+      message: 'Payment history created successfully',
+      id: result.insertId,
+      xlLink: xlLink
+    });
+  } catch (err) {
+    // Handle Joi validation errors
+    if (err.isJoi) {
+      return res.status(400).json({
+        error: 'Validation error',
+        details: err.details.map(detail => detail.message)
+      });
+    }
+
+    console.error('Error creating payment history:', err);
+    res.status(500).json({
+      error: 'An error occurred while creating payment history'
+    });
+  }
+};
+
+exports.updatePaymentHistory = async (req, res) => {
+  try {
+    // Joi validation for params
+    const validatedParams = await paymentHistoryIdSchema.validateAsync(
+      req.params
+    );
+
+    // Joi validation for body
+    const validatedBody = await updatePaymentHistorySchema.validateAsync(
+      req.body
+    );
+
+    const { id } = validatedParams;
+    const { receivers, amount, paymentReference } = validatedBody;
+    const modifyBy = req.user.id; // From JWT token
+
+    console.log('Updating payment history:', id);
+
+    // Get existing record
+    const existingRecord = await financeDao.GetPaymentHistoryByIdDAO(id);
+
+    if (!existingRecord) {
+      return res.status(404).json({
+        error: 'Payment history record not found'
+      });
+    }
+
+    let xlLink = existingRecord.xlLink;
+
+    // If new file is uploaded
+    if (req.file) {
+      // Validate file type
+      const allowedExtensions = ['.xlsx', '.xls', '.csv'];
+      const fileExtension = req.file.originalname.substring(
+        req.file.originalname.lastIndexOf('.')
+      ).toLowerCase();
+
+      if (!allowedExtensions.includes(fileExtension)) {
+        return res.status(400).json({
+          error: 'Invalid file type. Only Excel files (.xlsx, .xls, .csv) are allowed'
+        });
+      }
+
+      // Delete old file from R2
+      if (existingRecord.xlLink) {
+        try {
+          await deleteFromS3(existingRecord.xlLink);
+          console.log('Old file deleted from R2');
+        } catch (deleteError) {
+          console.error('Error deleting old file:', deleteError);
+          // Continue even if deletion fails
+        }
+      }
+
+      // Upload new file to R2
+      xlLink = await uploadFileToS3(
+        req.file.buffer,
+        req.file.originalname,
+        'payment-history'
+      );
+
+      console.log('New file uploaded to R2:', xlLink);
+    }
+
+    // Update database
+    await financeDao.UpdatePaymentHistoryDAO(
+      id,
+      receivers,
+      parseFloat(amount),
+      paymentReference,
+      xlLink,
+      modifyBy
+    );
+
+    console.log('Payment history updated successfully');
+    res.json({
+      message: 'Payment history updated successfully',
+      xlLink: xlLink
+    });
+  } catch (err) {
+    // Handle Joi validation errors
+    if (err.isJoi) {
+      return res.status(400).json({
+        error: 'Validation error',
+        details: err.details.map(detail => detail.message)
+      });
+    }
+
+    if (err.message === 'Payment history record not found') {
+      return res.status(404).json({
+        error: 'Payment history record not found'
+      });
+    }
+
+    console.error('Error updating payment history:', err);
+    res.status(500).json({
+      error: 'An error occurred while updating payment history'
+    });
+  }
+};
+
+
+exports.getPaymentHistoryById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log('Fetching payment history by ID:', id);
+
+    const result = await financeDao.GetPaymentHistoryByIdDAO(id);
+
+    if (!result) {
+      return res.status(404).json({
+        error: 'Payment history record not found'
+      });
+    }
+
+    console.log('Payment history retrieved successfully');
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching payment history:', err);
+    res.status(500).json({
+      error: 'An error occurred while fetching payment history'
     });
   }
 };

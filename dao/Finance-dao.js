@@ -1118,3 +1118,88 @@ exports.getAllFarmerPaymentDao = (date, bank) => {
     });
   });
 };
+
+exports.InsertPaymentHistoryDAO = (receivers, amount, payRef, xlLink, issueBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO paymenthistory (receivers, amount, payRef, xlLink, issueBy)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+
+    const params = [receivers, amount, payRef, xlLink, issueBy];
+
+    admin.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+/**
+ * Update payment history record
+ */
+exports.UpdatePaymentHistoryDAO = (id, receivers, amount, payRef, xlLink, modifyBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE paymenthistory 
+      SET 
+        receivers = ?,
+        amount = ?,
+        payRef = ?,
+        xlLink = ?,
+        modifyBy = ?
+      WHERE id = ?
+    `;
+
+    const params = [receivers, amount, payRef, xlLink, modifyBy, id];
+
+    admin.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.affectedRows === 0) {
+        return reject(new Error('Payment history record not found'));
+      }
+
+      resolve(results);
+    });
+  });
+};
+
+/**
+ * Get payment history by ID
+ */
+exports.GetPaymentHistoryByIdDAO = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        ph.id,
+        ph.receivers,
+        ph.amount,
+        ph.payRef,
+        ph.xlLink,
+        ph.issueBy,
+        ph.modifyBy,
+        ph.createdAt,
+        issuer.userName AS issuerName,
+        modifier.userName AS modifierName
+      FROM paymenthistory ph
+      LEFT JOIN adminusers issuer ON ph.issueBy = issuer.id
+      LEFT JOIN adminusers modifier ON ph.modifyBy = modifier.id
+      WHERE ph.id = ?
+    `;
+
+    admin.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      if (results.length === 0) {
+        return resolve(null);
+      }
+      resolve(results[0]);
+    });
+  });
+};
