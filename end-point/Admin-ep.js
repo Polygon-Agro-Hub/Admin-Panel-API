@@ -1860,21 +1860,21 @@ exports.getAllUsersTaskByCropId = async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    console.log("cropId:", cropId);
-    console.log("userId:", userId);
+    // console.log("cropId:", cropId);
+    // console.log("userId:", userId);
 
     // Fetch total, first starting date, and paginated tasks from the DAO
     const { total, firstStartingDate, items } =
       await adminDao.getAllUserTaskByCropId(cropId, userId, limit, offset);
 
-    console.log("Successfully fetched user tasks for crop ID:", cropId);
+    // console.log("Successfully fetched user tasks for crop ID:", cropId);
 
     const formattedItems = items.map((task) => ({
       ...task,
       images: task.imageUploads ? task.imageUploads.split(", ") : [], // Convert images string to array
     }));
 
-    console.log(formattedItems);
+    // console.log(formattedItems);
 
     // Send response with paginated tasks, total count, and first starting date
     res.json({
@@ -2060,6 +2060,7 @@ exports.editUserTask = async (req, res) => {
   console.log("Update task", req.body);
 
   const id = req.params.id;
+  const adminId = req.user.userId;
   console.log(id);
 
   try {
@@ -2084,6 +2085,14 @@ exports.editUserTask = async (req, res) => {
       validatedParams.videoLinkTamil,
       validatedParams.id
     );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    const track = await adminDao.trackUserTaskUpdateDao(id, adminId)
+    console.log(track);
+
 
     console.log("Task updated successfully");
     res.status(200).json({ message: "Task updated successfully" });
@@ -2388,6 +2397,10 @@ exports.deleteUserCropTask = async (req, res) => {
     const cropId = req.params.cropId;
     const userId = req.params.userId;
     const indexId = parseInt(req.params.indexId);
+    const adminId = req.user.userId;
+
+    const track = await adminDao.trackUserTaskUpdateDao(id, adminId);
+    console.log('ewewe',track);
 
     const results = await adminDao.deleteUserCropTask(id);
 
@@ -2410,6 +2423,10 @@ exports.deleteUserCropTask = async (req, res) => {
         );
       }
     }
+
+    
+    
+
     console.log("Crop Calendar task deleted successfully");
     res.status(200).json({ status: true });
   } catch (error) {
@@ -3669,17 +3686,17 @@ exports.deleteFieldOfficer = async (req, res) => {
     const results = await adminDao.DeleteFieldOfficerDao(id);
 
     console.log("Successfully Delete Status");
-    
+
     // Send response only once ✅
     if (results.affectedRows > 0) {
-      return res.status(200).json({ 
-        message: 'Field Officer deleted successfully', 
-        status: true 
+      return res.status(200).json({
+        message: 'Field Officer deleted successfully',
+        status: true
       });
     } else {
-      return res.status(404).json({ 
-        message: 'Field Officer not found', 
-        status: false 
+      return res.status(404).json({
+        message: 'Field Officer not found',
+        status: false
       });
     }
   } catch (error) {
