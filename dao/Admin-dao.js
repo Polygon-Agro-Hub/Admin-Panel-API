@@ -4983,3 +4983,26 @@ exports.getFiealdOfficerComplainById = (id) => {
     });
   });
 };
+
+
+exports.trackUserTaskUpdateDao = (id, adminId) => {
+  return new Promise((resolve, reject) => {
+    const sql =
+      `
+      UPDATE slavecropcalendardays scd
+      JOIN plant_care.ongoingcultivationscrops occ ON scd.onCulscropID = occ.id
+      SET occ.modifyBy = ?
+      WHERE scd.id = ?
+      `;
+
+    plantcare.query(sql,[adminId, id], (err, results) => {
+      if (err) {
+        return reject(err); // Handle error in the promise
+      }
+
+      // Return the count result
+      resolve(results);
+    });
+  });
+};
+
