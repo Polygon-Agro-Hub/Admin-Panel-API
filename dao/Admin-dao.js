@@ -4704,103 +4704,67 @@ exports.updateFieldOfficer = (
 ) => {
   return new Promise((resolve, reject) => {
     try {
-      // If no image URLs, set them to null
-      const profileUrl = profileImageUrl || null;
-      const frontNicUrl = nicFrontUrl || null;
-      const backNicUrl = nicBackUrl || null;
-      const backPassbookUrl = passbookUrl || null;
-      const contractUrlValue = contractUrl || null;
+      // Build dynamic SQL query based on provided fields
+      let sql = `UPDATE feildofficer SET `;
+      const values = [];
+      const updates = [];
 
-      const sql = `
-        UPDATE feildofficer 
-        SET 
-          irmId = ?, 
-          firstName = ?, 
-          lastName = ?,
-          firstNameSinhala = ?,
-          firstNameTamil = ?,
-          lastNameSinhala = ?,
-          lastNameTamil = ?,
-          empType = ?, 
-          jobRole = ?, 
-          phoneCode1 = ?, 
-          phoneNumber1 = ?, 
-          phoneCode2 = ?, 
-          phoneNumber2 = ?, 
-          language = ?, 
-          email = ?, 
-          nic = ?, 
-          house = ?, 
-          street = ?, 
-          city = ?, 
-          distrct = ?, 
-          province = ?, 
-          country = ?, 
-          comAmount = ?, 
-          accName = ?, 
-          accNumber = ?, 
-          bank = ?, 
-          branch = ?, 
-          profile = ?, 
-          frontNic = ?, 
-          backNic = ?, 
-          backPassbook = ?, 
-          contract = ?, 
-          assignDistrict = ?, 
-          status = ?,
-          modifyBy = ?
-        WHERE id = ?;
-      `;
+      // Add all non-image fields
+      const fields = [
+        'irmId', 'firstName', 'lastName', 'firstNameSinhala', 'firstNameTamil',
+        'lastNameSinhala', 'lastNameTamil', 'empType', 'jobRole', 'phoneCode1',
+        'phoneNumber1', 'phoneCode2', 'phoneNumber2', 'language', 'email', 'nic',
+        'house', 'street', 'city', 'distrct', 'province', 'country', 'comAmount',
+        'accName', 'accNumber', 'bank', 'branch', 'assignDistrict', 'status', 'modifyBy'
+      ];
 
-      // Replace 'db' with your actual database connection variable
-      plantcare.query(
-        sql,
-        [
-          officerData.irmId,
-          officerData.firstName,
-          officerData.lastName,
-          officerData.firstNameSinhala,
-          officerData.firstNameTamil,
-          officerData.lastNameSinhala,
-          officerData.lastNameTamil,
-          officerData.empType,
-          officerData.jobRole,
-          officerData.phoneCode1,
-          officerData.phoneNumber1,
-          officerData.phoneCode2,
-          officerData.phoneNumber2,
-          officerData.language,
-          officerData.email,
-          officerData.nic,
-          officerData.house,
-          officerData.street,
-          officerData.city,
-          officerData.distrct,
-          officerData.province,
-          officerData.country,
-          officerData.comAmount,
-          officerData.accName,
-          officerData.accNumber,
-          officerData.bank,
-          officerData.branch,
-          profileUrl,
-          frontNicUrl,
-          backNicUrl,
-          backPassbookUrl,
-          contractUrlValue,
-          officerData.assignDistrict,
-          officerData.status || "Not Approved", // Keep existing status or default
-          tokenUserId,
-          officerId, // WHERE condition
-        ],
-        (err, results) => {
-          if (err) {
-            console.log(err);
-            return reject(err);
-          }
-          resolve(results);
+      fields.forEach(field => {
+        if (officerData[field] !== undefined) {
+          updates.push(`${field} = ?`);
+          values.push(officerData[field]);
         }
-      );
+      });
+
+      // Only update image fields if new URLs are provided
+      if (profileImageUrl !== undefined) {
+        updates.push('profile = ?');
+        values.push(profileImageUrl);
+      }
+
+      if (nicFrontUrl !== undefined) {
+        updates.push('frontNic = ?');
+        values.push(nicFrontUrl);
+      }
+
+      if (nicBackUrl !== undefined) {
+        updates.push('backNic = ?');
+        values.push(nicBackUrl);
+      }
+
+      if (passbookUrl !== undefined) {
+        updates.push('backPassbook = ?');
+        values.push(passbookUrl);
+      }
+
+      if (contractUrl !== undefined) {
+        updates.push('contract = ?');
+        values.push(contractUrl);
+      }
+
+      // Add WHERE condition
+      sql += updates.join(', ') + ' WHERE id = ?';
+      values.push(officerId);
+
+      console.log('Update SQL:', sql);
+      console.log('Update values:', values);
+
+      plantcare.query(sql, values, (err, results) => {
+        if (err) {
+          console.log(err);
+          return reject(err);
+        }
+        resolve(results);
+      });
     } catch (error) {
       reject(error);
     }
