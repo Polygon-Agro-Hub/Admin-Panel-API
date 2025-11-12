@@ -1731,19 +1731,17 @@ exports.getOfficersByDistrictAndRoleDAO = (district, jobRole, scheduleDate) => {
         fo.lastName,
         fo.JobRole,
         fo.distrct as district,
-        COUNT(fa.id) as jobCount
+        (
+          SELECT COUNT(*)
+          FROM feildaudits fa 
+          WHERE fa.assignOfficerId = fo.id AND DATE(fa.sheduleDate) = ? 
+        ) AS jobCount
       FROM 
         feildofficer fo
-      LEFT JOIN 
-        feildaudits fa ON fo.id = fa.assignOfficerId 
-        AND DATE(fa.sheduleDate) = ? 
-        AND fa.status IN ('Pending', 'Completed')
       WHERE 
         fo.assignDistrict LIKE ?
         AND fo.JobRole = ?
         AND fo.status = 'Approved'
-      GROUP BY 
-        fo.id, fo.empId, fo.firstName, fo.lastName, fo.JobRole, fo.distrct
       ORDER BY 
         fo.firstName, fo.lastName
     `;
@@ -1756,6 +1754,7 @@ exports.getOfficersByDistrictAndRoleDAO = (district, jobRole, scheduleDate) => {
     });
   });
 };
+
 
 // Update field audit assign officer
 exports.assignOfficerToAuditDAO = (
