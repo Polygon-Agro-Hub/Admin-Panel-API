@@ -4850,17 +4850,18 @@ exports.GetAllFiealdofficerComplainDAO = (
     const Counterparams = [];
     const offset = (page - 1) * limit;
 
-    // SQL to count total records - Updated with new table names and consistent aliases
+    // SQL to count total records - Updated with adminusers join
     let countSql = `
       SELECT COUNT(*) AS total
       FROM feildofficercomplains fc
       LEFT JOIN feildofficer fo ON fc.officerId = fo.id
       LEFT JOIN agro_world_admin.complaincategory cc ON fc.complainCategory = cc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      LEFT JOIN agro_world_admin.adminusers au ON fc.adminReplyBy = au.id
       WHERE fc.complainAssign = 'Admin'
     `;
 
-    // SQL to fetch paginated data - Updated with new table names and consistent aliases
+    // SQL to fetch paginated data - Updated with adminusers join
     let sql = `
       SELECT 
         fc.id, 
@@ -4875,11 +4876,14 @@ exports.GetAllFiealdofficerComplainDAO = (
         fc.complain,
         fc.AdminStatus AS status,
         fc.reply,
-        fc.language
+        fc.language,
+        fc.adminReplyBy,
+        au.userName AS adminReplyByName
       FROM feildofficercomplains fc
       LEFT JOIN feildofficer fo ON fc.officerId = fo.id
       LEFT JOIN agro_world_admin.complaincategory cc ON fc.complainCategory = cc.id
       LEFT JOIN feildofficer fo2 ON cc.roleId = fo2.id
+      LEFT JOIN agro_world_admin.adminusers au ON fc.adminReplyBy = au.id
       WHERE fc.complainAssign = 'Admin'
     `;
 
