@@ -62,5 +62,7 @@ router.get(
 router.post('/payment-history', authMiddleware, upload.single('file'), financeController.createPaymentHistory);
 router.put('/payment-history/:id', authMiddleware, upload.single('file'),financeController.updatePaymentHistory);
 router.get('/payment-history/:id', authMiddleware, financeController.getPaymentHistoryById);
+router.get('/payment-history', authMiddleware, financeController.getAllPaymentHistory);
+router.delete('/payment-history/:id', authMiddleware, financeController.deletePaymentHistory);
 
 module.exports = router;

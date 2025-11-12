@@ -948,3 +948,91 @@ exports.getPaymentHistoryById = async (req, res) => {
     });
   }
 };
+
+
+
+exports.getAllPaymentHistory = async (req, res) => {
+  try {
+    const { receivers, issuedDate, search } = req.query;
+
+    console.log('Fetching all payment history with filters:', { receivers, issuedDate, search });
+
+    // Build filters object
+    const filters = {};
+    
+    if (receivers) {
+      filters.receivers = receivers;
+    }
+    
+    if (issuedDate) {
+      filters.issuedDate = issuedDate;
+    }
+    
+    if (search) {
+      filters.search = search;
+    }
+
+    const results = await financeDao.GetAllPaymentHistoryDAO(filters);
+
+    console.log(`Retrieved ${results.length} payment history records`);
+    
+    res.json({
+      count: results.length,
+      data: results
+    });
+  } catch (err) {
+    console.error('Error fetching payment history:', err);
+    res.status(500).json({
+      error: 'An error occurred while fetching payment history'
+    });
+  }
+};
+
+
+
+exports.deletePaymentHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log('Deleting payment history:', id);
+
+    // Get existing record to delete file from R2
+    const existingRecord = await financeDao.GetPaymentHistoryByIdDAO(id);
+
+    if (!existingRecord) {
+      return res.status(404).json({
+        error: 'Payment history record not found'
+      });
+    }
+
+    // Delete file from R2 if exists
+    if (existingRecord.xlLink) {
+      try {
+        await deleteFromS3(existingRecord.xlLink);
+        console.log('File deleted from R2:', existingRecord.xlLink);
+      } catch (deleteError) {
+        console.error('Error deleting file from R2:', deleteError);
+        // Continue with database deletion even if file deletion fails
+      }
+    }
+
+    // Delete from database
+    await financeDao.DeletePaymentHistoryDAO(id);
+
+    console.log('Payment history deleted successfully');
+    res.json({
+      message: 'Payment history deleted successfully'
+    });
+  } catch (err) {
+    if (err.message === 'Payment history record not found') {
+      return res.status(404).json({
+        error: 'Payment history record not found'
+      });
+    }
+
+    console.error('Error deleting payment history:', err);
+    res.status(500).json({
+      error: 'An error occurred while deleting payment history'
+    });
+  }
+};

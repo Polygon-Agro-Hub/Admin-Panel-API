@@ -1137,9 +1137,7 @@ exports.InsertPaymentHistoryDAO = (receivers, amount, payRef, xlLink, issueBy) =
   });
 };
 
-/**
- * Update payment history record
- */
+
 exports.UpdatePaymentHistoryDAO = (id, receivers, amount, payRef, xlLink, modifyBy) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1169,9 +1167,7 @@ exports.UpdatePaymentHistoryDAO = (id, receivers, amount, payRef, xlLink, modify
   });
 };
 
-/**
- * Get payment history by ID
- */
+
 exports.GetPaymentHistoryByIdDAO = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1200,6 +1196,83 @@ exports.GetPaymentHistoryByIdDAO = (id) => {
         return resolve(null);
       }
       resolve(results[0]);
+    });
+  });
+};
+
+
+exports.GetAllPaymentHistoryDAO = (filters = {}) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        ph.id,
+        ph.receivers,
+        ph.amount,
+        ph.payRef,
+        ph.xlLink,
+        ph.issueBy,
+        ph.modifyBy,
+        ph.createdAt,
+        issuer.userName AS issuerName,
+        issuer.mail AS issuerEmail,
+        modifier.userName AS modifierName
+      FROM paymenthistory ph
+      LEFT JOIN adminusers issuer ON ph.issueBy = issuer.id
+      LEFT JOIN adminusers modifier ON ph.modifyBy = modifier.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    // Filter by receivers
+    if (filters.receivers) {
+      sql += ` AND ph.receivers = ?`;
+      params.push(filters.receivers);
+    }
+
+    // Filter by issuedDate (single date)
+    if (filters.issuedDate) {
+      sql += ` AND DATE(ph.createdAt) = ?`;
+      params.push(filters.issuedDate);
+    }
+
+    // Search filter
+    if (filters.search) {
+      sql += ` AND (
+        ph.receivers LIKE ? OR 
+        issuer.userName LIKE ? OR 
+        ph.payRef LIKE ?
+      )`;
+      const searchTerm = `%${filters.search}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+
+    // Order by most recent first
+    sql += ` ORDER BY ph.createdAt DESC`;
+
+    admin.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.DeletePaymentHistoryDAO = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `DELETE FROM paymenthistory WHERE id = ?`;
+
+    admin.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.affectedRows === 0) {
+        return reject(new Error('Payment history record not found'));
+      }
+
+      resolve(results);
     });
   });
 };
