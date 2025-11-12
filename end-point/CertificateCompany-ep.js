@@ -1230,12 +1230,20 @@ exports.createFarmerCluster = async (req, res) => {
     );
     if (regCodeCheckResult.missingRegCodes.length > 0) {
       await connection.rollback();
+      
+      // Get NIC details for missing registration codes
+      const missingRegCodeDetails = await certificateCompanyDao.getFarmerDetailsByRegCodes(
+        regCodeCheckResult.missingRegCodes,
+        farmers,
+        connection
+      );
+
       return res.status(400).json({
         message: "Some registration codes are not found in the system",
         status: false,
-        missingFarmers: regCodeCheckResult.missingFarmers,
         missingRegCodes: regCodeCheckResult.missingRegCodes,
         existingRegCodes: regCodeCheckResult.existingRegCodes,
+        missingRegCodeDetails: missingRegCodeDetails,
       });
     }
 
