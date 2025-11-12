@@ -22,6 +22,8 @@ exports.createCertificateCompanyValidation = Joi.object({
 exports.createCertificateValidation = Joi.object({
   srtcomapnyId: Joi.number().integer().required(),
   srtName: Joi.string().trim().min(2).max(255).required(),
+  srtNameSinhala: Joi.string().trim().max(255).allow(null, "").optional(),
+  srtNameTamil: Joi.string().trim().max(255).allow(null, "").optional(),
   srtNumber: Joi.string().trim().max(50).required(),
   applicable: Joi.string().trim().required(),
   accreditation: Joi.string().trim().required(),
@@ -47,6 +49,8 @@ exports.createCertificateValidation = Joi.object({
 exports.updateCertificateValidation = Joi.object({
   srtcomapnyId: Joi.number().required(),
   srtName: Joi.string().required(),
+  srtNameSinhala: Joi.string().trim().max(255).allow(null, "").optional(),
+  srtNameTamil: Joi.string().trim().max(255).allow(null, "").optional(),
   srtNumber: Joi.string().required(),
   applicable: Joi.string().allow(null, ""),
   accreditation: Joi.string().allow(null, ""),

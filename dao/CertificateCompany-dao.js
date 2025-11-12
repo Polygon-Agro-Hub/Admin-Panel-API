@@ -193,6 +193,8 @@ exports.getAllCertificateCompaniesNamesOnly = () => {
 exports.createCertificate = ({
   srtcomapnyId,
   srtName,
+  srtNameSinhala,
+  srtNameTamil,
   srtNumber,
   applicable,
   accreditation,
@@ -209,14 +211,16 @@ exports.createCertificate = ({
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO certificates
-      (srtcomapnyId, srtName, srtNumber, applicable, accreditation, serviceAreas,
+      (srtcomapnyId, srtName, srtNameSinhala, srtNameTamil, srtNumber, applicable, accreditation, serviceAreas,
        price, timeLine, commission, tearms, scope, logo, noOfVisit, modifyBy, modifyDate)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
 
     const values = [
       srtcomapnyId,
       srtName,
+      srtNameSinhala || null,
+      srtNameTamil || null,
       srtNumber,
       applicable,
       accreditation,
@@ -357,6 +361,8 @@ exports.updateCertificate = ({
   id,
   srtcomapnyId,
   srtName,
+  srtNameSinhala,
+  srtNameTamil,
   srtNumber,
   applicable,
   accreditation,
@@ -376,6 +382,8 @@ exports.updateCertificate = ({
       SET
         srtcomapnyId = ?,
         srtName = ?,
+        srtNameSinhala = ?,
+        srtNameTamil = ?,
         srtNumber = ?,
         applicable = ?,
         accreditation = ?,
@@ -386,7 +394,7 @@ exports.updateCertificate = ({
         tearms = COALESCE(?, tearms),
         scope = ?,
         logo = COALESCE(?, logo),
-        noOfVisit = ?,  -- Added noOfVisit
+        noOfVisit = ?,
         modifyBy = ?,
         modifyDate = NOW()
       WHERE id = ?
@@ -394,6 +402,8 @@ exports.updateCertificate = ({
     const values = [
       srtcomapnyId,
       srtName,
+      srtNameSinhala || null,
+      srtNameTamil || null,
       srtNumber,
       applicable,
       accreditation,
@@ -1145,7 +1155,7 @@ exports.getFarmIdsForValidFarmers = async (validFarmers, connection) => {
 //   const [result] = await connection.query(
 //     `INSERT INTO farmclusterfarmers (clusterId, farmId) VALUES ?`,
 //     [values]
-//   );  
+//   );
 //   return result;
 // };
 
@@ -1169,12 +1179,12 @@ exports.bulkInsertClusterFarms = async (clusterId, farmIds, connection) => {
     [clusterId, farmIds.length]
   );
 
-  const insertedIds = insertedRows.map(row => row.id);
+  const insertedIds = insertedRows.map((row) => row.id);
 
   return {
     affectedRows: result.affectedRows,
     insertId: result.insertId,
-    insertedIds: insertedIds
+    insertedIds: insertedIds,
   };
 };
 
@@ -1254,8 +1264,9 @@ exports.updateClusterStatus = async (
     );
 
     return {
-      message: `Cluster status updated from ${oldStatus || "Not Started"
-        } to ${status} successfully`,
+      message: `Cluster status updated from ${
+        oldStatus || "Not Started"
+      } to ${status} successfully`,
       data: updatedCluster[0],
       changes: {
         oldStatus: oldStatus || "Not Started",
@@ -1786,18 +1797,21 @@ exports.assignOfficerToAuditDAO = (
   });
 };
 
-
 // certificateCompanyDao.js or appropriate DAO file
 
-exports.bulkInsertSlaveQuestionnaire = async (crtPaymentId, clusterFarmIds, connection) => {
+exports.bulkInsertSlaveQuestionnaire = async (
+  crtPaymentId,
+  clusterFarmIds,
+  connection
+) => {
   if (!clusterFarmIds || clusterFarmIds.length === 0) {
     return { affectedRows: 0 };
   }
 
-  const values = clusterFarmIds.map(clusterFarmId => [
+  const values = clusterFarmIds.map((clusterFarmId) => [
     crtPaymentId,
     clusterFarmId,
-    1 // isCluster = true
+    1, // isCluster = true
   ]);
 
   const [result] = await connection.query(
@@ -1814,12 +1828,16 @@ exports.getSlaveQuestionnaireIds = async (crtPaymentId, connection) => {
     [crtPaymentId]
   );
 
-  return rows.map(row => row.id);
+  return rows.map((row) => row.id);
 };
 
 // certificateCompanyDao.js
 
-exports.bulkInsertSlaveQuestionnaireItems = async (slaveIds, certificateId, connection) => {
+exports.bulkInsertSlaveQuestionnaireItems = async (
+  slaveIds,
+  certificateId,
+  connection
+) => {
   if (!slaveIds || slaveIds.length === 0) {
     return { affectedRows: 0 };
   }
@@ -1846,7 +1864,7 @@ exports.bulkInsertSlaveQuestionnaireItems = async (slaveIds, certificateId, conn
         item.qNo,
         item.qEnglish,
         item.qSinhala,
-        item.qTamil
+        item.qTamil,
       ]);
     }
   }
@@ -1859,11 +1877,15 @@ exports.bulkInsertSlaveQuestionnaireItems = async (slaveIds, certificateId, conn
   return result;
 };
 
-exports.singleInsertSlaveQuestionnaire = async (crtPaymentId, clusterFarmId, connection) => {
+exports.singleInsertSlaveQuestionnaire = async (
+  crtPaymentId,
+  clusterFarmId,
+  connection
+) => {
   const values = [
     crtPaymentId,
     clusterFarmId,
-    1 // isCluster = true
+    1, // isCluster = true
   ];
 
   const [result] = await connection.query(
@@ -1874,7 +1896,11 @@ exports.singleInsertSlaveQuestionnaire = async (crtPaymentId, clusterFarmId, con
   return result;
 };
 
-exports.singleInsertSlaveQuestionnaireItems = async (slaveId, certificateId, connection) => {
+exports.singleInsertSlaveQuestionnaireItems = async (
+  slaveId,
+  certificateId,
+  connection
+) => {
   // First, get all questionnaire items for the certificate
   const [questionnaireItems] = await connection.query(
     `SELECT type, qNo, qEnglish, qSinhala, qTamil 
@@ -1896,10 +1922,9 @@ exports.singleInsertSlaveQuestionnaireItems = async (slaveId, certificateId, con
       item.qNo,
       item.qEnglish,
       item.qSinhala,
-      item.qTamil
+      item.qTamil,
     ]);
   }
-
 
   const [result] = await connection.query(
     `INSERT INTO slavequestionnaireitems (slaveId, type, qNo, qEnglish, qSinhala, qTamil) VALUES ?`,
@@ -1907,4 +1932,143 @@ exports.singleInsertSlaveQuestionnaireItems = async (slaveId, certificateId, con
   );
 
   return result;
+};
+
+// Check if phone number(s) already exist in certificatecompany
+exports.checkByPhoneNumbers = (
+  phoneCode1,
+  phoneNumber1,
+  phoneCode2,
+  phoneNumber2,
+  excludeId = null
+) => {
+  return new Promise((resolve, reject) => {
+    let conditions = [];
+    let params = [];
+
+    // Check phone number 1 if provided
+    if (phoneNumber1) {
+      conditions.push('(phoneCode1 = ? AND phoneNumber1 = ?)');
+      params.push(phoneCode1, phoneNumber1);
+    }
+
+    // Check phone number 2 if provided
+    if (phoneNumber2) {
+      conditions.push('(phoneCode2 = ? AND phoneNumber2 = ?)');
+      params.push(phoneCode2, phoneNumber2);
+    }
+
+    // If no phone numbers provided, return empty array
+    if (conditions.length === 0) {
+      return resolve([]);
+    }
+
+    let sql = `
+      SELECT id, phoneCode1, phoneNumber1, phoneCode2, phoneNumber2
+      FROM certificatecompany
+      WHERE ${conditions.join(' OR ')}
+    `;
+
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+// Check if certificate name (English) already exists (excluding current certificate)
+exports.checkCertificateNameExists = (srtName, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT id FROM certificates WHERE srtName = ?`;
+    const values = [srtName];
+    
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      values.push(excludeId);
+    }
+    
+    sql += ` LIMIT 1`;
+    
+    plantcare.query(sql, values, (err, results) => {
+      if (err) {
+        console.error("Database error checking certificate name:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+// Check if certificate name (Sinhala) already exists (excluding current certificate)
+exports.checkCertificateSinhalaNameExists = (srtNameSinhala, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT id FROM certificates WHERE srtNameSinhala = ? AND srtNameSinhala IS NOT NULL AND srtNameSinhala != ''`;
+    const values = [srtNameSinhala];
+    
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      values.push(excludeId);
+    }
+    
+    sql += ` LIMIT 1`;
+    
+    plantcare.query(sql, values, (err, results) => {
+      if (err) {
+        console.error("Database error checking Sinhala certificate name:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+// Check if certificate name (Tamil) already exists (excluding current certificate)
+exports.checkCertificateTamilNameExists = (srtNameTamil, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT id FROM certificates WHERE srtNameTamil = ? AND srtNameTamil IS NOT NULL AND srtNameTamil != ''`;
+    const values = [srtNameTamil];
+    
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      values.push(excludeId);
+    }
+    
+    sql += ` LIMIT 1`;
+    
+    plantcare.query(sql, values, (err, results) => {
+      if (err) {
+        console.error("Database error checking Tamil certificate name:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+// Check if certificate number already exists (excluding current certificate)
+exports.checkCertificateNumberExists = (srtNumber, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT id FROM certificates WHERE srtNumber = ?`;
+    const values = [srtNumber];
+    
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      values.push(excludeId);
+    }
+    
+    sql += ` LIMIT 1`;
+    
+    plantcare.query(sql, values, (err, results) => {
+      if (err) {
+        console.error("Database error checking certificate number:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
 };

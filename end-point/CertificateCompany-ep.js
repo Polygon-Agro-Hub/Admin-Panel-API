@@ -66,22 +66,58 @@ exports.createCertificateCompany = async (req, res) => {
       });
     }
 
-    // Check duplicate regNumber (no excludeId needed for creation)
+    // ===== Duplicate Checks =====
+    const duplicateErrors = [];
+
+    // Registration Number
     const existingRegNumber = await certificateCompanyDao.checkByRegNumber(
       regNumber
     );
     if (existingRegNumber.length > 0) {
-      return res.status(400).json({
-        message: `Registration number "${regNumber}" already exists. Please use a different one.`,
-        status: false,
+      duplicateErrors.push(`Registration Number`);
+    }
+
+    // Tax ID
+    const existingTaxId = await certificateCompanyDao.checkByTaxId(taxId);
+    if (existingTaxId.length > 0) {
+      duplicateErrors.push(`TAX ID`);
+    }
+
+    // Phone Numbers - Check for duplicates
+    const existingPhones = await certificateCompanyDao.checkByPhoneNumbers(
+      phoneCode1,
+      phoneNumber1,
+      phoneCode2,
+      phoneNumber2
+    );
+
+    if (existingPhones.length > 0) {
+      // Check which specific phone numbers are duplicates
+      existingPhones.forEach((existing) => {
+        if (
+          existing.phoneCode1 === phoneCode1 &&
+          existing.phoneNumber1 === phoneNumber1
+        ) {
+          if (!duplicateErrors.includes("Phone Number - 1")) {
+            duplicateErrors.push("Phone Number - 1");
+          }
+        }
+        if (
+          phoneNumber2 &&
+          existing.phoneCode2 === phoneCode2 &&
+          existing.phoneNumber2 === phoneNumber2
+        ) {
+          if (!duplicateErrors.includes("Phone Number - 2")) {
+            duplicateErrors.push("Phone Number - 2");
+          }
+        }
       });
     }
 
-    // Check duplicate Tax ID (no excludeId needed for creation)
-    const existingTaxId = await certificateCompanyDao.checkByTaxId(taxId);
-    if (existingTaxId.length > 0) {
+    // Return combined error
+    if (duplicateErrors.length > 0) {
       return res.status(400).json({
-        message: `Tax ID "${taxId}" already exists. Please use a different one.`,
+        message: `${duplicateErrors.join(", ")} already exists`,
         status: false,
       });
     }
@@ -241,7 +277,7 @@ exports.updateCertificateCompany = async (req, res) => {
       });
     }
 
-    // Fetch current company first to check if regNumber is being changed
+    // Fetch current company first to check if fields are being changed
     const currentCompany =
       await certificateCompanyDao.getCertificateCompanyById(id);
     if (!currentCompany) {
@@ -250,26 +286,76 @@ exports.updateCertificateCompany = async (req, res) => {
         .json({ message: "Company not found", status: false });
     }
 
+    // ===== Duplicate Checks =====
+    const duplicateErrors = [];
+
     // Only check for duplicate registration number if it's being changed
     if (currentCompany.regNumber !== regNumber) {
-      const existing = await certificateCompanyDao.checkByRegNumber(regNumber);
-      if (existing.length > 0) {
-        return res.status(400).json({
-          message: `Registration number "${regNumber}" already exists. Please use a different one.`,
-          status: false,
-        });
+      const existingRegNumber = await certificateCompanyDao.checkByRegNumber(
+        regNumber
+      );
+      if (existingRegNumber.length > 0) {
+        duplicateErrors.push(`Registration Number`);
       }
     }
 
-    // Check for duplicate Tax ID, excluding the current company
+    // Only check for duplicate Tax ID if it's being changed
     if (currentCompany.taxId !== taxId) {
       const existingTaxId = await certificateCompanyDao.checkByTaxId(taxId);
       if (existingTaxId.length > 0) {
-        return res.status(400).json({
-          message: `Tax ID "${taxId}" already exists. Please use a different one.`,
-          status: false,
-        });
+        duplicateErrors.push(`TAX ID`);
       }
+    }
+
+    // Check for duplicate phone numbers, excluding current company
+    const existingPhones = await certificateCompanyDao.checkByPhoneNumbers(
+      phoneCode1,
+      phoneNumber1,
+      phoneCode2,
+      phoneNumber2,
+      id // Exclude current company
+    );
+
+    if (existingPhones.length > 0) {
+      // Check which specific phone numbers are duplicates
+      existingPhones.forEach((existing) => {
+        // Check if Phone 1 is duplicate (and if it's being changed)
+        if (
+          (currentCompany.phoneCode1 !== phoneCode1 ||
+            currentCompany.phoneNumber1 !== phoneNumber1) &&
+          existing.phoneCode1 === phoneCode1 &&
+          existing.phoneNumber1 === phoneNumber1
+        ) {
+          if (!duplicateErrors.includes("Phone Number - 1")) {
+            duplicateErrors.push("Phone Number - 1");
+          }
+        }
+
+        // Check if Phone 2 is duplicate (and if it's being changed or newly added)
+        if (phoneNumber2) {
+          const isPhone2Changed =
+            currentCompany.phoneCode2 !== phoneCode2 ||
+            currentCompany.phoneNumber2 !== phoneNumber2;
+
+          if (
+            isPhone2Changed &&
+            existing.phoneCode2 === phoneCode2 &&
+            existing.phoneNumber2 === phoneNumber2
+          ) {
+            if (!duplicateErrors.includes("Phone Number - 2")) {
+              duplicateErrors.push("Phone Number - 2");
+            }
+          }
+        }
+      });
+    }
+
+    // Return combined error
+    if (duplicateErrors.length > 0) {
+      return res.status(400).json({
+        message: `${duplicateErrors.join(", ")} already exists`,
+        status: false,
+      });
     }
 
     let logoUrl = currentCompany?.logo || null;
@@ -401,6 +487,8 @@ exports.createCertificate = async (req, res) => {
     let {
       srtcomapnyId,
       srtName,
+      srtNameSinhala,
+      srtNameTamil,
       srtNumber,
       applicable,
       accreditation,
@@ -412,6 +500,53 @@ exports.createCertificate = async (req, res) => {
       scope,
       noOfVisit,
     } = validated;
+
+    // ===== Duplicate Checks =====
+    const duplicateErrors = [];
+
+    // Check for duplicate certificate name (English)
+    const existingCertificateName =
+      await certificateCompanyDao.checkCertificateNameExists(srtName);
+    if (existingCertificateName.length > 0) {
+      duplicateErrors.push(`Certificate Name (English)`);
+    }
+
+    // Check for duplicate certificate name (Sinhala) if provided
+    if (srtNameSinhala && srtNameSinhala.trim() !== "") {
+      const existingSinhalaName =
+        await certificateCompanyDao.checkCertificateSinhalaNameExists(
+          srtNameSinhala
+        );
+      if (existingSinhalaName.length > 0) {
+        duplicateErrors.push(`Certificate Name (Sinhala)`);
+      }
+    }
+
+    // Check for duplicate certificate name (Tamil) if provided
+    if (srtNameTamil && srtNameTamil.trim() !== "") {
+      const existingTamilName =
+        await certificateCompanyDao.checkCertificateTamilNameExists(
+          srtNameTamil
+        );
+      if (existingTamilName.length > 0) {
+        duplicateErrors.push(`Certificate Name (Tamil)`);
+      }
+    }
+
+    // Check for duplicate certificate number
+    const existingCertificateNumber =
+      await certificateCompanyDao.checkCertificateNumberExists(srtNumber);
+    if (existingCertificateNumber.length > 0) {
+      duplicateErrors.push(`Certificate Number`);
+    }
+
+    // Return combined error
+    if (duplicateErrors.length > 0) {
+      return res.status(400).json({
+        message: `${duplicateErrors.join(", ")} already exists`,
+        status: false,
+      });
+    }
 
     // Normalize serviceAreas
     if (typeof serviceAreas === "string") {
@@ -513,10 +648,12 @@ exports.createCertificate = async (req, res) => {
       );
     }
 
-    // Insert certificate with noOfVisit
+    // Insert certificate with new fields
     const certificateId = await certificateCompanyDao.createCertificate({
       srtcomapnyId,
       srtName,
+      srtNameSinhala,
+      srtNameTamil,
       srtNumber,
       applicable,
       accreditation,
@@ -636,6 +773,8 @@ exports.updateCertificate = async (req, res) => {
     let {
       srtcomapnyId,
       srtName,
+      srtNameSinhala,
+      srtNameTamil,
       srtNumber,
       applicable,
       accreditation,
@@ -648,7 +787,7 @@ exports.updateCertificate = async (req, res) => {
       noOfVisit,
     } = validated;
 
-    // Normalize fields (same as create)
+    // Normalize serviceAreas
     if (typeof serviceAreas === "string") {
       try {
         const parsed = JSON.parse(serviceAreas);
@@ -660,15 +799,34 @@ exports.updateCertificate = async (req, res) => {
       serviceAreas = serviceAreas.join(",");
     }
 
-    if (typeof cropIds === "string") {
-      try {
-        const parsed = JSON.parse(cropIds);
-        cropIds = Array.isArray(parsed) ? parsed : [parsed];
-      } catch {
-        cropIds = cropIds.split(",").map((s) => s.trim());
+    // Normalize and validate cropIds
+    let normalizedCropIds = [];
+    if (cropIds) {
+      if (typeof cropIds === "string") {
+        try {
+          const parsed = JSON.parse(cropIds);
+          if (Array.isArray(parsed)) {
+            normalizedCropIds = parsed;
+          } else {
+            normalizedCropIds = [parsed];
+          }
+        } catch {
+          normalizedCropIds = cropIds
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => s);
+        }
+      } else if (Array.isArray(cropIds)) {
+        normalizedCropIds = cropIds;
       }
     }
-    if (!Array.isArray(cropIds)) cropIds = [cropIds];
+
+    // Convert to numbers and validate
+    normalizedCropIds = normalizedCropIds
+      .map((cropId) => parseInt(cropId))
+      .filter((cropId) => !isNaN(cropId) && cropId > 0);
+
+    console.log("Processed crop IDs:", normalizedCropIds);
 
     // Get current certificate data first
     const currentCertificate = await certificateCompanyDao.getCertificateById(
@@ -678,6 +836,62 @@ exports.updateCertificate = async (req, res) => {
       return res
         .status(404)
         .json({ message: "Certificate not found", status: false });
+    }
+
+    // ===== Duplicate Checks =====
+    const duplicateErrors = [];
+
+    // Only check for duplicate certificate name (English) if it's being changed
+    if (currentCertificate.srtName !== srtName) {
+      const existingCertificateName =
+        await certificateCompanyDao.checkCertificateNameExists(srtName, id);
+      if (existingCertificateName.length > 0) {
+        duplicateErrors.push(`Certificate Name (English)`);
+      }
+    }
+
+    // Only check for duplicate certificate name (Sinhala) if it's being changed and not empty
+    if (
+      srtNameSinhala &&
+      currentCertificate.srtNameSinhala !== srtNameSinhala
+    ) {
+      const existingSinhalaName =
+        await certificateCompanyDao.checkCertificateSinhalaNameExists(
+          srtNameSinhala,
+          id
+        );
+      if (existingSinhalaName.length > 0) {
+        duplicateErrors.push(`Certificate Name (Sinhala)`);
+      }
+    }
+
+    // Only check for duplicate certificate name (Tamil) if it's being changed and not empty
+    if (srtNameTamil && currentCertificate.srtNameTamil !== srtNameTamil) {
+      const existingTamilName =
+        await certificateCompanyDao.checkCertificateTamilNameExists(
+          srtNameTamil,
+          id
+        );
+      if (existingTamilName.length > 0) {
+        duplicateErrors.push(`Certificate Name (Tamil)`);
+      }
+    }
+
+    // Only check for duplicate certificate number if it's being changed
+    if (currentCertificate.srtNumber !== srtNumber) {
+      const existingCertificateNumber =
+        await certificateCompanyDao.checkCertificateNumberExists(srtNumber, id);
+      if (existingCertificateNumber.length > 0) {
+        duplicateErrors.push(`Certificate Number`);
+      }
+    }
+
+    // Return combined error
+    if (duplicateErrors.length > 0) {
+      return res.status(400).json({
+        message: `${duplicateErrors.join(", ")} already exists`,
+        status: false,
+      });
     }
 
     let tearmsUrl = currentCertificate.tearms;
@@ -742,11 +956,13 @@ exports.updateCertificate = async (req, res) => {
       }
     }
 
-    // Update certificate
+    // Update certificate with new fields
     await certificateCompanyDao.updateCertificate({
       id,
       srtcomapnyId,
       srtName,
+      srtNameSinhala,
+      srtNameTamil,
       srtNumber,
       applicable,
       accreditation,
@@ -763,8 +979,8 @@ exports.updateCertificate = async (req, res) => {
 
     // Update crops
     await certificateCompanyDao.deleteCertificateCrops(id);
-    if (cropIds && cropIds.length > 0) {
-      await certificateCompanyDao.addCertificateCrops(id, cropIds);
+    if (normalizedCropIds.length > 0) {
+      await certificateCompanyDao.addCertificateCrops(id, normalizedCropIds);
     }
 
     res.json({
@@ -1080,9 +1296,6 @@ exports.createFarmerCluster = async (req, res) => {
     console.log(bulkInsertResult);
     console.log("-------------------------------------------");
 
-
-
-
     // Create certification payment record
     const paymentResult =
       await certificateCompanyDao.createCertificationPayment(
@@ -1097,7 +1310,10 @@ exports.createFarmerCluster = async (req, res) => {
         connection
       );
 
-    if (bulkInsertResult.insertedIds && bulkInsertResult.insertedIds.length > 0) {
+    if (
+      bulkInsertResult.insertedIds &&
+      bulkInsertResult.insertedIds.length > 0
+    ) {
       await certificateCompanyDao.bulkInsertSlaveQuestionnaire(
         paymentResult.insertId, // crtPaymentId
         bulkInsertResult.insertedIds, // clusterFarmIds array
@@ -1106,10 +1322,11 @@ exports.createFarmerCluster = async (req, res) => {
     }
 
     // Get all slavequestionnaire IDs that were just inserted
-    const slaveQuestionnaireIds = await certificateCompanyDao.getSlaveQuestionnaireIds(
-      paymentResult.insertId,
-      connection
-    );
+    const slaveQuestionnaireIds =
+      await certificateCompanyDao.getSlaveQuestionnaireIds(
+        paymentResult.insertId,
+        connection
+      );
 
     // Insert into slavequestionnaireitems
     if (slaveQuestionnaireIds.length > 0) {
@@ -1302,13 +1519,19 @@ exports.addSingleFarmerToCluster = async (req, res) => {
     }
 
     // Step 7: Insert farm into cluster
-    const insertFarmIntoClusterResult = await certificateCompanyDao.insertFarmIntoCluster(
-      clusterId,
-      farmValidation.farmId,
-      connection
-    );
+    const insertFarmIntoClusterResult =
+      await certificateCompanyDao.insertFarmIntoCluster(
+        clusterId,
+        farmValidation.farmId,
+        connection
+      );
 
-    const slaveInsertResult = await certificateCompanyDao.singleInsertSlaveQuestionnaire(existingPayment.id, insertFarmIntoClusterResult.insertId, connection)
+    const slaveInsertResult =
+      await certificateCompanyDao.singleInsertSlaveQuestionnaire(
+        existingPayment.id,
+        insertFarmIntoClusterResult.insertId,
+        connection
+      );
     console.log("slaveInsertResult", slaveInsertResult);
     if (slaveInsertResult.affectedRows === 0) {
       await connection.rollback();
@@ -1318,11 +1541,12 @@ exports.addSingleFarmerToCluster = async (req, res) => {
       });
     }
 
-    const slaveItemsInsertResult = await certificateCompanyDao.singleInsertSlaveQuestionnaireItems(
-      slaveInsertResult.insertId,
-      clusterInfo.certificateId,
-      connection
-    )
+    const slaveItemsInsertResult =
+      await certificateCompanyDao.singleInsertSlaveQuestionnaireItems(
+        slaveInsertResult.insertId,
+        clusterInfo.certificateId,
+        connection
+      );
 
     if (slaveItemsInsertResult.affectedRows === 0) {
       await connection.rollback();
@@ -1928,11 +2152,12 @@ exports.getOfficersByDistrictAndRole = async (req, res) => {
       });
     }
 
-    const officers = await certificateCompanyDao.getOfficersByDistrictAndRoleDAO(
-      district,
-      jobRole,
-      scheduleDate
-    );
+    const officers =
+      await certificateCompanyDao.getOfficersByDistrictAndRoleDAO(
+        district,
+        jobRole,
+        scheduleDate
+      );
 
     res.status(200).json({
       message: "Officers retrieved successfully",
