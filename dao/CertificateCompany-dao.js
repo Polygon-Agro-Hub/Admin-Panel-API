@@ -1114,6 +1114,45 @@ exports.validateFarmersWithFarms = async (
   };
 };
 
+// Get farmer details for missing registration codes
+exports.getFarmerDetailsByRegCodes = async (
+  missingRegCodes,
+  farmers,
+  connection
+) => {
+  // Get the NICs associated with missing regCodes from the farmers array
+  const nicsWithMissingRegCodes = farmers
+    .filter((farmer) => missingRegCodes.includes(farmer.regCode.trim()))
+    .map((farmer) => farmer.farmerNIC.trim());
+
+  if (nicsWithMissingRegCodes.length === 0) {
+    return [];
+  }
+
+  // Get user details for these NICs
+  const [userRows] = await connection.query(
+    `SELECT id, NICnumber, firstName, lastName FROM users WHERE NICnumber IN (?)`,
+    [nicsWithMissingRegCodes]
+  );
+
+  // Create a mapping of NIC to user details
+  const userMap = {};
+  userRows.forEach((user) => {
+    userMap[user.NICnumber] = user;
+  });
+
+  // Combine with registration code information
+  const result = farmers
+    .filter((farmer) => missingRegCodes.includes(farmer.regCode.trim()))
+    .map((farmer) => ({
+      farmerNIC: farmer.farmerNIC.trim(),
+      regCode: farmer.regCode.trim(),
+      farmerDetails: userMap[farmer.farmerNIC.trim()] || null,
+    }));
+
+  return result;
+};
+
 // Get farm IDs for valid farmers
 exports.getFarmIdsForValidFarmers = async (validFarmers, connection) => {
   if (validFarmers.length === 0) return [];
@@ -1952,13 +1991,13 @@ exports.checkByPhoneNumbers = (
 
     // Check phone number 1 if provided
     if (phoneNumber1) {
-      conditions.push('(phoneCode1 = ? AND phoneNumber1 = ?)');
+      conditions.push("(phoneCode1 = ? AND phoneNumber1 = ?)");
       params.push(phoneCode1, phoneNumber1);
     }
 
     // Check phone number 2 if provided
     if (phoneNumber2) {
-      conditions.push('(phoneCode2 = ? AND phoneNumber2 = ?)');
+      conditions.push("(phoneCode2 = ? AND phoneNumber2 = ?)");
       params.push(phoneCode2, phoneNumber2);
     }
 
@@ -1970,7 +2009,7 @@ exports.checkByPhoneNumbers = (
     let sql = `
       SELECT id, phoneCode1, phoneNumber1, phoneCode2, phoneNumber2
       FROM certificatecompany
-      WHERE ${conditions.join(' OR ')}
+      WHERE ${conditions.join(" OR ")}
     `;
 
     if (excludeId) {
@@ -1990,14 +2029,14 @@ exports.checkCertificateNameExists = (srtName, excludeId = null) => {
   return new Promise((resolve, reject) => {
     let sql = `SELECT id FROM certificates WHERE srtName = ?`;
     const values = [srtName];
-    
+
     if (excludeId) {
       sql += ` AND id != ?`;
       values.push(excludeId);
     }
-    
+
     sql += ` LIMIT 1`;
-    
+
     plantcare.query(sql, values, (err, results) => {
       if (err) {
         console.error("Database error checking certificate name:", err);
@@ -2009,18 +2048,21 @@ exports.checkCertificateNameExists = (srtName, excludeId = null) => {
 };
 
 // Check if certificate name (Sinhala) already exists (excluding current certificate)
-exports.checkCertificateSinhalaNameExists = (srtNameSinhala, excludeId = null) => {
+exports.checkCertificateSinhalaNameExists = (
+  srtNameSinhala,
+  excludeId = null
+) => {
   return new Promise((resolve, reject) => {
     let sql = `SELECT id FROM certificates WHERE srtNameSinhala = ? AND srtNameSinhala IS NOT NULL AND srtNameSinhala != ''`;
     const values = [srtNameSinhala];
-    
+
     if (excludeId) {
       sql += ` AND id != ?`;
       values.push(excludeId);
     }
-    
+
     sql += ` LIMIT 1`;
-    
+
     plantcare.query(sql, values, (err, results) => {
       if (err) {
         console.error("Database error checking Sinhala certificate name:", err);
@@ -2036,14 +2078,14 @@ exports.checkCertificateTamilNameExists = (srtNameTamil, excludeId = null) => {
   return new Promise((resolve, reject) => {
     let sql = `SELECT id FROM certificates WHERE srtNameTamil = ? AND srtNameTamil IS NOT NULL AND srtNameTamil != ''`;
     const values = [srtNameTamil];
-    
+
     if (excludeId) {
       sql += ` AND id != ?`;
       values.push(excludeId);
     }
-    
+
     sql += ` LIMIT 1`;
-    
+
     plantcare.query(sql, values, (err, results) => {
       if (err) {
         console.error("Database error checking Tamil certificate name:", err);
@@ -2059,14 +2101,14 @@ exports.checkCertificateNumberExists = (srtNumber, excludeId = null) => {
   return new Promise((resolve, reject) => {
     let sql = `SELECT id FROM certificates WHERE srtNumber = ?`;
     const values = [srtNumber];
-    
+
     if (excludeId) {
       sql += ` AND id != ?`;
       values.push(excludeId);
     }
-    
+
     sql += ` LIMIT 1`;
-    
+
     plantcare.query(sql, values, (err, results) => {
       if (err) {
         console.error("Database error checking certificate number:", err);
