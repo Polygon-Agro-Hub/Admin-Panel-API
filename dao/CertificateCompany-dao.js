@@ -1470,12 +1470,14 @@ exports.getFieldAudits = async (searchTerm, connection) => {
       fo.firstName as officerFirstName,
       fo.lastName as officerLastName,
       fo.empId as officerEmpId,
-      fo.JobRole as officerJobRole
+      fo.JobRole as officerJobRole,
+      au.userName
     FROM feildaudits fa
     LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
     LEFT JOIN users u ON cp.userId = u.id
     LEFT JOIN certificates c ON cp.certificateId = c.id
     LEFT JOIN feildofficer fo ON fa.assignOfficerId = fo.id
+    LEFT JOIN agro_world_admin.adminusers au ON fa.assignBy = au.id
   `;
 
   const params = [];
