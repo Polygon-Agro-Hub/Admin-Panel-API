@@ -1685,7 +1685,7 @@ exports.getOfficersByDistrictAndRoleDAO = (district, jobRole, scheduleDate) => {
         AND DATE(fa.sheduleDate) = ? 
         AND fa.status IN ('Pending', 'Completed')
       WHERE 
-        fo.distrct = ? 
+        fo.assignDistrict LIKE ?
         AND fo.JobRole = ?
         AND fo.status = 'Approved'
       GROUP BY 
@@ -1694,7 +1694,7 @@ exports.getOfficersByDistrictAndRoleDAO = (district, jobRole, scheduleDate) => {
         fo.firstName, fo.lastName
     `;
 
-    const params = [scheduleDate, district, jobRole];
+    const params = [scheduleDate, `%${district}%`, jobRole];
 
     plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
