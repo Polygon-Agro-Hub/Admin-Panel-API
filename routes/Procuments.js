@@ -21,7 +21,7 @@ router.get(
 router.get(
   "/get-distribution-orders",
   authMiddleware,
-  ProcumentsEP.getDistributionOrders
+  ProcumentsEP.getDistributionOrdersEp
 );
 
 router.get("/get-all-distribution-centers", authMiddleware,ProcumentsEP.getAllDistributionCenters);
