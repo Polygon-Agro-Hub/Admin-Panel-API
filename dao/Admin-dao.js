@@ -4822,7 +4822,7 @@ exports.GetAllFiealdofficerComplainDAO = (
       LEFT JOIN agro_world_admin.complaincategory cc ON fc.complainCategory = cc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
       LEFT JOIN agro_world_admin.adminusers au ON fc.adminReplyBy = au.id
-      WHERE fc.complainAssign = 'Admin'
+      WHERE 1=1
     `;
 
     // SQL to fetch paginated data - Updated with adminusers join
@@ -4838,25 +4838,31 @@ exports.GetAllFiealdofficerComplainDAO = (
         CONCAT(fo2.firstName, ' ', fo2.lastName) AS replyOfficerName,
         fc.createdAt,
         fc.complain,
-        fc.AdminStatus AS status,
+        fc.status ,
         fc.reply,
         fc.language,
-        fc.adminReplyBy,
         au.userName AS adminReplyByName
       FROM feildofficercomplains fc
       LEFT JOIN feildofficer fo ON fc.officerId = fo.id
       LEFT JOIN agro_world_admin.complaincategory cc ON fc.complainCategory = cc.id
       LEFT JOIN feildofficer fo2 ON cc.roleId = fo2.id
       LEFT JOIN agro_world_admin.adminusers au ON fc.adminReplyBy = au.id
-      WHERE fc.complainAssign = 'Admin'
+      WHERE 1=1
     `;
 
     // Add filter for status
     if (status) {
-      countSql += " AND fc.AdminStatus = ? ";
-      sql += " AND fc.AdminStatus = ? ";
-      Sqlparams.push(status);
-      Counterparams.push(status);
+      if (status === "Assigned") {
+        countSql += " AND fc.status = ? ";
+        sql += " AND fc.status = ? ";
+        Sqlparams.push('Opened');
+        Counterparams.push('Opened');
+      } else if (status === "Closed") {
+        countSql += " AND fc.status = ? ";
+        sql += " AND fc.status = ? ";
+        Sqlparams.push('Closed');
+        Counterparams.push('Closed');
+      }
     }
 
     // Fixed category filter to use the correct alias
@@ -4963,7 +4969,7 @@ exports.trackUserTaskUpdateDao = (id, adminId) => {
       WHERE scd.id = ?
       `;
 
-    plantcare.query(sql,[adminId, id], (err, results) => {
+    plantcare.query(sql, [adminId, id], (err, results) => {
       if (err) {
         return reject(err); // Handle error in the promise
       }

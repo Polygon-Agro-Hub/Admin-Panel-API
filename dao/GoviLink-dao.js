@@ -626,22 +626,17 @@ exports.GetFieldOfficerComplainByIdDAO = (id) => {
         ar.role,
         foc.createdAt,
         foc.complain,
-        foc.FIOStatus,
-        foc.FCOStatus,
-        foc.AdminStatus,
-        foc.complainAssign,
         foc.reply,
-        foc.replyBy,
         foc.replyTime,
         foc.language,
         fo.JobRole,
-        CONCAT(replyOfficer.firstName, ' ', replyOfficer.lastName) AS replyByName
+        au.userName AS replyByName
       FROM feildofficercomplains foc
       LEFT JOIN feildofficer fo ON foc.officerId = fo.id
       LEFT JOIN agro_world_admin.complaincategory cc ON foc.complainCategory = cc.id
       LEFT JOIN feildcompany fc ON fo.companyId = fc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
-      LEFT JOIN feildofficer replyOfficer ON foc.replyBy = replyOfficer.id
+      LEFT JOIN agro_world_admin.adminusers au ON foc.adminReplyBy = au.id
       WHERE foc.id = ?
     `;
 
@@ -673,11 +668,9 @@ exports.ReplyFieldOfficerComplainDAO = (complainId, reply, replyBy) => {
       UPDATE feildofficercomplains 
       SET 
         reply = ?,
-        replyBy = ?,
+        adminReplyBy = ?,
         replyTime = NOW(),
-        FCOStatus = 'Closed',
-        FIOStatus = 'Closed',
-        AdminStatus = 'Closed'
+        status = 'Closed'
       WHERE id = ?
     `;
 

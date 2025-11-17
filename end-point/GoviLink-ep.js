@@ -376,7 +376,7 @@ exports.replyFieldOfficerComplain = async (req, res) => {
   try {
     const { id } = req.params;
     const { reply } = req.body;
-    const replyBy = req.user.id;
+    const replyBy = req.user.userId;
 
     console.log('Replying to field officer complaint:', id);
 
