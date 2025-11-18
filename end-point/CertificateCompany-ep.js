@@ -180,7 +180,6 @@ exports.getAllCertificateCompanies = async (req, res) => {
   }
 };
 
-// Get certificate company by ID
 exports.getCertificateCompanyById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -245,7 +244,11 @@ exports.updateCertificateCompany = async (req, res) => {
     const validatePhone = (dialCode, number, required = false) => {
       if (required && !number) return false;
       if (!number) return true;
-      if (dialCode === "+94" && !/^[0-9]{9}$/.test(number)) return false;
+      if (dialCode === "+94") {
+        // Must be exactly 9 digits AND start with 7
+        if (!/^[0-9]{9}$/.test(number)) return false;
+        if (!number.startsWith('7')) return false;
+      }
       if (dialCode !== "+94" && !/^[0-9]+$/.test(number)) return false;
       return true;
     };
@@ -254,7 +257,7 @@ exports.updateCertificateCompany = async (req, res) => {
       return res.status(400).json({
         message:
           phoneCode1 === "+94"
-            ? "Phone Number 1 must be exactly 9 digits for Sri Lanka (+94)"
+            ? "Phone Number 1 must be exactly 9 digits and start with 7 for Sri Lanka (+94)"
             : "Phone Number 1 must contain only digits",
         status: false,
       });
@@ -264,7 +267,7 @@ exports.updateCertificateCompany = async (req, res) => {
       return res.status(400).json({
         message:
           phoneCode2 === "+94"
-            ? "Phone Number 2 must be exactly 9 digits for Sri Lanka (+94)"
+            ? "Phone Number 2 must be exactly 9 digits and start with 7 for Sri Lanka (+94)"
             : "Phone Number 2 must contain only digits",
         status: false,
       });
