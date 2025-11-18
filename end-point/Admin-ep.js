@@ -2774,8 +2774,14 @@ exports.plantcareDashboard = async (req, res) => {
     const grainCultivation = await adminDao.grainEnroll();
     const fruitCultivation = await adminDao.fruitEnroll();
     const mushCultivation = await adminDao.mushEnroll();
+    const leLegumesCultivation = await adminDao.legumesEnroll();
+    const spicesCultivation = await adminDao.spicesEnroll();
     const vegEnrollTillPreviousMonth =
       await adminDao.vegEnrollTillPreviousMonth();
+    const leLegumesEnrollTillPreviousMonth = 
+      await adminDao.legumesEnrollTillPreviousMonth();
+    const lspicesEnrollTillPreviousMonth = 
+      await adminDao.spicesEnrollTillPreviousMonth();
     const fruitEnrollTillPreviousMonth =
       await adminDao.fruitEnrollTillPreviousMonth();
     const grainEnrollTillPreviousMonth =
@@ -2793,14 +2799,18 @@ exports.plantcareDashboard = async (req, res) => {
 
     const totalCultivationTillPreviousMonth =
       vegEnrollTillPreviousMonth.veg_cultivation_count_till_previous_month +
+      leLegumesEnrollTillPreviousMonth.egumes_cultivation_count_till_previous_month +
       fruitEnrollTillPreviousMonth.fruit_cultivation_count_till_previous_month +
       grainEnrollTillPreviousMonth.grain_cultivation_count_till_previous_month +
+      lspicesEnrollTillPreviousMonth.spices_cultivation_count_till_previous_month +
       mushEnrollTillPreviousMonth.mush_cultivation_count_till_previous_month;
 
     const totalCultivationTillThisMonth =
       vegCultivation.veg_cultivation_count +
+      leLegumesCultivation.legumes_cultivation_count +
       fruitCultivation.fruit_cultivation_count +
       grainCultivation.grain_cultivation_count +
+      spicesCultivation.spices_cultivation_count +
       mushCultivation.mush_cultivation_count;
 
     const cultivationIncreasePercentage = (
@@ -2826,8 +2836,10 @@ exports.plantcareDashboard = async (req, res) => {
       active_users: activeUsers.active_users_count,
       new_users: newUsers.new_users_count,
       vegCultivation: vegCultivation.veg_cultivation_count,
+      leLegumesCultivation: leLegumesCultivation.legumes_cultivation_count,
       grainCultivation: grainCultivation.grain_cultivation_count,
       fruitCultivation: fruitCultivation.fruit_cultivation_count,
+      spicesCultivation: spicesCultivation.spices_cultivation_count,
       mushCultivation: mushCultivation.mush_cultivation_count,
       allusers: allUsers.all_farmer_count,
       allusersTillPreviousMonth:
@@ -2846,6 +2858,8 @@ exports.plantcareDashboard = async (req, res) => {
 
     console.log("Successfully fetched dashboard data");
     res.json({ data });
+    console.log("this is the data",data);
+    
   } catch (err) {
     if (err.isJoi) {
       return res.status(400).json({ error: err.details[0].message });
