@@ -3430,6 +3430,94 @@ exports.vegEnrollTillPreviousMonth = (userId) => {
   });
 };
 
+exports.legumesEnroll = (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT COUNT(DISTINCT occ.id) AS legumes_cultivation_count
+    FROM ongoingcultivationscrops occ
+    JOIN cropcalender cc ON occ.cropCalendar = cc.id
+    JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+    JOIN cropgroup cg ON cv.cropGroupId = cg.id
+    WHERE cg.category = 'Legumes' ;
+    `;
+
+    plantcare.query(sql, [userId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Return the user object
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.legumesEnrollTillPreviousMonth = (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT COUNT(DISTINCT occ.id) AS legumes_cultivation_count_till_previous_month
+    FROM ongoingcultivationscrops occ
+    JOIN cropcalender cc ON occ.cropCalendar = cc.id
+    JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+    JOIN cropgroup cg ON cv.cropGroupId = cg.id
+    WHERE cg.category = 'Legumes' AND occ.createdAt <= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+    `;
+
+    plantcare.query(sql, [userId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Return the user object
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.spicesEnroll = (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT COUNT(DISTINCT occ.id) AS spices_cultivation_count
+    FROM ongoingcultivationscrops occ
+    JOIN cropcalender cc ON occ.cropCalendar = cc.id
+    JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+    JOIN cropgroup cg ON cv.cropGroupId = cg.id
+    WHERE cg.category = 'Spices' ;
+    `;
+
+    plantcare.query(sql, [userId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Return the user object
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.spicesEnrollTillPreviousMonth = (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT COUNT(DISTINCT occ.id) AS spices_cultivation_count_till_previous_month
+    FROM ongoingcultivationscrops occ
+    JOIN cropcalender cc ON occ.cropCalendar = cc.id
+    JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+    JOIN cropgroup cg ON cv.cropGroupId = cg.id
+    WHERE cg.category = 'Spices' AND occ.createdAt <= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+    `;
+
+    plantcare.query(sql, [userId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Return the user object
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
 exports.grainEnroll = (userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
