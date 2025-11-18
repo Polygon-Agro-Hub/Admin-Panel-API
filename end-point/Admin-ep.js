@@ -3121,9 +3121,9 @@ exports.forgotPassword = async (req, res) => {
     });
 
     const mailOptions = {
-      from: `"Agro World" <${process.env.EMAIL_USERNAME}>`,
+      from: `"Polygon Agro" <${process.env.EMAIL_USERNAME}>`,
       to: email,
-      subject: "Agro World Password Reset Request",
+      subject: "Polygon Agro Password Reset Request",
       html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0;">
 
@@ -3138,7 +3138,7 @@ exports.forgotPassword = async (req, res) => {
 
         <p style="color: #000;">Hello,</p>
         <p style="color: #000;">
-          We received a request to reset your password for your Agro World account.
+          We received a request to reset your password for your Polygon Agro account.
           Click the button below to reset it:
         </p>
 
