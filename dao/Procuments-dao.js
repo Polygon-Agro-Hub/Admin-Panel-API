@@ -113,17 +113,155 @@ const {
 //   });
 // };
 
+// exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
+//   return new Promise((resolve, reject) => {
+//     const offset = (page - 1) * limit;
+
+//     let baseJoinSql = `
+//       FROM market_place.processorders po
+//       JOIN market_place.orders o ON po.orderId = o.id
+//       LEFT JOIN market_place.orderpackage op ON op.orderId = po.id
+//       LEFT JOIN market_place.orderpackageitems opi ON opi.orderPackageId = op.id
+//       LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
+//     `;
+
+//     let whereSql = ` WHERE po.status = 'processing' `;
+//     const queryParams = [];
+
+//     if (filterType && date) {
+//       switch (filterType) {
+//         case "OrderDate":
+//           whereSql += ` AND DATE(o.createdAt) = ?`;
+//           queryParams.push(date);
+//           break;
+//         case "scheduleDate":
+//           whereSql += ` AND DATE(o.sheduleDate) = ?`;
+//           queryParams.push(date);
+//           break;
+//         case "toCollectionCenter":
+//           whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 2 DAY)) = ?`;
+//           queryParams.push(date);
+//           break;
+//         case "toDispatchCenter":
+//           whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
+//           queryParams.push(date);
+//           break;
+//       }
+//     }
+
+//     // Subquery to get all items with their product details
+//     const itemsSubquery = `
+//       SELECT 
+//         po.id AS processOrderId,
+//         o.id AS orderId,
+//         DATE(po.createdAt) AS createdAt,
+//         DATE(o.sheduleDate) AS sheduleDate,
+//         mpi.varietyId,
+//         CASE 
+//           WHEN opi.id IS NOT NULL THEN 
+//             CASE 
+//               WHEN opi.qty < 1 THEN opi.qty * 1000
+//               ELSE opi.qty 
+//             END
+//           WHEN oai.id IS NOT NULL THEN 
+//             CASE 
+//               WHEN oai.unit = 'g' THEN oai.qty / 1000
+//               ELSE oai.qty 
+//             END
+//         END AS quantity
+//       ${baseJoinSql}
+//       LEFT JOIN market_place.marketplaceitems mpi ON (opi.productId = mpi.id OR oai.productId = mpi.id)
+//       ${whereSql}
+//         AND (opi.id IS NOT NULL OR oai.id IS NOT NULL)
+//         AND mpi.varietyId IS NOT NULL
+//     `;
+
+//     // Add search filter for the grouped query
+//     let havingSql = '';
+//     const searchParams = [];
+
+//     if (search) {
+//       havingSql = ` HAVING 
+//         cg.cropNameEnglish LIKE ? OR 
+//         cv.varietyNameEnglish LIKE ?
+//       `;
+//       const likeSearch = `%${search}%`;
+//       searchParams.push(likeSearch, likeSearch);
+//     }
+
+//     // Count Query
+//     const countSql = `
+//       SELECT COUNT(*) AS total FROM (
+//         SELECT 1
+//         FROM (${itemsSubquery}) items
+//         JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
+//         JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+//         GROUP BY 
+//           cg.cropNameEnglish,
+//           cv.varietyNameEnglish,
+//           items.createdAt,
+//           items.sheduleDate
+//         ${havingSql}
+//       ) AS grouped
+//     `;
+
+//     // Data Query
+//     const dataSql = `
+//       SELECT 
+//         items.createdAt,
+//         items.sheduleDate,
+//         ROUND(SUM(items.quantity), 3) AS quantity,
+//         cg.cropNameEnglish,
+//         cv.varietyNameEnglish,
+//         MAX(DATE_SUB(items.sheduleDate, INTERVAL 2 DAY)) AS toCollectionCentre,
+//         MAX(DATE_SUB(items.sheduleDate, INTERVAL 1 DAY)) AS toDispatchCenter
+//       FROM (${itemsSubquery}) items
+//       JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
+//       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+//       GROUP BY 
+//         cg.cropNameEnglish,
+//         cv.varietyNameEnglish,
+//         items.createdAt,
+//         items.sheduleDate
+//       ${havingSql}
+//       ORDER BY 
+//         items.createdAt DESC,
+//         cg.cropNameEnglish ASC,
+//         cv.varietyNameEnglish ASC
+//       LIMIT ? OFFSET ?
+//     `;
+
+//     const countParams = [...queryParams, ...searchParams];
+//     const dataParams = [...queryParams, ...searchParams, Number(limit), Number(offset)];
+
+//     marketPlace.query(countSql, countParams, (countErr, countResults) => {
+//       if (countErr) {
+//         console.error("Error in count query:", countErr);
+//         return reject(countErr);
+//       }
+
+//       const total = countResults[0].total;
+
+//       marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+//         if (dataErr) {
+//           console.error("Error in data query:", dataErr);
+//           return reject(dataErr);
+//         }
+
+//         const processedResults = dataResults.map(item => ({
+//           ...item,
+//           quantity: parseFloat(item.quantity),
+//         }));
+
+//         resolve({ items: processedResults, total });
+//       });
+//     });
+//   });
+// };
+
 exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
-
-    let baseJoinSql = `
-      FROM market_place.processorders po
-      JOIN market_place.orders o ON po.orderId = o.id
-      LEFT JOIN market_place.orderpackage op ON op.orderId = po.id
-      LEFT JOIN market_place.orderpackageitems opi ON opi.orderPackageId = op.id
-      LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-    `;
 
     let whereSql = ` WHERE po.status = 'processing' `;
     const queryParams = [];
@@ -149,7 +287,7 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
       }
     }
 
-    // Subquery to get all items with their product details
+    // Subquery to get all items with their product details - UNION to avoid duplicate rows
     const itemsSubquery = `
       SELECT 
         po.id AS processOrderId,
@@ -157,22 +295,32 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         DATE(po.createdAt) AS createdAt,
         DATE(o.sheduleDate) AS sheduleDate,
         mpi.varietyId,
-        CASE 
-          WHEN opi.id IS NOT NULL THEN 
-            CASE 
-              WHEN opi.qty < 1 THEN opi.qty * 1000
-              ELSE opi.qty 
-            END
-          WHEN oai.id IS NOT NULL THEN 
-            CASE 
-              WHEN oai.unit = 'g' THEN oai.qty / 1000
-              ELSE oai.qty 
-            END
-        END AS quantity
-      ${baseJoinSql}
-      LEFT JOIN market_place.marketplaceitems mpi ON (opi.productId = mpi.id OR oai.productId = mpi.id)
+        opi.qty AS quantity
+      FROM market_place.processorders po
+      JOIN market_place.orders o ON po.orderId = o.id
+      JOIN market_place.orderpackage op ON op.orderId = po.id
+      JOIN market_place.orderpackageitems opi ON opi.orderPackageId = op.id
+      JOIN market_place.marketplaceitems mpi ON opi.productId = mpi.id
       ${whereSql}
-        AND (opi.id IS NOT NULL OR oai.id IS NOT NULL)
+        AND mpi.varietyId IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        po.id AS processOrderId,
+        o.id AS orderId,
+        DATE(po.createdAt) AS createdAt,
+        DATE(o.sheduleDate) AS sheduleDate,
+        mpi.varietyId,
+        CASE 
+          WHEN oai.unit = 'g' THEN oai.qty / 1000
+          ELSE oai.qty 
+        END AS quantity
+      FROM market_place.processorders po
+      JOIN market_place.orders o ON po.orderId = o.id
+      JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
+      JOIN market_place.marketplaceitems mpi ON oai.productId = mpi.id
+      ${whereSql}
         AND mpi.varietyId IS NOT NULL
     `;
 
@@ -231,8 +379,10 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
       LIMIT ? OFFSET ?
     `;
 
-    const countParams = [...queryParams, ...searchParams];
-    const dataParams = [...queryParams, ...searchParams, Number(limit), Number(offset)];
+    // Duplicate query parameters for both UNION queries
+    const unionParams = [...queryParams, ...queryParams];
+    const countParams = [...unionParams, ...searchParams];
+    const dataParams = [...unionParams, ...searchParams, Number(limit), Number(offset)];
 
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
