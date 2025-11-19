@@ -1759,7 +1759,7 @@ exports.getCenterName = (centerId) => {
       LIMIT 1
     `;
     
-    collectionOfficer.query(sql, [centerId], (err, results) => {
+    collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
         console.error('Error fetching center name:', err);
         return reject(err);
