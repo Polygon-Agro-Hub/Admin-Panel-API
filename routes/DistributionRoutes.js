@@ -223,7 +223,7 @@ router.put(
 );
 
 router.get(
-  "/officer-daily-distribution-target/:id",
+  "/officer-daily-distribution-target/:id/:date",
   authMiddleware,
   distributionEp.getOfficerDailyDistributionTarget
 );

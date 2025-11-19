@@ -2172,7 +2172,7 @@ exports.EditCheckEmailExist = async (email, excludeId = null) => {
 };
 
 
-exports.getOfficerDailyDistributionTargetDao = async (id) => {
+exports.getOfficerDailyDistributionTargetDao = async (id, date) => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
@@ -2184,9 +2184,9 @@ exports.getOfficerDailyDistributionTargetDao = async (id) => {
       	cof.lastNameEnglish
       FROM distributedtarget dt
       JOIN collectionofficer cof ON dt.userId = cof.id
-      WHERE dt.companycenterId = ?
+      WHERE dt.companycenterId = ? AND DATE(dt.createdAt) = DATE(?)
     `;
-    const params = [id];
+    const params = [id, date];
     collectionofficer.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);

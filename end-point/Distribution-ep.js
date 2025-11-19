@@ -282,7 +282,7 @@ exports.createDistributionHead = async (req, res) => {
 
     // Collect duplicate fields
     const duplicateFields = [];
-    
+
     if (isExistingNIC) duplicateFields.push("NIC");
     if (isExistingEmail) duplicateFields.push("Email");
     if (isExistingPhone1) duplicateFields.push("Mobile Number 1");
@@ -291,7 +291,7 @@ exports.createDistributionHead = async (req, res) => {
     // If any duplicates found, return combined error message
     if (duplicateFields.length > 0) {
       let errorMessage = "";
-      
+
       if (duplicateFields.length === 1) {
         errorMessage = `${duplicateFields[0]} already exists.`;
       } else if (duplicateFields.length === 2) {
@@ -737,7 +737,7 @@ exports.updateDistributionCentreDetails = async (req, res) => {
       console.log('isCompanyName')
       validationErrors.push('name');
       console.log('validationErrors', validationErrors)
-    } 
+    }
 
     const isRegCode = await DistributionDao.checkRegCodeExistDC(data.regCode, id);
     if (isRegCode) validationErrors.push('regCode');
@@ -1487,7 +1487,7 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
 
   try {
     const officerData = JSON.parse(req.body.officerData);
-    console.log('officer data',officerData)
+    console.log('officer data', officerData)
     const qrCode = await DistributionDao.getQrImage(id);
 
     const isExistingNIC = await DistributionDao.editCheckNICExist(officerData.nic, id);
@@ -1618,9 +1618,10 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
 
 exports.getOfficerDailyDistributionTarget = async (req, res) => {
   try {
-    const { id} = await DistributionValidation.getOfficerDailyDistributionTargetShema.validateAsync(req.params);
-
-    const result = await DistributionDao.getOfficerDailyDistributionTargetDao(id);
+    const { id, date } = await DistributionValidation.getOfficerDailyDistributionTargetShema.validateAsync(req.params);
+    console.log(date);
+    
+    const result = await DistributionDao.getOfficerDailyDistributionTargetDao(id, date);
 
     console.log("Successfully retrieved all companies");
     res.json({ status: true, data: result });
@@ -1647,7 +1648,7 @@ exports.dcmGetSelectedOfficerTargets = async (req, res) => {
 
     console.log(req.user);
 
-    const {distributedCenterId, companyId} = await DistributionDao.getCompanyAndCenter(officerId)
+    const { distributedCenterId, companyId } = await DistributionDao.getCompanyAndCenter(officerId)
 
     const companyCenterId = await DistributionDao.getDistributedCompanyCenter(companyId, distributedCenterId);
     // const deliveryLocationData = await DistributionDAO.getCenterName(managerId, companyId);
@@ -1660,7 +1661,7 @@ exports.dcmGetSelectedOfficerTargets = async (req, res) => {
 
     console.log('deliveryLocationData', deliveryLocationData)
 
-    const { items } = await DistributionDao.dcmGetSelectedOfficerTargetsDao(officerId, deliveryLocationData, searchText, status, distributedCenterId );
+    const { items } = await DistributionDao.dcmGetSelectedOfficerTargetsDao(officerId, deliveryLocationData, searchText, status, distributedCenterId);
     console.log('these are items', items);
 
     // // Group by officerId (userId) and count orders
@@ -1711,11 +1712,11 @@ exports.claimDistributedOfficer = async (req, res) => {
   try {
     const data = req.body;
     const result = await DistributionDao.claimDistributedOfficersDao(data);
-    if(result.affectedRows === 0){
-      return res.json({message: "Claim failed or no changes made", status: false})
+    if (result.affectedRows === 0) {
+      return res.json({ message: "Claim failed or no changes made", status: false })
     }
     console.log("Successfully retrieved reports");
-    res.status(200).json({ status: true , message: "Claimed successfully"});
+    res.status(200).json({ status: true, message: "Claimed successfully" });
   } catch (error) {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message });
