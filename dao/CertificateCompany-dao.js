@@ -1760,6 +1760,7 @@ exports.getOfficersByDistrictAndRoleDAO = (district, jobRole, scheduleDate) => {
 exports.assignOfficerToAuditDAO = (
   fieldAuditId,
   assignOfficerId,
+  assignByUserId, // This might be undefined
   scheduleDate = null
 ) => {
   return new Promise(async (resolve, reject) => {
@@ -1791,12 +1792,18 @@ exports.assignOfficerToAuditDAO = (
         return reject(new Error("Officer not found or not Approved"));
       }
 
-      // Build dynamic update query based on whether scheduleDate is provided
+      // Build dynamic update query - handle case where assignByUserId might be undefined
       let updateQuery = `
         UPDATE feildaudits 
         SET assignOfficerId = ?, assignDate = NOW(), status = 'Pending'
       `;
       const queryParams = [assignOfficerId];
+
+      // Add assignBy if provided
+      if (assignByUserId) {
+        updateQuery += `, assignBy = ?`;
+        queryParams.push(assignByUserId);
+      }
 
       // Add scheduleDate to update if provided
       if (scheduleDate) {
@@ -1806,6 +1813,9 @@ exports.assignOfficerToAuditDAO = (
 
       updateQuery += ` WHERE id = ?`;
       queryParams.push(fieldAuditId);
+
+      console.log('Update Query:', updateQuery);
+      console.log('Query Params:', queryParams);
 
       // Update the field audit with the assigned officer and optional schedule date
       const [result] = await connection.query(updateQuery, queryParams);
@@ -1823,6 +1833,11 @@ exports.assignOfficerToAuditDAO = (
         assignOfficerId,
         assignDate: new Date(),
       };
+
+      // Add assignBy to response if provided
+      if (assignByUserId) {
+        responseData.assignBy = assignByUserId;
+      }
 
       // Add scheduleDate to response if provided
       if (scheduleDate) {

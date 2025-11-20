@@ -2190,6 +2190,15 @@ exports.getOfficersByDistrictAndRole = async (req, res) => {
 exports.assignOfficerToAudit = async (req, res) => {
   try {
     const { auditId, officerId, scheduleDate } = req.body;
+    
+    // Get the logged-in user ID from the authentication middleware
+    // Try different possible properties where user ID might be stored
+    const assignByUserId = req.user?.id || req.user?.userId || req.user?.user_id || req.user?.userID;
+    
+    console.log('Authentication debug:', {
+      user: req.user,
+      assignByUserId: assignByUserId
+    });
 
     // Validate required fields
     if (!auditId || !officerId) {
@@ -2217,6 +2226,16 @@ exports.assignOfficerToAudit = async (req, res) => {
       });
     }
 
+    // If assignByUserId is still not available, we have two options:
+    // Option 1: Remove this validation temporarily for testing
+    // Option 2: Get user ID from token service if available
+    
+    if (!assignByUserId) {
+      console.warn('assignByUserId not found in req.user, proceeding without it');
+      // You might want to handle this differently based on your requirements
+      // For now, let's proceed but you should fix your auth middleware
+    }
+
     // Validate scheduleDate if provided
     let parsedScheduleDate = null;
     if (scheduleDate) {
@@ -2233,6 +2252,7 @@ exports.assignOfficerToAudit = async (req, res) => {
     const result = await certificateCompanyDao.assignOfficerToAuditDAO(
       fieldAuditId,
       assignOfficerId,
+      assignByUserId, // This might be undefined - we need to handle this in DAO
       parsedScheduleDate
     );
 
