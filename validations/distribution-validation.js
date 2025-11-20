@@ -81,7 +81,9 @@ exports.getOfficerDailyDistributionTargetShema = Joi.object({
 })
 
 exports.dcmGetparmasIdSchema = Joi.object({
-    officerId: Joi.number().integer().required(),
+    targetId: Joi.number().integer().required(),
     searchText: Joi.string().allow('').optional(),
     status: Joi.string().allow('').optional(),
+    completingStatus: Joi.string().allow('').optional(),
+    
 });

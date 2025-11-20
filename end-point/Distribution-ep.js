@@ -1643,58 +1643,72 @@ exports.dcmGetSelectedOfficerTargets = async (req, res) => {
   console.log('fullUrl', fullUrl);
 
   try {
+    const { targetId, searchText, status, completingStatus } = await DistributionValidation.dcmGetparmasIdSchema.validateAsync(req.query);
+    console.log('targetId:', targetId);
+    console.log('completingStatus:', completingStatus);
 
-    const { officerId, searchText, status } = await DistributionValidation.dcmGetparmasIdSchema.validateAsync(req.query);
+    let targetResult = await DistributionDao.getSelectTargetItems(targetId, searchText || '', status || '');
 
-    console.log(req.user);
+    // Calculate combinedStatus for each item
+    targetResult = targetResult.map(item => {
+      let combinedStatus = '';
+      
+      if (item.packageStatus === 'Pending' && (item.additionalItemsStatus === 'Unknown' || item.additionalItemsStatus === 'Pending')) {
+        combinedStatus = 'Pending';
+      }
+      else if (item.packageStatus === 'Pending' && (item.additionalItemsStatus === 'Opened' || item.additionalItemsStatus === 'Completed')) {
+        combinedStatus = 'Opened';
+      }
+      else if (item.packageStatus === 'Opened') {
+        combinedStatus = 'Opened';
+      }
+      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Unknown') {
+        combinedStatus = 'Completed';
+      }
+      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Pending') {
+        combinedStatus = 'Pending';
+      }
+      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Opened') {
+        combinedStatus = 'Opened';
+      }
+      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Completed') {
+        combinedStatus = 'Completed';
+      }
+      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Pending') {
+        combinedStatus = 'Pending';
+      }
+      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Opened') {
+        combinedStatus = 'Opened';
+      }
+      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Completed') {
+        combinedStatus = 'Completed';
+      }
+      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Unknown') {
+        combinedStatus = 'Unknown';
+      }
 
-    const { distributedCenterId, companyId } = await DistributionDao.getCompanyAndCenter(officerId)
+      return {
+        ...item,
+        combinedStatus
+      };
+    });
 
-    const companyCenterId = await DistributionDao.getDistributedCompanyCenter(companyId, distributedCenterId);
-    // const deliveryLocationData = await DistributionDAO.getCenterName(managerId, companyId);
-    // const deliveryLocationDataObj = deliveryLocationData[0]
-    // console.log('result',deliveryLocationDataObj)
+    // Filter by status if provided
+    if (status) {
+      targetResult = targetResult.filter(item => item.combinedStatus === status);
+    }
 
-    console.log('companyCenterId', companyCenterId[0].companyCenterId)
+    // Filter by completing status if provided
+    if (completingStatus) {
+      targetResult = targetResult.filter(item => item.completeTimeStatus === completingStatus);
+    }
 
-    const deliveryLocationData = await DistributionDao.getDeliveryChargeCity(companyCenterId[0].companyCenterId);
+    // Return in expected format
+    return res.status(200).json({
+      items: targetResult,
+      total: targetResult.length
+    });
 
-    console.log('deliveryLocationData', deliveryLocationData)
-
-    const { items } = await DistributionDao.dcmGetSelectedOfficerTargetsDao(officerId, deliveryLocationData, searchText, status, distributedCenterId);
-    console.log('these are items', items);
-
-    // // Group by officerId (userId) and count orders
-    // const groupedData = items.reduce((acc, item) => {
-    //   const officerId = item.userId;
-    //   if (!acc[officerId]) {
-    //     acc[officerId] = {
-    //       officerId,
-    //       empId: item.empId,
-    //       firstNameEnglish: item.firstNameEnglish,
-    //       lastNameEnglish: item.lastNameEnglish,
-    //       allOrders: 0,
-    //       pending: 0,
-    //       completed: 0,
-    //       opened: 0
-    //     };
-    //   }
-
-    //   acc[officerId].allOrders++;
-
-    //   if (item.packagePackStatus === "Pending") acc[officerId].pending++;
-    //   if (item.packagePackStatus === "Completed") acc[officerId].completed++;
-    //   if (item.packagePackStatus === "Opened") acc[officerId].opened++;
-
-    //   return acc;
-    // }, {});
-
-    // Convert to sorted array by officerId
-    // const sortedResult = Object.values(groupedData).sort((a, b) => a.officerId - b.officerId);
-
-    // console.log('sortedResult', sortedResult);
-
-    return res.status(200).json({ items });
   } catch (error) {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message });
