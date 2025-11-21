@@ -4746,6 +4746,7 @@ exports.getFieldOfficerByIdDAO = (id) => {
           comAmount: officer.comAmount,
           language: officer.language,
           companyId: officer.companyId,
+          irmId: officer.irmId,
         },
       });
     });
