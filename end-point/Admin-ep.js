@@ -3279,9 +3279,9 @@ exports.resendResetLink = async (req, res) => {
     });
 
     const mailOptions = {
-      from: `"Agro World" <${process.env.EMAIL_USERNAME}>`,
+      from: `"Polygon Agro" <${process.env.EMAIL_USERNAME}>`,
       to: user.mail,
-      subject: "Agro World Password Reset Link (Resent)",
+      subject: "Polygon Agro Password Reset Link (Resent)",
       html: `
         <div style="font-family: Arial; max-width: 600px; margin: auto;">
           <div style="background:#3E206D; padding:15px; text-align:center; border-radius:6px 6px 0 0;">
