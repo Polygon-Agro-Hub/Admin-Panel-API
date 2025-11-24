@@ -65,4 +65,21 @@ router.get('/payment-history/:id', authMiddleware, financeController.getPaymentH
 router.get('/payment-history', authMiddleware, financeController.getAllPaymentHistory);
 router.delete('/payment-history/:id', authMiddleware, financeController.deletePaymentHistory);
 
+router.get(
+  '/govicare-requests',
+  authMiddleware,
+  financeController.getAllInvestmentRequests
+);
+
+// Get single investment request by ID
+router.get(
+  '/govicare-requests/:id',
+  authMiddleware,
+  financeController.getInvestmentRequestById
+);
+
+
+router.get('/officers', financeController.getOfficersByDistrictAndRoleForInvestment);
+router.post('/assign-officer', financeController.assignOfficerToInvestmentRequest);
+
 module.exports = router;
