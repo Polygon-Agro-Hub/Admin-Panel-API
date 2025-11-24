@@ -2181,12 +2181,18 @@ exports.getOfficerDailyDistributionTargetDao = async (id, date) => {
         dt.complete,
         cof.empId,
         cof.firstNameEnglish,
-        cof.lastNameEnglish,
-        dti.id AS targetId
+        cof.lastNameEnglish
       FROM distributedtarget dt
       JOIN collectionofficer cof ON dt.userId = cof.id
       LEFT JOIN distributedtargetitems dti ON dti.targetId = dt.id
       WHERE dt.companycenterId = ? AND DATE(dt.createdAt) = DATE(?)
+      GROUP BY 
+        dt.id,
+        dt.target,
+        dt.complete,
+        cof.empId,
+        cof.firstNameEnglish,
+        cof.lastNameEnglish
     `;
     const params = [id, date];
     collectionofficer.query(sql, params, (err, results) => {
