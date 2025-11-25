@@ -64,8 +64,6 @@ router.put('/payment-history/:id', authMiddleware, upload.single('file'),finance
 router.get('/payment-history/:id', authMiddleware, financeController.getPaymentHistoryById);
 router.get('/payment-history', authMiddleware, financeController.getAllPaymentHistory);
 router.delete('/payment-history/:id', authMiddleware, financeController.deletePaymentHistory);
-router.get('/govi-capital-requests', authMiddleware, financeController.getAllGoviCapitalRequests);
-router.get('/govi-capital-requests/:id', authMiddleware, financeController.getGoviCapitalRequestById);
 
 router.get(
   '/govicare-requests',
