@@ -82,4 +82,6 @@ router.get(
 router.get('/officers', financeController.getOfficersByDistrictAndRoleForInvestment);
 router.post('/assign-officer', financeController.assignOfficerToInvestmentRequest);
 
+router.get('/rejected-investment-requests', authMiddleware, financeController.getAllRejectedInvestmentRequests);
+
 module.exports = router;
