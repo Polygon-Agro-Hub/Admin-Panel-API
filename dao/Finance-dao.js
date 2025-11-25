@@ -1493,3 +1493,44 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
   });
 };
 
+
+exports.getAllPublishedProjectsDAO = (searchText) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT ir.id, u.firstName, u.lastName, u.phoneNumber, u.NICnumber AS farmerNic,
+        cv.varietyNameEnglish, cg.cropNameEnglish, ir.assignDate, ir.assignedBy, 
+        ir.jobId, ir.publishStatus, ir.reqStatus, ir.nicFront, ir.nicBack,
+        ir.extentac, ir.expectedYield, ir.startDate, ir.investment, 
+        c.srtName, ir.publishDate, au.userName AS publishedBy
+      FROM plant_care.investmentrequest ir
+      LEFT JOIN plant_care.users u ON ir.farmerId = u.id
+      LEFT JOIN plant_care.cropvariety cv ON ir.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN plant_care.certificates c ON ir.certificateId = c.id
+      LEFT JOIN agro_world_admin.adminusers au ON ir.publishBy = au.id
+      WHERE ir.reqStatus = 'Approved'
+      AND ir.publishStatus = 'Published'
+    `;
+
+    const params = [];
+
+    if (searchText) {
+      sql += `
+        AND (
+          ir.jobId LIKE ?
+          OR CONCAT(u.firstName, ' ', u.lastName) LIKE ?
+          OR u.phoneNumber LIKE ?
+        )
+      `;
+
+      const searchValue = `%${searchText}%`;
+      params.push(searchValue, searchValue, searchValue);
+    }
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
