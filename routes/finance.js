@@ -78,6 +78,12 @@ router.get(
   financeController.getInvestmentRequestById
 );
 
+router.get(
+  "/get-all-published-projects",
+  authMiddleware,
+  financeController.getAllPublishedProjects
+)
+
 
 router.get('/officers', financeController.getOfficersByDistrictAndRoleForInvestment);
 router.post('/assign-officer', financeController.assignOfficerToInvestmentRequest);
