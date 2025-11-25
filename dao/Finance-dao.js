@@ -1277,6 +1277,224 @@ exports.DeletePaymentHistoryDAO = (id) => {
   });
 };
 
+
+exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        ir.id AS No,
+        ir.jobId AS Request_ID,
+        CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
+        u.phoneNumber AS Phone_number,
+        co.empId,
+        CASE 
+          WHEN ir.officerId IS NULL THEN 'Not Assigned'
+          ELSE 'Assigned'
+        END AS Status,
+        COALESCE(co.empId, '--') AS Officer_ID,
+        ir.nicFront AS NIC_Front_Image,
+        ir.nicBack AS NIC_Back_Image,
+        DATE_FORMAT(ir.createdAt, '%M %d, %Y') AS Requested_On,
+        COALESCE(ao.userName, '--') AS Assigned_By
+      FROM investmentrequest ir
+      INNER JOIN users u ON ir.farmerId = u.id
+      LEFT JOIN feildofficer co ON ir.officerId = co.id
+      LEFT JOIN agro_world_admin.adminusers ao ON ir.assignedBy = ao.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    // Filter by status (Not Assigned or Assigned)
+    if (filters.status) {
+      if (filters.status === 'Not Assigned') {
+        sql += ` AND ir.officerId IS NULL`;
+      } else if (filters.status === 'Assigned') {
+        sql += ` AND ir.officerId IS NOT NULL`;
+      }
+    }
+
+    // Search filter (searches in Request ID, Phone Number, Collection Officer EMP ID)
+    if (filters.search) {
+      sql += ` AND (
+        ir.jobId LIKE ? OR 
+        u.phoneNumber LIKE ? OR 
+        co.empId LIKE ?
+      )`;
+      const searchTerm = `%${filters.search}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+
+    // Order by most recent first
+    sql += ` ORDER BY ir.createdAt DESC`;
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.GetInvestmentRequestByIdDAO = (requestId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        ir.jobId AS Request_ID,
+        CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
+        u.NICnumber AS NIC_Number,
+        u.phoneNumber AS Phone_number,
+        cg.cropNameEnglish AS Crop,
+        cv.varietyNameEnglish AS Variety,
+        cert.srtName AS Certificate,
+        CONCAT(
+          COALESCE(ir.extentha, 0), ' Acres ',
+          COALESCE(ir.extentac, 0), ' Perches'
+        ) AS Extent,
+        ir.investment AS Expected_Investment,
+        CONCAT(ir.expectedYield, 'kg') AS Expected_Yield,
+        DATE_FORMAT(ir.startDate, '%M %d, %Y') AS Expected_Start_Date,
+        DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time
+      FROM investmentrequest ir
+      INNER JOIN users u ON ir.farmerId = u.id
+      LEFT JOIN cropvariety cv ON ir.varietyId = cv.id
+      LEFT JOIN cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN certificates cert ON ir.certificateId = cert.id
+      WHERE ir.jobId = ?
+      LIMIT 1
+    `;
+
+    plantcare.query(sql, [requestId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.assignOfficerToInvestmentRequestDAO = (
+  requestId,
+  assignOfficerId,
+  assignByUserId
+) => {
+  return new Promise(async (resolve, reject) => {
+    let connection;
+
+    try {
+      connection = await plantcare.promise().getConnection();
+      await connection.beginTransaction();
+
+      // Check if investment request exists
+      const [requestExists] = await connection.query(
+        `SELECT id FROM investmentrequest WHERE id = ?`,
+        [requestId]
+      );
+
+      if (requestExists.length === 0) {
+        await connection.rollback();
+        return reject(new Error("Investment request not found"));
+      }
+
+      // Check if officer exists and is active
+      const [officerExists] = await connection.query(
+        `SELECT id FROM feildofficer WHERE id = ? AND status = 'Approved'`,
+        [assignOfficerId]
+      );
+
+      if (officerExists.length === 0) {
+        await connection.rollback();
+        return reject(new Error("Officer not found or not Approved"));
+      }
+
+      // Build dynamic update query
+      let updateQuery = `
+        UPDATE investmentrequest 
+        SET officerId = ?, assignDate = NOW()
+      `;
+      const queryParams = [assignOfficerId];
+
+      // Add assignBy if provided
+      if (assignByUserId) {
+        updateQuery += `, assignedBy = ?`;
+        queryParams.push(assignByUserId);
+      }
+
+      updateQuery += ` WHERE id = ?`;
+      queryParams.push(requestId);
+
+      console.log('Update Query:', updateQuery);
+      console.log('Query Params:', queryParams);
+
+      // Update the investment request with the assigned officer
+      const [result] = await connection.query(updateQuery, queryParams);
+
+      if (result.affectedRows === 0) {
+        await connection.rollback();
+        return reject(new Error("Investment request not found or no changes made"));
+      }
+
+      await connection.commit();
+
+      // Prepare response data
+      const responseData = {
+        requestId,
+        assignOfficerId,
+        assignDate: new Date(),
+      };
+
+      // Add assignBy to response if provided
+      if (assignByUserId) {
+        responseData.assignedBy = assignByUserId;
+      }
+
+      resolve(responseData);
+    } catch (err) {
+      if (connection) await connection.rollback();
+      reject(err);
+    } finally {
+      if (connection) connection.release();
+    }
+  });
+};
+
+exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        fo.id,
+        fo.empId,
+        fo.firstName,
+        fo.lastName,
+        fo.JobRole,
+        fo.distrct as district,
+        (
+          SELECT COUNT(*)
+          FROM investmentrequest ir 
+          WHERE ir.officerId = fo.id 
+        ) AS jobCount
+      FROM 
+        feildofficer fo
+      WHERE 
+        fo.assignDistrict LIKE ?
+        AND fo.JobRole = ?
+        AND fo.status = 'Approved'
+      ORDER BY 
+        jobCount ASC, fo.firstName, fo.lastName
+    `;
+
+    const params = [`%${district}%`, jobRole];
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+
+
 exports.GetAllGoviCapitalRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
     let sql = `

@@ -1411,15 +1411,50 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
     const countParams = [];
 
     // Add filters for data query - use the actual logic instead of finalStatus column
+
     if (packageStatus) {
       if (packageStatus === 'Pending') {
-        dataWhereClause += ` AND (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending')`;
-      } else if (packageStatus === 'Completed') {
-        dataWhereClause += ` AND (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown'))`;
-      } else if (packageStatus === 'Opened') {
-        dataWhereClause += ` AND (NOT (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending') AND NOT (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown')))`;
+        dataWhereClause += `
+          AND (
+            pfs.finalPackageStatus = 'Pending'
+            OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending'
+          )
+        `;
+      }
+    
+      else if (packageStatus === 'Opened') {
+        dataWhereClause += `
+          AND (
+            pfs.finalPackageStatus != 'Pending'
+            AND COALESCE(aic.additionalItemsStatus, 'Unknown') != 'Pending'
+            AND (
+              pfs.finalPackageStatus = 'Opened'
+              OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Opened'
+            )
+          )
+        `;
+      }
+    
+      else if (packageStatus === 'Completed') {
+        dataWhereClause += `
+          AND (
+            pfs.finalPackageStatus NOT IN ('Pending', 'Opened')
+            AND COALESCE(aic.additionalItemsStatus, 'Unknown') NOT IN ('Pending', 'Opened')
+          )
+        `;
       }
     }
+
+    
+    // if (packageStatus) {
+    //   if (packageStatus === 'Pending') {
+    //     dataWhereClause += ` AND (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending')`;
+    //   } else if (packageStatus === 'Completed') {
+    //     dataWhereClause += ` AND (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown'))`;
+    //   } else if (packageStatus === 'Opened') {
+    //     dataWhereClause += ` AND (NOT (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending') AND NOT (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown')))`;
+    //   }
+    // }
 
     if (date) {
       dataWhereClause += " AND DATE(o.sheduleDate) = ?";
@@ -1432,15 +1467,49 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
     }
 
     // Add filters for count query
+
     if (packageStatus) {
       if (packageStatus === 'Pending') {
-        countWhereClause += ` AND (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending')`;
-      } else if (packageStatus === 'Completed') {
-        countWhereClause += ` AND (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown'))`;
-      } else if (packageStatus === 'Opened') {
-        countWhereClause += ` AND (NOT (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending') AND NOT (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown')))`;
+        countWhereClause += `
+          AND (
+            pfs.finalPackageStatus = 'Pending'
+            OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending'
+          )
+        `;
+      }
+    
+      else if (packageStatus === 'Opened') {
+        countWhereClause += `
+          AND (
+            pfs.finalPackageStatus != 'Pending'
+            AND COALESCE(aic.additionalItemsStatus, 'Unknown') != 'Pending'
+            AND (
+              pfs.finalPackageStatus = 'Opened'
+              OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Opened'
+            )
+          )
+        `;
+      }
+    
+      else if (packageStatus === 'Completed') {
+        countWhereClause += `
+          AND (
+            pfs.finalPackageStatus NOT IN ('Pending', 'Opened')
+            AND COALESCE(aic.additionalItemsStatus, 'Unknown') NOT IN ('Pending', 'Opened')
+          )
+        `;
       }
     }
+    
+    // if (packageStatus) {
+    //   if (packageStatus === 'Pending') {
+    //     countWhereClause += ` AND (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending')`;
+    //   } else if (packageStatus === 'Completed') {
+    //     countWhereClause += ` AND (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown'))`;
+    //   } else if (packageStatus === 'Opened') {
+    //     countWhereClause += ` AND (NOT (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending') AND NOT (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown')))`;
+    //   }
+    // }
 
     if (date) {
       countWhereClause += " AND DATE(o.sheduleDate) = ?";
@@ -1591,11 +1660,15 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
           CONCAT(cof.firstNameEnglish, ' ', cof.lastNameEnglish) AS packBy,
           -- Calculate final status considering both packages and additional items
           CASE
-              WHEN pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending' THEN 'Pending'
-              WHEN pfs.finalPackageStatus = 'Completed' AND 
-                   (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR 
-                    COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown') THEN 'Completed'
-              ELSE 'Opened'
+              WHEN pfs.finalPackageStatus = 'Pending'
+                   OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending'
+              THEN 'Pending'
+              
+              WHEN pfs.finalPackageStatus = 'Opened'
+                   OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Opened'
+              THEN 'Opened'
+              
+              ELSE 'Completed'
           END AS finalStatus,
           pfs.pendingPackages,
           pfs.openedPackages,

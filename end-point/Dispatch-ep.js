@@ -458,6 +458,8 @@ exports.getMarketPlacePremadePackages = async (req, res) => {
       search
     );
 
+    console.log('items', packageData)
+
     // Add combinedStatus to each item in the response
 
     const finalResponse = {

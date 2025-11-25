@@ -1864,13 +1864,9 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         // Get total count
         const totalItems = distributionOrders.length;
 
-        // Apply pagination
-        const paginatedOrders = distributionOrders.slice(offset, offset + limit);
-        console.log('After pagination:', paginatedOrders.length);
-
-        // Get crop and variety information for each product
+        // Get crop and variety information for each product and sort by cropNameEnglish and varietyNameEnglish A-Z
         const enrichedOrders = await Promise.all(
-          paginatedOrders.map(async (order) => {
+          distributionOrders.map(async (order) => {
             const productInfo = await exports.getProductCropVarietyInfo(order.productId);
             return {
               ...order,
@@ -1881,11 +1877,31 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
           })
         );
 
-        console.log('Final enriched orders:', enrichedOrders.length);
+        // Sort enriched orders by cropNameEnglish and varietyNameEnglish A to Z
+        enrichedOrders.sort((a, b) => {
+          // First sort by cropNameEnglish
+          const cropCompare = (a.cropNameEnglish || 'N/A').localeCompare(b.cropNameEnglish || 'N/A');
+          if (cropCompare !== 0) {
+            return cropCompare;
+          }
+          // If cropNameEnglish is the same, sort by varietyNameEnglish
+          return (a.varietyNameEnglish || 'N/A').localeCompare(b.varietyNameEnglish || 'N/A');
+        });
+
+        console.log('After A-Z sorting - First 3 items:', enrichedOrders.slice(0, 3).map(item => ({
+          crop: item.cropNameEnglish,
+          variety: item.varietyNameEnglish
+        })));
+
+        // Apply pagination after sorting
+        const paginatedOrders = enrichedOrders.slice(offset, offset + limit);
+        console.log('After pagination:', paginatedOrders.length);
+
+        console.log('Final enriched orders:', paginatedOrders.length);
         console.log('===================');
 
         resolve({
-          items: enrichedOrders,
+          items: paginatedOrders,
           total: totalItems,
           page: page,
           limit: limit
@@ -1898,6 +1914,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
     });
   });
 };
+
 
 // Helper function: Get center information by centerId (for pickup orders)
 exports.getCenterName = (centerId) => {

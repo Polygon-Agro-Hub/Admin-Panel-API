@@ -1054,65 +1054,167 @@ exports.deletePaymentHistory = async (req, res) => {
   }
 };
 
-exports.getAllGoviCapitalRequests = async (req, res) => {
+
+
+exports.getAllInvestmentRequests = async (req, res) => {
   try {
     const { status, search } = req.query;
 
-    console.log("Fetching all investment requests with filters:", {
-      status,
-      search,
-    });
+    console.log('Fetching all investment requests with filters:', { status, search });
 
     const filters = {};
-
+    
     if (status) {
       filters.status = status;
     }
-
+    
     if (search) {
       filters.search = search;
     }
 
-    const results = await financeDao.GetAllGoviCapitalRequestsDAO(filters);
+    const results = await financeDao.GetAllInvestmentRequestsDAO(filters);
 
     console.log(`Retrieved ${results.length} investment request records`);
-
+    
     res.json({
       count: results.length,
-      data: results,
+      data: results
     });
   } catch (err) {
-    console.error("Error fetching investment requests:", err);
+    console.error('Error fetching investment requests:', err);
     res.status(500).json({
-      error: "An error occurred while fetching investment requests",
+      error: 'An error occurred while fetching investment requests'
     });
   }
 };
 
-exports.getGoviCapitalRequestById = async (req, res) => {
+exports.getInvestmentRequestById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log("Fetching investment request details for ID:", id);
+    console.log('Fetching investment request details for ID:', id);
 
-    const result = await financeDao.GetGoviCapitalRequestByIdDAO(id);
+    const result = await financeDao.GetInvestmentRequestByIdDAO(id);
 
     if (!result) {
       return res.status(404).json({
         status: false,
-        message: "Investment request not found or not rejected",
+        message: 'Investment request not found'
       });
     }
 
     res.json({
       status: true,
-      data: result,
+      data: result
     });
   } catch (err) {
-    console.error("Error fetching investment request details:", err);
+    console.error('Error fetching investment request details:', err);
     res.status(500).json({
       status: false,
-      error: "An error occurred while fetching investment request details",
+      error: 'An error occurred while fetching investment request details'
     });
   }
 };
+
+exports.getOfficersByDistrictAndRoleForInvestment = async (req, res) => {
+  try {
+    const { district, jobRole } = req.query;
+
+    if (!district || !jobRole) {
+      return res.status(400).json({
+        message: "district and jobRole parameters are required",
+        status: false,
+      });
+    }
+
+    const officers = await financeDao.getOfficersByDistrictAndRoleForInvestmentDAO(
+      district,
+      jobRole
+    );
+
+    res.status(200).json({
+      message: "Officers retrieved successfully",
+      status: true,
+      data: officers,
+      total: officers.length,
+    });
+  } catch (err) {
+    console.error("Error fetching officers by district and role:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  }
+};
+
+exports.assignOfficerToInvestmentRequest = async (req, res) => {
+  try {
+    const { requestId, officerId } = req.body;
+    
+    const assignByUserId = req.user?.id || req.user?.userId || req.user?.user_id || req.user?.userID;
+    
+    console.log('Authentication debug:', {
+      user: req.user,
+      assignByUserId: assignByUserId
+    });
+
+    // Validate required fields
+    if (!requestId || !officerId) {
+      return res.status(400).json({
+        message: "requestId and officerId are required",
+        status: false,
+      });
+    }
+
+    const investmentRequestId = parseInt(requestId);
+    if (isNaN(investmentRequestId)) {
+      return res.status(400).json({
+        message: "requestId must be a valid number",
+        status: false,
+      });
+    }
+
+    // Validate officerId is a number
+    const assignOfficerId = parseInt(officerId);
+    if (isNaN(assignOfficerId)) {
+      return res.status(400).json({
+        message: "officerId must be a valid number",
+        status: false,
+      });
+    }
+
+    if (!assignByUserId) {
+      console.warn('assignByUserId not found in req.user, proceeding without it');
+    }
+
+    // Assign officer using DAO
+    const result = await financeDao.assignOfficerToInvestmentRequestDAO(
+      investmentRequestId,
+      assignOfficerId,
+      assignByUserId
+    );
+
+    res.status(200).json({
+      message: "Officer assigned successfully",
+      status: true,
+      data: result,
+    });
+  } catch (err) {
+    console.error("Error assigning officer to investment request:", err);
+
+    if (err.message.includes("not found")) {
+      return res.status(404).json({
+        message: err.message,
+        status: false,
+      });
+    }
+
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  }
+};
+
