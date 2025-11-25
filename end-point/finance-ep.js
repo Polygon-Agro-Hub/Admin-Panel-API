@@ -7,7 +7,7 @@ const {
   getAllFarmerPaymentsSchema,
   createPaymentHistorySchema,
   updatePaymentHistorySchema,
-  paymentHistoryIdSchema
+  paymentHistoryIdSchema,
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
@@ -339,8 +339,9 @@ exports.getCertificateDashboardData = async (req, res) => {
         farmerName: payment.farmerName,
         validityPeriod:
           payment.validityMonths > 0
-            ? `${payment.validityMonths} month${payment.validityMonths !== 1 ? "s" : ""
-            }`
+            ? `${payment.validityMonths} month${
+                payment.validityMonths !== 1 ? "s" : ""
+              }`
             : "Expired",
         amount: payment.amount,
         dateTime: payment.dateTime,
@@ -386,9 +387,9 @@ exports.getAllServicePayments = async (req, res) => {
     // Extract and set default values for query parameters
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || '';
-    const fromDate = req.query.fromDate || '';
-    const toDate = req.query.toDate || '';
+    const search = req.query.search || "";
+    const fromDate = req.query.fromDate || "";
+    const toDate = req.query.toDate || "";
 
     // Basic validation
     if (page < 1) {
@@ -428,9 +429,9 @@ exports.getAllCertificatePayments = async (req, res) => {
     // Extract and set default values for query parameters
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || '';
-    const fromDate = req.query.fromDate || '';
-    const toDate = req.query.toDate || '';
+    const search = req.query.search || "";
+    const fromDate = req.query.fromDate || "";
+    const toDate = req.query.toDate || "";
 
     // Basic validation
     if (page < 1) {
@@ -595,7 +596,6 @@ exports.createAgentCommission = async (req, res) => {
 // Update agent commission
 exports.updateAgentCommission = async (req, res) => {
   try {
-
     // Validate ID parameter
     const idValidation = idSchema.validate({ id: req.params.id });
     if (idValidation.error) {
@@ -628,10 +628,20 @@ exports.updateAgentCommission = async (req, res) => {
     }
 
     // Check for overlapping ranges if minRange or maxRange are being updated
-    const minRange = value.minRange !== undefined ? value.minRange : existingCommission.minRange;
-    const maxRange = value.maxRange !== undefined ? value.maxRange : existingCommission.maxRange;
+    const minRange =
+      value.minRange !== undefined
+        ? value.minRange
+        : existingCommission.minRange;
+    const maxRange =
+      value.maxRange !== undefined
+        ? value.maxRange
+        : existingCommission.maxRange;
 
-    const rangeOverlap = await financeDao.checkRangeOverlap(minRange, maxRange, id);
+    const rangeOverlap = await financeDao.checkRangeOverlap(
+      minRange,
+      maxRange,
+      id
+    );
     if (rangeOverlap) {
       return res.status(400).json({
         status: false,
@@ -655,7 +665,10 @@ exports.updateAgentCommission = async (req, res) => {
       modifyDate: new Date(),
     };
 
-    const updatedCommission = await financeDao.updateAgentCommission(id, updateData);
+    const updatedCommission = await financeDao.updateAgentCommission(
+      id,
+      updateData
+    );
 
     return res.status(200).json({
       status: true,
@@ -712,7 +725,6 @@ exports.deleteAgentCommission = async (req, res) => {
   }
 };
 
-
 exports.getALlFarmerPayments = async (req, res) => {
   try {
     // Validate ID parameter
@@ -726,16 +738,17 @@ exports.getALlFarmerPayments = async (req, res) => {
     }
     console.log(value.date);
 
-
     // Check if commission exists
-    const result = await financeDao.getAllFarmerPaymentDao(value.date, value.bank);
+    const result = await financeDao.getAllFarmerPaymentDao(
+      value.date,
+      value.bank
+    );
     if (!result) {
       return res.status(404).json({
         status: false,
         message: "Farmer Payemnt not found",
       });
     }
-
 
     return res.status(200).json({
       status: true,
@@ -751,7 +764,6 @@ exports.getALlFarmerPayments = async (req, res) => {
   }
 };
 
-
 exports.createPaymentHistory = async (req, res) => {
   try {
     // Joi validation
@@ -762,24 +774,29 @@ exports.createPaymentHistory = async (req, res) => {
     const { receivers, amount, paymentReference } = validatedBody;
     const issueBy = req.user.id; // From JWT token
 
-    console.log('Creating payment history:', { receivers, amount, paymentReference });
+    console.log("Creating payment history:", {
+      receivers,
+      amount,
+      paymentReference,
+    });
 
     // File validation
     if (!req.file) {
       return res.status(400).json({
-        error: 'Excel file is required'
+        error: "Excel file is required",
       });
     }
 
     // Validate file type
-    const allowedExtensions = ['.xlsx', '.xls', '.csv'];
-    const fileExtension = req.file.originalname.substring(
-      req.file.originalname.lastIndexOf('.')
-    ).toLowerCase();
+    const allowedExtensions = [".xlsx", ".xls", ".csv"];
+    const fileExtension = req.file.originalname
+      .substring(req.file.originalname.lastIndexOf("."))
+      .toLowerCase();
 
     if (!allowedExtensions.includes(fileExtension)) {
       return res.status(400).json({
-        error: 'Invalid file type. Only Excel files (.xlsx, .xls, .csv) are allowed'
+        error:
+          "Invalid file type. Only Excel files (.xlsx, .xls, .csv) are allowed",
       });
     }
 
@@ -787,10 +804,10 @@ exports.createPaymentHistory = async (req, res) => {
     const xlLink = await uploadFileToS3(
       req.file.buffer,
       req.file.originalname,
-      'payment-history'
+      "payment-history"
     );
 
-    console.log('File uploaded to R2:', xlLink);
+    console.log("File uploaded to R2:", xlLink);
 
     // Insert into database
     const result = await financeDao.InsertPaymentHistoryDAO(
@@ -801,24 +818,24 @@ exports.createPaymentHistory = async (req, res) => {
       issueBy
     );
 
-    console.log('Payment history created successfully');
+    console.log("Payment history created successfully");
     res.status(201).json({
-      message: 'Payment history created successfully',
+      message: "Payment history created successfully",
       id: result.insertId,
-      xlLink: xlLink
+      xlLink: xlLink,
     });
   } catch (err) {
     // Handle Joi validation errors
     if (err.isJoi) {
       return res.status(400).json({
-        error: 'Validation error',
-        details: err.details.map(detail => detail.message)
+        error: "Validation error",
+        details: err.details.map((detail) => detail.message),
       });
     }
 
-    console.error('Error creating payment history:', err);
+    console.error("Error creating payment history:", err);
     res.status(500).json({
-      error: 'An error occurred while creating payment history'
+      error: "An error occurred while creating payment history",
     });
   }
 };
@@ -839,14 +856,14 @@ exports.updatePaymentHistory = async (req, res) => {
     const { receivers, amount, paymentReference } = validatedBody;
     const modifyBy = req.user.id; // From JWT token
 
-    console.log('Updating payment history:', id);
+    console.log("Updating payment history:", id);
 
     // Get existing record
     const existingRecord = await financeDao.GetPaymentHistoryByIdDAO(id);
 
     if (!existingRecord) {
       return res.status(404).json({
-        error: 'Payment history record not found'
+        error: "Payment history record not found",
       });
     }
 
@@ -855,14 +872,15 @@ exports.updatePaymentHistory = async (req, res) => {
     // If new file is uploaded
     if (req.file) {
       // Validate file type
-      const allowedExtensions = ['.xlsx', '.xls', '.csv'];
-      const fileExtension = req.file.originalname.substring(
-        req.file.originalname.lastIndexOf('.')
-      ).toLowerCase();
+      const allowedExtensions = [".xlsx", ".xls", ".csv"];
+      const fileExtension = req.file.originalname
+        .substring(req.file.originalname.lastIndexOf("."))
+        .toLowerCase();
 
       if (!allowedExtensions.includes(fileExtension)) {
         return res.status(400).json({
-          error: 'Invalid file type. Only Excel files (.xlsx, .xls, .csv) are allowed'
+          error:
+            "Invalid file type. Only Excel files (.xlsx, .xls, .csv) are allowed",
         });
       }
 
@@ -870,9 +888,9 @@ exports.updatePaymentHistory = async (req, res) => {
       if (existingRecord.xlLink) {
         try {
           await deleteFromS3(existingRecord.xlLink);
-          console.log('Old file deleted from R2');
+          console.log("Old file deleted from R2");
         } catch (deleteError) {
-          console.error('Error deleting old file:', deleteError);
+          console.error("Error deleting old file:", deleteError);
           // Continue even if deletion fails
         }
       }
@@ -881,10 +899,10 @@ exports.updatePaymentHistory = async (req, res) => {
       xlLink = await uploadFileToS3(
         req.file.buffer,
         req.file.originalname,
-        'payment-history'
+        "payment-history"
       );
 
-      console.log('New file uploaded to R2:', xlLink);
+      console.log("New file uploaded to R2:", xlLink);
     }
 
     // Update database
@@ -897,77 +915,78 @@ exports.updatePaymentHistory = async (req, res) => {
       modifyBy
     );
 
-    console.log('Payment history updated successfully');
+    console.log("Payment history updated successfully");
     res.json({
-      message: 'Payment history updated successfully',
-      xlLink: xlLink
+      message: "Payment history updated successfully",
+      xlLink: xlLink,
     });
   } catch (err) {
     // Handle Joi validation errors
     if (err.isJoi) {
       return res.status(400).json({
-        error: 'Validation error',
-        details: err.details.map(detail => detail.message)
+        error: "Validation error",
+        details: err.details.map((detail) => detail.message),
       });
     }
 
-    if (err.message === 'Payment history record not found') {
+    if (err.message === "Payment history record not found") {
       return res.status(404).json({
-        error: 'Payment history record not found'
+        error: "Payment history record not found",
       });
     }
 
-    console.error('Error updating payment history:', err);
+    console.error("Error updating payment history:", err);
     res.status(500).json({
-      error: 'An error occurred while updating payment history'
+      error: "An error occurred while updating payment history",
     });
   }
 };
-
 
 exports.getPaymentHistoryById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log('Fetching payment history by ID:', id);
+    console.log("Fetching payment history by ID:", id);
 
     const result = await financeDao.GetPaymentHistoryByIdDAO(id);
 
     if (!result) {
       return res.status(404).json({
-        error: 'Payment history record not found'
+        error: "Payment history record not found",
       });
     }
 
-    console.log('Payment history retrieved successfully');
+    console.log("Payment history retrieved successfully");
     res.json(result);
   } catch (err) {
-    console.error('Error fetching payment history:', err);
+    console.error("Error fetching payment history:", err);
     res.status(500).json({
-      error: 'An error occurred while fetching payment history'
+      error: "An error occurred while fetching payment history",
     });
   }
 };
-
-
 
 exports.getAllPaymentHistory = async (req, res) => {
   try {
     const { receivers, issuedDate, search } = req.query;
 
-    console.log('Fetching all payment history with filters:', { receivers, issuedDate, search });
+    console.log("Fetching all payment history with filters:", {
+      receivers,
+      issuedDate,
+      search,
+    });
 
     // Build filters object
     const filters = {};
-    
+
     if (receivers) {
       filters.receivers = receivers;
     }
-    
+
     if (issuedDate) {
       filters.issuedDate = issuedDate;
     }
-    
+
     if (search) {
       filters.search = search;
     }
@@ -975,33 +994,31 @@ exports.getAllPaymentHistory = async (req, res) => {
     const results = await financeDao.GetAllPaymentHistoryDAO(filters);
 
     console.log(`Retrieved ${results.length} payment history records`);
-    
+
     res.json({
       count: results.length,
-      data: results
+      data: results,
     });
   } catch (err) {
-    console.error('Error fetching payment history:', err);
+    console.error("Error fetching payment history:", err);
     res.status(500).json({
-      error: 'An error occurred while fetching payment history'
+      error: "An error occurred while fetching payment history",
     });
   }
 };
-
-
 
 exports.deletePaymentHistory = async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log('Deleting payment history:', id);
+    console.log("Deleting payment history:", id);
 
     // Get existing record to delete file from R2
     const existingRecord = await financeDao.GetPaymentHistoryByIdDAO(id);
 
     if (!existingRecord) {
       return res.status(404).json({
-        error: 'Payment history record not found'
+        error: "Payment history record not found",
       });
     }
 
@@ -1009,9 +1026,9 @@ exports.deletePaymentHistory = async (req, res) => {
     if (existingRecord.xlLink) {
       try {
         await deleteFromS3(existingRecord.xlLink);
-        console.log('File deleted from R2:', existingRecord.xlLink);
+        console.log("File deleted from R2:", existingRecord.xlLink);
       } catch (deleteError) {
-        console.error('Error deleting file from R2:', deleteError);
+        console.error("Error deleting file from R2:", deleteError);
         // Continue with database deletion even if file deletion fails
       }
     }
@@ -1019,20 +1036,83 @@ exports.deletePaymentHistory = async (req, res) => {
     // Delete from database
     await financeDao.DeletePaymentHistoryDAO(id);
 
-    console.log('Payment history deleted successfully');
+    console.log("Payment history deleted successfully");
     res.json({
-      message: 'Payment history deleted successfully'
+      message: "Payment history deleted successfully",
     });
   } catch (err) {
-    if (err.message === 'Payment history record not found') {
+    if (err.message === "Payment history record not found") {
       return res.status(404).json({
-        error: 'Payment history record not found'
+        error: "Payment history record not found",
       });
     }
 
-    console.error('Error deleting payment history:', err);
+    console.error("Error deleting payment history:", err);
     res.status(500).json({
-      error: 'An error occurred while deleting payment history'
+      error: "An error occurred while deleting payment history",
+    });
+  }
+};
+
+exports.getAllGoviCapitalRequests = async (req, res) => {
+  try {
+    const { status, search } = req.query;
+
+    console.log("Fetching all investment requests with filters:", {
+      status,
+      search,
+    });
+
+    const filters = {};
+
+    if (status) {
+      filters.status = status;
+    }
+
+    if (search) {
+      filters.search = search;
+    }
+
+    const results = await financeDao.GetAllGoviCapitalRequestsDAO(filters);
+
+    console.log(`Retrieved ${results.length} investment request records`);
+
+    res.json({
+      count: results.length,
+      data: results,
+    });
+  } catch (err) {
+    console.error("Error fetching investment requests:", err);
+    res.status(500).json({
+      error: "An error occurred while fetching investment requests",
+    });
+  }
+};
+
+exports.getGoviCapitalRequestById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log("Fetching investment request details for ID:", id);
+
+    const result = await financeDao.GetGoviCapitalRequestByIdDAO(id);
+
+    if (!result) {
+      return res.status(404).json({
+        status: false,
+        message: "Investment request not found or not rejected",
+      });
+    }
+
+    res.json({
+      status: true,
+      data: result,
+    });
+  } catch (err) {
+    console.error("Error fetching investment request details:", err);
+    res.status(500).json({
+      status: false,
+      error: "An error occurred while fetching investment request details",
     });
   }
 };
