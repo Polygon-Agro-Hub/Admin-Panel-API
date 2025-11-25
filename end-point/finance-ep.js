@@ -1218,3 +1218,34 @@ exports.assignOfficerToInvestmentRequest = async (req, res) => {
   }
 };
 
+exports.getAllRejectedInvestmentRequests = async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    console.log("Fetching all rejected investment requests with search:", {
+      search,
+    });
+
+    // Build filters object
+    const filters = {};
+
+    if (search) {
+      filters.search = search;
+    }
+
+    const results = await financeDao.GetAllRejectedInvestmentRequestsDAO(filters);
+
+    console.log(`Retrieved ${results.length} rejected investment requests`);
+
+    res.json({
+      count: results.length,
+      data: results,
+    });
+  } catch (err) {
+    console.error("Error fetching rejected investment requests:", err);
+    res.status(500).json({
+      error: "An error occurred while fetching rejected investment requests",
+    });
+  }
+};
+

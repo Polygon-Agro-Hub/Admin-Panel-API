@@ -1493,105 +1493,67 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
   });
 };
 
-
-
-exports.GetAllGoviCapitalRequestsDAO = (filters = {}) => {
+exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-        ir.id AS No,
-        ir.jobId AS Request_ID,
-        CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
-        u.phoneNumber AS Phone_number,
-        co.empId,
-        CASE 
-          WHEN ir.officerId IS NULL THEN 'Not Assigned'
-          ELSE 'Assigned'
-        END AS Status,
-        COALESCE(co.empId, '--') AS Officer_ID,
-        ir.nicFront AS NIC_Front_Image,
-        ir.nicBack AS NIC_Back_Image,
-        DATE_FORMAT(ir.createdAt, '%M %d, %Y') AS Requested_On,
-        COALESCE(ao.userName, '--') AS Assigned_By
-      FROM investmentrequest ir
-      INNER JOIN users u ON ir.farmerId = u.id
-      LEFT JOIN feildofficer co ON ir.officerId = co.id
-      LEFT JOIN agro_world_admin.adminusers ao ON ir.assignedBy = ao.id
-      WHERE 1=1
+        ir.id,
+        ir.varietyId,
+        ir.certificateId,
+        ir.farmerId,
+        ir.officerId,
+        ir.jobId,
+        ir.extentha,
+        ir.extentac,
+        ir.extentp,
+        ir.investment,
+        ir.expectedYield,
+        ir.startDate,
+        ir.nicFront,
+        ir.nicBack,
+        ir.assignDate,
+        ir.publishDate,
+        ir.assignedBy,
+        ir.reqStatus,
+        ir.reqCahangeTime,
+        ir.publishStatus,
+        ir.createdAt,
+        rir.reason AS rejectionReason,
+        rir.createdAt AS rejectedAt,
+        u.firstName,
+        u.lastName,
+        u.phoneNumber,
+        u.NICnumber,
+        cv.varietyNameEnglish,
+        cg.cropNameEnglish,
+        c.srtName AS certificateName
+      FROM plant_care.investmentrequest ir
+      INNER JOIN plant_care.rejectinvestmentrequest rir ON ir.id = rir.reqId
+      LEFT JOIN plant_care.users u ON ir.farmerId = u.id
+      LEFT JOIN plant_care.cropvariety cv ON ir.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN plant_care.certificates c ON ir.certificateId = c.id
+      WHERE ir.reqStatus = 'Rejected'
     `;
 
     const params = [];
 
-    // Filter by Rejected status
-    sql += ` AND ir.reqStatus = 'Rejected'`;
-
-    // Filter by assignment status (Not Assigned or Assigned)
-    if (filters.status) {
-      if (filters.status === 'Not Assigned') {
-        sql += ` AND ir.officerId IS NULL`;
-      } else if (filters.status === 'Assigned') {
-        sql += ` AND ir.officerId IS NOT NULL`;
-      }
-    }
-
-    // Search filter (searches in Request ID, Phone Number, Collection Officer EMP ID)
+    // Only keep general search function (searches in both reqId and phoneNumber)
     if (filters.search) {
-      sql += ` AND (
-        ir.jobId LIKE ? OR 
-        u.phoneNumber LIKE ? OR 
-        co.empId LIKE ?
-      )`;
+      sql += ` AND (ir.id LIKE ? OR u.phoneNumber LIKE ?)`;
       const searchTerm = `%${filters.search}%`;
-      params.push(searchTerm, searchTerm, searchTerm);
+      params.push(searchTerm, searchTerm);
     }
 
-    // Order by most recent first
-    sql += ` ORDER BY ir.createdAt DESC`;
+    // Order by most recent rejection first
+    sql += ` ORDER BY rir.createdAt DESC`;
 
-    plantcare.query(sql, params, (err, results) => {
+    admin.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
       resolve(results);
     });
-  });
-};
 
-exports.GetGoviCapitalRequestByIdDAO = (requestId) => {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT 
-        ir.jobId AS Request_ID,
-        CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
-        u.NICnumber AS NIC_Number,
-        u.phoneNumber AS Phone_number,
-        cg.cropNameEnglish AS Crop,
-        cv.varietyNameEnglish AS Variety,
-        cert.srtName AS Certificate,
-        CONCAT(
-          COALESCE(ir.extentha, 0), ' Acres ',
-          COALESCE(ir.extentac, 0), ' Perches'
-        ) AS Extent,
-        ir.investment AS Expected_Investment,
-        CONCAT(ir.expectedYield, 'kg') AS Expected_Yield,
-        DATE_FORMAT(ir.startDate, '%M %d, %Y') AS Expected_Start_Date,
-        DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
-        rir.reason AS Rejection_Reason
-      FROM investmentrequest ir
-      INNER JOIN users u ON ir.farmerId = u.id
-      LEFT JOIN cropvariety cv ON ir.varietyId = cv.id
-      LEFT JOIN cropgroup cg ON cv.cropGroupId = cg.id
-      LEFT JOIN certificates cert ON ir.certificateId = cert.id
-      LEFT JOIN rejectinvestmentrequest rir ON ir.jobId = rir.reqId
-      WHERE ir.jobId = ? AND ir.reqStatus = 'Rejected'
-      LIMIT 1
-    `;
-
-    plantcare.query(sql, [requestId], (err, results) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve(results[0] || null);
-    });
   });
 };
