@@ -3620,9 +3620,6 @@ exports.getFieldOfficerById = async (req, res) => {
       id: req.params.id
     });
 
-    // const id = req.params.id
-
-    console.log('id', id);
 
     const officerData = await adminDao.getFieldOfficerByIdDAO(id);
 
@@ -3889,7 +3886,6 @@ exports.updateFieldOfficer = async (req, res) => {
 
     // Handle irmId logic based on job role
     if (
-      officerData.jobRole === "Field Officer" ||
       officerData.jobRole === "Chief Field Officer"
     ) {
       officerData.irmId = null;

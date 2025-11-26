@@ -4684,12 +4684,9 @@ exports.getFieldOfficerByIdDAO = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
           SELECT 
-              FO.*,
-              FC.companyName
+              FO.*
           FROM 
               feildofficer FO
-          LEFT JOIN 
-              feildcompany FC ON FO.companyId = FC.id
           WHERE 
               FO.id = ?`;
 
@@ -4745,7 +4742,6 @@ exports.getFieldOfficerByIdDAO = (id) => {
           assignDistricts: assignDistrictsArray,
           comAmount: officer.comAmount,
           language: officer.language,
-          companyId: officer.companyId,
           irmId: officer.irmId,
         },
       });
