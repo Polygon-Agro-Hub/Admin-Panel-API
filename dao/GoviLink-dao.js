@@ -617,8 +617,6 @@ exports.GetFieldOfficerComplainByIdDAO = (id) => {
         CONCAT(fo.firstNameTamil, ' ', fo.lastNameTamil) AS officerNameTamil,
         fo.phoneNumber1,
         fo.email,
-        fc.id AS companyId,
-        fc.companyName AS companyName,
         foc.complainCategory AS complainCategoryId,
         cc.categoryEnglish AS complainCategory,
         cc.categorySinhala AS complainCategorySinhala,
@@ -634,7 +632,6 @@ exports.GetFieldOfficerComplainByIdDAO = (id) => {
       FROM feildofficercomplains foc
       LEFT JOIN feildofficer fo ON foc.officerId = fo.id
       LEFT JOIN agro_world_admin.complaincategory cc ON foc.complainCategory = cc.id
-      LEFT JOIN feildcompany fc ON fo.companyId = fc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
       LEFT JOIN agro_world_admin.adminusers au ON foc.adminReplyBy = au.id
       WHERE foc.id = ?
