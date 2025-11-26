@@ -335,7 +335,8 @@ exports.getAllDistributionCentreHead = (
 ) => {
   return new Promise((resolve, reject) => {
     let countSql = `SELECT COUNT(*) AS total FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Centre Head'`;
-    let dataSql = `SELECT 
+    let dataSql = `
+    SELECT 
         co.id,
         co.empId,
         co.firstNameEnglish,
@@ -346,7 +347,13 @@ exports.getAllDistributionCentreHead = (
         co.phoneNumber01,
         co.phoneCode02,
         co.phoneNumber02,
-        co.createdAt FROM collectionofficer co WHERE co.companyId = ? AND co.jobRole = 'Distribution Centre Head'`;
+        CONCAT(coff_mod.firstNameEnglish, ' ', coff_mod.lastNameEnglish) AS officeModify,
+        au.userName AS adminModify,
+        co.createdAt 
+    FROM collectionofficer co
+    LEFT JOIN collectionofficer coff_mod ON co.officerModiyBy = coff_mod.id
+    LEFT JOIN agro_world_admin.adminusers au ON co.adminModifyBy = au.id
+    WHERE co.companyId = ? AND co.jobRole = 'Distribution Centre Head'`;
     const countParams = [companyId];
     const dataParams = [companyId];
 
@@ -687,7 +694,7 @@ exports.GetDistributionHeadDetailsByIdDao = (id) => {
 };
 
 
-exports.UpdateDistributionHeadDao = (id, updateData) => {
+exports.UpdateDistributionHeadDao = (id, updateData, adminId) => {
   console.log("id", id);
   console.log("updateData", updateData);
 
@@ -700,7 +707,7 @@ exports.UpdateDistributionHeadDao = (id, updateData) => {
         phoneCode02 = ?, phoneNumber02 = ?, nic = ?, email = ?, houseNumber = ?, 
         streetName = ?, city = ?, district = ?, province = ?, country = ?, 
         languages = ?, accHolderName = ?, accNumber = ?, bankName = ?, 
-        branchName = ?, image = ?, status = ?, claimStatus = ?, onlineStatus = ?
+        branchName = ?, image = ?, status = ?, claimStatus = ?, onlineStatus = ?, adminModifyBy = ?, officerModiyBy = NULL, password = NULL, passwordUpdated = 0
       WHERE id = ?
     `;
 
@@ -730,9 +737,10 @@ exports.UpdateDistributionHeadDao = (id, updateData) => {
       updateData.bankName,
       updateData.branchName,
       updateData.image,
-      updateData.status,
+      'Not Approved',
       updateData.claimStatus,
       updateData.onlineStatus,
+      adminId,
       id,
     ];
 
@@ -1055,10 +1063,15 @@ exports.getAllDistributionOfficers = (
                 coff.phoneNumber01,
                 coff.nic,
                 cm.companyNameEnglish,
-                dc.centerName
+                dc.centerName,
+                dc.regCode,
+                CONCAT(coff_mod.firstNameEnglish, ' ', coff_mod.lastNameEnglish) AS officeModify,
+                au.userName AS adminModify
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
+            LEFT JOIN collectionofficer coff_mod ON coff.officerModiyBy = coff_mod.id
+            LEFT JOIN agro_world_admin.adminusers au ON coff.adminModifyBy = au.id
             WHERE coff.jobRole IN ('Distribution Centre Manager', 'Distribution Officer') AND cm.id = 2
         `;
 
@@ -1985,12 +1998,12 @@ exports.getCenterAndCompanyIdDao = (companyCenteerId) => {
 };
 
 
-exports.getDistributionOutForDlvrOrderDao = (id, searchText, filterDate) => {
+exports.getDistributionOutForDlvrOrderDao = (id, searchText, filterDate, status) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [id];
     let sql = `
         SELECT 
-        po.id,
+            po.id,
             po.invNo,
             cof.firstNameEnglish,
             cof.lastNameEnglish,
@@ -2018,6 +2031,15 @@ exports.getDistributionOutForDlvrOrderDao = (id, searchText, filterDate) => {
     if (filterDate) {
       sql += ` AND DATE(po.outDlvrDate) = ? `;
       sqlParams.push(filterDate);
+    }
+
+    // Add status filter (only 'On Time' or 'Late')
+    if (status) {
+      if (status === 'On Time') {
+        sql += ` AND po.outDlvrDate IS NOT NULL AND po.outDlvrDate <= o.sheduleDate `;
+      } else if (status === 'Late') {
+        sql += ` AND po.outDlvrDate IS NOT NULL AND po.outDlvrDate > o.sheduleDate `;
+      }
     }
 
     collectionofficer.query(sql, sqlParams, (err, results) => {
@@ -2062,7 +2084,8 @@ exports.updateDistributionOfficerDetails = (
   accNumber,
   bankName,
   branchName,
-  profileImageUrl
+  profileImageUrl,
+  adminId
 ) => {
   return new Promise((resolve, reject) => {
     let sql = `
@@ -2070,7 +2093,7 @@ exports.updateDistributionOfficerDetails = (
                 SET distributedCenterId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
                     firstNameTamil = ?, lastNameTamil = ?, jobRole = ?, empId = ?, empType = ?, phoneCode01 = ?, phoneNumber01 = ?, phoneCode02 = ?, phoneNumber02 = ?,
                     nic = ?, email = ?, houseNumber = ?, streetName = ?, city = ?, district = ?, province = ?, country = ?, languages = ?,
-                    accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?, status = 'Not Approved'
+                    accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?,  adminModifyBy = ?, status = 'Not Approved', officerModiyBy = NULL
           `;
     let values = [
       centerId,
@@ -2103,6 +2126,7 @@ exports.updateDistributionOfficerDetails = (
       bankName,
       branchName,
       profileImageUrl,
+      adminId
     ];
 
     sql += ` WHERE id = ?`;
@@ -2148,27 +2172,133 @@ exports.EditCheckEmailExist = async (email, excludeId = null) => {
 };
 
 
-exports.getOfficerDailyDistributionTargetDao = async (id) => {
+exports.getOfficerDailyDistributionTargetDao = async (id, date) => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-      	dt.id,
-      	dt.target,
-      	dt.complete,
-      	cof.empId,
-      	cof.firstNameEnglish,
-      	cof.lastNameEnglish
+        dt.id,
+        dt.target,
+        dt.complete,
+        cof.empId,
+        cof.firstNameEnglish,
+        cof.lastNameEnglish,
+        dti.id AS targetId
       FROM distributedtarget dt
       JOIN collectionofficer cof ON dt.userId = cof.id
-      WHERE dt.companycenterId = ?
+      LEFT JOIN distributedtargetitems dti ON dti.targetId = dt.id
+      WHERE dt.companycenterId = ? AND DATE(dt.createdAt) = DATE(?)
     `;
-    const params = [id];
+    const params = [id, date];
     collectionofficer.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
   });
 };
+
+
+exports.getSelectTargetItems = (targetId, searchText = '', status = '') => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      WITH package_item_statuses AS (
+        SELECT 
+          op.orderId,
+          op.id AS packageId,
+          COUNT(*) AS totalItems,
+          SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems,
+          CASE
+            WHEN COUNT(*) = 0 THEN 'Unknown'
+            WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
+            WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+            WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+            ELSE 'Unknown'
+          END AS packageItemStatus
+        FROM market_place.orderpackageitems opi
+        JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
+        GROUP BY op.orderId, op.id
+      ),
+      package_item_counts AS (
+        SELECT
+          orderId,
+          CASE
+            WHEN SUM(CASE WHEN packageItemStatus = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
+            WHEN SUM(CASE WHEN packageItemStatus = 'Opened' THEN 1 ELSE 0 END) > 0 THEN 'Opened'
+            WHEN SUM(CASE WHEN packageItemStatus = 'Completed' THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+            ELSE 'Unknown'
+          END AS packageStatus,
+          SUM(totalItems) AS totalItems,
+          SUM(packedItems) AS packedItems
+        FROM package_item_statuses
+        GROUP BY orderId
+      ),
+      additional_items_counts AS (
+        SELECT 
+          orderId,
+          COUNT(*) AS totalAdditionalItems,
+          SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
+          CASE
+            WHEN COUNT(*) = 0 THEN 'Unknown'
+            WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
+            WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
+              AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+            WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+            ELSE 'Unknown'
+          END AS additionalItemsStatus
+        FROM market_place.orderadditionalitems
+        GROUP BY orderId
+      )
+      SELECT
+        dti.id,
+        dti.orderId as processOrderId,
+        dti.isComplete,
+        dti.completeTime,
+        po.id as orderId,
+        po.invNo,
+        o.sheduleDate,
+        o.sheduleTime,
+        dt.userId as officerId,
+        e.empId,
+        e.firstNameEnglish,
+        e.lastNameEnglish,
+        COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
+        COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
+        CASE 
+          WHEN dti.isComplete = 0 THEN 'Not Complete'
+          WHEN dti.completeTime IS NULL THEN 'Not Complete'
+          WHEN dti.completeTime < o.sheduleDate THEN 'On Time'
+          WHEN dti.completeTime >= o.sheduleDate THEN 'Late'
+          ELSE 'Not Complete'
+        END AS completeTimeStatus
+      FROM distributedtargetitems dti
+      LEFT JOIN market_place.processorders po ON dti.orderId = po.id
+      LEFT JOIN package_item_counts pic ON pic.orderId = po.id
+      LEFT JOIN additional_items_counts aic ON aic.orderId = po.id
+      LEFT JOIN market_place.orders o ON po.orderId = o.id
+      LEFT JOIN distributedtarget dt ON dti.targetId = dt.id
+      LEFT JOIN collectionofficer e ON dt.userId = e.id
+      WHERE dti.targetId = ?
+    `;
+
+    const params = [targetId];
+
+    // Add search filter
+    if (searchText) {
+      sql += ` AND po.invNo LIKE ?`;
+      params.push(`%${searchText}%`);
+    }
+
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+
+
 
 exports.getDistributedCompanyCenter = (companyId, centerId) => {
   return new Promise((resolve, reject) => {

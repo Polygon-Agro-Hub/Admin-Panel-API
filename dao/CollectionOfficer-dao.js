@@ -421,18 +421,40 @@ exports.getAllCollectionOfficers = (
                 coff.phoneCode01,
                 coff.phoneNumber01,
                 coff.nic,
+                -- Show officer name instead of ID for officerModiyBy
+                CASE 
+                    WHEN coff.officerModiyBy IS NOT NULL THEN CONCAT(coff_modify.firstNameEnglish, ' ', coff_modify.lastNameEnglish)
+                    ELSE NULL
+                END as officerModiyBy,
+                -- Show admin username instead of ID for adminModifyBy
+                CASE 
+                    WHEN coff.adminModifyBy IS NOT NULL THEN admin_users.userName
+                    ELSE NULL
+                END as adminModifyBy,
                 cm.companyNameEnglish,
-                cc.centerName
+                cc.centerName,
+                cc.regCode,
+                CASE 
+                    WHEN coff.adminModifyBy IS NOT NULL THEN 'Admin'
+                    WHEN coff.officerModiyBy IS NOT NULL THEN 'Officer'
+                    ELSE 'None'
+                END as modifiedByType,
+                CASE 
+                    WHEN coff.adminModifyBy IS NOT NULL THEN admin_users.userName
+                    WHEN coff.officerModiyBy IS NOT NULL THEN CONCAT(coff_modify.firstNameEnglish, ' ', coff_modify.lastNameEnglish)
+                    ELSE 'Not Modified'
+                END as modifiedBy
             FROM collectionofficer coff
             JOIN company cm ON coff.companyId = cm.id
             LEFT JOIN collectioncenter cc ON coff.centerId = cc.id
+            LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
+            LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
             WHERE coff.jobRole IN ('Collection Centre Manager', 'Collection Officer') AND cm.id = 1
         `;
 
     const countParams = [];
     const dataParams = [];
 
-    // Apply filters for company ID
     if (companyid) {
       countSql += " AND cm.id = ?";
       dataSql += " AND cm.id = ?";
@@ -517,7 +539,6 @@ exports.getAllCollectionOfficers = (
       );
     }
 
-    // Modified ORDER BY to prioritize CCMs and sort by empId ASC, then others by createdAt DESC
     dataSql += `
       ORDER BY 
         CASE WHEN coff.jobRole = 'Collection Centre Manager' THEN 0 ELSE 1 END,
@@ -525,11 +546,9 @@ exports.getAllCollectionOfficers = (
         CASE WHEN coff.jobRole = 'Collection Officer' THEN coff.createdAt END DESC
     `;
 
-    // Add pagination to the data query
     dataSql += " LIMIT ? OFFSET ?";
     dataParams.push(limit, offset);
 
-    // Execute count query
     collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
@@ -538,7 +557,6 @@ exports.getAllCollectionOfficers = (
 
       const total = countResults[0].total;
 
-      // Execute data query
       collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
@@ -900,7 +918,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => {});
+    doc.on("end", () => { });
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -1313,7 +1331,8 @@ exports.updateOfficerDetails = (
   accNumber,
   bankName,
   branchName,
-  profileImageUrl
+  profileImageUrl,
+  adminId
 ) => {
   return new Promise((resolve, reject) => {
     let sql = `
@@ -1321,7 +1340,7 @@ exports.updateOfficerDetails = (
                 SET centerId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
                     firstNameTamil = ?, lastNameTamil = ?, jobRole = ?, empId = ?, empType = ?, phoneCode01 = ?, phoneNumber01 = ?, phoneCode02 = ?, phoneNumber02 = ?,
                     nic = ?, email = ?, houseNumber = ?, streetName = ?, city = ?, district = ?, province = ?, country = ?, languages = ?,
-                    accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?, status = 'Not Approved'
+                    accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?, adminModifyBy = ?, status = 'Not Approved', officerModiyBy = NULL
           `;
     let values = [
       centerId,
@@ -1354,6 +1373,7 @@ exports.updateOfficerDetails = (
       bankName,
       branchName,
       profileImageUrl,
+      adminId
     ];
 
     sql += ` WHERE id = ?`;
@@ -1435,6 +1455,7 @@ exports.getOfficerByIdDAO = (id) => {
               COF.*,
               COM.companyNameEnglish,
               CEN.centerName,
+              CEN.regCode AS centerRegCode,
               DC.centerName AS distributedCenterName
           FROM 
               collectionofficer COF
@@ -1499,7 +1520,8 @@ exports.getOfficerByIdDAO = (id) => {
           companyNameEnglish: officer.companyNameEnglish,
           centerName: officer.centerName,
           distributedCenterName: officer.distributedCenterName || null,
-          fullEmpId: officer.empId
+          fullEmpId: officer.empId,
+          centerRegCode: officer.centerRegCode,
         },
       });
     });
@@ -1719,13 +1741,13 @@ exports.getAllCenterManagerDao = (centerId) => {
         AND status = 'Approved' 
         AND centerId = ?
     `;
-    
+
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
         console.error('Database error in getAllCenterManagerDao:', err);
         return reject(new Error('Failed to fetch center managers'));
       }
-      
+
       resolve(results || []);
     });
   });

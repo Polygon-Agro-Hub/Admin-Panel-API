@@ -70,17 +70,20 @@ exports.getDistributedCenterOfficersShema = Joi.object({
 
 exports.getDistributionOutForDlvrOrderShema = Joi.object({
     id: Joi.number().integer().positive().required(),
-    date: Joi.date().iso().optional(),
+    date: Joi.string().allow('').optional(),
     status: Joi.string().optional(),
     searchText: Joi.string().optional()
 })
 
 exports.getOfficerDailyDistributionTargetShema = Joi.object({
-    id: Joi.number().integer().positive().required()
+    id: Joi.number().integer().positive().required(),
+    date: Joi.date().required()
 })
 
 exports.dcmGetparmasIdSchema = Joi.object({
-    officerId: Joi.number().integer().required(),
+    targetId: Joi.number().integer().required(),
     searchText: Joi.string().allow('').optional(),
     status: Joi.string().allow('').optional(),
+    completingStatus: Joi.string().allow('').optional(),
+    
 });

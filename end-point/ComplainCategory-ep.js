@@ -120,6 +120,7 @@ exports.editApplication = async (req, res) => {
   console.log(fullUrl);
 
   try {
+    const adminId = req.user.userId;
     const validatedQuery =
       await ComplainCategoryValidate.editApplicationSchema.validateAsync(
         req.query
@@ -140,7 +141,8 @@ exports.editApplication = async (req, res) => {
 
     const result = await ComplainCategoryDAO.editApplicationData(
       systemAppId,
-      applicationName
+      applicationName,
+      adminId
     );
 
     if (result.affectedRows === 0) {
@@ -211,10 +213,10 @@ exports.AddNewComplaintCategory = async (req, res) => {
       );
 
     // Check if the category already exists
-   const exists = await ComplainCategoryDAO.CheckCategoryEnglishExists(
-  complainCategory.categoryEnglish,
-  complainCategory.appId
-);
+    const exists = await ComplainCategoryDAO.CheckCategoryEnglishExists(
+      complainCategory.categoryEnglish,
+      complainCategory.appId
+    );
 
     if (exists) {
       return res.status(409).json({
@@ -264,13 +266,15 @@ exports.EditComplaintCategory = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
+    const adminId = req.user.userId;
     const complainCategory =
       await ComplainCategoryValidate.EditComplainCategorySchema.validateAsync(
         req.body
       );
 
     const result = await ComplainCategoryDAO.EditComplainCategoryDao(
-      complainCategory
+      complainCategory,
+      adminId
     );
     console.log(result);
     if (result.affectedRows === 0) {

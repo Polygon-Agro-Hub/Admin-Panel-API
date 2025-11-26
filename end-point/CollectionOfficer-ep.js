@@ -604,6 +604,7 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   const { id } = req.params;
+  const adminId = req.user.userId
 
   try {
     const officerData = JSON.parse(req.body.officerData);
@@ -688,7 +689,8 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
       officerData.accNumber,
       officerData.bankName,
       officerData.branchName,
-      profileImageUrl
+      profileImageUrl,
+      adminId
     );
 
     res.json({ message: "Collection officer details updated successfully", status: true });
@@ -1201,13 +1203,12 @@ exports.claimOfficer = async (req, res) => {
       return res.status(400).json({ error: "centerId is required" });
     }
 
-    console.log('id', id, 'centerId', centerId, 'managerId', managerId.id)
 
     // Call the DAO function to update the officer's details
     const result = await collectionofficerDao.claimOfficerDetailsDao(
       id,
       centerId,
-      managerId.id
+      managerId
     );
 
     // Send success response

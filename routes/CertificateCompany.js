@@ -77,7 +77,10 @@ router.get(
 router.post(
   "/create-certificate",
   authMiddleware,
-  upload.single("tearmsFile"),
+  upload.fields([
+    { name: "tearmsFile", maxCount: 1 },
+    { name: "logo", maxCount: 1 },
+  ]),
   certificateCompanyEp.createCertificate
 );
 
@@ -99,7 +102,10 @@ router.get(
 router.put(
   "/update-certificate/:id",
   authMiddleware,
-  upload.single("tearmsFile"),
+  upload.fields([
+    { name: "tearmsFile", maxCount: 1 },
+    { name: "logo", maxCount: 1 },
+  ]),
   certificateCompanyEp.updateCertificate
 );
 
@@ -147,7 +153,7 @@ router.post(
 
 // Add single farmer to existing cluster
 router.post(
-  '/add-single-farmer-to-cluster/:clusterId',
+  "/add-single-farmer-to-cluster/:clusterId",
   authMiddleware,
   certificateCompanyEp.addSingleFarmerToCluster
 );
@@ -178,6 +184,62 @@ router.delete(
   "/delete-farmer-clusters/:clusterId/users/:farmerId",
   authMiddleware,
   certificateCompanyEp.deleteClusterUser
+);
+
+// Update farmer cluster name
+router.put(
+  "/update-farmer-cluster/:clusterId",
+  authMiddleware,
+  certificateCompanyEp.updateFarmerCluster
+);
+
+// Get farmer cluster certificates (name and ID only)
+router.get(
+  "/get-farmer-cluster-certificates",
+  authMiddleware,
+  certificateCompanyEp.getFarmerClusterCertificates
+);
+
+// Update farmer cluster status
+router.patch(
+  "/update-cluster-status",
+  authMiddleware,
+  certificateCompanyEp.updateClusterStatus
+);
+
+// Get field audits
+router.get(
+  "/get-field-audits",
+  authMiddleware,
+  certificateCompanyEp.getFieldAudits
+);
+
+// Get crops by field audit id
+router.get(
+  '/crops-by-field-audit/:fieldAuditId', 
+  authMiddleware, 
+  certificateCompanyEp.getCropsByFieldAuditId
+);
+
+// Get farmer clusters audits
+router.get(
+  "/get-farmer-clusters-audits",
+  authMiddleware,
+  certificateCompanyEp.getFarmerClustersAudits
+);
+
+// Get field officers by district and job role
+router.get(
+  "/get-officers-by-district-role",
+  authMiddleware,
+  certificateCompanyEp.getOfficersByDistrictAndRole
+);
+
+// Assign officer to audit
+router.put(
+  "/assign-officer-to-audit",
+  authMiddleware,
+  certificateCompanyEp.assignOfficerToAudit
 );
 
 module.exports = router;

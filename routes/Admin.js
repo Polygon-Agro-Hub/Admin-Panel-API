@@ -360,11 +360,7 @@ router.get("/get-farm-owner", authMiddleware, AdminEp.getFarmOwner);
 
 router.put("/update-farm-owner/:id", authMiddleware, AdminEp.updateFarmOwner);
 
-router.get(
-  "/get-all-farmer-farms",
-  authMiddleware,
-  AdminEp.getUserFarmDetails
-);
+router.get("/get-all-farmer-farms", authMiddleware, AdminEp.getUserFarmDetails);
 
 router.delete("/delete-farm", authMiddleware, AdminEp.deleteFarms);
 
@@ -384,11 +380,7 @@ router.post("/resend-reset-password", AdminEp.resendResetLink);
 
 router.get("/get-all-companies", authMiddleware, AdminEp.getAllCompanies);
 
-router.get(
-  "/get-all-manager-list/:companyId",
-  authMiddleware,
-  AdminEp.getAllManagerList
-);
+router.get("/get-all-manager-list", authMiddleware, AdminEp.getAllManagerList);
 
 router.get("/get-last-emp-id/:role", authMiddleware, AdminEp.getForCreateId);
 
@@ -434,6 +426,18 @@ router.delete(
   "/delete-farm-staff/:id",
   authMiddleware,
   AdminEp.deleteFarmStaff
+);
+
+router.get(
+  "/field-officer-complains",
+  authMiddleware,
+  AdminEp.getAllFiealdofficerComplains
+);
+
+router.get(
+  "/field-officer-complains-by-id/:id",
+  authMiddleware,
+  AdminEp.getFiealdOfficerComplainById
 );
 
 module.exports = router;

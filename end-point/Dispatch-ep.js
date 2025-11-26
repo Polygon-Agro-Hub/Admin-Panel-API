@@ -458,6 +458,8 @@ exports.getMarketPlacePremadePackages = async (req, res) => {
       search
     );
 
+    console.log('items', packageData)
+
     // Add combinedStatus to each item in the response
 
     const finalResponse = {
@@ -565,7 +567,14 @@ exports.dispatchPackage = async (req, res) => {
     const orderId = req.body.orderId;
     const isLastOrder = req.body.isLastOrder
     const userId = req.user.userId
-    console.log(orderId, isLastOrder);
+    console.log(packageArr);
+    const allPacked = packageArr.every(item => item.isPacked === 1);
+    console.log("All pack:", allPacked);
+
+
+    // if (true) {
+    //   return
+    // }
 
     for (let i = 0; i < packageArr.length; i++) {
       const packageData = await DispatchDao.dispatchPackageDao(packageArr[i]);
@@ -577,10 +586,18 @@ exports.dispatchPackage = async (req, res) => {
       }
     }
 
-    if (isLastOrder) {
-      const packResult = await DispatchDao.trackPackagePackDao(userId, orderId);
-      console.log("pack officer->",packResult);
-      
+    if (isLastOrder && allPacked) {
+      const dashnotify = await DispatchDao.createdashNotificationDao(orderId);
+      console.log(dashnotify);
+
+      const packResult = await DispatchDao.trackPackagePackDao(userId, orderId, dashnotify.delivaryMethod);
+      console.log("pack officer->", packResult);
+
+
+      const targetUpdate = await DispatchDao.distributedOfficerTargetUpdateDao(orderId);
+      console.log(targetUpdate);
+
+
     }
 
     res.json({
@@ -638,6 +655,8 @@ exports.dispatchAdditonalPackage = async (req, res) => {
     const orderId = req.body.orderId;
     const isLastOrder = req.body.isLastOrder
     const userId = req.user.userId
+    const allPacked = packageArr.every(item => item.isPacked === 1);
+
 
     for (let i = 0; i < packageArr.length; i++) {
       const packageData = await DispatchDao.dispatchAdditionalItemsDao(packageArr[i]);
@@ -649,10 +668,20 @@ exports.dispatchAdditonalPackage = async (req, res) => {
       }
     }
 
-    if (isLastOrder) {
-      const packResult = await DispatchDao.trackPackagePackDao(userId, orderId);
-      console.log("pack officer->",packResult);
-      
+    if (isLastOrder && allPacked) {
+
+      const dashnotify = await DispatchDao.createdashNotificationDao(orderId);
+      console.log('----------------------------------------------------------------');
+      console.log(dashnotify.delivaryMethod);
+      console.log('----------------------------------------------------------------');
+
+
+    
+      const packResult = await DispatchDao.trackPackagePackDao(userId, orderId, dashnotify.delivaryMethod);
+      console.log("pack officer->", packResult);
+
+      const targetUpdate = await DispatchDao.distributedOfficerTargetUpdateDao(orderId);
+      console.log(targetUpdate);
     }
 
     res.json({

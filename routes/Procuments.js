@@ -19,6 +19,14 @@ router.get(
 );
 
 router.get(
+  "/get-distribution-orders",
+  authMiddleware,
+  ProcumentsEP.getDistributionOrdersEp
+);
+
+router.get("/get-all-distribution-centers", authMiddleware,ProcumentsEP.getAllDistributionCenters);
+
+router.get(
   "/orders-process-info",
   authMiddleware,
   ProcumentsEP.getAllOrdersWithProcessInfo
@@ -139,6 +147,11 @@ router.get(
   "/get-excluded-items/:orderId",
   authMiddleware,
   ProcumentsEP.getExcludedItems
+);
+
+router.get(
+  "/test-func",
+  ProcumentsEP.testFunc
 );
 
 module.exports = router;

@@ -1259,7 +1259,7 @@ exports.getTransactionCountDao = (centerId) => {
           SELECT COUNT(RFP.id) AS transactionCount
           FROM registeredfarmerpayments RFP, collectionofficer COF
           WHERE DATE(RFP.createdAt) = CURDATE() AND RFP.collectionOfficerId = COF.id AND COF.centerId = ?
-          GROUP BY DATE(RFP.createdAt);
+
 
       `;
     collectionofficer.query(sql, [centerId], (err, results) => {
@@ -1279,20 +1279,32 @@ exports.getTransactionCountDao = (centerId) => {
 exports.getTransactionAmountCountDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-          SELECT SUM(gradeAprice)+SUM(gradeBprice)+SUM(gradeCprice) AS transAmountCount
-          FROM registeredfarmerpayments RFP, farmerpaymentscrops FPC, collectionofficer COF
-          WHERE DATE(RFP.createdAt) = '2024-12-31' AND RFP.collectionOfficerId = COF.id AND RFP.id = FPC.registerFarmerId AND COF.centerId = ?
-          GROUP BY DATE(RFP.createdAt);
+      SELECT 
+        SUM(
+          (IFNULL(FPC.gradeAprice, 0) * IFNULL(FPC.gradeAquan, 0)) +
+          (IFNULL(FPC.gradeBprice, 0) * IFNULL(FPC.gradeBquan, 0)) +
+          (IFNULL(FPC.gradeCprice, 0) * IFNULL(FPC.gradeCquan, 0))
+        ) AS transAmountCount
+      FROM registeredfarmerpayments RFP
+      JOIN farmerpaymentscrops FPC ON RFP.id = FPC.registerFarmerId
+      JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
+      WHERE DATE(RFP.createdAt) = CURDATE()
+        AND COF.centerId = ?
+    `;
 
-      `;
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
+        console.error('DB Error:', err);
         return reject(err);
       }
-      if (results.length === 0) {
-        return resolve({ transAmountCount: 0 })
-      }
-      resolve(results[0]);
+
+      // ✅ Always check results[0] first
+      const total =
+        results && results[0] && results[0].transAmountCount !== null
+          ? results[0].transAmountCount
+          : 0;
+
+      resolve({ transAmountCount: total });
     });
   });
 };
@@ -1309,13 +1321,20 @@ exports.getReseantCollectionDao = (centerId) => {
       JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
       JOIN plant_care.cropvariety CV ON FPC.cropId = CV.id
       JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
+      JOIN (
+        SELECT DISTINCT DATE(RFP2.createdAt) AS recentDate
+        FROM registeredfarmerpayments RFP2
+        JOIN collectionofficer COF2 ON RFP2.collectionOfficerId = COF2.id
+        WHERE COF2.centerId = ?
+        ORDER BY DATE(RFP2.createdAt) DESC
+        LIMIT 5
+      ) AS RecentDates ON DATE(RFP.createdAt) = RecentDates.recentDate
       WHERE COF.centerId = ?
       GROUP BY CG.cropNameEnglish, CV.varietyNameEnglish, DATE(RFP.createdAt)
-      ORDER BY DATE(RFP.createdAt)
-      LIMIT 5
+      ORDER BY DATE(RFP.createdAt) DESC
     `;
 
-    collectionofficer.query(sql, [centerId], (err, results) => {
+    collectionofficer.query(sql, [centerId, centerId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1328,7 +1347,7 @@ exports.getReseantCollectionDao = (centerId) => {
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
             totQty: item.totAqty,
-            totPrice: item.totAprice * item.totAqty, // multiply price by quantity
+            totPrice: item.totAprice * item.totAqty,
             grade: "A",
             date: item.date,
           });
@@ -1339,7 +1358,7 @@ exports.getReseantCollectionDao = (centerId) => {
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
             totQty: item.totBqty,
-            totPrice: item.totBprice * item.totBqty, // multiply price by quantity
+            totPrice: item.totBprice * item.totBqty,
             grade: "B",
             date: item.date,
           });
@@ -1350,7 +1369,7 @@ exports.getReseantCollectionDao = (centerId) => {
             cropNameEnglish: item.cropNameEnglish,
             varietyNameEnglish: item.varietyNameEnglish,
             totQty: item.totCqty,
-            totPrice: item.totCprice * item.totCqty, // multiply price by quantity
+            totPrice: item.totCprice * item.totCqty,
             grade: "C",
             date: item.date,
           });
@@ -1358,7 +1377,8 @@ exports.getReseantCollectionDao = (centerId) => {
 
         return entries;
       });
-
+      
+      console.log('transformData', transformData);
       resolve(transformData);
     });
   });
@@ -1368,13 +1388,19 @@ exports.getReseantCollectionDao = (centerId) => {
 exports.getTotExpencesDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT 
-          SUM(FPC.gradeAprice) + SUM(FPC.gradeBprice) + SUM(FPC.gradeCprice) AS totExpences
-      FROM registeredfarmerpayments RFP
-      JOIN farmerpaymentscrops FPC ON RFP.id = FPC.registerFarmerId
-      JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
-      WHERE RFP.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY) 
-      AND COF.centerId = ?
+    SELECT 
+    SUM(
+        (IFNULL(FPC.gradeAprice, 0) * IFNULL(FPC.gradeAquan, 0)) +
+        (IFNULL(FPC.gradeBprice, 0) * IFNULL(FPC.gradeBquan, 0)) +
+        (IFNULL(FPC.gradeCprice, 0) * IFNULL(FPC.gradeCquan, 0))
+    ) AS totExpences
+    FROM collection_officer.registeredfarmerpayments RFP
+    LEFT JOIN collection_officer.farmerpaymentscrops FPC 
+        ON RFP.id = FPC.registerFarmerId
+    LEFT JOIN collection_officer.collectionofficer COF 
+        ON RFP.collectionOfficerId = COF.id
+    WHERE RFP.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    AND COF.centerId = ?
       `;
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
@@ -1449,20 +1475,24 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
 
     let dataSql = `
       SELECT 
-        collectionofficer.id,
-        collectionofficer.empId,
-        collectionofficer.firstNameEnglish,
-        collectionofficer.lastNameEnglish,
-        collectionofficer.email,
-        collectionofficer.status,
-        collectionofficer.phoneCode01,
-        collectionofficer.phoneNumber01,
-        collectionofficer.phoneCode02,
-        collectionofficer.phoneNumber02,
-        collectionofficer.createdAt
+        coff.id,
+        coff.empId,
+        coff.firstNameEnglish,
+        coff.lastNameEnglish,
+        coff.email,
+        coff.status,
+        coff.phoneCode01,
+        coff.phoneNumber01,
+        coff.phoneCode02,
+        coff.phoneNumber02,
+        coff.createdAt,
+        CONCAT(coff_mod.firstNameEnglish, ' ', coff_mod.lastNameEnglish) AS officeModify,
+        au.userName AS adminModify
       FROM 
-        collectionofficer
-      WHERE companyId = ? AND jobRole = 'Collection Centre Head'
+        collectionofficer coff
+        LEFT JOIN collectionofficer coff_mod ON coff.officerModiyBy = coff_mod.id
+        LEFT JOIN agro_world_admin.adminusers au ON coff.adminModifyBy = au.id
+      WHERE coff.companyId = ? AND coff.jobRole = 'Collection Centre Head'
     `;
 
     const countParams = [companyId];
@@ -1471,14 +1501,14 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
     if (searchText) {
       const searchCondition = `
           AND (
-            collectionofficer.empID LIKE ?
-              OR collectionofficer.firstNameEnglish LIKE ?
-              OR collectionofficer.lastNameEnglish LIKE ?
-              OR collectionofficer.email LIKE ?
-              OR collectionofficer.status LIKE ?
-              OR collectionofficer.phoneNumber01 LIKE ?
-              OR collectionofficer.phoneNumber02 LIKE ?
-              OR collectionofficer.createdAt LIKE ?
+            coff.empID LIKE ?
+              OR coff.firstNameEnglish LIKE ?
+              OR coff.lastNameEnglish LIKE ?
+              OR coff.email LIKE ?
+              OR coff.status LIKE ?
+              OR coff.phoneNumber01 LIKE ?
+              OR coff.phoneNumber02 LIKE ?
+              OR coff.createdAt LIKE ?
           )
       `;
       countSql += searchCondition;
@@ -1510,7 +1540,7 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
     offset = parseInt(offset, 10) || 0; // Default offset to 0 if not provided
 
     // Add ORDER BY before LIMIT
-    dataSql += ` ORDER BY collectionofficer.createdAt DESC LIMIT ? OFFSET ?`;
+    dataSql += ` ORDER BY coff.createdAt DESC LIMIT ? OFFSET ?`;
     dataParams.push(limit, offset);
 
     collectionofficer.query(countSql, countParams, (countErr, countResults) => {
@@ -1922,36 +1952,41 @@ exports.getCenterTargetDAO = (companyCenterId, status, searchText) => {
     return new Promise((resolve, reject) => {
         let targetSql = `
         SELECT
-            dt.id, 
-            dt.companyCenterId, 
-            cv.varietyNameEnglish, 
-            cg.cropNameEnglish, 
-            dt.grade, 
-            dt.target, 
-            dt.complete,
-            dt.date,
-            coc.regCode
-        FROM collection_officer.dailytarget dt
-        LEFT JOIN plant_care.cropvariety cv ON dt.varietyId = cv.id
-        LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
-        LEFT JOIN collection_officer.companycenter cc ON dt.companyCenterId = cc.id
-        LEFT JOIN collection_officer.collectioncenter coc ON cc.centerId = coc.id
-        WHERE dt.companyCenterId = ? AND DATE(dt.date) = CURDATE()
+          dt.id, 
+          dt.companyCenterId, 
+          cv.varietyNameEnglish, 
+          cg.cropNameEnglish, 
+          dt.grade, 
+          dt.target, 
+          dt.complete,
+          dt.date,
+          coc.regCode
+      FROM collection_officer.dailytarget dt
+      LEFT JOIN plant_care.cropvariety cv ON dt.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN collection_officer.companycenter cc ON dt.companyCenterId = cc.id
+      LEFT JOIN collection_officer.collectioncenter coc ON cc.centerId = coc.id
+      WHERE dt.companyCenterId = ? AND DATE(dt.date) = CURDATE() AND (dt.target != 0 OR dt.complete != 0)
         `;
 
         const sqlParams = [companyCenterId];
 
         // Add status filter if provided
         if (status) {
-            const statusLower = status.toLowerCase();
-            if (statusLower === 'completed') {
-                targetSql += " AND dt.complete = dt.target";
-            } else if (statusLower === 'exceeded') {
-                targetSql += " AND dt.complete > dt.target";
-            } else if (statusLower === 'pending') {
-                targetSql += " AND COALESCE(dt.complete, 0.00) < dt.target";
-            }
-        }
+          const statusLower = status.toLowerCase();
+      
+          if (statusLower === 'completed') {
+              targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
+          } else if (statusLower === 'exceeded') {
+              targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
+          } else if (statusLower === 'pending') {
+              targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
+          } else if (statusLower === 'extra') {
+              targetSql += " AND dt.target = 0 AND dt.complete > 0";
+          } else if (statusLower === 'no target') {
+              targetSql += " AND dt.target = 0 AND dt.complete = 0";
+          }
+      }
 
         // Add search filter if provided
         if (searchText) {
@@ -1973,28 +2008,39 @@ exports.getCenterTargetDAO = (companyCenterId, status, searchText) => {
                 return reject(dataErr);
             }
 
-            // Process results to add status field
             const resultTarget = dataResults.map(row => {
-                const target = parseFloat(row.target ?? 0.00);
-                const complete = parseFloat(row.complete ?? 0.00);
+              const target = parseFloat(row.target ?? 0.00);
+              const complete = parseFloat(row.complete ?? 0.00);
 
-                let status;
-                if (complete > target) {
-                    status = 'Exceeded';
-                } else if (complete == target) {
-                    status = 'Completed';
-                } else if (complete < target) {
-                    status = 'Pending';
-                }
+              let status;
+              if (target !== 0) {
+                  if (complete > target) status = 'Exceeded';
+                  else if (complete === target) status = 'Completed';
+                  else status = 'Pending';
+              } else {
+                  if (complete > 0) status = 'Extra';
+                  else status = 'No Target'; // Add this to avoid undefined
+              }
+
+              // let validity;
+
+              // if (status === 'Completed') {
+              //     validity = 'Active';
+              // } else if (status === 'Extra') {
+              //     validity = 'Unassigned';
+              // } else {
+              //     validity = 'Expired'
+              // }
 
 
-                return {
-                    ...row,
-                    target: target.toFixed(2),
-                    complete: complete.toFixed(2),
-                    status: status
-                };
-            });
+              return {
+                  ...row,
+                  target: target.toFixed(2),
+                  complete: complete.toFixed(2),
+                  status: status,
+                  // validity: validity
+              };
+          });
             resolve({ resultTarget });
         });
     });
@@ -2002,36 +2048,147 @@ exports.getCenterTargetDAO = (companyCenterId, status, searchText) => {
 
 
 exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
+  return new Promise((resolve, reject) => {
+      let targetSql = `
+      SELECT 
+          dt.id, 
+          dt.companyCenterId, 
+          cv.varietyNameEnglish, 
+          cg.cropNameEnglish, 
+          dt.grade, 
+          dt.target, 
+          dt.complete,
+          dt.date,
+          coc.regCode
+      FROM collection_officer.dailytarget dt
+      LEFT JOIN plant_care.cropvariety cv ON dt.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN collection_officer.companycenter cc ON dt.companyCenterId = cc.id
+      LEFT JOIN collection_officer.collectioncenter coc ON cc.centerId = coc.id
+      WHERE dt.companyCenterId = ? 
+        AND DATE(dt.date) = CURDATE() 
+        AND (dt.target != 0 OR dt.complete != 0)
+      `;
+
+      const sqlParams = [companyCenterId];
+
+      // Add status filter if provided
+      if (status) {
+          const statusLower = status.toLowerCase();
+
+          if (statusLower === 'completed') {
+              targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
+          } else if (statusLower === 'exceeded') {
+              targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
+          } else if (statusLower === 'pending') {
+              targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
+          } else if (statusLower === 'extra') {
+              targetSql += " AND dt.target = 0 AND dt.complete > 0";
+          } else if (statusLower === 'no target') {
+              targetSql += " AND dt.target = 0 AND dt.complete = 0";
+          }
+      }
+
+      // Add search filter if provided
+      if (searchText) {
+          const searchCondition = ` AND (
+              cv.varietyNameEnglish LIKE ?
+              OR cg.cropNameEnglish LIKE ?
+              OR dt.target LIKE ?
+              OR dt.complete LIKE ?
+          )`;
+          targetSql += searchCondition;
+          const searchValue = `%${searchText}%`;
+          sqlParams.push(searchValue, searchValue, searchValue, searchValue);
+      }
+
+      // Order results neatly
+      targetSql += ` ORDER BY cg.cropNameEnglish, cv.varietyNameEnglish`;
+
+      // Execute query
+      collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
+          if (dataErr) {
+              console.error('Error in data query:', dataErr);
+              return reject(dataErr);
+          }
+
+          // Process results and add status + validity fields
+          const resultTarget = dataResults.map(row => {
+              const target = parseFloat(row.target ?? 0.00);
+              const complete = parseFloat(row.complete ?? 0.00);
+
+              let status;
+              if (target !== 0) {
+                  if (complete > target) status = 'Exceeded';
+                  else if (complete === target) status = 'Completed';
+                  else status = 'Pending';
+              } else {
+                  if (complete > 0) status = 'Extra';
+                  else status = 'No Target';
+              }
+
+              // Determine validity based on status
+              let validity;
+              if (status === 'Completed') validity = 'Active';
+              else if (status === 'Extra') validity = 'Unassigned';
+              else validity = 'Expired';
+
+              return {
+                  ...row,
+                  target: target.toFixed(2),
+                  complete: complete.toFixed(2),
+                  status,
+                  validity
+              };
+          });
+
+          resolve({ resultTarget });
+      });
+  });
+};
+
+
+exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
     return new Promise((resolve, reject) => {
         let targetSql = `
         SELECT 
-            dt.id, 
-            dt.companyCenterId, 
-            cv.varietyNameEnglish, 
-            cg.cropNameEnglish, 
-            dt.grade, 
-            dt.target, 
-            dt.complete,
-            dt.date 
-        FROM collection_officer.dailytarget dt
-        LEFT JOIN plant_care.cropvariety cv ON dt.varietyId = cv.id
-        LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
-        WHERE dt.companyCenterId = ? AND DATE(dt.date) = CURDATE()
+          dt.id, 
+          dt.companyCenterId, 
+          cv.varietyNameEnglish, 
+          cg.cropNameEnglish, 
+          dt.grade, 
+          dt.target, 
+          dt.complete,
+          dt.date,
+          coc.regCode
+      FROM collection_officer.dailytarget dt
+      LEFT JOIN plant_care.cropvariety cv ON dt.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN collection_officer.companycenter cc ON dt.companyCenterId = cc.id
+      LEFT JOIN collection_officer.collectioncenter coc ON cc.centerId = coc.id
+      WHERE dt.companyCenterId = ? 
+        AND DATE(dt.date) = CURDATE() 
+        AND (dt.target != 0 OR dt.complete != 0)
         `;
 
         const sqlParams = [companyCenterId];
 
         // Add status filter if provided
         if (status) {
-            const statusLower = status.toLowerCase();
-            if (statusLower === 'completed') {
-                targetSql += " AND dt.complete = dt.target";
-            } else if (statusLower === 'pending') {
-                targetSql += " AND COALESCE(dt.complete, 0.00) < dt.target";
-            } else if (statusLower === 'exceeded') {
-                targetSql += " AND dt.complete > dt.target";
-            }
-        }
+          const statusLower = status.toLowerCase();
+
+          if (statusLower === 'completed') {
+              targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
+          } else if (statusLower === 'exceeded') {
+              targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
+          } else if (statusLower === 'pending') {
+              targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
+          } else if (statusLower === 'extra') {
+              targetSql += " AND dt.target = 0 AND dt.complete > 0";
+          } else if (statusLower === 'no target') {
+              targetSql += " AND dt.target = 0 AND dt.complete = 0";
+          }
+      }
 
         // Add search filter if provided
         if (searchText) {
@@ -2055,25 +2212,33 @@ exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
 
             // Process results to add status field
             const resultTarget = dataResults.map(row => {
-                const target = parseFloat(row.target ?? 0.00);
-                const complete = parseFloat(row.complete ?? 0.00);
+              const target = parseFloat(row.target ?? 0.00);
+              const complete = parseFloat(row.complete ?? 0.00);
 
-                let status;
-                if (complete > target) {
-                    status = 'Exceeded';
-                } else if (complete < target) {
-                    status = 'Pending';
-                } else if (complete == target) {
-                    status = 'Completed';
-                }
+              let status;
+              if (target !== 0) {
+                  if (complete > target) status = 'Exceeded';
+                  else if (complete === target) status = 'Completed';
+                  else status = 'Pending';
+              } else {
+                  if (complete > 0) status = 'Extra';
+                  else status = 'No Target';
+              }
 
-                return {
-                    ...row,
-                    target: target.toFixed(2),
-                    complete: complete.toFixed(2),
-                    status: status
-                };
-            });
+              // Determine validity based on status
+              let validity;
+              if (status === 'Completed') validity = 'Active';
+              else if (status === 'Extra') validity = 'Unassigned';
+              else validity = 'Expired';
+
+              return {
+                  ...row,
+                  target: target.toFixed(2),
+                  complete: complete.toFixed(2),
+                  status,
+                  validity
+              };
+          });
             resolve({ resultTarget });
         });
     });
@@ -2103,5 +2268,18 @@ exports.checkCompanyRegNumberDao = (regNumber, id) => {
         resolve(results);
       }
     );
+  });
+};
+
+exports.GetAllCollectionCenterList = (companyId) => {
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT coc.id, coc.centerName FROM collection_officer.collectioncenter coc LEFT JOIN companycenter cc ON coc.id = cc.centerId WHERE cc.companyId = ?";
+    collectionofficer.query(sql, [companyId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
   });
 };

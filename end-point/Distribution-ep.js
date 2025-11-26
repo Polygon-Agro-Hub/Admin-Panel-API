@@ -270,50 +270,55 @@ exports.createDistributionHead = async (req, res) => {
   try {
     const officerData = JSON.parse(req.body.officerData);
 
-    const isExistingNIC = await DistributionDao.checkNICExist(officerData.nic);
-    const isExistingEmail = await DistributionDao.checkEmailExist(
-      officerData.email
-    );
+    // Check all duplicates at once
+    const duplicateChecks = await Promise.all([
+      DistributionDao.checkNICExist(officerData.nic),
+      DistributionDao.checkEmailExist(officerData.email),
+      DistributionDao.checkPhoneExist(officerData.phoneNumber01),
+      officerData.phoneNumber02 ? DistributionDao.checkPhoneExist(officerData.phoneNumber02) : Promise.resolve(false)
+    ]);
 
-    if (isExistingNIC) {
-      return res.status(500).json({
-        error: "NIC already exists",
-      });
-    }
+    const [isExistingNIC, isExistingEmail, isExistingPhone1, isExistingPhone2] = duplicateChecks;
 
-    if (isExistingEmail) {
-      return res.status(500).json({
-        error: "Email already exists",
-      });
-    }
+    // Collect duplicate fields
+    const duplicateFields = [];
 
+    if (isExistingNIC) duplicateFields.push("NIC");
+    if (isExistingEmail) duplicateFields.push("Email");
+    if (isExistingPhone1) duplicateFields.push("Mobile Number 1");
+    if (isExistingPhone2) duplicateFields.push("Mobile Number 2");
 
-    const isExistingPhone1 = await DistributionDao.checkPhoneExist(officerData.phoneNumber01);
-    if (isExistingPhone1) {
-      return res.status(500).json({ error: "Mobile number 1 already exists" });
-    }
+    // If any duplicates found, return combined error message
+    if (duplicateFields.length > 0) {
+      let errorMessage = "";
 
-    // ✅ Optional: Check Phone Number 2
-    if (officerData.phoneNumber02) {
-      const isExistingPhone2 = await DistributionDao.checkPhoneExist(officerData.phoneNumber02);
-      if (isExistingPhone2) {
-        return res.status(500).json({ error: "Mobile number 2 already exists" });
+      if (duplicateFields.length === 1) {
+        errorMessage = `${duplicateFields[0]} already exists.`;
+      } else if (duplicateFields.length === 2) {
+        errorMessage = `${duplicateFields[0]} and ${duplicateFields[1]} already exist.`;
+      } else {
+        const lastField = duplicateFields.pop();
+        errorMessage = `${duplicateFields.join(", ")}, and ${lastField} already exist.`;
       }
+
+      return res.status(400).json({
+        error: errorMessage,
+        duplicateFields: duplicateFields
+      });
     }
 
-    let profileImageUrl = null; // Default to null if no image is provided
+    let profileImageUrl = null;
 
     // Check if an image file is provided
     if (req.body.file) {
       try {
-        const base64String = req.body.file.split(",")[1]; // Extract the Base64 content
-        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1]; // Extract MIME type
-        const fileBuffer = Buffer.from(base64String, "base64"); // Decode Base64 to buffer
+        const base64String = req.body.file.split(",")[1];
+        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
+        const fileBuffer = Buffer.from(base64String, "base64");
 
-        const fileExtension = mimeType.split("/")[1]; // Extract file extension from MIME type
+        const fileExtension = mimeType.split("/")[1];
         const fileName = `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}.${fileExtension}`;
 
-        // Upload image to S3
         profileImageUrl = await uploadFileToS3(
           fileBuffer,
           fileName,
@@ -327,15 +332,14 @@ exports.createDistributionHead = async (req, res) => {
       }
     }
 
-    const newEmpId = await DistributionDao.getDistributedIdforCreateEmpIdDao(officerData.jobRole)
+    const newEmpId = await DistributionDao.getDistributedIdforCreateEmpIdDao(officerData.jobRole);
 
-    // Save officer data (without image if no image is uploaded)
-    const resultsPersonal =
-      await DistributionDao.createDistributionHeadPersonal(
-        officerData,
-        profileImageUrl,
-        newEmpId
-      );
+    // Save officer data
+    const resultsPersonal = await DistributionDao.createDistributionHeadPersonal(
+      officerData,
+      profileImageUrl,
+      newEmpId
+    );
 
     console.log("Distribution Head created successfully");
     return res.status(201).json({
@@ -511,6 +515,7 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
+    const adminId = req.user.userId
 
     if (!id) {
       return res.status(400).json({
@@ -584,7 +589,7 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
     }
 
 
-    const result = await DistributionDao.UpdateDistributionHeadDao(id, updateData);
+    const result = await DistributionDao.UpdateDistributionHeadDao(id, updateData, adminId);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
@@ -732,7 +737,7 @@ exports.updateDistributionCentreDetails = async (req, res) => {
       console.log('isCompanyName')
       validationErrors.push('name');
       console.log('validationErrors', validationErrors)
-    } 
+    }
 
     const isRegCode = await DistributionDao.checkRegCodeExistDC(data.regCode, id);
     if (isRegCode) validationErrors.push('regCode');
@@ -1435,7 +1440,7 @@ exports.getDistributionOutForDlvrOrder = async (req, res) => {
   try {
     const { id, status, date, searchText } = await DistributionValidation.getDistributionOutForDlvrOrderShema.validateAsync(req.query);
 
-    const result = await DistributionDao.getDistributionOutForDlvrOrderDao(id, searchText, date);
+    const result = await DistributionDao.getDistributionOutForDlvrOrderDao(id, searchText, date, status);
 
     console.log("Successfully retrieved distribution out for delivery orders");
     res.json({ status: true, data: result });
@@ -1478,10 +1483,11 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   const { id } = req.params;
+  const adminId = req.user.userId
 
   try {
     const officerData = JSON.parse(req.body.officerData);
-    console.log('officer data',officerData)
+    console.log('officer data', officerData)
     const qrCode = await DistributionDao.getQrImage(id);
 
     const isExistingNIC = await DistributionDao.editCheckNICExist(officerData.nic, id);
@@ -1595,7 +1601,8 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       accNumber,
       bankName,
       branchName,
-      profileImageUrl
+      profileImageUrl,
+      adminId
     );
 
     res.json({ message: "Collection officer details updated successfully" });
@@ -1611,9 +1618,10 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
 
 exports.getOfficerDailyDistributionTarget = async (req, res) => {
   try {
-    const { id} = await DistributionValidation.getOfficerDailyDistributionTargetShema.validateAsync(req.params);
-
-    const result = await DistributionDao.getOfficerDailyDistributionTargetDao(id);
+    const { id, date } = await DistributionValidation.getOfficerDailyDistributionTargetShema.validateAsync(req.params);
+    console.log(date);
+    
+    const result = await DistributionDao.getOfficerDailyDistributionTargetDao(id, date);
 
     console.log("Successfully retrieved all companies");
     res.json({ status: true, data: result });
@@ -1635,58 +1643,72 @@ exports.dcmGetSelectedOfficerTargets = async (req, res) => {
   console.log('fullUrl', fullUrl);
 
   try {
+    const { targetId, searchText, status, completingStatus } = await DistributionValidation.dcmGetparmasIdSchema.validateAsync(req.query);
+    console.log('targetId:', targetId);
+    console.log('completingStatus:', completingStatus);
 
-    const { officerId, searchText, status } = await DistributionValidation.dcmGetparmasIdSchema.validateAsync(req.query);
+    let targetResult = await DistributionDao.getSelectTargetItems(targetId, searchText || '', status || '');
 
-    console.log(req.user);
+    // Calculate combinedStatus for each item
+    targetResult = targetResult.map(item => {
+      let combinedStatus = '';
+      
+      if (item.packageStatus === 'Pending' && (item.additionalItemsStatus === 'Unknown' || item.additionalItemsStatus === 'Pending')) {
+        combinedStatus = 'Pending';
+      }
+      else if (item.packageStatus === 'Pending' && (item.additionalItemsStatus === 'Opened' || item.additionalItemsStatus === 'Completed')) {
+        combinedStatus = 'Opened';
+      }
+      else if (item.packageStatus === 'Opened') {
+        combinedStatus = 'Opened';
+      }
+      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Unknown') {
+        combinedStatus = 'Completed';
+      }
+      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Pending') {
+        combinedStatus = 'Pending';
+      }
+      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Opened') {
+        combinedStatus = 'Opened';
+      }
+      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Completed') {
+        combinedStatus = 'Completed';
+      }
+      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Pending') {
+        combinedStatus = 'Pending';
+      }
+      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Opened') {
+        combinedStatus = 'Opened';
+      }
+      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Completed') {
+        combinedStatus = 'Completed';
+      }
+      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Unknown') {
+        combinedStatus = 'Unknown';
+      }
 
-    const {distributedCenterId, companyId} = await DistributionDao.getCompanyAndCenter(officerId)
+      return {
+        ...item,
+        combinedStatus
+      };
+    });
 
-    const companyCenterId = await DistributionDao.getDistributedCompanyCenter(companyId, distributedCenterId);
-    // const deliveryLocationData = await DistributionDAO.getCenterName(managerId, companyId);
-    // const deliveryLocationDataObj = deliveryLocationData[0]
-    // console.log('result',deliveryLocationDataObj)
+    // Filter by status if provided
+    if (status) {
+      targetResult = targetResult.filter(item => item.combinedStatus === status);
+    }
 
-    console.log('companyCenterId', companyCenterId[0].companyCenterId)
+    // Filter by completing status if provided
+    if (completingStatus) {
+      targetResult = targetResult.filter(item => item.completeTimeStatus === completingStatus);
+    }
 
-    const deliveryLocationData = await DistributionDao.getDeliveryChargeCity(companyCenterId[0].companyCenterId);
+    // Return in expected format
+    return res.status(200).json({
+      items: targetResult,
+      total: targetResult.length
+    });
 
-    console.log('deliveryLocationData', deliveryLocationData)
-
-    const { items } = await DistributionDao.dcmGetSelectedOfficerTargetsDao(officerId, deliveryLocationData, searchText, status, distributedCenterId );
-    console.log('these are items', items);
-
-    // // Group by officerId (userId) and count orders
-    // const groupedData = items.reduce((acc, item) => {
-    //   const officerId = item.userId;
-    //   if (!acc[officerId]) {
-    //     acc[officerId] = {
-    //       officerId,
-    //       empId: item.empId,
-    //       firstNameEnglish: item.firstNameEnglish,
-    //       lastNameEnglish: item.lastNameEnglish,
-    //       allOrders: 0,
-    //       pending: 0,
-    //       completed: 0,
-    //       opened: 0
-    //     };
-    //   }
-
-    //   acc[officerId].allOrders++;
-
-    //   if (item.packagePackStatus === "Pending") acc[officerId].pending++;
-    //   if (item.packagePackStatus === "Completed") acc[officerId].completed++;
-    //   if (item.packagePackStatus === "Opened") acc[officerId].opened++;
-
-    //   return acc;
-    // }, {});
-
-    // Convert to sorted array by officerId
-    // const sortedResult = Object.values(groupedData).sort((a, b) => a.officerId - b.officerId);
-
-    // console.log('sortedResult', sortedResult);
-
-    return res.status(200).json({ items });
   } catch (error) {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message });
@@ -1704,11 +1726,11 @@ exports.claimDistributedOfficer = async (req, res) => {
   try {
     const data = req.body;
     const result = await DistributionDao.claimDistributedOfficersDao(data);
-    if(result.affectedRows === 0){
-      return res.json({message: "Claim failed or no changes made", status: false})
+    if (result.affectedRows === 0) {
+      return res.json({ message: "Claim failed or no changes made", status: false })
     }
     console.log("Successfully retrieved reports");
-    res.status(200).json({ status: true , message: "Claimed successfully"});
+    res.status(200).json({ status: true, message: "Claimed successfully" });
   } catch (error) {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message });
@@ -1760,13 +1782,13 @@ exports.getAllDistributionCenterList = async (req, res) => {
       companyId
     );
 
-    if (result.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No collection Managers found", data: result });
-    }
+    // if (result.length === 0) {
+    //   return res
+    //     .status(404)
+    //     .json({ message: "No collection Managers found", data: result });
+    // }
 
-    console.log("Successfully retrieved all collection Managers");
+    console.log("Successfully retrieved all collection center");
     res.json(result);
   } catch (err) {
     if (err.isJoi) {

@@ -232,4 +232,10 @@ router.get(
   CollectionCenterEp.downloadCurrentTarget
 )
 
+router.get(
+  "/get-all-collection-center-list/:companyId",
+  authMiddleware,
+  CollectionCenterEp.getAllCollectionCenterList
+);
+
 module.exports = router;

@@ -18,11 +18,18 @@ router.get(
     StakeholderEp.getAdminUserData
 );
 
-// ✅ Get all field officers
+// Get all field officers with filters
 router.get(
   "/get-all-field-officers",
   authMiddleware,
   StakeholderEp.getAllFieldOfficers
 );
+
+// Update status and send password field officers
+router.put(
+  "/update-status-send-password/:id/:status",
+  StakeholderEp.UpdateStatusAndSendPassword
+);
+
 
 module.exports = router;

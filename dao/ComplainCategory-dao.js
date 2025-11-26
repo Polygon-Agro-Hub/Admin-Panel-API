@@ -8,8 +8,11 @@ exports.getAllSystemApplicationData = () => {
           SELECT 
           sa.id AS systemAppId,
           sa.appName AS systemAppName,
+          au.userName AS modifiedBy,
           (SELECT COUNT(*) FROM complaincategory WHERE appId = sa.id) AS categoryCount
           FROM systemapplications sa
+          LEFT JOIN adminusers au ON sa.modifyBy = au.id
+          ORDER BY sa.appName ASC
           
           `;
     admin.query(sql, (err, results) => {
@@ -30,10 +33,11 @@ exports.getComplainCategoryData = (systemAppId) => {
         SELECT 
         cc.id,
         cc.categoryEnglish,
-        ar.role
-       
+        ar.role,
+        au.userName AS modifyBy
         FROM complaincategory cc
-         LEFT JOIN adminroles ar ON cc.roleId = ar.id
+        LEFT JOIN adminroles ar ON cc.roleId = ar.id
+        LEFT JOIN adminusers au ON cc.modifyBy = au.id
         WHERE cc.appId = ?
         `;
 
@@ -132,29 +136,29 @@ exports.AddNewComplainCategoryDao = (data) => {
 
 exports.addNewApplicationData = (applicationName) => {
   return new Promise((resolve, reject) => {
-      const sql = `INSERT INTO systemapplications (appName) VALUES (?)`;
+    const sql = `INSERT INTO systemapplications (appName) VALUES (?)`;
 
-      admin.query(sql, [applicationName], (err, results) => {  
-          if (err) {
-              return reject(err); 
-          }
-          
-          resolve(results); 
-      });
+    admin.query(sql, [applicationName], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      resolve(results);
+    });
   });
 };
 
-exports.editApplicationData = (systemAppId, applicationName) => {
+exports.editApplicationData = (systemAppId, applicationName, adminId) => {
   return new Promise((resolve, reject) => {
-    const sql = `UPDATE systemapplications SET appName = ? WHERE id = ?`;
+    const sql = `UPDATE systemapplications SET appName = ?, modifyBy = ? WHERE id = ?`;
 
-      admin.query(sql, [applicationName, systemAppId], (err, results) => {  
-          if (err) {
-              return reject(err); 
-          }
-          
-          resolve(results); 
-      });
+    admin.query(sql, [applicationName, adminId, systemAppId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      resolve(results);
+    });
   });
 };
 
@@ -200,17 +204,17 @@ exports.deleteApplicationData = (systemAppId) => {
   return new Promise((resolve, reject) => {
     const sql = `DELETE FROM systemapplications WHERE id = ?`; // Use DELETE instead of UPDATE
 
-    admin.query(sql, [systemAppId], (err, results) => {  
-        if (err) {
-            return reject(err); 
-        }
-        
-        // Check if any row was deleted
-        if (results.affectedRows === 0) {
-          return reject(new Error('No application found with the provided systemAppId'));
-        }
+    admin.query(sql, [systemAppId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
 
-        resolve(results); 
+      // Check if any row was deleted
+      if (results.affectedRows === 0) {
+        return reject(new Error('No application found with the provided systemAppId'));
+      }
+
+      resolve(results);
     });
   });
 };
@@ -237,7 +241,7 @@ exports.getCategoriDetailsByIdDao = (id) => {
 
 
 
-exports.EditComplainCategoryDao = (data) => {
+exports.EditComplainCategoryDao = (data, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE complaincategory 
@@ -246,7 +250,8 @@ exports.EditComplainCategoryDao = (data) => {
         appId = ?, 
         categoryEnglish = ?, 
         categorySinhala = ?, 
-        categoryTamil = ?
+        categoryTamil = ?,
+        modifyBy = ?
       WHERE id = ?
       `;
 
@@ -256,6 +261,7 @@ exports.EditComplainCategoryDao = (data) => {
       data.categoryEnglish,
       data.categorySinhala,
       data.categoryTamil,
+      adminId,
       data.id
     ],
       (err, results) => {
@@ -411,7 +417,7 @@ exports.updateMarketplaceComplaintReply = (complaintId, reply) => {
       SET reply = ?, status = ?, replyTime = NOW()
       WHERE id = ?
     `;
-    marketPlace.query(sql, [reply, "Closed", complaintId, ], (err, results) => {
+    marketPlace.query(sql, [reply, "Closed", complaintId,], (err, results) => {
       if (err) {
         console.error('SQL error in updateMarketplaceComplaintReply:', err);
         return reject({
@@ -544,14 +550,14 @@ exports.GetAllDistributedComplainDAO = (
     // Add search functionality
     if (searchText) {
       countSql += `
-        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ?)
+        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
       `;
       sql += `
-        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ?)
+        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
       `;
       const searchQuery = `%${searchText}%`;
-      Sqlparams.push(searchQuery, searchQuery, searchQuery);
-      Counterparams.push(searchQuery, searchQuery, searchQuery);
+      Sqlparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+      Counterparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
     }
 
     if (rpstatus) {

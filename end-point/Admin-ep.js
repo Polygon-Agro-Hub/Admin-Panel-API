@@ -15,6 +15,8 @@ const uploadFileToS3 = require("../middlewares/s3upload");
 const deleteFromS3 = require("../middlewares/s3delete");
 const SECRET_KEY = "agroworldadmin";
 const CryptoJS = require("crypto-js");
+const QRCode = require("qrcode");
+
 
 function encryptResponse(data, secretKey) {
   const encrypted = CryptoJS.AES.encrypt(
@@ -52,7 +54,7 @@ exports.loginAdmin = async (req, res) => {
     console.log("--------------------------------------");
     console.log(user);
     console.log("--------------------------------------");
-    
+
 
     if (!user) {
       return res.status(401).json({ error: "User not found." });
@@ -985,14 +987,14 @@ exports.getCurrentAssetsByCategory = async (req, res) => {
 
   try {
     // Validate the request params (id and category)
-    const { id, category ,farmId } = req.params;
+    const { id, category, farmId } = req.params;
     // const { id, category } =
     // await ValidateSchema.getCurrentAssetsByCategorySchema.validateAsync(
     //     req.params
     // );
 
     // Fetch current assets by category from DAO
-    const results = await adminDao.getCurrentAssetsByCategory(id, category ,farmId);
+    const results = await adminDao.getCurrentAssetsByCategory(id, category, farmId);
 
     console.log("Successfully retrieved current assets");
     res.status(200).json(results);
@@ -1459,6 +1461,28 @@ exports.createPlantCareUser = async (req, res) => {
 
     console.log(userData);
     const result = await adminDao.createPlantCareUser(userData);
+    console.log(result);
+
+    if (result.userId > 0) {
+      const qrData = `{"userInfo": {"id":${result.userId}}}`;
+
+      const qrCodeBase64 = await QRCode.toDataURL(qrData);
+      const qrCodeBuffer = Buffer.from(
+        qrCodeBase64.replace(/^data:image\/png;base64,/, ""),
+        "base64"
+      );
+      const qrcodeURL = await uploadFileToS3(
+        qrCodeBuffer,
+        `${userData.firstName}_${userData.lastName}.png`,
+        "users/farmerQr"
+      );
+      console.log(qrcodeURL);
+
+      const qrResult = await adminDao.addFarmerQRCodeDao(qrcodeURL, result.userId);
+      console.log(qrResult);
+    }
+
+
 
     console.log("PlantCare user created successfully");
     return res.status(201).json({
@@ -1635,7 +1659,7 @@ exports.getCurrentAssertGroup = async (req, res) => {
       await ValidateSchema.getCurrentAssetGroupSchema.validateAsync(req.params);
 
     // Fetch data from the DAO
-    const results = await adminDao.getCurrentAssetGroup(validatedParams.id ,validatedParams.farmId);
+    const results = await adminDao.getCurrentAssetGroup(validatedParams.id, validatedParams.farmId);
 
     console.log(
       "Successfully retrieved total current assets grouped by category"
@@ -1836,21 +1860,21 @@ exports.getAllUsersTaskByCropId = async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    console.log("cropId:", cropId);
-    console.log("userId:", userId);
+    // console.log("cropId:", cropId);
+    // console.log("userId:", userId);
 
     // Fetch total, first starting date, and paginated tasks from the DAO
     const { total, firstStartingDate, items } =
       await adminDao.getAllUserTaskByCropId(cropId, userId, limit, offset);
 
-    console.log("Successfully fetched user tasks for crop ID:", cropId);
+    // console.log("Successfully fetched user tasks for crop ID:", cropId);
 
     const formattedItems = items.map((task) => ({
       ...task,
       images: task.imageUploads ? task.imageUploads.split(", ") : [], // Convert images string to array
     }));
 
-    console.log(formattedItems);
+    // console.log(formattedItems);
 
     // Send response with paginated tasks, total count, and first starting date
     res.json({
@@ -2036,6 +2060,7 @@ exports.editUserTask = async (req, res) => {
   console.log("Update task", req.body);
 
   const id = req.params.id;
+  const adminId = req.user.userId;
   console.log(id);
 
   try {
@@ -2060,6 +2085,14 @@ exports.editUserTask = async (req, res) => {
       validatedParams.videoLinkTamil,
       validatedParams.id
     );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    const track = await adminDao.trackUserTaskUpdateDao(id, adminId)
+    console.log(track);
+
 
     console.log("Task updated successfully");
     res.status(200).json({ message: "Task updated successfully" });
@@ -2235,11 +2268,11 @@ exports.addNewTaskU = async (req, res) => {
   const ongCultivationId = req.query.ongCultivationId;
   const adminUserId = req.user.userId;
   console.log("----------------------------------------");
-  console.log("Admin user Id:",req.user);
+  console.log("Admin user Id:", req.user);
   console.log("----------------------------------------");
 
-  
-  
+
+
 
   try {
     const task = req.body;
@@ -2364,6 +2397,10 @@ exports.deleteUserCropTask = async (req, res) => {
     const cropId = req.params.cropId;
     const userId = req.params.userId;
     const indexId = parseInt(req.params.indexId);
+    const adminId = req.user.userId;
+
+    const track = await adminDao.trackUserTaskUpdateDao(id, adminId);
+    console.log('ewewe',track);
 
     const results = await adminDao.deleteUserCropTask(id);
 
@@ -2386,6 +2423,10 @@ exports.deleteUserCropTask = async (req, res) => {
         );
       }
     }
+
+    
+    
+
     console.log("Crop Calendar task deleted successfully");
     res.status(200).json({ status: true });
   } catch (error) {
@@ -2733,8 +2774,14 @@ exports.plantcareDashboard = async (req, res) => {
     const grainCultivation = await adminDao.grainEnroll();
     const fruitCultivation = await adminDao.fruitEnroll();
     const mushCultivation = await adminDao.mushEnroll();
+    const leLegumesCultivation = await adminDao.legumesEnroll();
+    const spicesCultivation = await adminDao.spicesEnroll();
     const vegEnrollTillPreviousMonth =
       await adminDao.vegEnrollTillPreviousMonth();
+    const leLegumesEnrollTillPreviousMonth = 
+      await adminDao.legumesEnrollTillPreviousMonth();
+    const lspicesEnrollTillPreviousMonth = 
+      await adminDao.spicesEnrollTillPreviousMonth();
     const fruitEnrollTillPreviousMonth =
       await adminDao.fruitEnrollTillPreviousMonth();
     const grainEnrollTillPreviousMonth =
@@ -2752,14 +2799,18 @@ exports.plantcareDashboard = async (req, res) => {
 
     const totalCultivationTillPreviousMonth =
       vegEnrollTillPreviousMonth.veg_cultivation_count_till_previous_month +
+      leLegumesEnrollTillPreviousMonth.egumes_cultivation_count_till_previous_month +
       fruitEnrollTillPreviousMonth.fruit_cultivation_count_till_previous_month +
       grainEnrollTillPreviousMonth.grain_cultivation_count_till_previous_month +
+      lspicesEnrollTillPreviousMonth.spices_cultivation_count_till_previous_month +
       mushEnrollTillPreviousMonth.mush_cultivation_count_till_previous_month;
 
     const totalCultivationTillThisMonth =
       vegCultivation.veg_cultivation_count +
+      leLegumesCultivation.legumes_cultivation_count +
       fruitCultivation.fruit_cultivation_count +
       grainCultivation.grain_cultivation_count +
+      spicesCultivation.spices_cultivation_count +
       mushCultivation.mush_cultivation_count;
 
     const cultivationIncreasePercentage = (
@@ -2785,8 +2836,10 @@ exports.plantcareDashboard = async (req, res) => {
       active_users: activeUsers.active_users_count,
       new_users: newUsers.new_users_count,
       vegCultivation: vegCultivation.veg_cultivation_count,
+      leLegumesCultivation: leLegumesCultivation.legumes_cultivation_count,
       grainCultivation: grainCultivation.grain_cultivation_count,
       fruitCultivation: fruitCultivation.fruit_cultivation_count,
+      spicesCultivation: spicesCultivation.spices_cultivation_count,
       mushCultivation: mushCultivation.mush_cultivation_count,
       allusers: allUsers.all_farmer_count,
       allusersTillPreviousMonth:
@@ -2805,6 +2858,8 @@ exports.plantcareDashboard = async (req, res) => {
 
     console.log("Successfully fetched dashboard data");
     res.json({ data });
+    console.log("this is the data",data);
+    
   } catch (err) {
     if (err.isJoi) {
       return res.status(400).json({ error: err.details[0].message });
@@ -3010,9 +3065,7 @@ exports.getFarmsByUser = async (req, res) => {
     // Call DAO to fetch farms
     const { total, items } = await adminDao.getAllFarmsWithCultivations(
       userId,
-      searchItem,
-      limit,
-      offset
+      queryParams.searchText
     );
 
     res.json({
@@ -3082,9 +3135,9 @@ exports.forgotPassword = async (req, res) => {
     });
 
     const mailOptions = {
-      from: `"Agro World" <${process.env.EMAIL_USERNAME}>`,
+      from: `"Polygon Agro" <${process.env.EMAIL_USERNAME}>`,
       to: email,
-      subject: "Agro World Password Reset Request",
+      subject: "Polygon Agro Password Reset Request",
       html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0;">
 
@@ -3099,7 +3152,7 @@ exports.forgotPassword = async (req, res) => {
 
         <p style="color: #000;">Hello,</p>
         <p style="color: #000;">
-          We received a request to reset your password for your Agro World account.
+          We received a request to reset your password for your Polygon Agro account.
           Click the button below to reset it:
         </p>
 
@@ -3226,9 +3279,9 @@ exports.resendResetLink = async (req, res) => {
     });
 
     const mailOptions = {
-      from: `"Agro World" <${process.env.EMAIL_USERNAME}>`,
+      from: `"Polygon Agro" <${process.env.EMAIL_USERNAME}>`,
       to: user.mail,
-      subject: "Agro World Password Reset Link (Resent)",
+      subject: "Polygon Agro Password Reset Link (Resent)",
       html: `
         <div style="font-family: Arial; max-width: 600px; margin: auto;">
           <div style="background:#3E206D; padding:15px; text-align:center; border-radius:6px 6px 0 0;">
@@ -3298,18 +3351,12 @@ exports.getAllManagerList = async (req, res) => {
   console.log("Request URL:", fullUrl);
 
   try {
-    const companyId = req.params.companyId;
-    console.log(companyId);
-
-    const result = await adminDao.GetAllManagerList(
-      companyId
-      // Removed assignDistrict parameter
-    );
+    const result = await adminDao.GetAllManagerList();
 
     if (result.length === 0) {
       return res
         .status(404)
-        .json({ message: "No Fieald Officer found", data: result });
+        .json({ message: "No Field Officer Managers found", data: result });
     }
 
     console.log("Successfully retrieved all Field Officer Managers");
@@ -3409,12 +3456,16 @@ exports.createFieldOfficer = async (req, res) => {
     // Process profile image
     if (req.files && req.files.profileImage) {
       try {
-        const file = req.files.profileImage[0];
-        const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_profile.${fileExtension}`;
+
+        const base64String = req.body.file.split(",")[1];
+        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
+        const fileBuffer = Buffer.from(base64String, "base64");
+
+        const fileExtension = mimeType.split(".").pop();
+        const fileName = `${officerData.firstName}_${officerData.lastName}_profile.png`;
 
         profileImageUrl = await uploadFileToS3(
-          file.buffer,
+          fileBuffer,
           fileName,
           "fieldofficer/profile"
         );
@@ -3430,7 +3481,7 @@ exports.createFieldOfficer = async (req, res) => {
       try {
         const file = req.files.nicFront[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.png`;
 
         nicFrontUrl = await uploadFileToS3(
           file.buffer,
@@ -3451,7 +3502,7 @@ exports.createFieldOfficer = async (req, res) => {
       try {
         const file = req.files.nicBack[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.png`;
 
         nicBackUrl = await uploadFileToS3(
           file.buffer,
@@ -3470,7 +3521,7 @@ exports.createFieldOfficer = async (req, res) => {
       try {
         const file = req.files.passbook[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.png`;
 
         passbookUrl = await uploadFileToS3(
           file.buffer,
@@ -3489,7 +3540,7 @@ exports.createFieldOfficer = async (req, res) => {
       try {
         const file = req.files.contract[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_contract.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_contract.png`;
 
         contractUrl = await uploadFileToS3(
           file.buffer,
@@ -3508,15 +3559,13 @@ exports.createFieldOfficer = async (req, res) => {
     // Set modifyBy for the officer data
     officerData.modifyBy = tokenUserId;
 
-    // Handle irmId logic based on job role
-    if (
-      officerData.jobRole === "Field Officer" ||
-      officerData.jobRole === "Chief Field Officer"
-    ) {
+    // Handle irmId logic based on job role - FIXED: Only set to null for specific roles
+    if (officerData.jobRole === "Chief Field Officer") {
       officerData.irmId = null;
     }
 
-    console.log("Creating field officer with data:", {
+    console.log("Creating field officer with data:", officerData);
+    console.log("Document URLs:", {
       profileImageUrl,
       nicFrontUrl,
       nicBackUrl,
@@ -3524,7 +3573,7 @@ exports.createFieldOfficer = async (req, res) => {
       contractUrl,
     });
 
-    // Create field officer with all document URLs
+    // Create field officer with all document URLs - CORRECTED parameter order
     const results = await adminDao.createFieldOfficer(
       officerData,
       profileImageUrl,
@@ -3565,7 +3614,7 @@ exports.getFieldOfficerById = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    
+
     // Validate and format the inputs
     const { id } = await ValidateSchema.getFieldOfficerSchema.validateAsync({
       id: req.params.id
@@ -3602,10 +3651,11 @@ exports.deleteFieldOfficer = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const {profile, frontNic, backNic, backPassbook, contract} = await adminDao.getFieldOfficerImages(id);
+    const { profile, frontNic, backNic, backPassbook, contract } = await adminDao.getFieldOfficerImages(id);
 
     console.log('images', profile, frontNic, backNic, backPassbook, contract);
 
+    // Delete images from S3
     if (profile) {
       try {
         await deleteFromS3(profile);
@@ -3613,7 +3663,6 @@ exports.deleteFieldOfficer = async (req, res) => {
         console.error("Failed to delete Front Profile image from S3:", s3Error);
       }
     }
-
 
     if (frontNic) {
       try {
@@ -3647,19 +3696,22 @@ exports.deleteFieldOfficer = async (req, res) => {
       }
     }
 
-    console.log('success')
-
-    res.status(200).json({ massage: 'deleted', status: true });
-
-    const results = await collectionofficerDao.DeleteFieldOfficerDao(
-      id
-    );
+    // Delete from database
+    const results = await adminDao.DeleteFieldOfficerDao(id);
 
     console.log("Successfully Delete Status");
+
+    // Send response only once ✅
     if (results.affectedRows > 0) {
-      res.status(200).json({ results: results, status: true });
+      return res.status(200).json({
+        message: 'Field Officer deleted successfully',
+        status: true
+      });
     } else {
-      res.json({ results: results, status: false });
+      return res.status(404).json({
+        message: 'Field Officer not found',
+        status: false
+      });
     }
   } catch (error) {
     if (error.isJoi) {
@@ -3671,7 +3723,7 @@ exports.deleteFieldOfficer = async (req, res) => {
     console.error("Error retrieving Updated Status:", error);
     return res
       .status(500)
-      .json({ error: "An error occurred while Updated Statuss" });
+      .json({ error: "An error occurred while deleting Field Officer" });
   }
 };
 
@@ -3679,7 +3731,7 @@ exports.updateFieldOfficer = async (req, res) => {
   console.log("Update request received", req.body);
   console.log("Files:", req.files);
 
-  const tokenUserId = req.user?.id || req.user?.userId;
+  const tokenUserId = req.user.userId;
   const officerId = req.params.id; // Get officer ID from URL params
 
   try {
@@ -3738,7 +3790,7 @@ exports.updateFieldOfficer = async (req, res) => {
       try {
         const file = req.files.profileImage[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_profile.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_profile.png`;
 
         profileImageUrl = await uploadFileToS3(
           file.buffer,
@@ -3757,7 +3809,7 @@ exports.updateFieldOfficer = async (req, res) => {
       try {
         const file = req.files.nicFront[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.png`;
 
         nicFrontUrl = await uploadFileToS3(
           file.buffer,
@@ -3778,7 +3830,7 @@ exports.updateFieldOfficer = async (req, res) => {
       try {
         const file = req.files.nicBack[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.png`;
 
         nicBackUrl = await uploadFileToS3(
           file.buffer,
@@ -3797,7 +3849,7 @@ exports.updateFieldOfficer = async (req, res) => {
       try {
         const file = req.files.passbook[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.png`;
 
         passbookUrl = await uploadFileToS3(
           file.buffer,
@@ -3816,7 +3868,7 @@ exports.updateFieldOfficer = async (req, res) => {
       try {
         const file = req.files.contract[0];
         const fileExtension = file.originalname.split(".").pop();
-        const fileName = `${officerData.firstName}_${officerData.lastName}_contract.${fileExtension}`;
+        const fileName = `${officerData.firstName}_${officerData.lastName}_contract.png`;
 
         contractUrl = await uploadFileToS3(
           file.buffer,
@@ -3860,7 +3912,8 @@ exports.updateFieldOfficer = async (req, res) => {
       nicFrontUrl,
       nicBackUrl,
       passbookUrl,
-      contractUrl
+      contractUrl,
+      tokenUserId
     );
 
     console.log("Field Officer updated successfully");
@@ -3896,11 +3949,11 @@ exports.deleteFarmStaff = async (req, res) => {
     );
     const results = await adminDao.deleteFarmStaffDao(id);
 
-    if(results.affectedRows === 0){
-      return res.json({status:false, message: 'Staff delete faild!'})
+    if (results.affectedRows === 0) {
+      return res.json({ status: false, message: 'Staff delete faild!' })
     }
 
-    res.status({status:true, message:"Staff delete successfull!"})
+    res.status({ status: true, message: "Staff member has been deleted." })
 
     // Since your DAO function now returns { empId: newEmpId } directly
     // we don't need to check for length anymore
@@ -3911,5 +3964,75 @@ exports.deleteFarmStaff = async (req, res) => {
     }
     console.error("Error executing query:", err);
     res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+exports.getAllFiealdofficerComplains = async (req, res) => {
+  try {
+    console.log(req.query);
+    const {
+      page,
+      limit,
+      status,
+      category,
+      comCategory,
+      searchText,
+      rpstatus,
+    } = req.query;
+
+    console.log("searchText", searchText);
+
+    const { results, total } =
+      await adminDao.GetAllFiealdofficerComplainDAO(
+        page || 1,
+        limit || 10,
+        status,
+        category,
+        comCategory,
+        searchText,
+        rpstatus
+      );
+
+    console.log("Successfully retrieved all field officer complaints");
+    console.log("results", results);
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching field officer complaints:", err);
+    res.status(500).json({ error: "An error occurred while fetching field officer complaints" });
+  }
+};
+
+exports.getFiealdOfficerComplainById = async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const result = await adminDao.getFiealdOfficerComplainById(id);
+    console.log(result[0]);
+
+    if (result.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No Center Complain found", data: result[0] });
+    }
+
+    console.log("Successfully retrieved collection centre Complains");
+    res.json(result[0]);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching center complain:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching center complains" });
   }
 };

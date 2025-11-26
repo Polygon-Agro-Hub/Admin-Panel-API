@@ -656,7 +656,7 @@ exports.updateDefinePackageData = async (req, res) => {
     console.log('formattedData', formattedData.packages[0].items[1])
 
     const updateResult = await procumentDao.updateDefinePackageItemData(formattedData);
-    
+
     const trackResult = await procumentDao.trackDispatchOfficerDao(userId, orderId);
 
 
@@ -703,6 +703,91 @@ exports.getExcludedItems = async (req, res) => {
       success: false,
       message: "An error occurred while fetching order package items",
       error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
+
+exports.testFunc = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+
+    const data = await procumentDao.testFuncDao();
+
+
+
+
+    res.json(data);
+  } catch (err) {
+    console.error("Error fetching order package items:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching order package items",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
+exports.getDistributionOrdersEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { centerId, deliveryDate, search, page = 1, limit = 10 } = req.query;
+
+    const centerIdNum = centerId ? Number(centerId) : null;
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+
+    console.log("centerId:", centerIdNum, "deliveryDate:", deliveryDate, "search:", search, "page:", pageNum, "limit:", limitNum);
+
+    const result = await procumentDao.getDistributionOrdersDao(
+      centerIdNum,
+      deliveryDate,
+      search,
+      pageNum,
+      limitNum
+    );
+
+    res.status(200).json({
+      success: true,
+      items: result.items,
+      total: result.total,
+      page: result.page,
+      limit: result.limit
+    });
+
+  } catch (error) {
+    console.error("Error retrieving distribution orders:", error);
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while fetching distribution orders",
+      message: error.message
+    });
+  }
+};
+
+exports.getAllDistributionCenters = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const centers = await procumentDao.getAllDistributionCenters();
+
+    res.json({
+      success: true,
+      data: centers,
+      total: centers.length,
+      message: "Distribution centers fetched successfully"
+    });
+  } catch (err) {
+    console.error("Error fetching distribution centers:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching distribution centers.",
+      error: err.message
     });
   }
 };

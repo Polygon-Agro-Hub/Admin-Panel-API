@@ -718,7 +718,9 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
         u.firstName AS userFirstName,
         u.lastName AS userLastName,
         (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
-        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks
+        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasksm,
+        f.farmName,
+        occ.planType
       FROM 
         ongoingcultivationscrops occ
       JOIN 
@@ -731,6 +733,8 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
         cropvariety cv ON cc.cropVarietyId = cv.id
       JOIN 
         cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN 
+        farms f ON occ.farmId = f.id
       LEFT JOIN
         agro_world_admin.adminusers au ON occ.modifyBy = au.id
       WHERE
@@ -746,6 +750,7 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
         resolve({
           userFirstName: results[0].userFirstName,
           userLastName: results[0].userLastName,
+          farmName: results[0].farmName,
           cultivations: results,
         });
       } else {
@@ -3425,6 +3430,94 @@ exports.vegEnrollTillPreviousMonth = (userId) => {
   });
 };
 
+exports.legumesEnroll = (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT COUNT(DISTINCT occ.id) AS legumes_cultivation_count
+    FROM ongoingcultivationscrops occ
+    JOIN cropcalender cc ON occ.cropCalendar = cc.id
+    JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+    JOIN cropgroup cg ON cv.cropGroupId = cg.id
+    WHERE cg.category = 'Legumes' ;
+    `;
+
+    plantcare.query(sql, [userId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Return the user object
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.legumesEnrollTillPreviousMonth = (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT COUNT(DISTINCT occ.id) AS legumes_cultivation_count_till_previous_month
+    FROM ongoingcultivationscrops occ
+    JOIN cropcalender cc ON occ.cropCalendar = cc.id
+    JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+    JOIN cropgroup cg ON cv.cropGroupId = cg.id
+    WHERE cg.category = 'Legumes' AND occ.createdAt <= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+    `;
+
+    plantcare.query(sql, [userId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Return the user object
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.spicesEnroll = (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT COUNT(DISTINCT occ.id) AS spices_cultivation_count
+    FROM ongoingcultivationscrops occ
+    JOIN cropcalender cc ON occ.cropCalendar = cc.id
+    JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+    JOIN cropgroup cg ON cv.cropGroupId = cg.id
+    WHERE cg.category = 'Spices' ;
+    `;
+
+    plantcare.query(sql, [userId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Return the user object
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.spicesEnrollTillPreviousMonth = (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT COUNT(DISTINCT occ.id) AS spices_cultivation_count_till_previous_month
+    FROM ongoingcultivationscrops occ
+    JOIN cropcalender cc ON occ.cropCalendar = cc.id
+    JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+    JOIN cropgroup cg ON cv.cropGroupId = cg.id
+    WHERE cg.category = 'Spices' AND occ.createdAt <= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+    `;
+
+    plantcare.query(sql, [userId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Return the user object
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
 exports.grainEnroll = (userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -3631,9 +3724,9 @@ exports.getFarmerStaffDao = (ownerId, role, searchText) => {
 
   if (searchText) {
     sql += ` AND (f.firstName LIKE ? OR f.lastName LIKE ? OR f.nic LIKE ? )`;
-    const searchParam = `%${searchText}%`
+    const searchParam = `%${searchText}%`;
     console.log(searchParam);
-    
+
     sqlParams.push(searchParam, searchParam, searchParam);
   }
 
@@ -3945,14 +4038,11 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
     if (searchItem) {
       searchSql = `
         AND (
-          U.NICnumber LIKE ? OR
-          U.firstName LIKE ? OR
-          U.lastName LIKE ? OR
-          F.farmName LIKE ?
+          F.regCode LIKE ?
         )
       `;
       const searchQuery = `%${searchItem}%`;
-      params.push(searchQuery, searchQuery, searchQuery, searchQuery);
+      params.push(searchQuery);
     }
 
     if (userId) {
@@ -3968,6 +4058,7 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
         F.staffCount,
         F.district AS farmDistrict,
         F.createdAt AS farmCreatedAt,
+        F.regCode,
         U.id AS userId,
         U.firstName,
         U.lastName,
@@ -4002,6 +4093,7 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
         usersMap[row.userId].farms.push({
           farmId: row.farmId,
           farmName: row.farmName,
+          regCode: row.regCode,
           farmIndex: row.farmIndex,
           staffCount: row.staffCount,
           farmDistrict: row.farmDistrict,
@@ -4041,7 +4133,6 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
 //     });
 //   });
 // };
-
 
 exports.deleteFarmById = (farmId) => {
   return new Promise((resolve, reject) => {
@@ -4123,7 +4214,6 @@ exports.deleteFarmById = (farmId) => {
     });
   });
 };
-
 
 exports.tracktaskAddOngoingCultivation = (userId, id) => {
   return new Promise((resolve, reject) => {
@@ -4295,12 +4385,12 @@ exports.GetCompaniesDAO = () => {
   });
 };
 
-exports.GetAllManagerList = (companyId) => {
+exports.GetAllManagerList = () => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, firstName, lastName FROM feildofficer WHERE companyId = ? AND JobRole = 'Chief Field Officer' AND status = 'active'";
+      "SELECT id, firstName, lastName FROM feildofficer WHERE JobRole = 'Chief Field Officer' AND status = 'Approved'";
 
-    plantcare.query(sql, [companyId], (err, results) => {
+    plantcare.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -4428,6 +4518,85 @@ exports.getFOIDforCreateEmpIdDao = (employee) => {
   });
 };
 
+// exports.createFieldOfficer = (
+//   officerData,
+//   profileImageUrl,
+//   nicFrontUrl,
+//   nicBackUrl,
+//   passbookUrl,
+//   contractUrl,
+//   lastId
+// ) => {
+//   return new Promise((resolve, reject) => {
+//     try {
+//       // If no image URLs, set them to null
+//       const profileUrl = profileImageUrl || null;
+//       const frontNicUrl = nicFrontUrl || null;
+//       const backNicUrl = nicBackUrl || null;
+//       const backPassbookUrl = passbookUrl || null;
+//       const contractUrlValue = contractUrl || null;
+
+//       const sql = `
+//                 INSERT INTO feildofficer (
+//                     companyId, irmId, firstName, lastName, empType, empId, jobRole,
+//                     phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, language, email,
+//                     nic, house, street, city, distrct, province, country, comAmount,
+//                     accName, accNumber, bank, branch, profile, frontNic, backNic,
+//                     backPassbook, contract, assignDistrict, status
+//                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+//             `;
+
+//       // Replace 'db' with your actual database connection variable
+//       plantcare.query(
+//         sql,
+//         [
+//           officerData.companyId,
+//           officerData.irmId,
+//           officerData.firstName,
+//           officerData.lastName,
+//           officerData.empType,
+//           lastId,
+//           officerData.jobRole,
+//           officerData.phoneCode1,
+//           officerData.phoneNumber1,
+//           officerData.phoneCode2,
+//           officerData.phoneNumber2,
+//           officerData.language,
+//           officerData.email,
+//           officerData.nic,
+//           officerData.house,
+//           officerData.street,
+//           officerData.city,
+//           officerData.distrct,
+//           officerData.province,
+//           officerData.country,
+//           officerData.comAmount,
+//           officerData.accName,
+//           officerData.accNumber,
+//           officerData.bank,
+//           officerData.branch,
+//           profileUrl,
+//           frontNicUrl,
+//           backNicUrl,
+//           backPassbookUrl,
+//           contractUrlValue,
+//           officerData.assignDistrict,
+//           "Not Aproved",
+//         ],
+//         (err, results) => {
+//           if (err) {
+//             console.log(err);
+//             return reject(err); // Reject promise if an error occurs
+//           }
+//           resolve(results); // Resolve the promise with the query results
+//         }
+//       );
+//     } catch (error) {
+//       reject(error); // Reject if any error occurs
+//     }
+//   });
+// };
+
 exports.createFieldOfficer = (
   officerData,
   profileImageUrl,
@@ -4447,13 +4616,13 @@ exports.createFieldOfficer = (
       const contractUrlValue = contractUrl || null;
 
       const sql = `
-                INSERT INTO feildofficer (
-                    companyId, irmId, firstName, lastName, empType, empId, jobRole, 
+                INSERT INTO feildofficer (companyId, irmId, firstName, lastName, firstNameSinhala, firstNameTamil, lastNameSinhala,  
+                     lastNameTamil, empType, empId, jobRole, 
                     phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, language, email, 
                     nic, house, street, city, distrct, province, country, comAmount, 
                     accName, accNumber, bank, branch, profile, frontNic, backNic, 
                     backPassbook, contract, assignDistrict, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             `;
 
       // Replace 'db' with your actual database connection variable
@@ -4464,6 +4633,10 @@ exports.createFieldOfficer = (
           officerData.irmId,
           officerData.firstName,
           officerData.lastName,
+          officerData.firstNameSinhala,
+          officerData.firstNameTamil,
+          officerData.lastNameSinhala,
+          officerData.lastNameTamil,
           officerData.empType,
           lastId,
           officerData.jobRole,
@@ -4491,7 +4664,7 @@ exports.createFieldOfficer = (
           backPassbookUrl,
           contractUrlValue,
           officerData.assignDistrict,
-          "Not Aproved",
+          "Not Approved",
         ],
         (err, results) => {
           if (err) {
@@ -4507,7 +4680,6 @@ exports.createFieldOfficer = (
   });
 };
 
-
 exports.getFieldOfficerByIdDAO = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -4516,7 +4688,7 @@ exports.getFieldOfficerByIdDAO = (id) => {
               FC.companyName
           FROM 
               feildofficer FO
-          JOIN 
+          LEFT JOIN 
               feildcompany FC ON FO.companyId = FC.id
           WHERE 
               FO.id = ?`;
@@ -4533,13 +4705,17 @@ exports.getFieldOfficerByIdDAO = (id) => {
       const officer = results[0];
 
       const assignDistrictsArray = officer.assignDistrict
-        ? officer.assignDistrict.split(',').map(d => d.trim())
+        ? officer.assignDistrict.split(",").map((d) => d.trim())
         : [];
       resolve({
         fieldOfficer: {
           id: officer.id,
           firstName: officer.firstName,
           lastName: officer.lastName,
+          firstNameSinhala: officer.firstNameSinhala,
+          firstNameTamil: officer.firstNameTamil,
+          lastNameSinhala: officer.lastNameSinhala,
+          lastNameTamil: officer.lastNameTamil,
           phoneNumber01: officer.phoneNumber1,
           phoneNumber02: officer.phoneNumber2,
           phoneCode01: officer.phoneCode1,
@@ -4570,6 +4746,7 @@ exports.getFieldOfficerByIdDAO = (id) => {
           comAmount: officer.comAmount,
           language: officer.language,
           companyId: officer.companyId,
+          irmId: officer.irmId,
         },
       });
     });
@@ -4578,7 +4755,8 @@ exports.getFieldOfficerByIdDAO = (id) => {
 
 exports.getFieldOfficerImages = (id) => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT profile, frontNic, backNic, backPassbook, contract  FROM plant_care.feildofficer WHERE id = ?";
+    const sql =
+      "SELECT profile, frontNic, backNic, backPassbook, contract  FROM plant_care.feildofficer WHERE id = ?";
     collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
@@ -4610,105 +4788,77 @@ exports.updateFieldOfficer = (
   nicFrontUrl,
   nicBackUrl,
   passbookUrl,
-  contractUrl
+  contractUrl,
+  tokenUserId
 ) => {
   return new Promise((resolve, reject) => {
     try {
-      // If no image URLs, set them to null
-      const profileUrl = profileImageUrl || null;
-      const frontNicUrl = nicFrontUrl || null;
-      const backNicUrl = nicBackUrl || null;
-      const backPassbookUrl = passbookUrl || null;
-      const contractUrlValue = contractUrl || null;
+      // Build dynamic SQL query based on provided fields
+      let sql = `UPDATE feildofficer SET `;
+      const values = [];
+      const updates = [];
 
-      const sql = `
-        UPDATE feildofficer 
-        SET 
-          companyId = ?, 
-          irmId = ?, 
-          firstName = ?, 
-          lastName = ?, 
-          empType = ?, 
-          jobRole = ?, 
-          phoneCode1 = ?, 
-          phoneNumber1 = ?, 
-          phoneCode2 = ?, 
-          phoneNumber2 = ?, 
-          language = ?, 
-          email = ?, 
-          nic = ?, 
-          house = ?, 
-          street = ?, 
-          city = ?, 
-          distrct = ?, 
-          province = ?, 
-          country = ?, 
-          comAmount = ?, 
-          accName = ?, 
-          accNumber = ?, 
-          bank = ?, 
-          branch = ?, 
-          profile = ?, 
-          frontNic = ?, 
-          backNic = ?, 
-          backPassbook = ?, 
-          contract = ?, 
-          assignDistrict = ?, 
-          status = ?
-        WHERE id = ?;
-      `;
+      // Add all non-image fields
+      const fields = [
+        'irmId', 'firstName', 'lastName', 'firstNameSinhala', 'firstNameTamil',
+        'lastNameSinhala', 'lastNameTamil', 'empType', 'jobRole', 'phoneCode1',
+        'phoneNumber1', 'phoneCode2', 'phoneNumber2', 'language', 'email', 'nic',
+        'house', 'street', 'city', 'distrct', 'province', 'country', 'comAmount',
+        'accName', 'accNumber', 'bank', 'branch', 'assignDistrict', 'status', 'modifyBy'
+      ];
 
-      // Replace 'db' with your actual database connection variable
-      plantcare.query(
-        sql,
-        [
-          officerData.companyId,
-          officerData.irmId,
-          officerData.firstName,
-          officerData.lastName,
-          officerData.empType,
-          officerData.jobRole,
-          officerData.phoneCode1,
-          officerData.phoneNumber1,
-          officerData.phoneCode2,
-          officerData.phoneNumber2,
-          officerData.language,
-          officerData.email,
-          officerData.nic,
-          officerData.house,
-          officerData.street,
-          officerData.city,
-          officerData.distrct,
-          officerData.province,
-          officerData.country,
-          officerData.comAmount,
-          officerData.accName,
-          officerData.accNumber,
-          officerData.bank,
-          officerData.branch,
-          profileUrl,
-          frontNicUrl,
-          backNicUrl,
-          backPassbookUrl,
-          contractUrlValue,
-          officerData.assignDistrict,
-          officerData.status || "Not Aproved", // Keep existing status or default
-          officerId // WHERE condition
-        ],
-        (err, results) => {
-          if (err) {
-            console.log(err);
-            return reject(err);
-          }
-          resolve(results);
+      fields.forEach(field => {
+        if (officerData[field] !== undefined) {
+          updates.push(`${field} = ?`);
+          values.push(officerData[field]);
         }
-      );
+      });
+
+      // Only update image fields if new URLs are provided
+      if (profileImageUrl !== undefined) {
+        updates.push('profile = ?');
+        values.push(profileImageUrl);
+      }
+
+      if (nicFrontUrl !== undefined) {
+        updates.push('frontNic = ?');
+        values.push(nicFrontUrl);
+      }
+
+      if (nicBackUrl !== undefined) {
+        updates.push('backNic = ?');
+        values.push(nicBackUrl);
+      }
+
+      if (passbookUrl !== undefined) {
+        updates.push('backPassbook = ?');
+        values.push(passbookUrl);
+      }
+
+      if (contractUrl !== undefined) {
+        updates.push('contract = ?');
+        values.push(contractUrl);
+      }
+
+      // Add WHERE condition
+      sql += updates.join(', ') + ' WHERE id = ?';
+      values.push(officerId);
+
+      console.log('Update SQL:', sql);
+      console.log('Update values:', values);
+
+      plantcare.query(sql, values, (err, results) => {
+        if (err) {
+          console.log(err);
+          return reject(err);
+        }
+        resolve(results);
+      });
     } catch (error) {
       reject(error);
     }
   });
 };
-
 
 exports.deleteFarmStaffDao = async (id) => {
   return new Promise((resolve, reject) => {
@@ -4723,3 +4873,199 @@ exports.deleteFarmStaffDao = async (id) => {
     });
   });
 };
+
+exports.addFarmerQRCodeDao = async (qrcode, id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      UPDATE users
+      SET farmerQr = ?
+      WHERE id = ?
+    `;
+
+    plantcare.query(sql, [qrcode, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+exports.GetAllFiealdofficerComplainDAO = (
+  page,
+  limit,
+  status,
+  category,
+  comCategory,
+  searchText,
+  rpstatus
+) => {
+  return new Promise((resolve, reject) => {
+    const Sqlparams = [];
+    const Counterparams = [];
+    const offset = (page - 1) * limit;
+
+    // SQL to count total records - Updated with adminusers join
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM feildofficercomplains fc
+      LEFT JOIN feildofficer fo ON fc.officerId = fo.id
+      LEFT JOIN agro_world_admin.complaincategory cc ON fc.complainCategory = cc.id
+      LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      LEFT JOIN agro_world_admin.adminusers au ON fc.adminReplyBy = au.id
+      WHERE 1=1
+    `;
+
+    // SQL to fetch paginated data - Updated with adminusers join
+    let sql = `
+      SELECT 
+        fc.id, 
+        fc.refNo,
+        fo.empId AS empId,
+        CONCAT(fo.firstName, ' ', fo.lastName) AS officerName,
+        CONCAT(fo.firstNameSinhala, ' ', fo.lastNameSinhala) AS officerNameSinhala,
+        CONCAT(fo.firstNameTamil, ' ', fo.lastNameTamil) AS officerNameTamil,
+        cc.categoryEnglish AS complainCategory,
+        CONCAT(fo2.firstName, ' ', fo2.lastName) AS replyOfficerName,
+        fc.createdAt,
+        fc.complain,
+        fc.status ,
+        fc.reply,
+        fc.language,
+        au.userName AS adminReplyByName
+      FROM feildofficercomplains fc
+      LEFT JOIN feildofficer fo ON fc.officerId = fo.id
+      LEFT JOIN agro_world_admin.complaincategory cc ON fc.complainCategory = cc.id
+      LEFT JOIN feildofficer fo2 ON cc.roleId = fo2.id
+      LEFT JOIN agro_world_admin.adminusers au ON fc.adminReplyBy = au.id
+      WHERE 1=1
+    `;
+
+    // Add filter for status
+    if (status) {
+      if (status === "Assigned") {
+        countSql += " AND fc.status = ? ";
+        sql += " AND fc.status = ? ";
+        Sqlparams.push('Opened');
+        Counterparams.push('Opened');
+      } else if (status === "Closed") {
+        countSql += " AND fc.status = ? ";
+        sql += " AND fc.status = ? ";
+        Sqlparams.push('Closed');
+        Counterparams.push('Closed');
+      }
+    }
+
+    // Fixed category filter to use the correct alias
+    if (category) {
+      countSql += " AND ar.role = ? ";
+      sql += " AND ar.role = ? ";
+      Sqlparams.push(category);
+      Counterparams.push(category);
+    }
+
+    if (comCategory) {
+      countSql += " AND fc.complainCategory = ? ";
+      sql += " AND fc.complainCategory = ? ";
+      Sqlparams.push(comCategory);
+      Counterparams.push(comCategory);
+    }
+
+    // Add search functionality - ONLY for empId
+    if (searchText) {
+      countSql += " AND fo.empId LIKE ? ";
+      sql += " AND fo.empId LIKE ? ";
+      const searchQuery = `%${searchText}%`;
+      Sqlparams.push(searchQuery);
+      Counterparams.push(searchQuery);
+    }
+
+    if (rpstatus) {
+      if (rpstatus === "Yes") {
+        countSql += " AND fc.reply IS NOT NULL ";
+        sql += " AND fc.reply IS NOT NULL ";
+      } else {
+        countSql += " AND fc.reply IS NULL ";
+        sql += " AND fc.reply IS NULL ";
+      }
+    }
+
+    // Add pagination
+    sql += " ORDER BY fc.createdAt DESC LIMIT ? OFFSET ?";
+    Sqlparams.push(parseInt(limit), parseInt(offset));
+
+    // Execute count query to get total records
+    plantcare.query(countSql, Counterparams, (countErr, countResults) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResults[0]?.total || 0;
+
+      // Execute main query to get paginated results
+      plantcare.query(sql, Sqlparams, (dataErr, results) => {
+        if (dataErr) {
+          return reject(dataErr);
+        }
+
+        resolve({ results, total });
+      });
+    });
+  });
+};
+
+exports.getFiealdOfficerComplainById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = ` 
+    SELECT 
+      foc.id, 
+      foc.refNo, 
+      foc.createdAt, 
+      foc.language, 
+      foc.complain, 
+      foc.complainCategory, 
+      foc.reply, 
+      fo.firstName AS firstName, 
+      fo.lastName AS lastName, 
+      fo.phoneCode1 AS phoneCode01, 
+      fo.phoneNumber1 AS phoneNumber01,  
+      cc.categoryEnglish AS complainCategory, 
+      fo.empId AS empId, 
+      fo.JobRole AS jobRole,
+      CONCAT(fo.firstName, ' ', fo.lastName) AS officerName,
+      CONCAT(fo.firstNameSinhala, ' ', fo.lastNameSinhala) AS officerNameSinhala,
+      CONCAT(fo.firstNameTamil, ' ', fo.lastNameTamil) AS officerNameTamil
+    FROM feildofficercomplains foc
+    LEFT JOIN feildofficer fo ON foc.officerId = fo.id
+    LEFT JOIN agro_world_admin.complaincategory cc ON foc.complainCategory = cc.id
+    WHERE foc.id = ? 
+    `;
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+
+exports.trackUserTaskUpdateDao = (id, adminId) => {
+  return new Promise((resolve, reject) => {
+    const sql =
+      `
+      UPDATE slavecropcalendardays scd
+      JOIN plant_care.ongoingcultivationscrops occ ON scd.onCulscropID = occ.id
+      SET occ.modifyBy = ?
+      WHERE scd.id = ?
+      `;
+
+    plantcare.query(sql, [adminId, id], (err, results) => {
+      if (err) {
+        return reject(err); // Handle error in the promise
+      }
+
+      // Return the count result
+      resolve(results);
+    });
+  });
+};
+
