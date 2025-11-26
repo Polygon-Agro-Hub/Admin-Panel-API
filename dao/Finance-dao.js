@@ -1615,7 +1615,7 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
         cg.cropNameEnglish,
         c.srtName AS certificateName
       FROM plant_care.investmentrequest ir
-      INNER JOIN plant_care.rejectinvestmentrequest rir ON ir.id = rir.reqId
+      LEFT JOIN plant_care.rejectinvestmentrequest rir ON ir.id = rir.reqId
       LEFT JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.cropvariety cv ON ir.varietyId = cv.id
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
