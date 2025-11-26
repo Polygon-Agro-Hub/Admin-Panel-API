@@ -1629,7 +1629,7 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
 
     // Only keep general search function (searches in both reqId and phoneNumber)
     if (filters.search) {
-      sql += ` AND (ir.id LIKE ? OR u.phoneNumber LIKE ?)`;
+      sql += ` AND (ir.jobId LIKE ? OR u.phoneNumber LIKE ?)`;
       const searchTerm = `%${filters.search}%`;
       params.push(searchTerm, searchTerm);
     }
