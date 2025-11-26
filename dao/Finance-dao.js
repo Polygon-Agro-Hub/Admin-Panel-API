@@ -1613,13 +1613,15 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
         u.NICnumber,
         cv.varietyNameEnglish,
         cg.cropNameEnglish,
-        c.srtName AS certificateName
+        c.srtName AS certificateName,
+        fo.empId AS officerEmpId
       FROM plant_care.investmentrequest ir
       INNER JOIN plant_care.rejectinvestmentrequest rir ON ir.id = rir.reqId
       LEFT JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.cropvariety cv ON ir.varietyId = cv.id
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN plant_care.certificates c ON ir.certificateId = c.id
+      LEFT JOIN plant_care.feildofficer fo ON ir.officerId = fo.id
       WHERE ir.reqStatus = 'Rejected'
     `;
 
@@ -1641,7 +1643,6 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
       }
       resolve(results);
     });
-
   });
 };
 
