@@ -86,8 +86,10 @@ router.get(
 
 
 router.get('/officers', financeController.getOfficersByDistrictAndRoleForInvestment);
-router.post('/assign-officer', financeController.assignOfficerToInvestmentRequest);
+router.post('/assign-officer',authMiddleware,  financeController.assignOfficerToInvestmentRequest);
 
 router.get('/rejected-investment-requests', authMiddleware, financeController.getAllRejectedInvestmentRequests);
+router.get('/approved-govicare-requests', financeController.GetAllApprovedInvestmentRequests);
+router.put('/govicare-requests/:id/publish',authMiddleware, financeController.UpdateInvestmentRequestPublishStatus);
 
 module.exports = router;

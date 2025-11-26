@@ -1152,7 +1152,8 @@ exports.assignOfficerToInvestmentRequest = async (req, res) => {
   try {
     const { requestId, officerId } = req.body;
     
-    const assignByUserId = req.user?.id || req.user?.userId || req.user?.user_id || req.user?.userID;
+    const assignByUserId = req.user.userId;
+    console.log('Assigning officer to investment request:', assignByUserId );
     
     console.log('Authentication debug:', {
       user: req.user,
@@ -1249,8 +1250,6 @@ exports.getAllRejectedInvestmentRequests = async (req, res) => {
   }
 };
 
-
-
 exports.getAllPublishedProjects = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
@@ -1276,6 +1275,82 @@ exports.getAllPublishedProjects = async (req, res) => {
     return res
       .status(500)
       .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
+
+exports.GetAllApprovedInvestmentRequests = async (req, res) => {
+  try {
+    const { status, search } = req.query;
+    
+    const filters = {
+      status: status || undefined,
+      search: search || undefined,
+    };
+
+    const results = await financeDao.GetAllApprovedInvestmentRequestsDAO(filters);
+    const count = results.length;
+
+    res.status(200).json({
+      count: count,
+      data: results,
+    });
+  } catch (error) {
+    console.error('Error in GetAllApprovedInvestmentRequests:', error);
+    res.status(500).json({
+      count: 0,
+      data: [],
+      error: 'Internal server error',
+    });
+  }
+};
+
+exports.UpdateInvestmentRequestPublishStatus = async (req, res) => {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const requestId = req.params.id;
+    const publishBy = req.user.userId;
+    console.log('Publishing investment request ID:', requestId);
+    console.log('Publish initiated by user ID:', publishBy);
+
+    // First check if request exists and is approved
+    const request = await financeDao.GetApprovedInvestmentRequestByIdDAO(requestId);
+    
+    if (!request) {
+      return res.status(404).json({
+        status: false,
+        message: 'Request not found',
+      });
+    }
+
+    if (request.reqStatus !== 'Approved') {
+      return res.status(400).json({
+        status: false,
+        message: 'Only approved requests can be published',
+      });
+    }
+
+    if (request.publishStatus === 'Published') {
+      return res.status(400).json({
+        status: false,
+        message: 'This request is already published',
+      });
+    }
+
+    // Update publish status
+    await financeDao.UpdateInvestmentRequestPublishStatusDAO(requestId,publishBy);
+
+    res.status(200).json({
+      status: true,
+      message: 'Project published successfully to GoViCapital',
+    });
+  } catch (error) {
+    console.error('Error in UpdateInvestmentRequestPublishStatus:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Internal server error',
+    });
   }
 };
 
