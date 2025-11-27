@@ -321,6 +321,12 @@ router.patch(
   marketPlaceEp.changePackageStatus
 );
 
+router.get(
+  "/postinvoice/:processOrderId",
+  authMiddleware,
+  marketPlaceEp.getPostInvoiceDetails
+);
+
 
 
 
