@@ -772,7 +772,7 @@ exports.createPaymentHistory = async (req, res) => {
     );
 
     const { receivers, amount, paymentReference } = validatedBody;
-    const issueBy = req.user.id; // From JWT token
+    const issueBy = req.user.userId; 
 
     console.log("Creating payment history:", {
       receivers,
@@ -854,7 +854,7 @@ exports.updatePaymentHistory = async (req, res) => {
 
     const { id } = validatedParams;
     const { receivers, amount, paymentReference } = validatedBody;
-    const modifyBy = req.user.id; // From JWT token
+    const modifyBy = req.user.userId; // From JWT token
 
     console.log("Updating payment history:", id);
 
