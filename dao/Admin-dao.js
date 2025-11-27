@@ -4616,20 +4616,19 @@ exports.createFieldOfficer = (
       const contractUrlValue = contractUrl || null;
 
       const sql = `
-                INSERT INTO feildofficer (companyId, irmId, firstName, lastName, firstNameSinhala, firstNameTamil, lastNameSinhala,  
+                INSERT INTO feildofficer (irmId, firstName, lastName, firstNameSinhala, firstNameTamil, lastNameSinhala,  
                      lastNameTamil, empType, empId, jobRole, 
                     phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, language, email, 
                     nic, house, street, city, distrct, province, country, comAmount, 
                     accName, accNumber, bank, branch, profile, frontNic, backNic, 
                     backPassbook, contract, assignDistrict, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             `;
 
       // Replace 'db' with your actual database connection variable
       plantcare.query(
         sql,
         [
-          officerData.companyId,
           officerData.irmId,
           officerData.firstName,
           officerData.lastName,
