@@ -3135,26 +3135,32 @@ exports.changePackageStatusDao = async (data) => {
     });
   });
 };
-exports.getPosPackageDetailsDAO = (packageId) => {
+exports.getPosPackageDetailsDAO = (orderId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT 
-        pd.packageId,
-        pt.id AS productTypeId,
-        pt.typeName,
-        pd.qty,
-        opi.productId,
-        opi.price,
-        opi.qty AS orderedQty,
-        mi.displayName,
-      FROM packagedetails pd
-      JOIN producttypes pt ON pd.productTypeId = pt.id
-      JOIN orderpackageitems opi ON pd.packageId = opi.orderPackageId
-      LEFT JOIN marketplaceitems mi ON opi.productId = mi.id
-      WHERE pd.packageId = ?
+      SELECT                                           
+        mp.id AS packageId,
+        mp.displayName AS packageName,               
+        mp.productPrice AS packagePrice,             
+        op.qty AS packageCount,                      
+        JSON_ARRAYAGG(                               
+            JSON_OBJECT(                             
+                'typeName', pt.typeName,             
+                'productName', mpi.displayName,      
+                'price', opi.price,                  
+                'qty', opi.qty                       
+            )                                        
+        ) AS items                                   
+      FROM orderpackage op
+      LEFT JOIN marketplacepackages mp ON op.packageId = mp.id
+      LEFT JOIN orderpackageitems opi ON op.id = opi.orderPackageId
+      LEFT JOIN producttypes pt ON opi.productType = pt.id
+      LEFT JOIN marketplaceitems mpi ON opi.productId = mpi.id
+      WHERE op.orderId = ?                                
+      GROUP BY mp.id, mp.displayName, mp.productPrice, op.qty;
     `;
 
-    marketPlace.query(sql, [packageId], (err, results) => {
+    marketPlace.query(sql, [orderId], (err, results) => {
       if (err) {
         return reject(err);
       }

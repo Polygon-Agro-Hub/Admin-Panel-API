@@ -2322,15 +2322,29 @@ exports.getPostInvoiceDetails = async (req, res) => {
       );
     }
 
+    // Get package details for each family pack item
     const packageDetailsPromises = familyPackItems.map((item) =>
-      MarketPlaceDao.getPosPackageDetailsDAO(item.packageId)
+      MarketPlaceDao.getPosPackageDetailsDAO(processOrderId) // Use processOrderId instead of item.packageId
     );
-    const packageDetails = await Promise.all(packageDetailsPromises);
+    const packageDetailsResults = await Promise.all(packageDetailsPromises);
 
-    const familyPackItemsWithDetails = familyPackItems.map((item, index) => ({
-      ...item,
-      packageDetails: packageDetails[index],
-    }));
+    // Map family pack items with their corresponding package details
+    const familyPackItemsWithDetails = familyPackItems.map((item, index) => {
+      const packageDetail = packageDetailsResults[index] || [];
+      
+      // Find the specific package that matches the current item
+      const matchedPackage = packageDetail.find(pkg => 
+        pkg.packageName === item.name
+      );
+
+      return {
+        id: item.id,
+        packageId: item.packageId,
+        name: item.name,
+        amount: item.amount,
+        packageDetails: matchedPackage ? matchedPackage.items : []
+      };
+    });
 
     const response = {
       invoice: invoiceDetails,
