@@ -2323,7 +2323,7 @@ exports.getPostInvoiceDetails = async (req, res) => {
     }
 
     const packageDetailsPromises = familyPackItems.map((item) =>
-      MarketPlaceDao.getPackageDetailsDAO(item.packageId)
+      MarketPlaceDao.getPosPackageDetailsDAO(item.packageId)
     );
     const packageDetails = await Promise.all(packageDetailsPromises);
 
