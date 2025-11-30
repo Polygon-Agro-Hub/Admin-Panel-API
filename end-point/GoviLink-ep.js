@@ -169,24 +169,24 @@ exports.getAllGoviLinkJobs = async (req, res) => {
   }
 };
 
-// Get field officers by job role
 exports.getOfficersByJobRole = async (req, res) => {
   try {
-    const { jobRole, scheduleDate } = req.query;
+    const { jobRole, scheduleDate, jobId } = req.query;
 
-    if (!jobRole || !scheduleDate) {
+    if (!jobRole || !scheduleDate || !jobId) {
       return res.status(400).json({
-        error: "jobRole and scheduleDate parameters are required",
+        error: "jobRole, scheduleDate, and jobId parameters are required",
       });
     }
 
     const officers = await GoviLinkDAO.getOfficersByJobRoleDAO(
       jobRole,
-      scheduleDate
+      scheduleDate,
+      jobId
     );
 
     console.log(
-      `Successfully retrieved officers with job role: ${jobRole} on ${scheduleDate}`
+      `Successfully retrieved officers with job role: ${jobRole} on ${scheduleDate} for job: ${jobId}`
     );
 
     res.json({
@@ -203,10 +203,10 @@ exports.getOfficersByJobRole = async (req, res) => {
   }
 };
 
-// Assign officer to job with automatic deactivation of previous assignments
 exports.assignOfficerToJob = async (req, res) => {
   try {
     const { jobId, officerId } = req.body;
+    const assignedBy = req.user.userId;
 
     if (!jobId || !officerId) {
       return res.status(400).json({
@@ -215,7 +215,8 @@ exports.assignOfficerToJob = async (req, res) => {
       });
     }
 
-    const result = await GoviLinkDAO.assignOfficerToJobDAO(jobId, officerId);
+    // Pass assignedBy to the DAO function
+    const result = await GoviLinkDAO.assignOfficerToJobDAO(jobId, officerId, assignedBy);
 
     if (result.success) {
       res.json({

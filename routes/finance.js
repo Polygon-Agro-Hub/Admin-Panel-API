@@ -101,7 +101,7 @@ router.get(
 );
 
 router.get(
-  '/approved-govicare-requests', 
+  '/approved-govicare-requests', authMiddleware,
   financeController.GetAllApprovedInvestmentRequests
 );
 
