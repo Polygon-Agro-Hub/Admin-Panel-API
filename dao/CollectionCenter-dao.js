@@ -243,11 +243,13 @@ exports.GetAllComplainDAO = (
         ar.role,
         fc.createdAt,
         fc.adminStatus AS status,
-        fc.reply
+        fc.reply,
+        au.userName AS replyBy
       FROM farmercomplains fc
       LEFT JOIN plant_care.users u ON fc.farmerId = u.id
       LEFT JOIN agro_world_admin.complaincategory cc ON fc.complainCategory = cc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      LEFT JOIN agro_world_admin.adminusers au ON fc.replyBy = au.id
       WHERE 1 = 1
     `;
 
@@ -743,7 +745,7 @@ exports.insertCompaniesIntoCompanyCenter = (companyIds, collectionID) => {
   });
 };
 
-exports.sendComplainReply = (complainId, reply) => {
+exports.sendComplainReply = (complainId, reply, adminId) => {
   return new Promise((resolve, reject) => {
     // Input validation
     if (!complainId) {
@@ -756,13 +758,13 @@ exports.sendComplainReply = (complainId, reply) => {
 
     const sql = `
       UPDATE farmercomplains 
-      SET reply = ?, status = ?, adminStatus = ?, replyTime = NOW()
+      SET reply = ?, status = ?, adminStatus = ?, replyBy = ?, replyTime = NOW()
       WHERE id = ?
     `;
 
     const status = "Closed";
     const adminStatus = "Closed";
-    const values = [reply, status, adminStatus, complainId];
+    const values = [reply, status, adminStatus, adminId, complainId];
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
@@ -1044,7 +1046,7 @@ exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) =
       sql += " AND id != ?";
       sqlParams.push(id);
     }
-    
+
     collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
         reject(err);
@@ -1052,7 +1054,7 @@ exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) =
         // Check if either companyNameEnglish or regNumber already exists
         const nameExists = results.some(result => result.companyNameEnglish === companyNameEnglish);
         const regNumberExists = results.some(result => result.regNumber === regNumber);
-        
+
         resolve({
           exists: results.length > 0,
           nameExists,
@@ -1377,7 +1379,7 @@ exports.getReseantCollectionDao = (centerId) => {
 
         return entries;
       });
-      
+
       console.log('transformData', transformData);
       resolve(transformData);
     });
@@ -1406,8 +1408,8 @@ exports.getTotExpencesDao = (centerId) => {
       if (err) {
         return reject(err);
       }
-      console.log("--------",results);
-      
+      console.log("--------", results);
+
       if (results.length === 0 || results[0].totExpences === null) {
         return resolve({ totExpences: 0.00 })
       }
@@ -1930,27 +1932,27 @@ exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) =
 
 
 exports.getCompanyCenterIDDao = (companyId, centerId) => {
-    return new Promise((resolve, reject) => {
-        let dataSql = `
+  return new Promise((resolve, reject) => {
+    let dataSql = `
             SELECT id FROM companycenter WHERE companyId = ? AND centerId = ?
         `;
-        const dataParams = [companyId, centerId];
-        collectionofficer.query(dataSql, dataParams, (err, results) => {
-            if (err) {
-                return reject(err);
-            }
-            if (results.length === 0) {
-                return resolve(null);
-            }
-            resolve(results[0].id);
-        });
+    const dataParams = [companyId, centerId];
+    collectionofficer.query(dataSql, dataParams, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      if (results.length === 0) {
+        return resolve(null);
+      }
+      resolve(results[0].id);
     });
+  });
 };
 
 
 exports.getCenterTargetDAO = (companyCenterId, status, searchText) => {
-    return new Promise((resolve, reject) => {
-        let targetSql = `
+  return new Promise((resolve, reject) => {
+    let targetSql = `
         SELECT
           dt.id, 
           dt.companyCenterId, 
@@ -1969,87 +1971,87 @@ exports.getCenterTargetDAO = (companyCenterId, status, searchText) => {
       WHERE dt.companyCenterId = ? AND DATE(dt.date) = CURDATE() AND (dt.target != 0 OR dt.complete != 0)
         `;
 
-        const sqlParams = [companyCenterId];
+    const sqlParams = [companyCenterId];
 
-        // Add status filter if provided
-        if (status) {
-          const statusLower = status.toLowerCase();
-      
-          if (statusLower === 'completed') {
-              targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
-          } else if (statusLower === 'exceeded') {
-              targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
-          } else if (statusLower === 'pending') {
-              targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
-          } else if (statusLower === 'extra') {
-              targetSql += " AND dt.target = 0 AND dt.complete > 0";
-          } else if (statusLower === 'no target') {
-              targetSql += " AND dt.target = 0 AND dt.complete = 0";
-          }
+    // Add status filter if provided
+    if (status) {
+      const statusLower = status.toLowerCase();
+
+      if (statusLower === 'completed') {
+        targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
+      } else if (statusLower === 'exceeded') {
+        targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
+      } else if (statusLower === 'pending') {
+        targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
+      } else if (statusLower === 'extra') {
+        targetSql += " AND dt.target = 0 AND dt.complete > 0";
+      } else if (statusLower === 'no target') {
+        targetSql += " AND dt.target = 0 AND dt.complete = 0";
       }
+    }
 
-        // Add search filter if provided
-        if (searchText) {
-            const searchCondition = ` AND (
+    // Add search filter if provided
+    if (searchText) {
+      const searchCondition = ` AND (
                 cv.varietyNameEnglish LIKE ?
                 OR cg.cropNameEnglish LIKE ?
                 OR dt.target LIKE ?
                 OR dt.complete LIKE ?
             )`;
-            targetSql += searchCondition;
-            const searchValue = `%${searchText}%`;
-            sqlParams.push(searchValue, searchValue, searchValue, searchValue);
+      targetSql += searchCondition;
+      const searchValue = `%${searchText}%`;
+      sqlParams.push(searchValue, searchValue, searchValue, searchValue);
+    }
+
+    // Execute data query
+    collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
+      if (dataErr) {
+        console.error('Error in data query:', dataErr);
+        return reject(dataErr);
+      }
+
+      const resultTarget = dataResults.map(row => {
+        const target = parseFloat(row.target ?? 0.00);
+        const complete = parseFloat(row.complete ?? 0.00);
+
+        let status;
+        if (target !== 0) {
+          if (complete > target) status = 'Exceeded';
+          else if (complete === target) status = 'Completed';
+          else status = 'Pending';
+        } else {
+          if (complete > 0) status = 'Extra';
+          else status = 'No Target'; // Add this to avoid undefined
         }
 
-        // Execute data query
-        collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
-            if (dataErr) {
-                console.error('Error in data query:', dataErr);
-                return reject(dataErr);
-            }
+        // let validity;
 
-            const resultTarget = dataResults.map(row => {
-              const target = parseFloat(row.target ?? 0.00);
-              const complete = parseFloat(row.complete ?? 0.00);
-
-              let status;
-              if (target !== 0) {
-                  if (complete > target) status = 'Exceeded';
-                  else if (complete === target) status = 'Completed';
-                  else status = 'Pending';
-              } else {
-                  if (complete > 0) status = 'Extra';
-                  else status = 'No Target'; // Add this to avoid undefined
-              }
-
-              // let validity;
-
-              // if (status === 'Completed') {
-              //     validity = 'Active';
-              // } else if (status === 'Extra') {
-              //     validity = 'Unassigned';
-              // } else {
-              //     validity = 'Expired'
-              // }
+        // if (status === 'Completed') {
+        //     validity = 'Active';
+        // } else if (status === 'Extra') {
+        //     validity = 'Unassigned';
+        // } else {
+        //     validity = 'Expired'
+        // }
 
 
-              return {
-                  ...row,
-                  target: target.toFixed(2),
-                  complete: complete.toFixed(2),
-                  status: status,
-                  // validity: validity
-              };
-          });
-            resolve({ resultTarget });
-        });
+        return {
+          ...row,
+          target: target.toFixed(2),
+          complete: complete.toFixed(2),
+          status: status,
+          // validity: validity
+        };
+      });
+      resolve({ resultTarget });
     });
+  });
 };
 
 
 exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
   return new Promise((resolve, reject) => {
-      let targetSql = `
+    let targetSql = `
       SELECT 
           dt.id, 
           dt.companyCenterId, 
@@ -2070,87 +2072,87 @@ exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
         AND (dt.target != 0 OR dt.complete != 0)
       `;
 
-      const sqlParams = [companyCenterId];
+    const sqlParams = [companyCenterId];
 
-      // Add status filter if provided
-      if (status) {
-          const statusLower = status.toLowerCase();
+    // Add status filter if provided
+    if (status) {
+      const statusLower = status.toLowerCase();
 
-          if (statusLower === 'completed') {
-              targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
-          } else if (statusLower === 'exceeded') {
-              targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
-          } else if (statusLower === 'pending') {
-              targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
-          } else if (statusLower === 'extra') {
-              targetSql += " AND dt.target = 0 AND dt.complete > 0";
-          } else if (statusLower === 'no target') {
-              targetSql += " AND dt.target = 0 AND dt.complete = 0";
-          }
+      if (statusLower === 'completed') {
+        targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
+      } else if (statusLower === 'exceeded') {
+        targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
+      } else if (statusLower === 'pending') {
+        targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
+      } else if (statusLower === 'extra') {
+        targetSql += " AND dt.target = 0 AND dt.complete > 0";
+      } else if (statusLower === 'no target') {
+        targetSql += " AND dt.target = 0 AND dt.complete = 0";
       }
+    }
 
-      // Add search filter if provided
-      if (searchText) {
-          const searchCondition = ` AND (
+    // Add search filter if provided
+    if (searchText) {
+      const searchCondition = ` AND (
               cv.varietyNameEnglish LIKE ?
               OR cg.cropNameEnglish LIKE ?
               OR dt.target LIKE ?
               OR dt.complete LIKE ?
           )`;
-          targetSql += searchCondition;
-          const searchValue = `%${searchText}%`;
-          sqlParams.push(searchValue, searchValue, searchValue, searchValue);
+      targetSql += searchCondition;
+      const searchValue = `%${searchText}%`;
+      sqlParams.push(searchValue, searchValue, searchValue, searchValue);
+    }
+
+    // Order results neatly
+    targetSql += ` ORDER BY cg.cropNameEnglish, cv.varietyNameEnglish`;
+
+    // Execute query
+    collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
+      if (dataErr) {
+        console.error('Error in data query:', dataErr);
+        return reject(dataErr);
       }
 
-      // Order results neatly
-      targetSql += ` ORDER BY cg.cropNameEnglish, cv.varietyNameEnglish`;
+      // Process results and add status + validity fields
+      const resultTarget = dataResults.map(row => {
+        const target = parseFloat(row.target ?? 0.00);
+        const complete = parseFloat(row.complete ?? 0.00);
 
-      // Execute query
-      collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
-          if (dataErr) {
-              console.error('Error in data query:', dataErr);
-              return reject(dataErr);
-          }
+        let status;
+        if (target !== 0) {
+          if (complete > target) status = 'Exceeded';
+          else if (complete === target) status = 'Completed';
+          else status = 'Pending';
+        } else {
+          if (complete > 0) status = 'Extra';
+          else status = 'No Target';
+        }
 
-          // Process results and add status + validity fields
-          const resultTarget = dataResults.map(row => {
-              const target = parseFloat(row.target ?? 0.00);
-              const complete = parseFloat(row.complete ?? 0.00);
+        // Determine validity based on status
+        let validity;
+        if (status === 'Completed') validity = 'Active';
+        else if (status === 'Extra') validity = 'Unassigned';
+        else validity = 'Expired';
 
-              let status;
-              if (target !== 0) {
-                  if (complete > target) status = 'Exceeded';
-                  else if (complete === target) status = 'Completed';
-                  else status = 'Pending';
-              } else {
-                  if (complete > 0) status = 'Extra';
-                  else status = 'No Target';
-              }
-
-              // Determine validity based on status
-              let validity;
-              if (status === 'Completed') validity = 'Active';
-              else if (status === 'Extra') validity = 'Unassigned';
-              else validity = 'Expired';
-
-              return {
-                  ...row,
-                  target: target.toFixed(2),
-                  complete: complete.toFixed(2),
-                  status,
-                  validity
-              };
-          });
-
-          resolve({ resultTarget });
+        return {
+          ...row,
+          target: target.toFixed(2),
+          complete: complete.toFixed(2),
+          status,
+          validity
+        };
       });
+
+      resolve({ resultTarget });
+    });
   });
 };
 
 
 exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
-    return new Promise((resolve, reject) => {
-        let targetSql = `
+  return new Promise((resolve, reject) => {
+    let targetSql = `
         SELECT 
           dt.id, 
           dt.companyCenterId, 
@@ -2171,77 +2173,77 @@ exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
         AND (dt.target != 0 OR dt.complete != 0)
         `;
 
-        const sqlParams = [companyCenterId];
+    const sqlParams = [companyCenterId];
 
-        // Add status filter if provided
-        if (status) {
-          const statusLower = status.toLowerCase();
+    // Add status filter if provided
+    if (status) {
+      const statusLower = status.toLowerCase();
 
-          if (statusLower === 'completed') {
-              targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
-          } else if (statusLower === 'exceeded') {
-              targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
-          } else if (statusLower === 'pending') {
-              targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
-          } else if (statusLower === 'extra') {
-              targetSql += " AND dt.target = 0 AND dt.complete > 0";
-          } else if (statusLower === 'no target') {
-              targetSql += " AND dt.target = 0 AND dt.complete = 0";
-          }
+      if (statusLower === 'completed') {
+        targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
+      } else if (statusLower === 'exceeded') {
+        targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
+      } else if (statusLower === 'pending') {
+        targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
+      } else if (statusLower === 'extra') {
+        targetSql += " AND dt.target = 0 AND dt.complete > 0";
+      } else if (statusLower === 'no target') {
+        targetSql += " AND dt.target = 0 AND dt.complete = 0";
       }
+    }
 
-        // Add search filter if provided
-        if (searchText) {
-            const searchCondition = ` AND (
+    // Add search filter if provided
+    if (searchText) {
+      const searchCondition = ` AND (
                 cv.varietyNameEnglish LIKE ?
                 OR cg.cropNameEnglish LIKE ?
                 OR dt.target LIKE ?
                 OR dt.complete LIKE ?
             )`;
-            targetSql += searchCondition;
-            const searchValue = `%${searchText}%`;
-            sqlParams.push(searchValue, searchValue, searchValue, searchValue);
+      targetSql += searchCondition;
+      const searchValue = `%${searchText}%`;
+      sqlParams.push(searchValue, searchValue, searchValue, searchValue);
+    }
+
+    // Execute data query
+    collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
+      if (dataErr) {
+        console.error('Error in data query:', dataErr);
+        return reject(dataErr);
+      }
+
+      // Process results to add status field
+      const resultTarget = dataResults.map(row => {
+        const target = parseFloat(row.target ?? 0.00);
+        const complete = parseFloat(row.complete ?? 0.00);
+
+        let status;
+        if (target !== 0) {
+          if (complete > target) status = 'Exceeded';
+          else if (complete === target) status = 'Completed';
+          else status = 'Pending';
+        } else {
+          if (complete > 0) status = 'Extra';
+          else status = 'No Target';
         }
 
-        // Execute data query
-        collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
-            if (dataErr) {
-                console.error('Error in data query:', dataErr);
-                return reject(dataErr);
-            }
+        // Determine validity based on status
+        let validity;
+        if (status === 'Completed') validity = 'Active';
+        else if (status === 'Extra') validity = 'Unassigned';
+        else validity = 'Expired';
 
-            // Process results to add status field
-            const resultTarget = dataResults.map(row => {
-              const target = parseFloat(row.target ?? 0.00);
-              const complete = parseFloat(row.complete ?? 0.00);
-
-              let status;
-              if (target !== 0) {
-                  if (complete > target) status = 'Exceeded';
-                  else if (complete === target) status = 'Completed';
-                  else status = 'Pending';
-              } else {
-                  if (complete > 0) status = 'Extra';
-                  else status = 'No Target';
-              }
-
-              // Determine validity based on status
-              let validity;
-              if (status === 'Completed') validity = 'Active';
-              else if (status === 'Extra') validity = 'Unassigned';
-              else validity = 'Expired';
-
-              return {
-                  ...row,
-                  target: target.toFixed(2),
-                  complete: complete.toFixed(2),
-                  status,
-                  validity
-              };
-          });
-            resolve({ resultTarget });
-        });
+        return {
+          ...row,
+          target: target.toFixed(2),
+          complete: complete.toFixed(2),
+          status,
+          validity
+        };
+      });
+      resolve({ resultTarget });
     });
+  });
 };
 
 
@@ -2252,12 +2254,12 @@ exports.checkCompanyRegNumberDao = (regNumber, id) => {
          FROM company
          WHERE regNumber = ?
       `;
-      const sqlParams = [regNumber]
+    const sqlParams = [regNumber]
 
-      if(id){
-        sql+= ` AND id != ? `
-        sqlParams.push(id);
-      }
+    if (id) {
+      sql += ` AND id != ? `
+      sqlParams.push(id);
+    }
     collectionofficer.query(
       sql,
       sqlParams,
