@@ -448,6 +448,7 @@ exports.updateMarketplaceComplaintReply = async (req, res) => {
     // Extract complaintId from URL parameters and reply from body
     const { id } = req.params;
     const { reply } = req.body;
+    const adminId = req.user.userId;
 
     // Validate complaintId
     if (!id || isNaN(id)) {
@@ -460,7 +461,7 @@ exports.updateMarketplaceComplaintReply = async (req, res) => {
     }
 
     // Update the complaint reply using the DAO function
-    const result = await ComplainCategoryDAO.updateMarketplaceComplaintReply(id, reply);
+    const result = await ComplainCategoryDAO.updateMarketplaceComplaintReply(id, reply, adminId);
 
     // Check if update was successful
     if (!result || !result.status) {

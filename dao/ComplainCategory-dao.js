@@ -290,11 +290,13 @@ exports.getAllMarketplaceComplaints = () => {
         mu.phoneNumber AS phone,
         CONCAT(mu.phonecode, '-', mu.phoneNumber) AS ContactNumber,
         mc.refId AS refNo,
-        cc.categoryEnglish
+        cc.categoryEnglish,
+        au.userName AS replyBy
       FROM market_place.marcketplacecomplain mc
       LEFT JOIN market_place.marketplaceusers mu ON mc.userId = mu.id
       LEFT JOIN agro_world_admin.complaincategory cc ON mc.complaicategoryId = cc.id
       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
+      LEFT JOIN agro_world_admin.adminusers au ON mc.replyBy = au.id
       WHERE sa.id = 3
         AND mu.BuyerType = 'retail'
     `;
@@ -333,11 +335,13 @@ exports.getAllMarketplaceComplaintsWholesale = () => {
         mu.phoneNumber AS phone,
         CONCAT(mu.phonecode, '-', mu.phoneNumber) AS ContactNumber,
         mc.refId AS refNo,
-        cc.categoryEnglish
+        cc.categoryEnglish,
+        au.userName AS replyBy
       FROM market_place.marcketplacecomplain mc
       LEFT JOIN market_place.marketplaceusers mu ON mc.userId = mu.id
       LEFT JOIN agro_world_admin.complaincategory cc ON mc.complaicategoryId = cc.id
       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
+      LEFT JOIN agro_world_admin.adminusers au ON mc.replyBy = au.id
       WHERE sa.id = 3
         AND mu.BuyerType = 'wholesale'
     `;
@@ -410,14 +414,14 @@ exports.getMarketplaceComplaintById = (complaintId) => {
   });
 };
 
-exports.updateMarketplaceComplaintReply = (complaintId, reply) => {
+exports.updateMarketplaceComplaintReply = (complaintId, reply, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE market_place.marcketplacecomplain
-      SET reply = ?, status = ?, replyTime = NOW()
+      SET reply = ?, status = ?, replyBy = ?, replyTime = NOW()
       WHERE id = ?
     `;
-    marketPlace.query(sql, [reply, "Closed", complaintId,], (err, results) => {
+    marketPlace.query(sql, [reply, "Closed", adminId, complaintId], (err, results) => {
       if (err) {
         console.error('SQL error in updateMarketplaceComplaintReply:', err);
         return reject({
