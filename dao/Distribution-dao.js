@@ -1514,6 +1514,10 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
         } else if (employee === "Distribution Officer") {
           return resolve("DIO00001");
         }
+        else if (employee === "Driver") {
+          return resolve("DVR00001");
+        }
+        
       }
 
       const highestId = results[0].empId;
@@ -1627,6 +1631,72 @@ exports.createDistributionOfficerPersonal = (
   });
 };
 
+
+exports.vehicleRegisterDao = (
+  id, 
+  driverData, 
+  licFrontImg, 
+  licBackImg, 
+  insFrontImg, 
+  insBackImg, 
+  vehFrontImg, 
+  vehBackImg, 
+  vehSideImgA, 
+  vehSideImgB
+) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO vehicleregistration (
+        coId, licNo, insNo, insExpDate, vType, vCapacity, vRegNo, 
+        licFrontImg, licBackImg, insFrontImg, insBackImg, 
+        vehFrontImg, vehBackImg, vehSideImgA, vehSideImgB
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    collectionofficer.query(
+      sql,
+      [
+        id,
+        driverData.licNo,
+        driverData.insNo,
+        driverData.insExpDate,
+        driverData.vType,
+        driverData.vCapacity,
+        driverData.vRegNo,
+        licFrontImg,
+        licBackImg,
+        insFrontImg,
+        insBackImg,
+        vehFrontImg,
+        vehBackImg,
+        vehSideImgA,
+        vehSideImgB
+      ],
+      (err, results) => {
+        if (err) {
+          console.error("Vehicle registration error:", err);
+          return reject(err);
+        }
+        resolve(results);
+      }
+    );
+  });
+};
+
+exports.DeleteOfficerDao = (officerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `DELETE FROM collectionofficer WHERE id = ?`;
+    
+    collectionofficer.query(sql, [officerId], (err, results) => {
+      if (err) {
+        console.error("Delete officer error:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
 exports.GetDistributionCentersByCompanyIdDAO = (companyId) => {
   return new Promise((resolve, reject) => {
     const sql = `

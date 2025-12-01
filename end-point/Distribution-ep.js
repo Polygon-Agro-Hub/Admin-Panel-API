@@ -1143,100 +1143,275 @@ exports.getAllCompanyNames = async (req, res) => {
   }
 };
 
+// Helper function to sanitize data
+const sanitizeOfficerData = (data) => {
+  const sanitized = { ...data };
+  const numericFields = ['irmId'];
+  
+  numericFields.forEach(field => {
+    if (sanitized[field] === '' || sanitized[field] === undefined) {
+      sanitized[field] = null;
+    }
+  });
+  
+  // Also handle optional phone number
+  if (sanitized.phoneNumber02 === '' || sanitized.phoneNumber02 === undefined) {
+    sanitized.phoneNumber02 = null;
+  }
+  
+  return sanitized;
+};
+
+// Helper function to process base64 image
+const processBase64Image = async (base64Data, fileName, s3Path) => {
+  if (!base64Data || !base64Data.includes("base64,")) {
+    return null;
+  }
+
+  const base64String = base64Data.split(",")[1];
+  const match = base64Data.match(/data:(.*?);base64,/);
+
+  if (!match) {
+    throw new Error("Invalid image format");
+  }
+
+  const mimeType = match[1];
+  const fileBuffer = Buffer.from(base64String, "base64");
+  const fileExtension = mimeType.split("/")[1];
+  const fullFileName = fileName.includes('.') ? fileName : `${fileName}.${fileExtension}`;
+
+  return await uploadFileToS3(fileBuffer, fullFileName, s3Path);
+};
+
+// Helper function to process all driver images in parallel
+const processDriverImages = async (req, driverData) => {
+  const imageProcessingTasks = [
+    { key: 'licFront', name: driverData.licFrontName, path: 'vehicleregistration/licFrontImg' },
+    { key: 'licBack', name: driverData.licBackName, path: 'vehicleregistration/licBackImg' },
+    { key: 'insFront', name: driverData.insFrontName, path: 'vehicleregistration/insFrontImg' },
+    { key: 'insBack', name: driverData.insBackName, path: 'vehicleregistration/insBackImg' },
+    { key: 'vehiFront', name: driverData.vFrontName, path: 'vehicleregistration/vehFrontImg' },
+    { key: 'vehiBack', name: driverData.vBackName, path: 'vehicleregistration/vehBackImg' },
+    { key: 'vehiSideA', name: driverData.vSideAName, path: 'vehicleregistration/vehSideImgA' },
+    { key: 'vehiSideB', name: driverData.vSideBName, path: 'vehicleregistration/vehSideImgB' }
+  ];
+
+  const uploadPromises = imageProcessingTasks.map(task =>
+    processBase64Image(req.body[task.key], task.name, task.path)
+  );
+
+  const [
+    licFrontImageUrl,
+    licBackImageUrl,
+    insFrontImageUrl,
+    insBackImageUrl,
+    vehicleFrontImageUrl,
+    vehicleBackImageUrl,
+    vehicleSideAImageUrl,
+    vehicleSideBImageUrl
+  ] = await Promise.all(uploadPromises);
+
+  return {
+    licFrontImageUrl,
+    licBackImageUrl,
+    insFrontImageUrl,
+    insBackImageUrl,
+    vehicleFrontImageUrl,
+    vehicleBackImageUrl,
+    vehicleSideAImageUrl,
+    vehicleSideBImageUrl
+  };
+};
+
 exports.createDistributionOfficer = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log(fullUrl);
+  console.log('Request URL:', fullUrl);
+
+  let officerId = null; // Track for rollback
 
   try {
-    const officerData = JSON.parse(req.body.officerData);
+    // Validate request body
+    if (!req.body.officerData) {
+      return res.status(400).json({ 
+        error: "Officer data is required",
+        status: false 
+      });
+    }
 
-    const isExistingNIC = await DistributionDao.checkNICExist(
-      officerData.nic
+    // Parse and sanitize officer data
+    const officerData = sanitizeOfficerData(JSON.parse(req.body.officerData));
+    console.log('Processing officer:', officerData.firstNameEnglish, officerData.lastNameEnglish);
+
+    // Parallel validation checks for better performance
+    const [
+      isExistingNIC,
+      isExistingEmail,
+      isExistingPhoneNumber01,
+      isExistingPhoneNumber02
+    ] = await Promise.all([
+      DistributionDao.checkNICExist(officerData.nic),
+      DistributionDao.checkEmailExist(officerData.email),
+      DistributionDao.checkPhoneNumberExist(officerData.phoneNumber01),
+      officerData.phoneNumber02 
+        ? DistributionDao.checkPhoneNumberExist(officerData.phoneNumber02)
+        : Promise.resolve(false)
+    ]);
+
+    // Collect all validation errors
+    const validationErrors = [];
+    if (isExistingNIC) validationErrors.push({ field: 'nic', message: 'NIC already exists' });
+    if (isExistingEmail) validationErrors.push({ field: 'email', message: 'Email already exists' });
+    if (isExistingPhoneNumber01) validationErrors.push({ field: 'phoneNumber01', message: 'Primary phone number already exists' });
+    if (isExistingPhoneNumber02) validationErrors.push({ field: 'phoneNumber02', message: 'Secondary phone number already exists' });
+
+    // Return all validation errors at once
+    if (validationErrors.length > 0) {
+      return res.status(409).json({ // 409 Conflict for duplicate resources
+        error: "Validation failed",
+        errors: validationErrors,
+        status: false
+      });
+    }
+
+    // Process profile image
+    let profileImageUrl = null;
+    try {
+      profileImageUrl = await processBase64Image(
+        req.body.file,
+        `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}`,
+        "distributionofficer/image"
+      );
+    } catch (err) {
+      console.error("Error processing profile image:", err);
+      return res.status(400).json({ 
+        error: "Invalid profile image format",
+        status: false 
+      });
+    }
+
+    // Get employee ID
+    const lastId = await DistributionDao.getDCIDforCreateEmpIdDao(officerData.jobRole);
+    if (lastId === null || lastId === undefined) {
+      console.error('Failed to generate employee ID for role:', officerData.jobRole);
+      return res.status(500).json({
+        error: "Failed to generate employee ID",
+        status: false
+      });
+    }
+
+    // Create officer record
+    const result = await DistributionDao.createDistributionOfficerPersonal(
+      officerData,
+      profileImageUrl,
+      lastId
     );
-    const isExistingEmail = await DistributionDao.checkEmailExist(
-      officerData.email
-    );
 
-    if (isExistingNIC) {
+    if (!result || result.affectedRows === 0 || !result.insertId) {
+      console.error('Officer creation failed - no rows affected or no ID returned');
       return res.status(500).json({
-        error: "NIC already exists",
+        error: "Failed to create officer record",
+        status: false
       });
     }
 
-    if (isExistingEmail) {
-      return res.status(500).json({
-        error: "Email already exists",
-      });
-    }
+    officerId = result.insertId;
+    console.log('Officer created successfully with ID:', officerId);
 
+    // Handle driver-specific data
+    if (officerData.jobRole === "Driver") {
+      try {
+        // Validate driver data exists
+        if (!req.body.driverData) {
+          throw new Error("Driver data is required for Driver role");
+        }
 
-    const isExistingPhoneNumber01 = await DistributionDao.checkPhoneNumberExist(officerData.phoneNumber01);
-    if (isExistingPhoneNumber01) {
-      return res.status(500).json({
-        error: "Primary phone number already exists",
-      });
-    }
+        const driverData = JSON.parse(req.body.driverData);
 
-    if (officerData.phoneNumber02) {
-      const isExistingPhoneNumber02 = await DistributionDao.checkPhoneNumberExist(officerData.phoneNumber02);
-      if (isExistingPhoneNumber02) {
-        return res.status(500).json({
-          error: "Secondary phone number already exists",
+        // Process all driver images in parallel for better performance
+        const imageUrls = await processDriverImages(req, driverData);
+
+        // Save driver vehicle registration
+        const driverResult = await DistributionDao.vehicleRegisterDao(
+          officerId,
+          driverData,
+          imageUrls.licFrontImageUrl,
+          imageUrls.licBackImageUrl,
+          imageUrls.insFrontImageUrl,
+          imageUrls.insBackImageUrl,
+          imageUrls.vehicleFrontImageUrl,
+          imageUrls.vehicleBackImageUrl,
+          imageUrls.vehicleSideAImageUrl,
+          imageUrls.vehicleSideBImageUrl
+        );
+
+        if (!driverResult || driverResult.affectedRows === 0) {
+          throw new Error("Failed to register driver vehicle data");
+        }
+
+        console.log('Driver data registered successfully');
+
+      } catch (driverError) {
+        console.error("Error processing driver data:", driverError);
+        
+        // Rollback: Delete the officer
+        try {
+          await DistributionDao.DeleteOfficerDao(officerId);
+          console.log('Rolled back officer creation due to driver data error');
+        } catch (rollbackError) {
+          console.error('CRITICAL: Failed to rollback officer creation:', rollbackError);
+          // Log to monitoring system
+        }
+
+        return res.status(400).json({
+          error: "Error processing driver information: " + driverError.message,
+          status: false
         });
       }
     }
 
-    let profileImageUrl = null; // Default to null if no image is provided
-    const lastId = await DistributionDao.getDCIDforCreateEmpIdDao(officerData.jobRole);
-    console.log("LastId", lastId);
+    // Success response
+    return res.status(201).json({
+      message: "Distribution Officer created successfully",
+      status: true,
+      officerId: officerId
+    });
 
+  } catch (error) {
+    // Handle Joi validation errors
+    if (error.isJoi) {
+      return res.status(400).json({ 
+        error: error.details[0].message,
+        status: false 
+      });
+    }
 
-    // Check if an image file is provided
-    if (req.body.file) {
+    // Handle JSON parsing errors
+    if (error instanceof SyntaxError && error.message.includes('JSON')) {
+      return res.status(400).json({
+        error: "Invalid JSON format in request data",
+        status: false
+      });
+    }
+
+    // Log the full error for debugging
+    console.error("Error creating distribution officer:", error);
+    console.error("Stack trace:", error.stack);
+
+    // Attempt rollback if officer was created
+    if (officerId) {
       try {
-        const base64String = req.body.file.split(",")[1]; // Extract the Base64 content
-        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1]; // Extract MIME type
-        const fileBuffer = Buffer.from(base64String, "base64"); // Decode Base64 to buffer
-
-        const fileExtension = mimeType.split("/")[1]; // Extract file extension from MIME type
-        const fileName = `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}.${fileExtension}`;
-
-        // Upload image to S3
-        profileImageUrl = await uploadFileToS3(
-          fileBuffer,
-          fileName,
-          "collectionofficer/image"
-        );
-      } catch (err) {
-        console.error("Error processing image file:", err);
-        return res
-          .status(400)
-          .json({ error: "Invalid file format or file upload error" });
+        await DistributionDao.DeleteOfficerDao(officerId);
+        console.log('Rolled back officer creation due to unexpected error');
+      } catch (rollbackError) {
+        console.error('CRITICAL: Failed to rollback officer creation:', rollbackError);
+        // This should trigger alerts in production
       }
     }
 
-    // Save officer data (without image if no image is uploaded)
-    const resultsPersonal =
-      await DistributionDao.createDistributionOfficerPersonal(
-        officerData,
-        profileImageUrl,
-        lastId
-      );
-
-    console.log("Distribution Officer created successfully");
-    return res.status(201).json({
-      message: "Distribution Officer created successfully",
-      id: resultsPersonal.insertId,
-      status: true,
-    });
-  } catch (error) {
-    if (error.isJoi) {
-      return res.status(400).json({ error: error.details[0].message });
-    }
-
-    console.error("Error creating distribution officer:", error);
+    // Generic error response
     return res.status(500).json({
-      error: "An error occurred while creating the distribution officer",
+      error: "An unexpected error occurred while creating the distribution officer",
+      status: false
     });
   }
 };
@@ -1620,7 +1795,7 @@ exports.getOfficerDailyDistributionTarget = async (req, res) => {
   try {
     const { id, date } = await DistributionValidation.getOfficerDailyDistributionTargetShema.validateAsync(req.params);
     console.log(date);
-    
+
     const result = await DistributionDao.getOfficerDailyDistributionTargetDao(id, date);
 
     console.log("Successfully retrieved all companies");
@@ -1652,7 +1827,7 @@ exports.dcmGetSelectedOfficerTargets = async (req, res) => {
     // Calculate combinedStatus for each item
     targetResult = targetResult.map(item => {
       let combinedStatus = '';
-      
+
       if (item.packageStatus === 'Pending' && (item.additionalItemsStatus === 'Unknown' || item.additionalItemsStatus === 'Pending')) {
         combinedStatus = 'Pending';
       }
