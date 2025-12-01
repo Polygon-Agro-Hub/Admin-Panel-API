@@ -371,13 +371,15 @@ exports.GetAllCenterComplainDAO = (
         oc.AdminStatus AS status,
         oc.reply,
         coc.regCode,
-        oc.language
+        oc.language,
+        au.userName AS replyBy
       FROM officercomplains oc
-     LEFT JOIN collectionofficer co ON oc.officerId = co.id
+      LEFT JOIN collectionofficer co ON oc.officerId = co.id
       LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
       LEFT JOIN  company c ON co.companyId = c.id
       LEFT JOIN  collectioncenter coc ON co.centerId = coc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      LEFT JOIN agro_world_admin.adminusers au ON oc.adminReplyBy = au.id
       WHERE complainAssign = 'Admin'
     `;
 
@@ -786,7 +788,7 @@ exports.sendComplainReply = (complainId, reply, adminId) => {
   });
 };
 
-exports.sendCenterComplainReply = (complainId, reply) => {
+exports.sendCenterComplainReply = (complainId, reply, adminId) => {
   return new Promise((resolve, reject) => {
     // Input validation
     if (!complainId) {
@@ -799,13 +801,13 @@ exports.sendCenterComplainReply = (complainId, reply) => {
 
     const sql = `
       UPDATE officercomplains 
-      SET reply = ?, COOStatus = ?, CCMStatus = ? , CCHStatus = ? , AdminStatus = ?, replyTime = NOW()
+      SET reply = ?, COOStatus = ?, CCMStatus = ? , CCHStatus = ? , AdminStatus = ?, adminReplyBy = ?, replyTime = NOW()
       WHERE id = ?
     `;
 
     const status = "Closed";
     const adminStatus = "Closed";
-    const values = [reply, status, status, status, status, complainId];
+    const values = [reply, status, status, status, status, adminId, complainId];
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {

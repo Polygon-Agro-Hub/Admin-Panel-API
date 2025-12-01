@@ -506,6 +506,7 @@ exports.sendCenterComplainReply = async (req, res) => {
     console.log(fullUrl);
 
     const complaignId = req.params.id;
+    const adminId = req.user.userId;
 
     const reply = req.body.reply;
     console.log("Collection Centre Complain : ", complaignId, reply);
@@ -516,7 +517,8 @@ exports.sendCenterComplainReply = async (req, res) => {
 
     const result = await CollectionCenterDao.sendCenterComplainReply(
       complaignId,
-      reply
+      reply,
+      adminId
     );
 
     console.log("Send Reply Success");
