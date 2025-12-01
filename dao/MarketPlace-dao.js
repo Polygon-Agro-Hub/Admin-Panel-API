@@ -3146,7 +3146,8 @@ exports.getPosPackageDetailsDAO = (orderId) => {
         JSON_ARRAYAGG(                               
             JSON_OBJECT(                             
                 'typeName', pt.typeName,             
-                'productName', mpi.displayName,      
+                'productName', mpi.displayName,
+                'unit', mpi.unitType,   
                 'price', opi.price,                  
                 'qty', opi.qty                       
             )                                        
