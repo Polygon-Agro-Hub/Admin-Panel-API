@@ -1317,6 +1317,7 @@ exports.editPackage = async (req, res) => {
       message: "Package updated successfully",
       status: true,
       id: id,
+      packageId: packageId
     });
   } catch (err) {
     if (err.isJoi) {

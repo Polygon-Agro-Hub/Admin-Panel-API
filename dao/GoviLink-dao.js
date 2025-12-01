@@ -226,8 +226,7 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
   });
 };
 
-// Get field officers by job role
-exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate) => {
+exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate, jobId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -237,9 +236,16 @@ exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate) => {
         fo.lastName,
         fo.JobRole,
         fo.distrct,
+        fo.assignDistrict,
         COUNT(ja.id) AS activeJobCount
       FROM 
         feildofficer fo
+      INNER JOIN 
+        govilinkjobs gj_filter 
+        ON gj_filter.id = ?
+      INNER JOIN 
+        farms f 
+        ON f.id = gj_filter.farmId
       LEFT JOIN 
         jobassignofficer ja 
         ON fo.id = ja.officerId 
@@ -250,13 +256,14 @@ exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate) => {
         AND gj.sheduleDate = ?
       WHERE 
         fo.JobRole = ?
+        AND FIND_IN_SET(f.district, fo.assignDistrict) > 0
       GROUP BY 
-        fo.id, fo.empId, fo.firstName, fo.lastName, fo.JobRole, fo.distrct
+        fo.id, fo.empId, fo.firstName, fo.lastName, fo.JobRole, fo.distrct, fo.assignDistrict
       ORDER BY 
-        fo.firstName, fo.lastName
+        activeJobCount ASC, fo.firstName, fo.lastName
     `;
 
-    const params = [scheduleDate, jobRole];
+    const params = [jobId, scheduleDate, jobRole];
 
     plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
@@ -265,8 +272,7 @@ exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate) => {
   });
 };
 
-// Assign officer to job deactivate previous assignments and create new one
-exports.assignOfficerToJobDAO = (jobId, officerId) => {
+exports.assignOfficerToJobDAO = (jobId, officerId, assignedBy) => {
   return new Promise((resolve, reject) => {
     // Step 1: Deactivate any existing active assignments
     const deactivateSql = `
@@ -287,20 +293,33 @@ exports.assignOfficerToJobDAO = (jobId, officerId) => {
       plantcare.query(insertSql, [jobId, officerId], (err, insertResults) => {
         if (err) return reject(err);
 
-        resolve({
-          success: true,
-          data: {
-            assignmentId: insertResults.insertId,
-            jobId: jobId,
-            officerId: officerId,
-            previousAssignmentsDeactivated: deactivateResults.affectedRows,
-            action: "created",
-          },
+        // Step 3: Update assignBy in govilinkjobs table
+        const updateJobSql = `
+          UPDATE govilinkjobs 
+          SET assignBy = ? 
+          WHERE id = ?
+        `;
+
+        plantcare.query(updateJobSql, [assignedBy, jobId], (err, updateResults) => {
+          if (err) return reject(err);
+
+          resolve({
+            success: true,
+            data: {
+              assignmentId: insertResults.insertId,
+              jobId: jobId,
+              officerId: officerId,
+              assignedBy: assignedBy,
+              previousAssignmentsDeactivated: deactivateResults.affectedRows,
+              action: "created",
+            },
+          });
         });
       });
     });
   });
 };
+
 
 // Get basic job details by ID
 exports.getJobBasicDetailsByIdDAO = (jobId) => {

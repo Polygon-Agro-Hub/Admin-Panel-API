@@ -1660,7 +1660,7 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
         COALESCE(ir.publishStatus, 'Draft') AS publishStatus,
         ir.nicFront AS NIC_Front_Image,
         ir.nicBack AS NIC_Back_Image,
-        DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
+        DATE_FORMAT(ir.createdAt, '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
         COALESCE(ao.userName, '--') AS Assigned_By
       FROM investmentrequest ir
       INNER JOIN users u ON ir.farmerId = u.id
