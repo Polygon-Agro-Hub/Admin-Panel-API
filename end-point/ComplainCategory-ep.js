@@ -351,6 +351,7 @@ exports.sendComplainReply = async (req, res) => {
     console.log(fullUrl);
 
     const complaignId = req.params.id;
+    const adminId = req.user.userId;
 
     const reply = req.body.reply;
     console.log("Collection Centr", complaignId, reply);
@@ -359,7 +360,7 @@ exports.sendComplainReply = async (req, res) => {
       return res.status(401).json({ error: "Reply can not be empty" });
     }
 
-    const result = await DashDAO.sendComplainReply(complaignId, reply);
+    const result = await DashDAO.sendComplainReply(complaignId, reply, adminId);
 
     console.log("Send Reply Success");
     return res.status(201).json({ result: result, status: true });

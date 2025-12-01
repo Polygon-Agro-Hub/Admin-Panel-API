@@ -917,11 +917,13 @@ const GetAllSalesAgentComplainDAO = (
         dc.reply,
         dc.complain,
         dc.language,
-        u.empId AS agentId
+        u.empId AS agentId,
+        au.userName AS replyBy
       FROM dashcomplain dc
       LEFT JOIN salesagent u ON dc.saId = u.id
       LEFT JOIN agro_world_admin.complaincategory cc ON dc.complainCategory = cc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      LEFT JOIN agro_world_admin.adminusers au ON dc.replyBy = au.id
       WHERE 1 = 1
     `;
 
@@ -1023,7 +1025,7 @@ const getComplainById = (id) => {
   });
 };
 
-const sendComplainReply = (complainId, reply) => {
+const sendComplainReply = (complainId, reply, adminId) => {
   return new Promise((resolve, reject) => {
     // Input validation
     if (!complainId) {
@@ -1036,13 +1038,13 @@ const sendComplainReply = (complainId, reply) => {
 
     const sql = `
       UPDATE dashcomplain 
-      SET reply = ?, status = ?, adminStatus = ?, replyTime = NOW()
+      SET reply = ?, status = ?, adminStatus = ?, replyBy = ?, replyTime = NOW()
       WHERE id = ?
     `;
 
     const status = "Closed";
     const adminStatus = "Closed";
-    const values = [reply, status, adminStatus, complainId];
+    const values = [reply, status, adminStatus, adminId, complainId];
 
     marketPlace.query(sql, values, (err, results) => {
       if (err) {
@@ -1147,7 +1149,7 @@ const getUserOrdersDao = async (userId, status) => {
       sql += " AND P.status = 'Faild'";
     } else if (status === "On the way") {
       sql += " AND P.status = 'On the way'";
-    }else if (status === "Out For Delivery") {
+    } else if (status === "Out For Delivery") {
       sql += " AND P.status = 'Out For Delivery'";
     }
 
