@@ -75,10 +75,10 @@ const upload = multer({
     // Allowed extensions for images and documents
     const imageExtensions = /jpeg|jpg|png|gif/i;
     const documentExtensions = /csv|xlsx|xls/i;
-    
+
     // Get file extension
     const extname = path.extname(file.originalname).toLowerCase().replace('.', '');
-    
+
     // Allowed MIME types
     const imageMimetypes = ['image/jpeg', 'image/png', 'image/gif'];
     const documentMimetypes = [
@@ -87,7 +87,7 @@ const upload = multer({
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/octet-stream'
     ];
-    
+
     // Check if either image or document type matches
     const isImage = imageExtensions.test(extname) && imageMimetypes.includes(file.mimetype);
     const isDocument = documentExtensions.test(extname) && documentMimetypes.includes(file.mimetype);
@@ -107,7 +107,8 @@ const upload = multer({
     }
   },
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 5 * 1024 * 1024, // 5MB limit for actual files
+    fieldSize: 10 * 1024 * 1024, // 10MB limit for text fields (base64 strings)
   },
 });
 
