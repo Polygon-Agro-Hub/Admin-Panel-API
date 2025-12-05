@@ -296,7 +296,9 @@ exports.assignOfficerToJobDAO = (jobId, officerId, assignedBy) => {
         // Step 3: Update assignBy in govilinkjobs table
         const updateJobSql = `
           UPDATE govilinkjobs 
-          SET assignBy = ? 
+          SET 
+            assignBy = ?,
+            status = 'Pending'
           WHERE id = ?
         `;
 
