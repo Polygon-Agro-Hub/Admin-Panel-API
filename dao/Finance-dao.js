@@ -650,8 +650,20 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
       dataSql += searchCondition;
 
       const searchValue = `%${searchTerm}%`;
-      countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
-      dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+      countParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
+      dataParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
     }
 
     // Order by most recent first
@@ -683,7 +695,13 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
   });
 };
 
-exports.getAllCertificatePayments = (page, limit, searchTerm, fromDate, toDate) => {
+exports.getAllCertificatePayments = (
+  page,
+  limit,
+  searchTerm,
+  fromDate,
+  toDate
+) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
@@ -752,8 +770,20 @@ exports.getAllCertificatePayments = (page, limit, searchTerm, fromDate, toDate) 
       dataSql += searchCondition;
 
       const searchValue = `%${searchTerm}%`;
-      countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
-      dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+      countParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
+      dataParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
     }
 
     // Order by most recent first
@@ -1062,7 +1092,6 @@ exports.checkRangeOverlap = (minRange, maxRange, excludeId = null) => {
   });
 };
 
-
 exports.getAllFarmerPaymentDao = (date, bank) => {
   return new Promise((resolve, reject) => {
     const params = [];
@@ -1119,7 +1148,13 @@ exports.getAllFarmerPaymentDao = (date, bank) => {
   });
 };
 
-exports.InsertPaymentHistoryDAO = (receivers, amount, payRef, xlLink, issueBy) => {
+exports.InsertPaymentHistoryDAO = (
+  receivers,
+  amount,
+  payRef,
+  xlLink,
+  issueBy
+) => {
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO paymenthistory (receivers, amount, payRef, xlLink, issueBy)
@@ -1137,8 +1172,14 @@ exports.InsertPaymentHistoryDAO = (receivers, amount, payRef, xlLink, issueBy) =
   });
 };
 
-
-exports.UpdatePaymentHistoryDAO = (id, receivers, amount, payRef, xlLink, modifyBy) => {
+exports.UpdatePaymentHistoryDAO = (
+  id,
+  receivers,
+  amount,
+  payRef,
+  xlLink,
+  modifyBy
+) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE paymenthistory 
@@ -1159,14 +1200,13 @@ exports.UpdatePaymentHistoryDAO = (id, receivers, amount, payRef, xlLink, modify
       }
 
       if (results.affectedRows === 0) {
-        return reject(new Error('Payment history record not found'));
+        return reject(new Error("Payment history record not found"));
       }
 
       resolve(results);
     });
   });
 };
-
 
 exports.GetPaymentHistoryByIdDAO = (id) => {
   return new Promise((resolve, reject) => {
@@ -1199,7 +1239,6 @@ exports.GetPaymentHistoryByIdDAO = (id) => {
     });
   });
 };
-
 
 exports.GetAllPaymentHistoryDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
@@ -1269,14 +1308,13 @@ exports.DeletePaymentHistoryDAO = (id) => {
       }
 
       if (results.affectedRows === 0) {
-        return reject(new Error('Payment history record not found'));
+        return reject(new Error("Payment history record not found"));
       }
 
       resolve(results);
     });
   });
 };
-
 
 exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
@@ -1310,9 +1348,9 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
 
     // Filter by status (Not Assigned or Assigned)
     if (filters.status) {
-      if (filters.status === 'Not Assigned') {
+      if (filters.status === "Not Assigned") {
         sql += ` AND ir.officerId IS NULL`;
-      } else if (filters.status === 'Assigned') {
+      } else if (filters.status === "Assigned") {
         sql += ` AND ir.officerId IS NOT NULL`;
       }
     }
@@ -1455,8 +1493,13 @@ exports.assignOfficerToInvestmentRequestDAO = (
         SET officerId = ?, assignDate = NOW()
       `;
       const queryParams = [assignOfficerId];
-      
-      console.log('Assigning Officer:', assignByUserId, 'to Request:', requestId);
+
+      console.log(
+        "Assigning Officer:",
+        assignByUserId,
+        "to Request:",
+        requestId
+      );
 
       // Add assignBy if provided
       if (assignByUserId) {
@@ -1467,15 +1510,17 @@ exports.assignOfficerToInvestmentRequestDAO = (
       updateQuery += ` WHERE id = ?`;
       queryParams.push(requestId);
 
-      console.log('Update Query:', updateQuery);
-      console.log('Query Params:', queryParams);
+      console.log("Update Query:", updateQuery);
+      console.log("Query Params:", queryParams);
 
       // Update the investment request with the assigned officer
       const [result] = await connection.query(updateQuery, queryParams);
 
       if (result.affectedRows === 0) {
         await connection.rollback();
-        return reject(new Error("Investment request not found or no changes made"));
+        return reject(
+          new Error("Investment request not found or no changes made")
+        );
       }
 
       await connection.commit();
@@ -1536,7 +1581,6 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
   });
 };
 
-
 exports.getAllPublishedProjectsDAO = (searchText) => {
   return new Promise((resolve, reject) => {
     let sql = `
@@ -1576,9 +1620,6 @@ exports.getAllPublishedProjectsDAO = (searchText) => {
     });
   });
 };
-
-
-
 
 exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
@@ -1645,7 +1686,6 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
     });
   });
 };
-
 
 exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
@@ -1715,6 +1755,50 @@ exports.UpdateInvestmentRequestPublishStatusDAO = (requestId, publishBy) => {
         return reject(err);
       }
       resolve(result);
+    });
+  });
+};
+
+exports.GetProjectInvesmentDAO = (filters = {}) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        ir.id,
+        u.phoneNumber,
+        cg.image AS cropGroupImage,
+        cg.cropNameEnglish,
+        ir.jobId,
+        ai.defineShares,
+        ( SELECT SUM(i.shares) FROM investment i WHERE i.reqId = ir.id AND i.invtStatus = 'Approved' ) AS fillShares
+      FROM investmentrequest ir
+      INNER JOIN cropvariety cv ON ir.varietyId = cv.id
+      INNER JOIN cropgroup cg ON cv.cropGroupId = cg.id
+      INNER JOIN users u ON ir.farmerId = u.id
+      LEFT JOIN approvedinvestmentrequest ai ON ir.id = ai.reqId
+      WHERE ir.reqStatus IS NOT NULL
+    `;
+
+    const params = [];
+
+    // Search filter (searches in ID, Phone Number, Crop Name English, and jobId)
+    if (filters.search) {
+      sql += ` AND (
+        CAST(ir.id AS CHAR) LIKE ? OR 
+        u.phoneNumber LIKE ? OR 
+        cg.cropNameEnglish LIKE ? OR
+        ir.jobId LIKE ?
+      )`;
+      const searchTerm = `%${filters.search}%`;
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+
+    sql += ` ORDER BY ir.createdAt DESC`;
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
     });
   });
 };

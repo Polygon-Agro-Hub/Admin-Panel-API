@@ -1354,3 +1354,28 @@ exports.UpdateInvestmentRequestPublishStatus = async (req, res) => {
   }
 };
 
+exports.GetProjectInvestment = async (req, res) => {
+  try {
+    const { search } = req.query;
+    
+    const filters = {
+      search: search || undefined,
+    };
+
+    const results = await financeDao.GetProjectInvesmentDAO(filters);
+    const count = results.length;
+
+    res.status(200).json({
+      count: count,
+      data: results,
+    });
+  } catch (error) {
+    console.error('Error in GetProjectInvestment:', error);
+    res.status(500).json({
+      count: 0,
+      data: [],
+      error: 'Internal server error',
+    });
+  }
+};
+
