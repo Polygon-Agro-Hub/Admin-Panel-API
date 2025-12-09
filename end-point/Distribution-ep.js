@@ -1976,3 +1976,182 @@ exports.getAllDistributionCenterList = async (req, res) => {
     res.status(500).json({ error: "An error occurred while fetching news" });
   }
 };
+
+
+exports.getAllReasons = async (req, res) => {
+  try {
+    const reasons = await DistributionDao.getAllReasons();
+    res.status(200).json({
+      status: true,
+      message: 'Reasons retrieved successfully',
+      data: reasons
+    });
+  } catch (error) {
+    console.error('Error fetching reasons:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to retrieve reasons',
+      error: error.message
+    });
+  }
+};
+
+// Get reason by ID
+exports.getReasonById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reason = await DistributionDao.getReasonById(id);
+    
+    if (!reason) {
+      return res.status(404).json({
+        status: false,
+        message: 'Reason not found'
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: 'Reason retrieved successfully',
+      data: reason
+    });
+  } catch (error) {
+    console.error('Error fetching reason:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to retrieve reason',
+      error: error.message
+    });
+  }
+};
+
+// Create new reason
+exports.createReason = async (req, res) => {
+  try {
+    const { rsnEnglish, rsnSinhala, rsnTamil } = req.body;
+
+    // Validation
+    if (!rsnEnglish || !rsnSinhala || !rsnTamil) {
+      return res.status(400).json({
+        status: false,
+        message: 'All language fields are required'
+      });
+    }
+
+    // Get next index
+    const nextIndex = await DistributionDao.getNextIndex();
+
+    const reasonData = {
+      indexNo: nextIndex,
+      rsnEnglish: rsnEnglish.trim(),
+      rsnSinhala: rsnSinhala.trim(),
+      rsnTamil: rsnTamil.trim()
+    };
+
+    const result = await DistributionDao.createReason(reasonData);
+
+    res.status(201).json({
+      status: true,
+      message: 'Reason created successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error creating reason:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to create reason',
+      error: error.message
+    });
+  }
+};
+
+
+// Delete reason
+exports.deleteReason = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if trying to delete ID 1
+    if (id === '1' || parseInt(id) === 1) {
+      return res.status(403).json({
+        status: false,
+        message: 'Cannot delete the default reason (ID: 1)'
+      });
+    }
+
+    const affectedRows = await DistributionDao.deleteReason(id);
+
+    if (affectedRows === 0) {
+      return res.status(404).json({
+        status: false,
+        message: 'Reason not found'
+      });
+    }
+
+    // After deletion, get all reasons and update their indexes
+    const allReasons = await DistributionDao.getAllReasons();
+    const reasonsWithNewIndexes = allReasons.map((reason, index) => ({
+      id: reason.id,
+      indexNo: index + 1
+    }));
+    
+    await DistributionDao.updateIndexes(reasonsWithNewIndexes);
+
+    res.status(200).json({
+      status: true,
+      message: 'Reason deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting reason:', error);
+    res.status(500).json({
+      status: false,
+      message: error.message || 'Failed to delete reason',
+      error: error.message
+    });
+  }
+};
+
+// Update indexes after drag and drop reordering
+exports.updateIndexes = async (req, res) => {
+  try {
+    const { reasons } = req.body;
+
+    if (!reasons || !Array.isArray(reasons)) {
+      return res.status(400).json({
+        status: false,
+        message: 'Invalid request format. Expected an array of reasons.'
+      });
+    }
+
+    await DistributionDao.updateIndexes(reasons);
+
+    res.status(200).json({
+      status: true,
+      message: 'Indexes updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating indexes:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to update indexes',
+      error: error.message
+    });
+  }
+};
+
+// Get next available index
+exports.getNextIndex = async (req, res) => {
+  try {
+    const nextIndex = await DistributionDao.getNextIndex();
+    res.status(200).json({
+      status: true,
+      data: { nextIndex }
+    });
+  } catch (error) {
+    console.error('Error getting next index:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to get next index',
+      error: error.message
+    });
+  }
+};
