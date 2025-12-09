@@ -1802,3 +1802,106 @@ exports.GetProjectInvesmentDAO = (filters = {}) => {
     });
   });
 };
+
+
+
+
+exports.getAllInvestmentsDao = (
+  id, status, search
+) => {
+  return new Promise((resolve, reject) => {
+    let dataSql = `
+    SELECT
+        i.id,
+        i.reqId,
+        iu.regCode AS regCode,
+        i.refCode,
+        i.shares,
+        i.totInvt,
+        i.nicFront,
+        i.nicBack,
+        i.invtStatus,
+        i.bankSlip,
+        iu.phoneNumber,
+        iu.phoneCode,
+        i.createdAt
+        FROM plant_care.investment i 
+        LEFT JOIN plant_care.investmentusers iu  ON i.investerId = iu.id
+        WHERE i.reqId = ?
+    `;
+
+    const params = [id];
+
+    if (search) {
+      dataSql += `
+      AND ( 
+        i.refCode LIKE ?
+        OR iu.regCode LIKE ?
+        OR iu.phoneNumber LIKE ?
+       )
+      `;
+
+      const searchValue = `%${search}%`;
+      params.push(searchValue, searchValue, searchValue);
+    }
+
+    if (status) {
+      console.log("Order Status:", status);
+
+      dataSql +=`AND i.invtStatus = ?`;
+      params.push(status);
+    }
+
+    dataSql += " ORDER BY i.createdAt DESC";
+    console.log(dataSql);
+
+      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+        resolve({
+          items: dataResults
+        });
+      
+    });
+  });
+};
+
+exports.approveInvestmentRequestDao = (id) => {
+  console.log('id', id)
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE investment
+      SET invtStatus = 'Approved'
+      WHERE id = ?
+    `;
+
+    plantcare.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log('result', result)
+      resolve(result);
+    });
+  });
+};
+
+exports.RejectInvestmentRequestDao = (id) => {
+  console.log('id', id)
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE investment
+      SET invtStatus = 'Rejected'
+      WHERE id = ?
+    `;
+
+    plantcare.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log('result', result)
+      resolve(result);
+    });
+  });
+};
