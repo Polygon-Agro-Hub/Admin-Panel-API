@@ -1317,6 +1317,7 @@ exports.editPackage = async (req, res) => {
       message: "Package updated successfully",
       status: true,
       id: id,
+      packageId: packageId
     });
   } catch (err) {
     if (err.isJoi) {
@@ -2270,6 +2271,112 @@ exports.changePackageStatus = async (req, res) => {
     return res.status(500).json({
       error: "An error occurred while creating marcket product",
       status: false,
+    });
+  }
+};
+
+exports.getPostInvoiceDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+
+  try {
+    const { processOrderId } = req.params;
+
+    if (!processOrderId) {
+      return res.status(400).json({
+        success: false,
+        error: "Process order ID is required",
+      });
+    }
+
+    const invoiceDetails = await MarketPlaceDao.getInvoiceDetailsDAO(
+      processOrderId
+    );
+
+    if (!invoiceDetails) {
+      return res.status(404).json({
+        success: false,
+        error: "Invoice not found",
+      });
+    }
+
+    const [familyPackItems, additionalItems, billingDetails] =
+      await Promise.all([
+        MarketPlaceDao.getFamilyPackItemsDAO(processOrderId),
+        MarketPlaceDao.getAdditionalItemsDAO(invoiceDetails.orderId),
+        MarketPlaceDao.getBillingDetailsDAO(invoiceDetails.orderId),
+      ]);
+
+    let pickupCenterDetails = null;
+    let deliveryChargeDetails = null;
+
+    if (invoiceDetails.deliveryMethod === "Pickup" && invoiceDetails.centerId) {
+      pickupCenterDetails = await MarketPlaceDao.getPickupCenterDetailsDAO(
+        invoiceDetails.centerId
+      );
+    } else if (
+      invoiceDetails.deliveryMethod !== "Pickup" &&
+      invoiceDetails.city
+    ) {
+      deliveryChargeDetails = await MarketPlaceDao.getDeliveryChargeByCityDAO(
+        invoiceDetails.city
+      );
+    }
+
+    // Get package details for each family pack item
+    const packageDetailsPromises = familyPackItems.map((item) =>
+      MarketPlaceDao.getPosPackageDetailsDAO(processOrderId) // Use processOrderId instead of item.packageId
+    );
+    const packageDetailsResults = await Promise.all(packageDetailsPromises);
+
+    // Map family pack items with their corresponding package details
+    const familyPackItemsWithDetails = familyPackItems.map((item, index) => {
+      const packageDetail = packageDetailsResults[index] || [];
+      
+      // Find the specific package that matches the current item
+      const matchedPackage = packageDetail.find(pkg => 
+        pkg.packageName === item.name
+      );
+
+      return {
+        id: item.id,
+        packageId: item.packageId,
+        name: item.name,
+        amount: item.amount,
+        packageDetails: matchedPackage ? matchedPackage.items : []
+      };
+    });
+
+    const response = {
+      invoice: invoiceDetails,
+      items: {
+        familyPacks: familyPackItemsWithDetails,
+        additionalItems: additionalItems,
+      },
+      billing: billingDetails,
+      pickupCenter: pickupCenterDetails,
+      deliveryCharge: deliveryChargeDetails,
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice details retrieved successfully",
+      data: response,
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({
+        success: false,
+        error: error.details[0].message,
+      });
+    }
+
+    console.error("Error fetching invoice details:", error);
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while fetching invoice details",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };

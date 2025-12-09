@@ -349,11 +349,11 @@ exports.getAllCollectionCenterPage = async (req, res) => {
       searchItem
     );
 
-    console.log('center items',items);
+    console.log('center items', items);
 
-    console.log('center pages',page);
-    console.log('ceter limit',limit);
-    console.log('center serch item',searchItem);
+    console.log('center pages', page);
+    console.log('ceter limit', limit);
+    console.log('center serch item', searchItem);
     res.json({
       items,
       total,
@@ -470,6 +470,7 @@ exports.sendComplainReply = async (req, res) => {
     console.log(fullUrl);
 
     const complaignId = req.params.id;
+    const adminId = req.user.userId;
 
     const reply = req.body.reply;
     console.log("Collection Centr", complaignId, reply);
@@ -480,7 +481,8 @@ exports.sendComplainReply = async (req, res) => {
 
     const result = await CollectionCenterDao.sendComplainReply(
       complaignId,
-      reply
+      reply,
+      adminId
     );
 
     console.log("Send Reply Success");
@@ -504,6 +506,7 @@ exports.sendCenterComplainReply = async (req, res) => {
     console.log(fullUrl);
 
     const complaignId = req.params.id;
+    const adminId = req.user.userId;
 
     const reply = req.body.reply;
     console.log("Collection Centre Complain : ", complaignId, reply);
@@ -514,7 +517,8 @@ exports.sendCenterComplainReply = async (req, res) => {
 
     const result = await CollectionCenterDao.sendCenterComplainReply(
       complaignId,
-      reply
+      reply,
+      adminId
     );
 
     console.log("Send Reply Success");
@@ -588,7 +592,7 @@ exports.createCompany = async (req, res) => {
 
     // Check if company name or registration number already exists
     const checkCompany = await CollectionCenterDao.checkCompanyDisplayNameDao(
-      companyNameEnglish, 
+      companyNameEnglish,
       regNumber,
       null // null for id since this is a create operation
     );
@@ -602,7 +606,7 @@ exports.createCompany = async (req, res) => {
       } else if (checkCompany.regNumberExists) {
         message = "Registration Number already exists";
       }
-      
+
       return res.json({
         status: false,
         message: message
@@ -620,22 +624,22 @@ exports.createCompany = async (req, res) => {
     // Convert base64 to file information (without saving to disk)
     const processBase64Image = (base64String, fileType) => {
       if (!base64String) return null;
-      
+
       try {
         // Extract MIME type and data from base64 string
         const matches = base64String.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-        
+
         if (!matches || matches.length !== 3) {
           throw new Error('Invalid base64 string');
         }
 
         const mimeType = matches[1];
         const buffer = Buffer.from(matches[2], 'base64');
-        
+
         // Generate a filename based on MIME type
         const extension = mimeType.split('/')[1] || 'png';
         const filename = generateFileName(fileType, `file.${extension}`);
-        
+
         return {
           filename: filename,
           originalname: filename,
@@ -873,7 +877,7 @@ exports.updateCompany = async (req, res) => {
     // Call DAO function to update the company record
 
     const cehckRegNum = await CollectionCenterDao.checkCompanyRegNumberDao(regNumber, id);
-    if(cehckRegNum.length > 0 ){
+    if (cehckRegNum.length > 0) {
       return res.json({
         message: "Registraion number already exist.",
         status: false,
@@ -1031,13 +1035,13 @@ exports.getCenterDashbord = async (req, res) => {
     const difExpences = await CollectionCenterDao.differenceBetweenExpences(id);
 
     const limitedResentCollection = resentCollection
-    .filter(item => item.totPrice > 0)  
-    .slice(0, 5);  
+      .filter(item => item.totPrice > 0)
+      .slice(0, 5);
     console.log('limitedResentCollection', limitedResentCollection)
 
-   console.log(transAmountCount);
-   
-    
+    console.log(transAmountCount);
+
+
 
     console.log("Successfully fetched gatogory");
     return res.status(200).json({
@@ -1341,10 +1345,10 @@ exports.downloadAllCenterPayments = async (req, res) => {
         'Collected time': item.createdAt || 'N/A'
       }
     ]);
-    
+
     // Create a worksheet and workbook
     const worksheet = XLSX.utils.json_to_sheet(formattedData);
-    
+
     // Format columns with proper widths
     worksheet['!cols'] = [
       { wch: 25 }, // GRN
@@ -1389,7 +1393,7 @@ exports.downloadAllCenterPayments = async (req, res) => {
 exports.getCenterTarget = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
-  
+
   try {
     const { centerId, page, limit, status, searchText } = await ValidateSchema.getCenterTargetSchema.validateAsync(req.query);
 
@@ -1405,7 +1409,7 @@ exports.getCenterTarget = async (req, res) => {
     return res.status(200).json({
       items: resultTarget
     });
-    
+
   } catch (error) {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message });

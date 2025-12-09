@@ -290,11 +290,13 @@ exports.getAllMarketplaceComplaints = () => {
         mu.phoneNumber AS phone,
         CONCAT(mu.phonecode, '-', mu.phoneNumber) AS ContactNumber,
         mc.refId AS refNo,
-        cc.categoryEnglish
+        cc.categoryEnglish,
+        au.userName AS replyBy
       FROM market_place.marcketplacecomplain mc
       LEFT JOIN market_place.marketplaceusers mu ON mc.userId = mu.id
       LEFT JOIN agro_world_admin.complaincategory cc ON mc.complaicategoryId = cc.id
       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
+      LEFT JOIN agro_world_admin.adminusers au ON mc.replyBy = au.id
       WHERE sa.id = 3
         AND mu.BuyerType = 'retail'
     `;
@@ -333,11 +335,13 @@ exports.getAllMarketplaceComplaintsWholesale = () => {
         mu.phoneNumber AS phone,
         CONCAT(mu.phonecode, '-', mu.phoneNumber) AS ContactNumber,
         mc.refId AS refNo,
-        cc.categoryEnglish
+        cc.categoryEnglish,
+        au.userName AS replyBy
       FROM market_place.marcketplacecomplain mc
       LEFT JOIN market_place.marketplaceusers mu ON mc.userId = mu.id
       LEFT JOIN agro_world_admin.complaincategory cc ON mc.complaicategoryId = cc.id
       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
+      LEFT JOIN agro_world_admin.adminusers au ON mc.replyBy = au.id
       WHERE sa.id = 3
         AND mu.BuyerType = 'wholesale'
     `;
@@ -410,14 +414,14 @@ exports.getMarketplaceComplaintById = (complaintId) => {
   });
 };
 
-exports.updateMarketplaceComplaintReply = (complaintId, reply) => {
+exports.updateMarketplaceComplaintReply = (complaintId, reply, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE market_place.marcketplacecomplain
-      SET reply = ?, status = ?, replyTime = NOW()
+      SET reply = ?, status = ?, replyBy = ?, replyTime = NOW()
       WHERE id = ?
     `;
-    marketPlace.query(sql, [reply, "Closed", complaintId,], (err, results) => {
+    marketPlace.query(sql, [reply, "Closed", adminId, complaintId], (err, results) => {
       if (err) {
         console.error('SQL error in updateMarketplaceComplaintReply:', err);
         return reject({
@@ -507,13 +511,15 @@ exports.GetAllDistributedComplainDAO = (
         oc.AdminStatus AS status,
         oc.reply,
         dc.regCode,
-        oc.language
+        oc.language,
+        au.userName AS replyBy
       FROM distributedcomplains oc
       LEFT JOIN collectionofficer co ON oc.officerId = co.id
       LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
       LEFT JOIN  company c ON co.companyId = c.id
       LEFT JOIN  distributedcenter dc ON co.distributedCenterId = dc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      LEFT JOIN agro_world_admin.adminusers au ON oc.adminReplyBy = au.id
       WHERE complainAssign = 'Admin'
     `;
 
@@ -635,7 +641,7 @@ exports.getDistributedComplainById = (id) => {
 };
 
 
-exports.sendDistributedComplainReply = (complainId, reply) => {
+exports.sendDistributedComplainReply = (complainId, reply, adminId) => {
   return new Promise((resolve, reject) => {
     // Input validation
     if (!complainId) {
@@ -648,13 +654,13 @@ exports.sendDistributedComplainReply = (complainId, reply) => {
 
     const sql = `
       UPDATE distributedcomplains 
-      SET reply = ?, DIOStatus = ?, DCMStatus = ? , DCHstatus = ? , AdminStatus = ?, replyTime = NOW()
+      SET reply = ?, DIOStatus = ?, DCMStatus = ? , DCHstatus = ? , AdminStatus = ?, adminReplyBy = ?, replyTime = NOW()
       WHERE id = ?
     `;
 
     const status = "Closed";
     const adminStatus = "Closed";
-    const values = [reply, status, status, status, status, complainId];
+    const values = [reply, status, status, status, status, adminId, complainId];
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {

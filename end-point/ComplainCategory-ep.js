@@ -351,6 +351,7 @@ exports.sendComplainReply = async (req, res) => {
     console.log(fullUrl);
 
     const complaignId = req.params.id;
+    const adminId = req.user.userId;
 
     const reply = req.body.reply;
     console.log("Collection Centr", complaignId, reply);
@@ -359,7 +360,7 @@ exports.sendComplainReply = async (req, res) => {
       return res.status(401).json({ error: "Reply can not be empty" });
     }
 
-    const result = await DashDAO.sendComplainReply(complaignId, reply);
+    const result = await DashDAO.sendComplainReply(complaignId, reply, adminId);
 
     console.log("Send Reply Success");
     return res.status(201).json({ result: result, status: true });
@@ -447,6 +448,7 @@ exports.updateMarketplaceComplaintReply = async (req, res) => {
     // Extract complaintId from URL parameters and reply from body
     const { id } = req.params;
     const { reply } = req.body;
+    const adminId = req.user.userId;
 
     // Validate complaintId
     if (!id || isNaN(id)) {
@@ -459,7 +461,7 @@ exports.updateMarketplaceComplaintReply = async (req, res) => {
     }
 
     // Update the complaint reply using the DAO function
-    const result = await ComplainCategoryDAO.updateMarketplaceComplaintReply(id, reply);
+    const result = await ComplainCategoryDAO.updateMarketplaceComplaintReply(id, reply, adminId);
 
     // Check if update was successful
     if (!result || !result.status) {
@@ -584,6 +586,7 @@ exports.sendDistributedComplainReply = async (req, res) => {
     console.log(fullUrl);
 
     const complaignId = req.params.id;
+    const adminId = req.user.userId;
 
     const reply = req.body.reply;
     console.log("Collection Centre Complain : ", complaignId, reply);
@@ -594,7 +597,8 @@ exports.sendDistributedComplainReply = async (req, res) => {
 
     const result = await ComplainCategoryDAO.sendDistributedComplainReply(
       complaignId,
-      reply
+      reply,
+      adminId
     );
 
     console.log("Send Reply Success");

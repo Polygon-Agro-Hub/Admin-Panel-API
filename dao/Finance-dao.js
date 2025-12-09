@@ -1286,7 +1286,9 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
         ir.jobId AS Request_ID,
         CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
         u.phoneNumber AS Phone_number,
+        u.district,
         co.empId,
+        ir.publishStatus,
         CASE 
           WHEN ir.officerId IS NULL THEN 'Not Assigned'
           ELSE 'Assigned'
@@ -1294,13 +1296,14 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
         COALESCE(co.empId, '--') AS Officer_ID,
         ir.nicFront AS NIC_Front_Image,
         ir.nicBack AS NIC_Back_Image,
+        DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
         DATE_FORMAT(ir.createdAt, '%M %d, %Y') AS Requested_On,
         COALESCE(ao.userName, '--') AS Assigned_By
       FROM investmentrequest ir
       INNER JOIN users u ON ir.farmerId = u.id
       LEFT JOIN feildofficer co ON ir.officerId = co.id
       LEFT JOIN agro_world_admin.adminusers ao ON ir.assignedBy = ao.id
-      WHERE 1=1
+      WHERE ir.reqStatus = 'Pending'
     `;
 
     const params = [];
@@ -1326,7 +1329,7 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
     }
 
     // Order by most recent first
-    sql += ` ORDER BY ir.createdAt DESC`;
+    sql += ` ORDER BY ir.id`;
 
     plantcare.query(sql, params, (err, results) => {
       if (err) {
@@ -1362,6 +1365,44 @@ exports.GetInvestmentRequestByIdDAO = (requestId) => {
       LEFT JOIN cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN certificates cert ON ir.certificateId = cert.id
       WHERE ir.jobId = ?
+      LIMIT 1
+    `;
+
+    plantcare.query(sql, [requestId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.GetApprovedInvestmentRequestByIdDAO = (requestId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        ir.jobId AS Request_ID,
+        CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
+        u.NICnumber AS NIC_Number,
+        u.phoneNumber AS Phone_number,
+        cg.cropNameEnglish AS Crop,
+        cv.varietyNameEnglish AS Variety,
+        cert.srtName AS Certificate,
+        CONCAT(
+          COALESCE(ir.extentha, 0), ' Acres ',
+          COALESCE(ir.extentac, 0), ' Perches'
+        ) AS Extent,
+        ir.investment AS Expected_Investment,
+        ir.reqStatus,
+        CONCAT(ir.expectedYield, 'kg') AS Expected_Yield,
+        DATE_FORMAT(ir.startDate, '%M %d, %Y') AS Expected_Start_Date,
+        DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time
+      FROM investmentrequest ir
+      INNER JOIN users u ON ir.farmerId = u.id
+      LEFT JOIN cropvariety cv ON ir.varietyId = cv.id
+      LEFT JOIN cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN certificates cert ON ir.certificateId = cert.id
+      WHERE ir.id = ?
       LIMIT 1
     `;
 
@@ -1414,6 +1455,8 @@ exports.assignOfficerToInvestmentRequestDAO = (
         SET officerId = ?, assignDate = NOW()
       `;
       const queryParams = [assignOfficerId];
+      
+      console.log('Assigning Officer:', assignByUserId, 'to Request:', requestId);
 
       // Add assignBy if provided
       if (assignByUserId) {
@@ -1477,7 +1520,7 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
       FROM 
         feildofficer fo
       WHERE 
-        fo.assignDistrict LIKE ?
+        fo.distrct LIKE ?
         AND fo.JobRole = ?
         AND fo.status = 'Approved'
       ORDER BY 
@@ -1492,6 +1535,50 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
     });
   });
 };
+
+
+exports.getAllPublishedProjectsDAO = (searchText) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT ir.id, u.firstName, u.lastName, u.phoneNumber, u.NICnumber AS farmerNic,
+        cv.varietyNameEnglish, cg.cropNameEnglish, ir.assignDate, ir.assignedBy, 
+        ir.jobId, ir.publishStatus, ir.reqStatus, ir.nicFront, ir.nicBack,
+        ir.extentac, ir.expectedYield, ir.startDate, ir.investment, 
+        c.srtName, ir.publishDate, au.userName AS publishedBy
+      FROM plant_care.investmentrequest ir
+      LEFT JOIN plant_care.users u ON ir.farmerId = u.id
+      LEFT JOIN plant_care.cropvariety cv ON ir.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN plant_care.certificates c ON ir.certificateId = c.id
+      LEFT JOIN agro_world_admin.adminusers au ON ir.publishBy = au.id
+      WHERE ir.reqStatus = 'Approved'
+      AND ir.publishStatus = 'Published'
+    `;
+
+    const params = [];
+
+    if (searchText) {
+      sql += `
+        AND (
+          ir.jobId LIKE ?
+          OR CONCAT(u.firstName, ' ', u.lastName) LIKE ?
+          OR u.phoneNumber LIKE ?
+        )
+      `;
+
+      const searchValue = `%${searchText}%`;
+      params.push(searchValue, searchValue, searchValue);
+    }
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+
+
 
 exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
@@ -1526,13 +1613,15 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
         u.NICnumber,
         cv.varietyNameEnglish,
         cg.cropNameEnglish,
-        c.srtName AS certificateName
+        c.srtName AS certificateName,
+        fo.empId AS officerEmpId
       FROM plant_care.investmentrequest ir
-      INNER JOIN plant_care.rejectinvestmentrequest rir ON ir.id = rir.reqId
+      LEFT JOIN plant_care.rejectinvestmentrequest rir ON ir.id = rir.reqId
       LEFT JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.cropvariety cv ON ir.varietyId = cv.id
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN plant_care.certificates c ON ir.certificateId = c.id
+      LEFT JOIN plant_care.feildofficer fo ON ir.officerId = fo.id
       WHERE ir.reqStatus = 'Rejected'
     `;
 
@@ -1540,7 +1629,7 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
 
     // Only keep general search function (searches in both reqId and phoneNumber)
     if (filters.search) {
-      sql += ` AND (ir.id LIKE ? OR u.phoneNumber LIKE ?)`;
+      sql += ` AND (ir.jobId LIKE ? OR u.phoneNumber LIKE ?)`;
       const searchTerm = `%${filters.search}%`;
       params.push(searchTerm, searchTerm);
     }
@@ -1554,6 +1643,78 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
       }
       resolve(results);
     });
+  });
+};
 
+
+exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        ir.id AS No,
+        ir.jobId AS Request_ID,
+        CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
+        u.phoneNumber AS Phone_number,
+        u.district,
+        co.empId,
+        COALESCE(ir.publishStatus, 'Draft') AS publishStatus,
+        ir.nicFront AS NIC_Front_Image,
+        ir.nicBack AS NIC_Back_Image,
+        DATE_FORMAT(ir.createdAt, '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
+        COALESCE(ao.userName, '--') AS Assigned_By
+      FROM investmentrequest ir
+      INNER JOIN users u ON ir.farmerId = u.id
+      LEFT JOIN feildofficer co ON ir.officerId = co.id
+      LEFT JOIN agro_world_admin.adminusers ao ON ir.assignedBy = ao.id
+      WHERE ir.reqStatus = 'Approved'
+    `;
+
+    const params = [];
+
+    // Filter by publish status (Draft or Published)
+    if (filters.status) {
+      sql += ` AND COALESCE(ir.publishStatus, 'Draft') = ?`;
+      params.push(filters.status);
+    }
+
+    // Search filter (searches in Request ID, Phone Number, EMP ID)
+    if (filters.search) {
+      sql += ` AND (
+        ir.jobId LIKE ? OR 
+        u.phoneNumber LIKE ? OR 
+        co.empId LIKE ?
+      )`;
+      const searchTerm = `%${filters.search}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+
+    // Order by most recent approval first
+    sql += ` ORDER BY ir.createdAt DESC`;
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.UpdateInvestmentRequestPublishStatusDAO = (requestId, publishBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE investmentrequest 
+      SET publishStatus = 'Published',
+          publishDate = NOW(),
+          publishBy = ?
+      WHERE id = ?
+    `;
+
+    plantcare.query(sql, [publishBy, requestId], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
+    });
   });
 };

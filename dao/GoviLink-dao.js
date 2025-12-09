@@ -226,8 +226,7 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
   });
 };
 
-// Get field officers by job role
-exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate) => {
+exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate, jobId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -237,9 +236,16 @@ exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate) => {
         fo.lastName,
         fo.JobRole,
         fo.distrct,
+        fo.assignDistrict,
         COUNT(ja.id) AS activeJobCount
       FROM 
         feildofficer fo
+      INNER JOIN 
+        govilinkjobs gj_filter 
+        ON gj_filter.id = ?
+      INNER JOIN 
+        farms f 
+        ON f.id = gj_filter.farmId
       LEFT JOIN 
         jobassignofficer ja 
         ON fo.id = ja.officerId 
@@ -250,13 +256,14 @@ exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate) => {
         AND gj.sheduleDate = ?
       WHERE 
         fo.JobRole = ?
+        AND FIND_IN_SET(f.district, fo.assignDistrict) > 0
       GROUP BY 
-        fo.id, fo.empId, fo.firstName, fo.lastName, fo.JobRole, fo.distrct
+        fo.id, fo.empId, fo.firstName, fo.lastName, fo.JobRole, fo.distrct, fo.assignDistrict
       ORDER BY 
-        fo.firstName, fo.lastName
+        activeJobCount ASC, fo.firstName, fo.lastName
     `;
 
-    const params = [scheduleDate, jobRole];
+    const params = [jobId, scheduleDate, jobRole];
 
     plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
@@ -265,8 +272,7 @@ exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate) => {
   });
 };
 
-// Assign officer to job deactivate previous assignments and create new one
-exports.assignOfficerToJobDAO = (jobId, officerId) => {
+exports.assignOfficerToJobDAO = (jobId, officerId, assignedBy) => {
   return new Promise((resolve, reject) => {
     // Step 1: Deactivate any existing active assignments
     const deactivateSql = `
@@ -287,20 +293,35 @@ exports.assignOfficerToJobDAO = (jobId, officerId) => {
       plantcare.query(insertSql, [jobId, officerId], (err, insertResults) => {
         if (err) return reject(err);
 
-        resolve({
-          success: true,
-          data: {
-            assignmentId: insertResults.insertId,
-            jobId: jobId,
-            officerId: officerId,
-            previousAssignmentsDeactivated: deactivateResults.affectedRows,
-            action: "created",
-          },
+        // Step 3: Update assignBy in govilinkjobs table
+        const updateJobSql = `
+          UPDATE govilinkjobs 
+          SET 
+            assignBy = ?,
+            status = 'Pending'
+          WHERE id = ?
+        `;
+
+        plantcare.query(updateJobSql, [assignedBy, jobId], (err, updateResults) => {
+          if (err) return reject(err);
+
+          resolve({
+            success: true,
+            data: {
+              assignmentId: insertResults.insertId,
+              jobId: jobId,
+              officerId: officerId,
+              assignedBy: assignedBy,
+              previousAssignmentsDeactivated: deactivateResults.affectedRows,
+              action: "created",
+            },
+          });
         });
       });
     });
   });
 };
+
 
 // Get basic job details by ID
 exports.getJobBasicDetailsByIdDAO = (jobId) => {
@@ -433,175 +454,148 @@ exports.checkDuplicateServiceNames = (id, englishName, tamilName, sinhalaName) =
   });
 };
 
-
 exports.getFieldAuditDetails = (filters = {}, search = {}) => {
   return new Promise((resolve, reject) => {
-    // Build WHERE conditions for searches
-    let searchConditions = [];
-    const searchParams = [];
-    
-    // Job ID search
-    if (search.jobId) {
-      searchConditions.push('fa.jobId LIKE ?');
-      searchParams.push(`%${search.jobId}%`);
-    }
-    
-    // Farm regCode search
-    if (search.farmId) {
-      searchConditions.push('f.regCode LIKE ?');
-      searchParams.push(`%${search.farmId}%`);
-    }
-    
-    // NIC search
-    if (search.nic) {
-      searchConditions.push('u.NICnumber LIKE ?');
-      searchParams.push(`%${search.nic}%`);
-    }
-    
-    const searchWhereClause = searchConditions.length > 0 
-      ? `AND (${searchConditions.join(' OR ')})` 
-      : '';
 
-    // Build filter conditions
-    const filterConditions = [];
-    const filterParams = [];
+    let where1 = " WHERE 1=1 AND DATE(gj.doneDate) = '2025-12-05'";
+    let where2 = " WHERE 1=1 AND DATE(fa.completeDate) = '2025-12-05'";
+    let params1 = [];
+    let params2 = [];
+
+    if (search.jobId) {
+      where1 += " AND (gj.jobId LIKE ? OR f.id LIKE ? OR u.NICnumber LIKE ? )";
+      where2 += " AND (fa.jobId LIKE ? OR f.id LIKE ? OR u.NICnumber LIKE ? )";
+      params1.push(`%${search.jobId}%`, `%${search.jobId}%`, `%${search.jobId}%`);
+      params2.push(`%${search.jobId}%`, `%${search.jobId}%`, `%${search.jobId}%`);
+    }
+
+    // if (search.farmId) {
+    //   where1 += " AND f.id LIKE ? ";
+    //   where2 += " AND f.id LIKE ? ";
+    //   params1.push(`%${search.farmId}%`);
+    //   params2.push(`%${search.farmId}%`);
+    // }
+
+    // if (search.nic) {
+    //   where1 += " AND u.NICnumber LIKE ? ";
+    //   where2 += " AND u.NICnumber LIKE ? ";
+    //   params1.push(`%${search.nic}%`);
+    //   params2.push(`%${search.nic}%`);
+    // }
 
     if (filters.status) {
-      filterConditions.push('fa.status = ?');
-      filterParams.push(filters.status);
+      where1 += " AND gj.status = ? ";
+      where2 += " AND fa.status = ? ";
+      params1.push(filters.status);
+      params2.push(filters.status);
     }
 
-    // Fixed district filter - checks both fc.district and f.district
     if (filters.district) {
-      filterConditions.push('(fc.district = ? OR f.district = ?)');
-      filterParams.push(filters.district, filters.district);
+      where1 += " AND f.district = ? ";
+      where2 += " AND f.district = ? ";
+      params1.push(filters.district);
+      params2.push(filters.district);
     }
 
     if (filters.completedDateFrom) {
-      filterConditions.push('DATE(fa.completeDate) = ?');
-      filterParams.push(filters.completedDateFrom);
+      where1 += " AND DATE(gj.doneDate) = ? ";
+      where2 += " AND DATE(fa.completeDate) = ? ";
+      params1.push(filters.completedDateFrom);
+      params2.push(filters.completedDateFrom);
     }
 
     if (filters.completedDateTo) {
-      filterConditions.push('DATE(fa.completeDate) = ?');
-      filterParams.push(filters.completedDateTo);
+      where1 += " AND DATE(gj.doneDate) = ? ";
+      where2 += " AND DATE(fa.completeDate) = ? ";
+      params1.push(filters.completedDateTo);
+      params2.push(filters.completedDateTo);
     }
 
-    const filterWhereClause = filterConditions.length > 0
-      ? `AND ${filterConditions.join(' AND ')}`
-      : '';
-
-    const sql = `
-      SELECT 
-        fa.jobId,
-        fo.empId,
-        fa.propose AS visitPurpose,
-        fa.sheduleDate AS scheduledDate,
-        fa.completeDate AS completedDate,
-        fa.onScreenTime,
-        fa.status,
-        fa.assignDate AS assignedOn,
-        fa.assignBy,
-        admin.userName AS assignedByName,
-        
-        -- For Cluster: get district from farmcluster, for others from farms
-        CASE 
-          WHEN fa.propose = 'Cluster' THEN fc.district
-          ELSE f.district
-        END AS district,
-        
-        -- Aggregate farm IDs for clusters
-        CASE 
-          WHEN fa.propose = 'Cluster' THEN GROUP_CONCAT(DISTINCT f.id ORDER BY f.id SEPARATOR ',')
-          ELSE f.id
-        END AS farmId,
-        
-        -- Aggregate regCodes for clusters
-        CASE 
-          WHEN fa.propose = 'Cluster' THEN GROUP_CONCAT(DISTINCT f.regCode ORDER BY f.regCode SEPARATOR ',')
-          ELSE f.regCode
-        END AS regCode,
-        
-        -- Aggregate NICs for clusters
-        CASE 
-          WHEN fa.propose = 'Cluster' THEN GROUP_CONCAT(DISTINCT u.NICnumber ORDER BY u.NICnumber SEPARATOR ',')
-          ELSE u.NICnumber
-        END AS farmerNIC
-        
-      FROM feildaudits fa
-      
-      -- Join field officer
-      INNER JOIN feildofficer fo ON fa.assignOfficerId = fo.id
-      
-      -- Join certification payment
-      INNER JOIN certificationpayment cp ON fa.paymentId = cp.id
-      
-      -- Join admin user for assignBy (from different database)
-      LEFT JOIN agro_world_admin.adminusers admin ON fa.assignBy = admin.id
-      
-      -- Left join for Cluster scenario
-      LEFT JOIN farmcluster fc ON fa.propose = 'Cluster' AND cp.clusterId = fc.id
-      LEFT JOIN farmclusterfarmers fcf ON fa.propose = 'Cluster' AND fc.id = fcf.clusterId
-      
-      -- Left join for Individual/Request scenario OR farms from cluster
-      LEFT JOIN farms f ON (
-        (fa.propose IN ('Request', 'Individual') AND f.userId = cp.userId)
-        OR (fa.propose = 'Cluster' AND f.id = fcf.farmId)
+    // -------------------------------------------------------------------
+    // SPECIAL FIELD-AUDIT-ONLY CONDITIONS
+    // -------------------------------------------------------------------
+    where2 += `
+      AND (
+        (fa.propose = 'Cluster' AND fa.status = 'Completed')
+        OR
+        (fa.propose IN ('Request', 'Individual') AND fa.status IN ('Completed', 'Pending'))
       )
-      
-      -- Join users (farmer owner)
-      LEFT JOIN users u ON f.userId = u.id
-      
-      WHERE 1=1
-        -- Cluster: only completed
-        AND (
-          (fa.propose = 'Cluster' AND fa.status = 'Completed')
-          OR
-          -- Request/Individual: both completed and pending
-          (fa.propose IN ('Request', 'Individual') AND fa.status IN ('Completed', 'Pending'))
-        )
-        ${filterWhereClause}
-        ${searchWhereClause}
-      
-      GROUP BY 
-        fa.id,
-        fa.jobId,
-        fo.empId,
-        fa.propose,
-        fa.sheduleDate,
-        fa.completeDate,
-        fa.onScreenTime,
-        fa.status,
-        fa.assignDate,
-        fa.assignBy,
-        admin.userName,
-        fc.district,
-        f.district,
-        f.id,
-        f.regCode,
-        u.NICnumber
-      
-      ORDER BY fa.completeDate DESC, fa.sheduleDate DESC
     `;
 
-    // Combine all parameters in correct order
-    const params = [...filterParams, ...searchParams];
+    // -------------------------------------------------------------------
+    // FINAL UNION QUERY
+    // -------------------------------------------------------------------
 
-    console.log('Filters received in DAO:', filters);
-    console.log('Search received in DAO:', search);
-    console.log('SQL Query:', sql);
-    console.log('Parameters:', params);
+    const sql = `
+    (
+      SELECT 
+        gj.id,
+        gj.jobId AS jobId,
+        fo.empId AS empId,
+        f.id AS farmId,
+        u.NICnumber AS farmerNIC,
+        f.district AS district,
+        gj.sheduleDate AS scheduledDate,
+        gj.doneDate AS completedDate,
+        gj.status AS status,
+        gj.assignBy AS assignBy,
+        au.userName AS assignedByName,
+        'Requested Service' AS visitPurpose,
+        jao.createdAt AS assignedOn,
+        'no' AS onScreenTime
+      FROM plant_care.govilinkjobs gj
+      LEFT JOIN plant_care.users u ON gj.farmerId = u.id
+      LEFT JOIN plant_care.farms f ON gj.farmId = f.id
+      LEFT JOIN agro_world_admin.adminusers au ON gj.assignBy = au.id
+      LEFT JOIN plant_care.jobassignofficer jao ON gj.id = jao.jobId AND jao.isActive = 1
+      LEFT JOIN plant_care.feildofficer fo ON jao.officerId = fo.id
+      ${where1}
+    )
 
-    plantcare.query(sql, params, (err, results) => {
-      if (err) {
-        console.error("Error fetching field audit details:", err);
-        return reject(err);
-      }
+    UNION ALL
 
+    (
+      SELECT 
+        fa.id,
+        fa.jobId AS jobId,
+        fo.empId AS empId,
+        f.id AS farmId,
+        u.NICnumber AS farmerNIC,
+        f.district AS district,
+        fa.sheduleDate AS scheduledDate,
+        fa.completeDate AS completedDate,
+        fa.status AS status,
+        fa.assignBy AS assignBy,
+        au.userName AS assignedByName,
+        fa.propose AS visitPurpose,
+        fa.assignDate AS assignedOn,
+        fa.onScreenTime AS onScreenTime
+      FROM plant_care.feildaudits fa
+      LEFT JOIN agro_world_admin.adminusers au ON fa.assignBy = au.id
+      LEFT JOIN plant_care.feildofficer fo ON fa.assignOfficerId = fo.id
+      LEFT JOIN plant_care.certificationpayment cp ON fa.paymentId = cp.id
+      LEFT JOIN plant_care.users u ON cp.userId = u.id
+      LEFT JOIN plant_care.feildauditcluster fac ON fac.feildAuditId = fa.id
+      LEFT JOIN plant_care.farms f ON fac.farmId = f.id
+      ${where2}
+    )
+
+    ORDER BY completedDate DESC, scheduledDate DESC;
+    `;
+
+    // Combine both parameter lists
+    const finalParams = [...params1, ...params2];
+
+    console.log("Final SQL:", sql);
+    console.log("Params:", finalParams);
+
+    plantcare.query(sql, finalParams, (err, results) => {
+      if (err) return reject(err);
       resolve(results);
     });
   });
 };
+
 
 exports.GetFieldOfficerComplainByIdDAO = (id) => {
   console.log("DAO - GetFieldOfficerComplainByIdDAO called with ID:", id);
@@ -617,8 +611,6 @@ exports.GetFieldOfficerComplainByIdDAO = (id) => {
         CONCAT(fo.firstNameTamil, ' ', fo.lastNameTamil) AS officerNameTamil,
         fo.phoneNumber1,
         fo.email,
-        fc.id AS companyId,
-        fc.companyName AS companyName,
         foc.complainCategory AS complainCategoryId,
         cc.categoryEnglish AS complainCategory,
         cc.categorySinhala AS complainCategorySinhala,
@@ -634,7 +626,6 @@ exports.GetFieldOfficerComplainByIdDAO = (id) => {
       FROM feildofficercomplains foc
       LEFT JOIN feildofficer fo ON foc.officerId = fo.id
       LEFT JOIN agro_world_admin.complaincategory cc ON foc.complainCategory = cc.id
-      LEFT JOIN feildcompany fc ON fo.companyId = fc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
       LEFT JOIN agro_world_admin.adminusers au ON foc.adminReplyBy = au.id
       WHERE foc.id = ?

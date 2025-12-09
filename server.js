@@ -47,6 +47,7 @@ const heathRoutes = require("./routes/heathRoutes");
 const DashRoutes = require("./routes/Dash");
 require("dotenv").config();
 const cors = require("cors");
+const bodyParser = require('body-parser');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -59,6 +60,8 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 admin.getConnection((err, connection) => {
   if (err) {

@@ -2400,7 +2400,7 @@ exports.deleteUserCropTask = async (req, res) => {
     const adminId = req.user.userId;
 
     const track = await adminDao.trackUserTaskUpdateDao(id, adminId);
-    console.log('ewewe',track);
+    console.log('ewewe', track);
 
     const results = await adminDao.deleteUserCropTask(id);
 
@@ -2424,8 +2424,8 @@ exports.deleteUserCropTask = async (req, res) => {
       }
     }
 
-    
-    
+
+
 
     console.log("Crop Calendar task deleted successfully");
     res.status(200).json({ status: true });
@@ -2778,9 +2778,9 @@ exports.plantcareDashboard = async (req, res) => {
     const spicesCultivation = await adminDao.spicesEnroll();
     const vegEnrollTillPreviousMonth =
       await adminDao.vegEnrollTillPreviousMonth();
-    const leLegumesEnrollTillPreviousMonth = 
+    const leLegumesEnrollTillPreviousMonth =
       await adminDao.legumesEnrollTillPreviousMonth();
-    const lspicesEnrollTillPreviousMonth = 
+    const lspicesEnrollTillPreviousMonth =
       await adminDao.spicesEnrollTillPreviousMonth();
     const fruitEnrollTillPreviousMonth =
       await adminDao.fruitEnrollTillPreviousMonth();
@@ -2858,8 +2858,8 @@ exports.plantcareDashboard = async (req, res) => {
 
     console.log("Successfully fetched dashboard data");
     res.json({ data });
-    console.log("this is the data",data);
-    
+    console.log("this is the data", data);
+
   } catch (err) {
     if (err.isJoi) {
       return res.status(400).json({ error: err.details[0].message });
@@ -3456,12 +3456,12 @@ exports.createFieldOfficer = async (req, res) => {
     // Process profile image
     if (req.files && req.files.profileImage) {
       try {
+        const profileImage = req.files.profileImage[0];
 
-        const base64String = req.body.file.split(",")[1];
-        const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
-        const fileBuffer = Buffer.from(base64String, "base64");
+        // Use the file buffer directly
+        const fileBuffer = profileImage.buffer;
+        const mimeType = profileImage.mimetype;
 
-        const fileExtension = mimeType.split(".").pop();
         const fileName = `${officerData.firstName}_${officerData.lastName}_profile.png`;
 
         profileImageUrl = await uploadFileToS3(
@@ -3480,7 +3480,7 @@ exports.createFieldOfficer = async (req, res) => {
     if (req.files && req.files.nicFront) {
       try {
         const file = req.files.nicFront[0];
-        const fileExtension = file.originalname.split(".").pop();
+        // const fileExtension = file.originalname.split(".").pop();
         const fileName = `${officerData.firstName}_${officerData.lastName}_nic_front.png`;
 
         nicFrontUrl = await uploadFileToS3(
@@ -3501,7 +3501,7 @@ exports.createFieldOfficer = async (req, res) => {
     if (req.files && req.files.nicBack) {
       try {
         const file = req.files.nicBack[0];
-        const fileExtension = file.originalname.split(".").pop();
+        // const fileExtension = file.originalname.split(".").pop();
         const fileName = `${officerData.firstName}_${officerData.lastName}_nic_back.png`;
 
         nicBackUrl = await uploadFileToS3(
@@ -3520,7 +3520,7 @@ exports.createFieldOfficer = async (req, res) => {
     if (req.files && req.files.passbook) {
       try {
         const file = req.files.passbook[0];
-        const fileExtension = file.originalname.split(".").pop();
+        // const fileExtension = file.originalname.split(".").pop();
         const fileName = `${officerData.firstName}_${officerData.lastName}_passbook.png`;
 
         passbookUrl = await uploadFileToS3(
@@ -3539,7 +3539,7 @@ exports.createFieldOfficer = async (req, res) => {
     if (req.files && req.files.contract) {
       try {
         const file = req.files.contract[0];
-        const fileExtension = file.originalname.split(".").pop();
+        // const fileExtension = file.originalname.split(".").pop();
         const fileName = `${officerData.firstName}_${officerData.lastName}_contract.png`;
 
         contractUrl = await uploadFileToS3(
@@ -3620,9 +3620,6 @@ exports.getFieldOfficerById = async (req, res) => {
       id: req.params.id
     });
 
-    // const id = req.params.id
-
-    console.log('id', id);
 
     const officerData = await adminDao.getFieldOfficerByIdDAO(id);
 
@@ -3889,7 +3886,6 @@ exports.updateFieldOfficer = async (req, res) => {
 
     // Handle irmId logic based on job role
     if (
-      officerData.jobRole === "Field Officer" ||
       officerData.jobRole === "Chief Field Officer"
     ) {
       officerData.irmId = null;

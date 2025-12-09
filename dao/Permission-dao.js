@@ -78,7 +78,7 @@ exports.createCategoryDao = async (category_id) => {
 exports.createFeature = async (category_id, feature) => {
   return new Promise((resolve, reject) => {
     const sql = "INSERT INTO features (name, category) VALUES (?, ?)";
-    const values = [feature, category_id];
+    const values = [feature.trim(), category_id];
 
     admin.query(sql, values, (err, results) => {
       if (err) {
