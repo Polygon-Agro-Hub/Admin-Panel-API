@@ -111,5 +111,23 @@ router.put(
   financeController.UpdateInvestmentRequestPublishStatus
 );
 
+router.get(
+  "/get-all-investments",
+  authMiddleware,
+  financeController.getALlInvestments
+);
+
+router.put(
+  '/approve-investment-status/:id',
+  authMiddleware, 
+  financeController.ApproveInvestmentRequestEp
+);
+
+
+router.put(
+  '/reject-investment-status/:id',
+  authMiddleware, 
+  financeController.RejectInvestmentRequestEp
+);
 
 module.exports = router;

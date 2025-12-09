@@ -8,6 +8,8 @@ const {
   createPaymentHistorySchema,
   updatePaymentHistorySchema,
   paymentHistoryIdSchema,
+  getAllInvestmentSchema,
+  getInvestmentIdSchema
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
@@ -1353,4 +1355,132 @@ exports.UpdateInvestmentRequestPublishStatus = async (req, res) => {
     });
   }
 };
+
+exports.getALlInvestments = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    // const { id, status } = req.query;
+
+    const {id, status, search} = await getAllInvestmentSchema.validateAsync(
+      req.query
+    );
+
+    // Call the DAO to get all collection officers
+    const result = await financeDao.getAllInvestmentsDao(
+      id, status, search
+    );
+
+    // console.log({ page, limit });
+    console.log('result', result);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching collection officers:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
+exports.ApproveInvestmentRequestEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  
+  try {
+
+    const { id } = await getInvestmentIdSchema.validateAsync(
+      req.params
+    );
+    
+    const result = await financeDao.approveInvestmentRequestDao(Number(id));
+
+    // console.log({ page, limit });
+    console.log('result', result);
+
+    if (result?.affectedRows === 1) {
+      return res.status(200).json({
+        success: true,
+        message: "Action completed successfully.",
+        data: result
+      });
+    } 
+    else if (result?.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Action failed"
+      });
+    } 
+    // return res.status(200).json({
+    //       success: true,
+    //       message: "Action completed successfully.",
+    //       data: result
+    //     });
+
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching collection officers:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
+exports.RejectInvestmentRequestEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  
+  try {
+
+    const { id } = await getInvestmentIdSchema.validateAsync(
+      req.params
+    );
+    
+    const result = await financeDao.RejectInvestmentRequestDao(Number(id));
+
+    // console.log({ page, limit });
+    console.log('result', result);
+
+    if (result?.affectedRows === 1) {
+      return res.status(200).json({
+        success: true,
+        message: "Action completed successfully.",
+        data: result
+      });
+    } 
+    else if (result?.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Action failed"
+      });
+    } 
+    // return res.status(200).json({
+    //       success: true,
+    //       message: "Action completed successfully.",
+    //       data: result
+    //     });
+
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching collection officers:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
 

@@ -111,6 +111,17 @@ const updatePaymentHistorySchema = Joi.object({
   paymentReference: Joi.string().required().trim().min(1).max(255)
 });
 
+const getAllInvestmentSchema = Joi.object({
+  id: Joi.number().required(),
+  status: Joi.string().optional(),
+  search: Joi.string().optional()
+});
+
+const getInvestmentIdSchema = Joi.object({
+  id: Joi.string().required(),
+});
+
+
 const paymentHistoryIdSchema = Joi.object({
   id: Joi.number().integer().positive().required()
 });
@@ -124,5 +135,7 @@ module.exports = {
   getAllFarmerPaymentsSchema,
    createPaymentHistorySchema,
   updatePaymentHistorySchema,
-  paymentHistoryIdSchema
+  paymentHistoryIdSchema,
+  getAllInvestmentSchema,
+  getInvestmentIdSchema
 };
