@@ -132,3 +132,28 @@ exports.getPurchaseReport = Joi.object({
 exports.invNoParmsSchema = Joi.object({
     invNo: Joi.string().trim().min(1).required(),
 });
+
+
+exports.getAllDriversSchema = Joi.object({
+    page: Joi.number().integer().min(1).default(1).optional(),
+    limit: Joi.number().integer().min(1).max(100).default(10).optional(),
+    centerStatus: Joi.string().optional(),
+    status: Joi.string().optional(),
+    nic: Joi.string().allow('').optional(), 
+    centerId: Joi.number().optional(),
+});
+
+exports.getAllManagersSchema = Joi.object({
+    centerId: Joi.number().required(),
+});
+
+exports.disclaimDriverSchema = Joi.object({
+    id: Joi.number().required(),
+});
+
+exports.claimDriverSchema = Joi.object({
+    centerId: Joi.number().required(),
+    managerId: Joi.number().required()
+});
+
+
