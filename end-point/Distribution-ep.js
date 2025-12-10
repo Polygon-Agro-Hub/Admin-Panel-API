@@ -2155,3 +2155,181 @@ exports.getNextIndex = async (req, res) => {
     });
   }
 };
+
+
+exports.getAllHoldReasons = async (req, res) => {
+  try {
+    const reasons = await DistributionDao.getAllHoldReasons();
+    res.status(200).json({
+      status: true,
+      message: 'Hold reasons retrieved successfully',
+      data: reasons
+    });
+  } catch (error) {
+    console.error('Error fetching hold reasons:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to retrieve hold reasons',
+      error: error.message
+    });
+  }
+};
+
+// Get hold reason by ID
+exports.getHoldReasonById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reason = await DistributionDao.getHoldReasonById(id);
+    
+    if (!reason) {
+      return res.status(404).json({
+        status: false,
+        message: 'Hold reason not found'
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: 'Hold reason retrieved successfully',
+      data: reason
+    });
+  } catch (error) {
+    console.error('Error fetching hold reason:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to retrieve hold reason',
+      error: error.message
+    });
+  }
+};
+
+// Create new hold reason
+exports.createHoldReason = async (req, res) => {
+  try {
+    const { rsnEnglish, rsnSinhala, rsnTamil } = req.body;
+
+    // Validation
+    if (!rsnEnglish || !rsnSinhala || !rsnTamil) {
+      return res.status(400).json({
+        status: false,
+        message: 'All language fields are required'
+      });
+    }
+
+    // Get next index
+    const nextIndex = await DistributionDao.getNextHoldReasonIndex();
+
+    const reasonData = {
+      indexNo: nextIndex,
+      rsnEnglish: rsnEnglish.trim(),
+      rsnSinhala: rsnSinhala.trim(),
+      rsnTamil: rsnTamil.trim()
+    };
+
+    const result = await DistributionDao.createHoldReason(reasonData);
+
+    res.status(201).json({
+      status: true,
+      message: 'Hold reason created successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error creating hold reason:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to create hold reason',
+      error: error.message
+    });
+  }
+};
+
+// Delete hold reason
+exports.deleteHoldReason = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if trying to delete ID 1
+    if (id === '1' || parseInt(id) === 1) {
+      return res.status(403).json({
+        status: false,
+        message: 'Cannot delete the default reason (ID: 1)'
+      });
+    }
+
+    const affectedRows = await DistributionDao.deleteHoldReason(id);
+
+    if (affectedRows === 0) {
+      return res.status(404).json({
+        status: false,
+        message: 'Hold reason not found'
+      });
+    }
+
+    // After deletion, get all reasons and update their indexes
+    const allReasons = await DistributionDao.getAllHoldReasons();
+    const reasonsWithNewIndexes = allReasons.map((reason, index) => ({
+      id: reason.id,
+      indexNo: index + 1
+    }));
+    
+    await DistributionDao.updateHoldReasonIndexes(reasonsWithNewIndexes);
+
+    res.status(200).json({
+      status: true,
+      message: 'Hold reason deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting hold reason:', error);
+    res.status(500).json({
+      status: false,
+      message: error.message || 'Failed to delete hold reason',
+      error: error.message
+    });
+  }
+};
+
+// Update indexes after drag and drop reordering
+exports.updateHoldReasonIndexes = async (req, res) => {
+  try {
+    const { reasons } = req.body;
+
+    if (!reasons || !Array.isArray(reasons)) {
+      return res.status(400).json({
+        status: false,
+        message: 'Invalid request format. Expected an array of reasons.'
+      });
+    }
+
+    await DistributionDao.updateHoldReasonIndexes(reasons);
+
+    res.status(200).json({
+      status: true,
+      message: 'Indexes updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating hold reason indexes:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to update indexes',
+      error: error.message
+    });
+  }
+};
+
+// Get next available index
+exports.getNextHoldReasonIndex = async (req, res) => {
+  try {
+    const nextIndex = await DistributionDao.getNextHoldReasonIndex();
+    res.status(200).json({
+      status: true,
+      data: { nextIndex }
+    });
+  } catch (error) {
+    console.error('Error getting next hold reason index:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to get next index',
+      error: error.message
+    });
+  }
+};

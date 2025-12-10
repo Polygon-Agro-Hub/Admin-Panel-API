@@ -289,4 +289,30 @@ router.get('/get-next-return-reason-index',  authMiddleware,
   distributionEp.getNextIndex);
 
 
+//--hold reasons ---
+
+router.get('/get-all-hold-reasons', authMiddleware,
+  distributionEp.getAllHoldReasons);
+
+// Get hold reason by ID
+router.get('/get-hold-reason/:id', authMiddleware,
+  distributionEp.getHoldReasonById);
+
+// Create new hold reason
+router.post('/create-hold-reason', authMiddleware,
+  distributionEp.createHoldReason);
+
+// Delete hold reason
+router.delete('/delete-hold-reason/:id', authMiddleware,
+  distributionEp.deleteHoldReason);
+
+// Update indexes after reordering
+router.post('/update-hold-reason-indexes', authMiddleware,
+  distributionEp.updateHoldReasonIndexes);
+
+// Get next available index
+router.get('/get-next-hold-reason-index', authMiddleware,
+  distributionEp.getNextHoldReasonIndex);
+
+
 module.exports = router;
