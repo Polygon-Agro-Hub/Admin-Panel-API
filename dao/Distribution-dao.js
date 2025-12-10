@@ -2731,3 +2731,122 @@ exports.GetAllDistributionCenterList = (companyId) => {
     });
   });
 };
+
+
+exports.getAllReasons = async () => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM returnreason ORDER BY indexNo ASC";
+    marketPlace.query(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+// Get reason by ID
+exports.getReasonById = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM returnreason WHERE id = ?";
+    marketPlace.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+// Create new reason
+exports.createReason = async (reasonData) => {
+  return new Promise((resolve, reject) => {
+    const sql = `INSERT INTO returnreason 
+      (indexNo, rsnEnglish, rsnSinhala, rsnTamil) 
+      VALUES (?, ?, ?, ?)`;
+    
+    const values = [
+      reasonData.indexNo,
+      reasonData.rsnEnglish,
+      reasonData.rsnSinhala,
+      reasonData.rsnTamil
+    ];
+
+    marketPlace.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve({ id: results.insertId, ...reasonData });
+      }
+    });
+  });
+};
+
+
+// Delete reason (only if id > 1)
+exports.deleteReason = async (id) => {
+  return new Promise((resolve, reject) => {
+    // Check if id is 1
+    if (id === 1 || id === '1') {
+      reject(new Error('Cannot delete the default reason (ID: 1)'));
+      return;
+    }
+
+    const sql = "DELETE FROM returnreason WHERE id = ?";
+    marketPlace.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        if (results.affectedRows === 0) {
+          reject(new Error('Reason not found'));
+        } else {
+          resolve(results.affectedRows);
+        }
+      }
+    });
+  });
+};
+
+// Update all indexes after reordering
+exports.updateIndexes = async (reasons) => {
+  return new Promise((resolve, reject) => {
+    const sql = "UPDATE returnreason SET indexNo = ? WHERE id = ?";
+    
+    let completed = 0;
+    const total = reasons.length;
+    
+    if (total === 0) {
+      resolve(true);
+      return;
+    }
+
+    reasons.forEach((reason) => {
+      marketPlace.query(sql, [reason.indexNo, reason.id], (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          completed++;
+          if (completed === total) {
+            resolve(true);
+          }
+        }
+      });
+    });
+  });
+};
+
+exports.getNextIndex = async () => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT MAX(indexNo) as maxIndex FROM returnreason";
+    marketPlace.query(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        const nextIndex = (results[0].maxIndex || 0) + 1;
+        resolve(nextIndex);
+      }
+    });
+  });
+};

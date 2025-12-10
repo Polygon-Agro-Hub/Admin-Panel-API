@@ -263,4 +263,30 @@ router.get(
 );
 
 
+// Get all reasons
+router.get('/get-all-return-reasons', authMiddleware,
+  distributionEp.getAllReasons);
+
+// Get reason by ID
+router.get('/get-return-reason/:id',  authMiddleware,
+  distributionEp.getReasonById);
+
+// Create new reason
+router.post('/create-return-reason',  authMiddleware,
+  distributionEp.createReason);
+
+
+// Delete reason
+router.delete('/delete-return-reason/:id',  authMiddleware,
+  distributionEp.deleteReason);
+
+// Update indexes after reordering
+router.post('/update-return-reason-indexes',  authMiddleware,
+  distributionEp.updateIndexes);
+
+// Get next available index
+router.get('/get-next-return-reason-index',  authMiddleware,
+  distributionEp.getNextIndex);
+
+
 module.exports = router;

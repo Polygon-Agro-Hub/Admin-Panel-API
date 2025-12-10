@@ -149,7 +149,7 @@ router.get(
 router.get(
   "/collection-officer/get-all-collection-manager-names/:centerId",
   authMiddleware,
-  CollectionOfficerEp.getAllCollectionManagerNames
+  CollectionOfficerEp.getAllDistributionManagerNames
 );
 
 
@@ -328,4 +328,33 @@ router.get(
   CollectionOfficerEp.getCollectionCenterForReport
 )
 
+router.get(
+  "/driver/view-all-drivers",
+  authMiddleware,
+  CollectionOfficerEp.getAllDrivers
+);
+
+router.get(
+  "/driver/get-all-distribution-center-names",
+  authMiddleware,
+  CollectionOfficerEp.getAllDistributionCenterNames
+);
+
+router.get(
+  "/driver/get-all-distribution-manager-names/:centerId",
+  authMiddleware,
+  CollectionOfficerEp.getAllDistributionManagerNames
+);
+
+router.put(
+  "/driver/claim-driver/:id",
+  authMiddleware,
+  CollectionOfficerEp.claimDriver
+)
+
+router.put(
+  "/driver/disclaim-driver/:id",
+  authMiddleware,
+  CollectionOfficerEp.disclaimDriver
+);
 module.exports = router;

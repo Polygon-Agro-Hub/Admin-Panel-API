@@ -1379,5 +1379,172 @@ exports.getCollectionCenterForReport = async (req, res) => {
 };
 
 
+exports.getAllDrivers = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    // Validate query parameters
+    const validatedQuery =
+      await collectionofficerValidate.getAllDriversSchema.validateAsync(
+        req.query
+      );
+
+    const { page, limit, centerStatus, status, nic, centerId } = validatedQuery;
+
+    console.log(centerStatus, status)
+
+    // Call the DAO to get all collection officers
+    const result = await collectionofficerDao.getAllDrivers(
+      page,
+      limit,
+      nic,
+      centerStatus,
+      status,
+      centerId
+    );
+
+    console.log(result);
+
+    console.log("Successfully fetched collection officers");
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching collection officers:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
+exports.getAllDistributionCenterNames = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const results = await collectionofficerDao.getAllDistributionCenterNamesDao();
+
+    console.log("Successfully retrieved reports", results);
+    res.status(200).json(results);
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error retrieving", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching" });
+  }
+};
+
+exports.getAllDistributionManagerNames = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  
+  try {
+    const {centerId} = await collectionofficerValidate.getAllManagersSchema.validateAsync(
+      req.params
+    );
+    
+    if (!centerId) {
+      return res.status(400).json({ error: "centerId is required" });
+    }
+
+    const numericCenterId = parseInt(centerId);
+    if (isNaN(numericCenterId)) {
+      return res.status(400).json({ error: "centerId must be a valid number" });
+    }
+
+    const results = await collectionofficerDao.getAllDistributionCenterManagerDao(numericCenterId);
+
+    console.log("Successfully retrieved collection managers", results);
+    res.status(200).json({
+      success: true,
+      data: results,
+      count: results.length
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ 
+        success: false,
+        error: error.details[0].message 
+      });
+    }
+
+    console.error("Error retrieving collection managers:", error);
+    
+    if (error.message === 'Valid centerId is required') {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while fetching collection managers"
+    });
+  }
+};
+
+exports.claimDriver = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    
+    const {id} = await collectionofficerValidate.disclaimDriverSchema.validateAsync(
+      req.params
+    );
+
+    const { centerId, managerId } = await collectionofficerValidate.claimDriverSchema.validateAsync(
+      req.body
+    );
+
+    // Validate required fields
+    if (!centerId) {
+      return res.status(400).json({ error: "centerId is required" });
+    }
+
+
+    // Call the DAO function to update the officer's details
+    const result = await collectionofficerDao.claimDriverDetailsDao(
+      id,
+      centerId,
+      managerId
+    );
+
+    // Send success response
+    res.json({ message: "Collection officer details updated successfully" });
+  } catch (err) {
+    console.error("Error updating collection officer details:", err);
+    res
+      .status(500)
+      .json({ error: "Failed to update collection officer details" });
+  }
+};
+
+exports.disclaimDriver = async (req, res) => {
+  try {
+    const {id} = await collectionofficerValidate.disclaimDriverSchema.validateAsync(
+      req.params
+    );
+
+    console.log(id);
+
+    const result = await collectionofficerDao.disclaimDriverDetailsDao(id);
+
+    res.json({ message: "Collection officer details updated successfully" });
+  } catch (err) {
+    console.error("Error updating collection officer details:", err);
+    res
+      .status(500)
+      .json({ error: "Failed to update collection officer details" });
+  }
+};
+
 
 
