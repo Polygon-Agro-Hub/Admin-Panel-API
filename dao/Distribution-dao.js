@@ -2979,7 +2979,8 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         dc.regCode,
         o.sheduleTime,
         po.createdAt,
-        po.status
+        po.status,
+        TIME(po.outDlvrDate) as outDlvrTime
       FROM 
         market_place.processorders po
       INNER JOIN 
