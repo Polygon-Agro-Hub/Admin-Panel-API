@@ -2969,3 +2969,54 @@ exports.getNextHoldReasonIndex = async () => {
     });
   });
 };
+
+exports.getAllTodaysDeliveries = (searchParams = {}) => {
+  return new Promise((resolve, reject) => {
+    // Base SQL query
+    let sql = `
+      SELECT 
+        po.invNo,
+        dc.regCode,
+        o.sheduleTime,
+        po.createdAt,
+        po.status,
+        TIME(po.outDlvrDate) as outDlvrTime
+      FROM 
+        market_place.processorders po
+      INNER JOIN 
+        market_place.orders o ON po.orderId = o.id
+      INNER JOIN 
+        collection_officer.distributedcenter dc ON o.centerId = dc.id
+      WHERE 
+        po.status IN ('Out For Delivery', 'Delivered', 'Collected', 'On the way', 'Return', 'Hold')`;
+    
+    // Add search conditions if search parameters are provided
+    const conditions = [];
+    const values = [];
+    
+    if (searchParams.regCode) {
+      conditions.push(`dc.regCode LIKE ?`);
+      values.push(`%${searchParams.regCode}%`);
+    }
+    
+    if (searchParams.invNo) {
+      conditions.push(`po.invNo LIKE ?`);
+      values.push(`%${searchParams.invNo}%`);
+    }
+    
+    // Append search conditions to the WHERE clause
+    if (conditions.length > 0) {
+      sql += ` AND (${conditions.join(' OR ')})`;
+    }
+    
+    // Add ORDER BY clause
+    sql += ` ORDER BY po.createdAt DESC`;
+    
+    marketPlace.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

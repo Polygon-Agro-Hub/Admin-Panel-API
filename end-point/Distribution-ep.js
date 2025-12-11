@@ -2333,3 +2333,44 @@ exports.getNextHoldReasonIndex = async (req, res) => {
     });
   }
 };
+
+exports.getTodaysDeliverieData = async (req, res) => {
+  try {
+    // Extract search parameters from query string
+    const { regCode, invNo, searchType = 'partial' } = req.query;
+    
+    // Build search parameters object
+    const searchParams = {};
+    
+    if (regCode && regCode.trim() !== '') {
+      searchParams.regCode = regCode.trim();
+    }
+    
+    if (invNo && invNo.trim() !== '') {
+      searchParams.invNo = invNo.trim();
+    }
+    
+    // Optional: Add exact match if specified
+    if (searchType === 'exact') {
+      searchParams.exactMatch = true;
+    }
+    
+    // Get deliveries with optional search
+    const deliveries = await DistributionDao.getAllTodaysDeliveries(searchParams);
+    
+    res.status(200).json({
+      status: true,
+      data: deliveries,
+      count: deliveries.length,
+      searchApplied: Object.keys(searchParams).length > 0,
+      searchParams: Object.keys(searchParams).length > 0 ? searchParams : null
+    });
+  } catch (error) {
+    console.error('Error fetching today\'s deliveries:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to fetch today\'s deliveries',
+      error: error.message
+    });
+  }
+};
