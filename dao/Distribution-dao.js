@@ -2988,7 +2988,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       INNER JOIN 
         collection_officer.distributedcenter dc ON o.centerId = dc.id
       WHERE 
-        po.status IN ('Out For Delivery', 'Delivered', 'On the way', 'Return', 'Hold')`;
+        po.status IN ('Out For Delivery', 'Delivered', 'Collected', 'On the way', 'Return', 'Hold')`;
     
     // Add search conditions if search parameters are provided
     const conditions = [];
