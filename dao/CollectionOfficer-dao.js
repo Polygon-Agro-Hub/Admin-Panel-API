@@ -1456,7 +1456,9 @@ exports.getOfficerByIdDAO = (id) => {
               COM.companyNameEnglish,
               CEN.centerName,
               CEN.regCode AS centerRegCode,
-              DC.centerName AS distributedCenterName
+              DC.centerName AS distributedCenterName,
+              VR.*,
+              VR.id AS vehicleRegId
           FROM 
               collectionofficer COF
           JOIN 
@@ -1465,6 +1467,8 @@ exports.getOfficerByIdDAO = (id) => {
               collectioncenter CEN ON COF.centerId = CEN.id
           LEFT JOIN 
               distributedcenter DC ON COF.distributedCenterId = DC.id
+          LEFT JOIN
+               vehicleregistration VR ON COF.id = VR.coId
           WHERE 
               COF.id = ?`;
 
@@ -1522,7 +1526,22 @@ exports.getOfficerByIdDAO = (id) => {
           distributedCenterName: officer.distributedCenterName || null,
           fullEmpId: officer.empId,
           centerRegCode: officer.centerRegCode,
-        },
+          licNo: officer.licNo,
+          insNo: officer.insNo,
+          insExpDate: officer.insExpDate,
+          vType: officer.vType,
+          vCapacity: officer.vCapacity,
+          vRegNo: officer.vRegNo,
+          licFrontImg: officer.licFrontImg,
+          licBackImg: officer.licBackImg,
+          insFrontImg: officer.insFrontImg,
+          insBackImg: officer.insBackImg,
+          vehFrontImg: officer.vehFrontImg,
+          vehBackImg: officer.vehBackImg,
+          vehSideImgA: officer.vehSideImgA,
+          vehSideImgB: officer.vehSideImgB
+        }
+        
       });
     });
   });
