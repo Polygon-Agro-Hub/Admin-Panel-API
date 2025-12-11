@@ -1457,6 +1457,7 @@ exports.getOfficerByIdDAO = (id) => {
               CEN.centerName,
               CEN.regCode AS centerRegCode,
               DC.centerName AS distributedCenterName,
+              DC.regCode AS distributedCenterRegCode,
               VR.*,
               VR.id AS vehicleRegId
           FROM 
@@ -1524,6 +1525,7 @@ exports.getOfficerByIdDAO = (id) => {
           companyNameEnglish: officer.companyNameEnglish,
           centerName: officer.centerName,
           distributedCenterName: officer.distributedCenterName || null,
+          distributedCenterRegCode: officer.distributedCenterRegCode || null,
           fullEmpId: officer.empId,
           centerRegCode: officer.centerRegCode,
           licNo: officer.licNo,
