@@ -226,7 +226,17 @@ router.get(
 router.put(
   "/update-distribution-officer-details/:id",
   authMiddleware,
-  upload.single("image"),
+  upload.fields([
+    { name: 'file', maxCount: 1 },
+    { name: 'licFront', maxCount: 1 },
+    { name: 'licBack', maxCount: 1 },
+    { name: 'insFront', maxCount: 1 },
+    { name: 'insBack', maxCount: 1 },
+    { name: 'vehiFront', maxCount: 1 },
+    { name: 'vehiBack', maxCount: 1 },
+    { name: 'vehiSideA', maxCount: 1 },
+    { name: 'vehiSideB', maxCount: 1 }
+  ]),
   distributionEp.updateDistributionOfficerDetails
 );
 

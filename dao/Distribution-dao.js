@@ -2211,6 +2211,24 @@ exports.updateDistributionOfficerDetails = (
   });
 };
 
+exports.editCheckPhoneNumberExist = async (phoneNumber, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM collectionofficer 
+               WHERE (phoneNumber01 = ? OR phoneNumber02 = ?)`;
+    const params = [phoneNumber, phoneNumber];
+    
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
 exports.editCheckNICExist = async (nic, excludeId = null) => {
   return new Promise((resolve, reject) => {
     let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE nic = ?`;
@@ -2222,6 +2240,105 @@ exports.editCheckNICExist = async (nic, excludeId = null) => {
     collectionofficer.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.getOfficerById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `SELECT * FROM collectionofficer WHERE id = ?`;
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.getDriverDataByOfficerId = (officerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        vr.*,
+        SUBSTRING_INDEX(vr.licFrontImg, '/', -1) as licFrontName,
+        SUBSTRING_INDEX(vr.licBackImg, '/', -1) as licBackName,
+        SUBSTRING_INDEX(vr.insFrontImg, '/', -1) as insFrontName,
+        SUBSTRING_INDEX(vr.insBackImg, '/', -1) as insBackName,
+        SUBSTRING_INDEX(vr.vehFrontImg, '/', -1) as vFrontName,
+        SUBSTRING_INDEX(vr.vehBackImg, '/', -1) as vBackName,
+        SUBSTRING_INDEX(vr.vehSideImgA, '/', -1) as vSideAName,
+        SUBSTRING_INDEX(vr.vehSideImgB, '/', -1) as vSideBName
+      FROM vehicleregistration vr 
+      WHERE vr.coId = ?
+    `;
+    
+    collectionofficer.query(sql, [officerId], (err, results) => {
+      if (err) {
+        console.error('Error fetching driver data:', err);
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.updateVehicleRegisterDao = (
+  id, 
+  driverData, 
+  licFrontImg, 
+  licBackImg, 
+  insFrontImg, 
+  insBackImg, 
+  vehFrontImg, 
+  vehBackImg, 
+  vehSideImgA, 
+  vehSideImgB
+) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE vehicleregistration 
+      SET licNo = ?, insNo = ?, insExpDate = ?, vType = ?, vCapacity = ?, 
+          vRegNo = ?, licFrontImg = ?, licBackImg = ?, insFrontImg = ?, 
+          insBackImg = ?, vehFrontImg = ?, vehBackImg = ?, 
+          vehSideImgA = ?, vehSideImgB = ?
+      WHERE coId = ?
+    `;
+
+    collectionofficer.query(
+      sql,
+      [
+        driverData.licNo,
+        driverData.insNo,
+        driverData.insExpDate,
+        driverData.vType,
+        driverData.vCapacity,
+        driverData.vRegNo,
+        licFrontImg,
+        licBackImg,
+        insFrontImg,
+        insBackImg,
+        vehFrontImg,
+        vehBackImg,
+        vehSideImgA,
+        vehSideImgB,
+        id
+      ],
+      (err, results) => {
+        if (err) {
+          console.error("Vehicle registration update error:", err);
+          return reject(err);
+        }
+        resolve(results);
+      }
+    );
+  });
+};
+
+exports.deleteDriverData = (officerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `DELETE FROM vehicleregistration WHERE coId = ?`;
+    collectionofficer.query(sql, [officerId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
     });
   });
 };
