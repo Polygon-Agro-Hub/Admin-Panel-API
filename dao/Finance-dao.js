@@ -609,7 +609,9 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
         os.englishName AS serviceName,
         FORMAT(gjp.amount, 2) AS amount,
         DATE_FORMAT(gjp.createdAt, '%Y-%m-%d %H:%i') AS dateTime,
-        gjp.createdAt as sortDate
+        gjp.createdAt as sortDate,
+        u.firstName,  -- Add these for debugging
+        u.lastName    -- Add these for debugging
       FROM govijobpayment gjp
       INNER JOIN govilinkjobs gj ON gj.id = gjp.jobId
       INNER JOIN users u ON gj.farmerId = u.id
@@ -635,13 +637,15 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
       dataParams.push(toDate);
     }
 
-    // Search filtering
+    // Search filtering - IMPROVED VERSION
     if (searchTerm) {
       const searchCondition = `
         AND (
           gjp.transactionId LIKE ?
+          OR CONCAT(u.firstName, ' ', u.lastName) LIKE ?  -- Search concatenated name
           OR u.firstName LIKE ?
           OR u.lastName LIKE ?
+          OR CONCAT(u.lastName, ' ', u.firstName) LIKE ?  -- Search reverse order
           OR os.englishName LIKE ?
           OR gjp.amount LIKE ?
         )
@@ -650,20 +654,11 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
       dataSql += searchCondition;
 
       const searchValue = `%${searchTerm}%`;
-      countParams.push(
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue
-      );
-      dataParams.push(
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue
-      );
+      // Add searchValue for each condition (7 times)
+      for (let i = 0; i < 7; i++) {
+        countParams.push(searchValue);
+        dataParams.push(searchValue);
+      }
     }
 
     // Order by most recent first
@@ -672,6 +667,10 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
     // Add pagination
     dataSql += " LIMIT ? OFFSET ?";
     dataParams.push(limit, offset);
+
+    console.log("SQL Query:", dataSql); // Add logging for debugging
+    console.log("Search Term:", searchTerm); // Add logging for debugging
+    console.log("Search Params:", dataParams); // Add logging for debugging
 
     // Execute count query
     plantcare.query(countSql, countParams, (countErr, countResults) => {
@@ -689,7 +688,15 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
           return reject(dataErr);
         }
 
-        resolve({ items: dataResults, total });
+        console.log("Query Results:", dataResults); // Add logging for debugging
+        
+        // Remove the firstName and lastName from final response if you don't want them
+        const formattedResults = dataResults.map(item => {
+          const { firstName, lastName, ...rest } = item;
+          return rest;
+        });
+
+        resolve({ items: formattedResults, total });
       });
     });
   });
