@@ -1521,7 +1521,8 @@ exports.getFieldAudits = async (searchTerm, connection) => {
       fo.lastName as officerLastName,
       fo.empId as officerEmpId,
       fo.JobRole as officerJobRole,
-      au.userName   
+      au.userName,
+      CONCAT(fo2.firstName, ' ', fo2.lastName) as assignedByCFO
     FROM feildaudits fa
     LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
     LEFT JOIN users u ON cp.userId = u.id
@@ -1532,6 +1533,7 @@ exports.getFieldAudits = async (searchTerm, connection) => {
     LEFT JOIN farms f2 ON occ.farmId = f2.id
     LEFT JOIN certificates c ON cp.certificateId = c.id
     LEFT JOIN feildofficer fo ON fa.assignOfficerId = fo.id
+    LEFT JOIN feildofficer fo2 ON fa.assignByCFO = fo2.id
     LEFT JOIN agro_world_admin.adminusers au ON fa.assignBy = au.id
   `;
 
@@ -1677,12 +1679,14 @@ exports.getFarmerClustersAudits = async (searchTerm, connection) => {
       fo.lastName as officerLastName,
       fo.empId as officerEmpId,
       fo.JobRole as officerJobRole,
-      au.userName
+      au.userName,
+      (CONCAT(fo2.firstName, ' ', fo2.lastName)) as assignedByCFO
     FROM feildaudits fa
     LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
     LEFT JOIN farmcluster fc ON cp.clusterId = fc.id
     LEFT JOIN certificates c ON cp.certificateId = c.id
     LEFT JOIN feildofficer fo ON fa.assignOfficerId = fo.id
+    LEFT JOIN feildofficer fo2 ON fa.assignByCFO = fo2.id
     LEFT JOIN agro_world_admin.adminusers au ON fa.assignBy = au.id
   `;
 

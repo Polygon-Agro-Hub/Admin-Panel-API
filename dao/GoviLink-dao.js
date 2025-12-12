@@ -151,7 +151,7 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
         os.englishName AS service,
         f.district AS district,
         gj.status AS status,
-        au.userName AS assignedBy,
+        COALESCE(au.userName, CONCAT(fo2.firstName, ' ', fo2.lastName)) AS assignedBy,
         gj.sheduleDate AS scheduledDate,
         gj.createdAt AS createdAt,
         CASE 
@@ -169,6 +169,7 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
       LEFT JOIN agro_world_admin.adminusers au ON gj.assignBy = au.id
       LEFT JOIN jobassignofficer jao ON gj.id = jao.jobId AND jao.isActive = 1
       LEFT JOIN feildofficer fo ON jao.officerId = fo.id
+      LEFT JOIN feildofficer fo2 ON gj.assignByCFO = fo2.id
       WHERE 1=1
     `;
 
@@ -298,7 +299,8 @@ exports.assignOfficerToJobDAO = (jobId, officerId, assignedBy) => {
           UPDATE govilinkjobs 
           SET 
             assignBy = ?,
-            status = 'Pending'
+            status = 'Pending',
+            assignDate = NOW()
           WHERE id = ?
         `;
 
