@@ -276,9 +276,9 @@ exports.getAllGovijobDashboardData = () => {
       // ===== 1️ Basic stats =====
       const statsQuery = `
         SELECT 
-          COUNT(CASE WHEN MONTH(gj.sheduleDate) = MONTH(CURRENT_DATE()) 
-            AND YEAR(gj.sheduleDate) = YEAR(CURRENT_DATE()) THEN 1 END) AS requestsThisMonth,
-          COUNT(CASE WHEN DATE(gj.sheduleDate) = CURDATE() THEN 1 END) AS requestsToday
+          COUNT(CASE WHEN MONTH(gj.createdAt) = MONTH(CURRENT_DATE()) 
+            AND YEAR(gj.createdAt) = YEAR(CURRENT_DATE()) THEN 1 END) AS requestsThisMonth,
+          COUNT(CASE WHEN DATE(gj.createdAt) = CURDATE() THEN 1 END) AS requestsToday
         FROM govilinkjobs gj
       `;
 
