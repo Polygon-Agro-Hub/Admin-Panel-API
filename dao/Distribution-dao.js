@@ -2853,7 +2853,7 @@ exports.GetAllDistributionCenterList = (companyId) => {
 exports.getAllReasons = async () => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT * FROM returnreason ORDER BY indexNo ASC";
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -2867,7 +2867,7 @@ exports.getAllReasons = async () => {
 exports.getReasonById = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT * FROM returnreason WHERE id = ?";
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -2891,7 +2891,7 @@ exports.createReason = async (reasonData) => {
       reasonData.rsnTamil
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -2912,7 +2912,7 @@ exports.deleteReason = async (id) => {
     }
 
     const sql = "DELETE FROM returnreason WHERE id = ?";
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -2940,7 +2940,7 @@ exports.updateIndexes = async (reasons) => {
     }
 
     reasons.forEach((reason) => {
-      marketPlace.query(sql, [reason.indexNo, reason.id], (err) => {
+      collectionofficer.query(sql, [reason.indexNo, reason.id], (err) => {
         if (err) {
           reject(err);
         } else {
@@ -2957,7 +2957,7 @@ exports.updateIndexes = async (reasons) => {
 exports.getNextIndex = async () => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT MAX(indexNo) as maxIndex FROM returnreason";
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -2972,7 +2972,7 @@ exports.getNextIndex = async () => {
 exports.getAllHoldReasons = async () => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT * FROM holdreason ORDER BY indexNo ASC";
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -2986,7 +2986,7 @@ exports.getAllHoldReasons = async () => {
 exports.getHoldReasonById = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT * FROM holdreason WHERE id = ?";
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3010,7 +3010,7 @@ exports.createHoldReason = async (reasonData) => {
       reasonData.rsnTamil
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3030,7 +3030,7 @@ exports.deleteHoldReason = async (id) => {
     }
 
     const sql = "DELETE FROM holdreason WHERE id = ?";
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3058,7 +3058,7 @@ exports.updateHoldReasonIndexes = async (reasons) => {
     }
 
     reasons.forEach((reason) => {
-      marketPlace.query(sql, [reason.indexNo, reason.id], (err) => {
+      collectionofficer.query(sql, [reason.indexNo, reason.id], (err) => {
         if (err) {
           reject(err);
         } else {
@@ -3076,7 +3076,7 @@ exports.updateHoldReasonIndexes = async (reasons) => {
 exports.getNextHoldReasonIndex = async () => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT MAX(indexNo) as maxIndex FROM holdreason";
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
