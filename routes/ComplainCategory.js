@@ -145,3 +145,9 @@ router.get(
   authMiddleware,
   ComplainCategoryEP.GetAllDistriutionCompanyForOfficerComplain
 );
+
+router.get(
+  '/get-all-driver-complains',
+  authMiddleware,
+  ComplainCategoryEP.getAllDriverComplain
+);
