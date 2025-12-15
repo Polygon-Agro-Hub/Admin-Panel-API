@@ -644,3 +644,46 @@ exports.GetAllDistriutionCompanyForOfficerComplain = async (req, res) => {
       .json({ error: "An error occurred while complain categories" });
   }
 };
+
+exports.getAllDriverComplain = async (req, res) => {
+  try {
+    console.log(req.query);
+    const {
+      page,
+      limit,
+      status,
+      category,
+      comCategory,
+      filterCompany,
+      searchText,
+      rpstatus,
+    } = req.query;
+
+    console.log("searchText", searchText);
+
+    const { results, total } =
+      await ComplainCategoryDAO.GetAllDriverComplainDAO(
+        page,
+        limit,
+        status,
+        category,
+        comCategory,
+        filterCompany,
+        searchText,
+        rpstatus
+      );
+
+    console.log("Successfully retrieved all collection centre");
+    console.log("results", results);
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching news:", err);
+    res.status(500).json({ error: "An error occurred while fetching news" });
+  }
+};
