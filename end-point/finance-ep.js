@@ -281,6 +281,12 @@ exports.getCertificateDashboardData = async (req, res) => {
       incomeStatus = "increased";
     }
 
+    // Cap relativeIncomeValue at 100 (FIXED)
+    const relativeIncomeValue = Math.min(
+      100,
+      Math.abs(parseFloat(incomeChangePercentage.toFixed(2)))
+    );
+
     // Create data structure up to current month only
     const monthNames = [
       "Jan",
@@ -334,17 +340,13 @@ exports.getCertificateDashboardData = async (req, res) => {
           ?.count || 0,
     };
 
-    // Format recent payments with validity period
+    // Format recent payments with validity period (FIXED)
+    // Validity period now comes pre-formatted from SQL
     const formattedRecentPayments = dashboardData.recentPayments.map(
       (payment) => ({
         transactionId: payment.transactionId,
         farmerName: payment.farmerName,
-        validityPeriod:
-          payment.validityMonths > 0
-            ? `${payment.validityMonths} month${
-                payment.validityMonths !== 1 ? "s" : ""
-              }`
-            : "Expired",
+        validityPeriod: payment.validityMonths || "Expired",
         amount: payment.amount,
         dateTime: payment.dateTime,
       })
@@ -358,9 +360,7 @@ exports.getCertificateDashboardData = async (req, res) => {
           activeEnrollments: dashboardData.stats.activeEnrollments,
           expiredEnrollments: dashboardData.stats.expiredEnrollments,
           monthlyIncome: currentIncome,
-          relativeIncomeValue: Math.abs(
-            parseFloat(incomeChangePercentage.toFixed(2))
-          ),
+          relativeIncomeValue: relativeIncomeValue, // Now capped at 100
           incomeStatus: incomeStatus,
         },
         recentPayments: formattedRecentPayments,

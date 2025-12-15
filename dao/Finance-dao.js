@@ -465,54 +465,84 @@ exports.getAllCertificateDashboardData = () => {
       `;
 
       // Get monthly income with comparison to previous month
-      // Monthly income = amount / timeline for each payment where expireDate covers the month
+      // Monthly income = (Certificate Price / No of months) * active user count per certificate
+      // Only include valid/active certificates (expireDate > current date for current month)
+      // Certificate durations: 1 month, 4 months, 12 months
       const incomeQuery = `
         SELECT 
           COALESCE(SUM(
             CASE 
-              WHEN MONTH(CURRENT_TIMESTAMP()) >= MONTH(cp.createdAt)
-                AND YEAR(CURRENT_TIMESTAMP()) >= YEAR(cp.createdAt)
-                AND (YEAR(CURRENT_TIMESTAMP()) * 12 + MONTH(CURRENT_TIMESTAMP())) 
-                    <= (YEAR(cp.expireDate) * 12 + MONTH(cp.expireDate))
-                AND c.timeLine > 0
-              THEN cp.amount / c.timeLine
+              WHEN c.timeLine > 0
+              THEN (c.price / c.timeLine) * current_users.userCount
               ELSE 0
             END
           ), 0) as currentMonthIncome,
           COALESCE(SUM(
             CASE 
-              WHEN MONTH(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)) >= MONTH(cp.createdAt)
-                AND YEAR(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)) >= YEAR(cp.createdAt)
-                AND (YEAR(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)) * 12 + 
-                     MONTH(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH))) 
-                    <= (YEAR(cp.expireDate) * 12 + MONTH(cp.expireDate))
-                AND c.timeLine > 0
-              THEN cp.amount / c.timeLine
+              WHEN c.timeLine > 0
+              THEN (c.price / c.timeLine) * previous_users.userCount
               ELSE 0
             END
           ), 0) as previousMonthIncome
-        FROM certificationpayment cp
-        INNER JOIN certificates c ON cp.certificateId = c.id
-        WHERE cp.expireDate > DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)
+        FROM certificates c
+        LEFT JOIN (
+          SELECT 
+            certificateId,
+            COUNT(DISTINCT userId) as userCount
+          FROM certificationpayment
+          WHERE expireDate > CURRENT_TIMESTAMP()
+          GROUP BY certificateId
+        ) current_users ON c.id = current_users.certificateId
+        LEFT JOIN (
+          SELECT 
+            certificateId,
+            COUNT(DISTINCT userId) as userCount
+          FROM certificationpayment
+          WHERE expireDate > DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)
+            AND createdAt <= LAST_DAY(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH))
+          GROUP BY certificateId
+        ) previous_users ON c.id = previous_users.certificateId
+        WHERE c.timeLine IN (1, 4, 12)
       `;
 
-      // Get recent 6 payments with validity period calculation
+      // Get recent 6 payments with validity period calculation (FIXED)
+      // Now calculates total validity period from createdAt to expireDate
       const paymentsQuery = `
-        SELECT 
-          cp.transactionId,
-          CONCAT(u.firstName, ' ', u.lastName) as farmerName,
-          c.srtName as certificateName,
-          cp.payType,
-          FORMAT(cp.amount, 2) as amount,
-          DATE_FORMAT(cp.createdAt, '%Y-%m-%d %H:%i') as dateTime,
-          DATE_FORMAT(cp.expireDate, '%Y-%m-%d') as expiryDate,
-          TIMESTAMPDIFF(MONTH, CURRENT_TIMESTAMP(), cp.expireDate) as validityMonths
-        FROM certificationpayment cp
-        INNER JOIN users u ON cp.userId = u.id
-        INNER JOIN certificates c ON cp.certificateId = c.id
-        ORDER BY cp.createdAt DESC
-        LIMIT 6
-      `;
+  SELECT 
+    cp.transactionId,
+    CONCAT(u.firstName, ' ', u.lastName) as farmerName,
+    c.srtName as certificateName,
+    cp.payType,
+    FORMAT(cp.amount, 2) as amount,
+    DATE_FORMAT(cp.createdAt, '%Y-%m-%d %H:%i') as dateTime,
+    DATE_FORMAT(cp.expireDate, '%Y-%m-%d') as expiryDate,
+    CASE 
+      WHEN cp.expireDate IS NULL OR cp.createdAt IS NULL THEN 'Expired'
+      ELSE CONCAT(
+        TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate),
+        ' month',
+        CASE WHEN TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) != 1 THEN 's' ELSE '' END,
+        ' ',
+        DATEDIFF(
+          cp.expireDate, 
+          DATE_ADD(cp.createdAt, INTERVAL TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) MONTH)
+        ),
+        ' day',
+        CASE 
+          WHEN DATEDIFF(
+            cp.expireDate, 
+            DATE_ADD(cp.createdAt, INTERVAL TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) MONTH)
+          ) != 1 THEN 's' 
+          ELSE '' 
+        END
+      )
+    END as validityMonths
+  FROM certificationpayment cp
+  INNER JOIN users u ON cp.userId = u.id
+  INNER JOIN certificates c ON cp.certificateId = c.id
+  ORDER BY cp.createdAt DESC
+  LIMIT 6
+`;
 
       // Get certificate type breakdown by payType from certificationpayment table
       const certificateTypesQuery = `
@@ -727,7 +757,7 @@ exports.getAllCertificatePayments = (
         CASE 
           WHEN cp.expireDate < NOW() THEN 'Expired'
           ELSE CONCAT(
-            FLOOR(DATEDIFF(cp.expireDate, NOW()) / 30), ' months, ',
+            FLOOR(DATEDIFF(cp.expireDate, NOW()) / 30), ' months ',
             MOD(DATEDIFF(cp.expireDate, NOW()), 30), ' days'
           )
         END as validityPeriod
@@ -1848,22 +1878,22 @@ exports.getAllInvestmentsDao = (
     if (status) {
       console.log("Order Status:", status);
 
-      dataSql +=`AND i.invtStatus = ?`;
+      dataSql += `AND i.invtStatus = ?`;
       params.push(status);
     }
 
     dataSql += " ORDER BY i.createdAt DESC";
     console.log(dataSql);
 
-      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
-        if (dataErr) {
-          console.error("Error in data query:", dataErr);
-          return reject(dataErr);
-        }
-        resolve({
-          items: dataResults
-        });
-      
+    marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+      if (dataErr) {
+        console.error("Error in data query:", dataErr);
+        return reject(dataErr);
+      }
+      resolve({
+        items: dataResults
+      });
+
     });
   });
 };
