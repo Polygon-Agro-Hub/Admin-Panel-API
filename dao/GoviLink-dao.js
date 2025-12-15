@@ -6,7 +6,6 @@ const {
   dash,
 } = require("../startup/database");
 
-
 exports.saveOfficerService = (englishName, tamilName, sinhalaName, srvFee) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -53,7 +52,7 @@ exports.updateOfficerService = (
       (err, result) => {
         if (err) {
           // Handle database unique constraint errors as fallback
-          if (err.code === 'ER_DUP_ENTRY') {
+          if (err.code === "ER_DUP_ENTRY") {
             reject(new Error("Service name already exists in the database"));
           } else {
             reject(err);
@@ -65,7 +64,7 @@ exports.updateOfficerService = (
             resolve({
               message: "Officer service updated successfully",
               affectedRows: result.affectedRows,
-              serviceId: id
+              serviceId: id,
             });
           }
         }
@@ -136,7 +135,6 @@ exports.deleteOfficerServiceById = (id) => {
     });
   });
 };
-
 
 // Get all govi link jobs with filters
 exports.getAllGoviLinkJobsDAO = (filters = {}) => {
@@ -304,26 +302,29 @@ exports.assignOfficerToJobDAO = (jobId, officerId, assignedBy) => {
           WHERE id = ?
         `;
 
-        plantcare.query(updateJobSql, [assignedBy, jobId], (err, updateResults) => {
-          if (err) return reject(err);
+        plantcare.query(
+          updateJobSql,
+          [assignedBy, jobId],
+          (err, updateResults) => {
+            if (err) return reject(err);
 
-          resolve({
-            success: true,
-            data: {
-              assignmentId: insertResults.insertId,
-              jobId: jobId,
-              officerId: officerId,
-              assignedBy: assignedBy,
-              previousAssignmentsDeactivated: deactivateResults.affectedRows,
-              action: "created",
-            },
-          });
-        });
+            resolve({
+              success: true,
+              data: {
+                assignmentId: insertResults.insertId,
+                jobId: jobId,
+                officerId: officerId,
+                assignedBy: assignedBy,
+                previousAssignmentsDeactivated: deactivateResults.affectedRows,
+                action: "created",
+              },
+            });
+          }
+        );
       });
     });
   });
 };
-
 
 // Get basic job details by ID
 exports.getJobBasicDetailsByIdDAO = (jobId) => {
@@ -393,7 +394,12 @@ exports.getJobBasicDetailsByIdDAO = (jobId) => {
 };
 
 // Check for duplicate service names
-exports.checkDuplicateServiceNames = (id, englishName, tamilName, sinhalaName) => {
+exports.checkDuplicateServiceNames = (
+  id,
+  englishName,
+  tamilName,
+  sinhalaName
+) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -416,10 +422,16 @@ exports.checkDuplicateServiceNames = (id, englishName, tamilName, sinhalaName) =
     admin.query(
       sql,
       [
-        englishName, id,
-        tamilName, id,
-        sinhalaName, id,
-        englishName, tamilName, sinhalaName, id
+        englishName,
+        id,
+        tamilName,
+        id,
+        sinhalaName,
+        id,
+        englishName,
+        tamilName,
+        sinhalaName,
+        id,
       ],
       (err, results) => {
         if (err) {
@@ -429,7 +441,7 @@ exports.checkDuplicateServiceNames = (id, englishName, tamilName, sinhalaName) =
             const duplicateRecord = results[0];
             const duplicateField = duplicateRecord.duplicateField;
             const duplicateValue = duplicateRecord[duplicateField];
-            
+
             resolve({
               exists: true,
               field: duplicateField,
@@ -439,15 +451,15 @@ exports.checkDuplicateServiceNames = (id, englishName, tamilName, sinhalaName) =
                 id: duplicateRecord.id,
                 englishName: duplicateRecord.englishName,
                 tamilName: duplicateRecord.tamilName,
-                sinhalaName: duplicateRecord.sinhalaName
-              }
+                sinhalaName: duplicateRecord.sinhalaName,
+              },
             });
           } else {
             resolve({
               exists: false,
               field: null,
               duplicateValue: null,
-              existingId: null
+              existingId: null,
             });
           }
         }
@@ -458,7 +470,6 @@ exports.checkDuplicateServiceNames = (id, englishName, tamilName, sinhalaName) =
 
 exports.getFieldAuditDetails = (filters = {}, search = {}) => {
   return new Promise((resolve, reject) => {
-
     let where1 = " WHERE 1=1 AND DATE(gj.doneDate) = '2025-12-05'";
     let where2 = " WHERE 1=1 AND DATE(fa.completeDate) = '2025-12-05'";
     let params1 = [];
@@ -467,8 +478,16 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
     if (search.jobId) {
       where1 += " AND (gj.jobId LIKE ? OR f.id LIKE ? OR u.NICnumber LIKE ? )";
       where2 += " AND (fa.jobId LIKE ? OR f.id LIKE ? OR u.NICnumber LIKE ? )";
-      params1.push(`%${search.jobId}%`, `%${search.jobId}%`, `%${search.jobId}%`);
-      params2.push(`%${search.jobId}%`, `%${search.jobId}%`, `%${search.jobId}%`);
+      params1.push(
+        `%${search.jobId}%`,
+        `%${search.jobId}%`,
+        `%${search.jobId}%`
+      );
+      params2.push(
+        `%${search.jobId}%`,
+        `%${search.jobId}%`,
+        `%${search.jobId}%`
+      );
     }
 
     // if (search.farmId) {
@@ -598,7 +617,6 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
   });
 };
 
-
 exports.GetFieldOfficerComplainByIdDAO = (id) => {
   console.log("DAO - GetFieldOfficerComplainByIdDAO called with ID:", id);
   return new Promise((resolve, reject) => {
@@ -673,10 +691,86 @@ exports.ReplyFieldOfficerComplainDAO = (complainId, reply, replyBy) => {
       }
 
       if (results.affectedRows === 0) {
-        return reject(new Error('Complaint not found'));
+        return reject(new Error("Complaint not found"));
       }
 
       resolve(results);
     });
+  });
+};
+
+exports.GetDriverComplainByIdDAO = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `SELECT 
+        dc.id, 
+        dc.refNo,
+        dc.driverId,
+        co.empId AS empId,
+        CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS driverName,
+        CONCAT(co.firstNameSinhala, ' ', co.lastNameSinhala) AS driverNameSinhala,
+        CONCAT(co.firstNameTamil, ' ', co.lastNameTamil) AS driverNameTamil,
+        co.phoneNumber01,
+        co.email,
+        dc.complainCategory AS complainCategoryId,
+        cc.categoryEnglish AS complainCategory,
+        cc.categorySinhala AS complainCategorySinhala,
+        cc.categoryTamil AS complainCategoryTamil,
+        ar.role,
+        dc.createdAt,
+        dc.complain,
+        dc.reply,
+        dc.replyTime,
+        co.JobRole,
+        au.userName AS replyByName
+      FROM drivercomplains dc
+      LEFT JOIN collectionofficer co ON dc.driverId = co.id
+      LEFT JOIN agro_world_admin.complaincategory cc ON dc.complainCategory = cc.id
+      LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+      LEFT JOIN agro_world_admin.adminusers au ON dc.adminReplyBy = au.id
+      WHERE dc.id = ?`;
+
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        console.error("Database error:", err);
+        return reject(err);
+      }
+
+      if (results.length === 0) {
+        console.log("No data found for ID:", id);
+        return resolve(null);
+      }
+
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.ReplyDriverComplainDAO = (complainId, reply, replyBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE drivercomplains 
+      SET 
+        reply = ?,
+        adminReplyBy = ?,
+        replyTime = NOW(),
+        status = 'Closed'
+      WHERE id = ?
+    `;
+
+    collectionofficer.query(
+      sql,
+      [reply, replyBy, complainId],
+      (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+
+        if (results.affectedRows === 0) {
+          return reject(new Error("Complaint not found"));
+        }
+
+        resolve(results);
+      }
+    );
   });
 };
