@@ -584,6 +584,8 @@ exports.updateGroup = async (req, res) => {
   let image = null;
   console.log(req.params);
 
+  console.log('bgColor', bgColor)
+
   try {
     const cropGroup = await cropCalendarDao.getGroupByIds3(id);
     if (!cropGroup) {
