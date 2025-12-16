@@ -41,6 +41,8 @@ exports.createCropGroup = async (req, res) => {
       cropNameSinhala,
       cropNameTamil,
       category,
+      costFeild,
+      incomeFeild,
       bgColor,
     } = req.body;
     console.log(req.body);
@@ -75,6 +77,8 @@ exports.createCropGroup = async (req, res) => {
       cropNameSinhala,
       cropNameTamil,
       category,
+      costFeild,
+      incomeFeild,
       profileImageUrl,
       bgColor
     );
@@ -577,7 +581,7 @@ exports.getVarietyById = async (req, res) => {
 };
 
 exports.updateGroup = async (req, res) => {
-  const { cropNameEnglish, cropNameSinhala, cropNameTamil, category, bgColor } =
+  const { cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, bgColor } =
     req.body;
   const id = req.params.id;
   const Existname = req.params.name;
@@ -622,6 +626,8 @@ exports.updateGroup = async (req, res) => {
         cropNameSinhala,
         cropNameTamil,
         category,
+        costFeild,
+        incomeFeild,
         bgColor,
         image,
       },

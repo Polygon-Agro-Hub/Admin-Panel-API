@@ -28,17 +28,21 @@ exports.createCropGroup = async (
   cropNameSinhala,
   cropNameTamil,
   category,
+  costFeild,
+  incomeFeild,
   image,
   bgColor
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, image, bgColor) VALUES (?, ?, ?, ?, ?, ?)";
+      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, image, bgColor) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
       cropNameEnglish,
       cropNameSinhala,
       cropNameTamil,
       category,
+      costFeild,
+      incomeFeild,
       image,
       bgColor,
     ];
@@ -441,6 +445,8 @@ exports.updateGroup = (newsData, id) => {
       cropNameSinhala,
       cropNameTamil,
       category,
+      costFeild,
+      incomeFeild,
       bgColor,
       image,
     } = newsData;
@@ -452,7 +458,9 @@ exports.updateGroup = (newsData, id) => {
                 cropNameEnglish = ?, 
                 cropNameSinhala = ?, 
                 cropNameTamil = ?, 
-                category = ?, 
+                category = ?,
+                costFeild = ?,
+                incomeFeild = ?,
                 bgColor = ?
         `;
 
@@ -461,6 +469,8 @@ exports.updateGroup = (newsData, id) => {
       cropNameSinhala,
       cropNameTamil,
       category,
+      costFeild,
+      incomeFeild,
       bgColor,
     ];
 
