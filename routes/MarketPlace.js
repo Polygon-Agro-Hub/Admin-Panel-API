@@ -288,7 +288,7 @@ router.get(
 
 router.get("/get-coupen/:coupenId", authMiddleware, marketPlaceEp.getCoupen);
 
-router.post("/update-coupen", authMiddleware, marketPlaceEp.updateCoupen);
+// router.post("/update-coupen", authMiddleware, marketPlaceEp.updateCoupen);
 
 router.get(
   "/invoice/:processOrderId",
