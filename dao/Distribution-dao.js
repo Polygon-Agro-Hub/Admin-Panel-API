@@ -3154,6 +3154,7 @@ exports.getTargetedCustomerOrdersDao = (page, limit, status, sheduleDate, center
       LEFT JOIN market_place.processorders po ON dti.orderId = po.id
       LEFT JOIN market_place.orders o ON po.orderId = o.id
       LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+      LEFT JOIN collectionofficer cof ON po.packBy = cof.id
     `;
 
     let dataSql = `
@@ -3198,7 +3199,8 @@ exports.getTargetedCustomerOrdersDao = (page, limit, status, sheduleDate, center
     	dc.centerName,
     	o.sheduleDate,
     	COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
-       COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
+      COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
+      cof.empId,
     	dt.createdAt
     FROM distributedtarget dt
     LEFT JOIN distributedtargetitems dti ON dti.targetId = dt.id
@@ -3207,6 +3209,7 @@ exports.getTargetedCustomerOrdersDao = (page, limit, status, sheduleDate, center
     LEFT JOIN market_place.processorders po ON dti.orderId = po.id
     LEFT JOIN market_place.orders o ON po.orderId = o.id
     LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+    LEFT JOIN collectionofficer cof ON po.packBy = cof.id
     LEFT JOIN package_item_counts pic ON pic.orderId = po.id
     LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
     WHERE 1=1
