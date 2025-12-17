@@ -357,91 +357,91 @@ exports.getAllGovijobDashboardData = () => {
 };
 
 // Function for govi job dashboard data
-exports.getAllGovijobDashboardData = () => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // ===== 1️ Basic stats =====
-      const statsQuery = `
-        SELECT 
-          COUNT(CASE WHEN MONTH(gj.sheduleDate) = MONTH(CURRENT_DATE()) 
-            AND YEAR(gj.sheduleDate) = YEAR(CURRENT_DATE()) THEN 1 END) AS requestsThisMonth,
-          COUNT(CASE WHEN DATE(gj.sheduleDate) = CURDATE() THEN 1 END) AS requestsToday
-        FROM govilinkjobs gj
-      `;
+// exports.getAllGovijobDashboardData = () => {
+//   return new Promise(async (resolve, reject) => {
+//     try {
+//       // ===== 1️ Basic stats =====
+//       const statsQuery = `
+//         SELECT 
+//           COUNT(CASE WHEN MONTH(gj.sheduleDate) = MONTH(CURRENT_DATE()) 
+//             AND YEAR(gj.sheduleDate) = YEAR(CURRENT_DATE()) THEN 1 END) AS requestsThisMonth,
+//           COUNT(CASE WHEN DATE(gj.sheduleDate) = CURDATE() THEN 1 END) AS requestsToday
+//         FROM govilinkjobs gj
+//       `;
 
-      // ===== 2️ Income (current and previous month) =====
-      const incomeQuery = `
-        SELECT 
-          COALESCE(SUM(CASE 
-            WHEN MONTH(gjp.createdAt) = MONTH(CURRENT_DATE()) 
-              AND YEAR(gjp.createdAt) = YEAR(CURRENT_DATE())
-            THEN gjp.amount ELSE 0 END), 0) AS currentMonthIncome,
-          COALESCE(SUM(CASE 
-            WHEN MONTH(gjp.createdAt) = MONTH(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)) 
-              AND YEAR(gjp.createdAt) = YEAR(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
-            THEN gjp.amount ELSE 0 END), 0) AS previousMonthIncome
-        FROM govijobpayment gjp
-      `;
+//       // ===== 2️ Income (current and previous month) =====
+//       const incomeQuery = `
+//         SELECT 
+//           COALESCE(SUM(CASE 
+//             WHEN MONTH(gjp.createdAt) = MONTH(CURRENT_DATE()) 
+//               AND YEAR(gjp.createdAt) = YEAR(CURRENT_DATE())
+//             THEN gjp.amount ELSE 0 END), 0) AS currentMonthIncome,
+//           COALESCE(SUM(CASE 
+//             WHEN MONTH(gjp.createdAt) = MONTH(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)) 
+//               AND YEAR(gjp.createdAt) = YEAR(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
+//             THEN gjp.amount ELSE 0 END), 0) AS previousMonthIncome
+//         FROM govijobpayment gjp
+//       `;
 
-      // ===== 3️ Recent 6 service payments =====
-      const recentPaymentsQuery = `
-        SELECT 
-          gjp.transactionId,
-          CONCAT(u.firstName, ' ', u.lastName) AS farmerName,
-          os.englishName AS serviceName,
-          FORMAT(gjp.amount, 2) AS amount,
-          DATE_FORMAT(gjp.createdAt, '%Y-%m-%d %H:%i') AS dateTime
-        FROM govijobpayment gjp
-        INNER JOIN govilinkjobs gj ON gj.id = gjp.jobId
-        INNER JOIN users u ON gj.farmerId = u.id
-        INNER JOIN officerservices os ON gj.serviceId = os.id
-        ORDER BY gjp.createdAt DESC
-        LIMIT 6
-      `;
+//       // ===== 3️ Recent 6 service payments =====
+//       const recentPaymentsQuery = `
+//         SELECT 
+//           gjp.transactionId,
+//           CONCAT(u.firstName, ' ', u.lastName) AS farmerName,
+//           os.englishName AS serviceName,
+//           FORMAT(gjp.amount, 2) AS amount,
+//           DATE_FORMAT(gjp.createdAt, '%Y-%m-%d %H:%i') AS dateTime
+//         FROM govijobpayment gjp
+//         INNER JOIN govilinkjobs gj ON gj.id = gjp.jobId
+//         INNER JOIN users u ON gj.farmerId = u.id
+//         INNER JOIN officerservices os ON gj.serviceId = os.id
+//         ORDER BY gjp.createdAt DESC
+//         LIMIT 6
+//       `;
 
-      // ===== 4️ Monthly statistics (for last 6 months) =====
-      const monthlyStatsQuery = `
-        SELECT 
-          DATE_FORMAT(gjp.createdAt, '%Y-%m') AS month,
-          DATE_FORMAT(gjp.createdAt, '%b') AS monthName,
-          COUNT(gjp.id) AS payments,
-          SUM(gjp.amount) AS revenue
-        FROM govijobpayment gjp
-        WHERE gjp.createdAt >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
-        GROUP BY DATE_FORMAT(gjp.createdAt, '%Y-%m'), DATE_FORMAT(gjp.createdAt, '%b')
-        ORDER BY month ASC
-      `;
+//       // ===== 4️ Monthly statistics (for last 6 months) =====
+//       const monthlyStatsQuery = `
+//         SELECT 
+//           DATE_FORMAT(gjp.createdAt, '%Y-%m') AS month,
+//           DATE_FORMAT(gjp.createdAt, '%b') AS monthName,
+//           COUNT(gjp.id) AS payments,
+//           SUM(gjp.amount) AS revenue
+//         FROM govijobpayment gjp
+//         WHERE gjp.createdAt >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
+//         GROUP BY DATE_FORMAT(gjp.createdAt, '%Y-%m'), DATE_FORMAT(gjp.createdAt, '%b')
+//         ORDER BY month ASC
+//       `;
 
-      // ===== Execute all queries =====
-      plantcare.query(statsQuery, (err1, statsResults) => {
-        if (err1) return reject("Error in stats query: " + err1);
+//       // ===== Execute all queries =====
+//       plantcare.query(statsQuery, (err1, statsResults) => {
+//         if (err1) return reject("Error in stats query: " + err1);
 
-        plantcare.query(incomeQuery, (err2, incomeResults) => {
-          if (err2) return reject("Error in income query: " + err2);
+//         plantcare.query(incomeQuery, (err2, incomeResults) => {
+//           if (err2) return reject("Error in income query: " + err2);
 
-          plantcare.query(recentPaymentsQuery, (err3, paymentsResults) => {
-            if (err3) return reject("Error in recent payments query: " + err3);
+//           plantcare.query(recentPaymentsQuery, (err3, paymentsResults) => {
+//             if (err3) return reject("Error in recent payments query: " + err3);
 
-            plantcare.query(monthlyStatsQuery, (err4, monthlyStatsResults) => {
-              if (err4) return reject("Error in monthly stats query: " + err4);
+//             plantcare.query(monthlyStatsQuery, (err4, monthlyStatsResults) => {
+//               if (err4) return reject("Error in monthly stats query: " + err4);
 
-              const dashboardData = {
-                stats: statsResults[0],
-                income: incomeResults[0],
-                recentPayments: paymentsResults,
-                monthlyStatistics: monthlyStatsResults,
-              };
+//               const dashboardData = {
+//                 stats: statsResults[0],
+//                 income: incomeResults[0],
+//                 recentPayments: paymentsResults,
+//                 monthlyStatistics: monthlyStatsResults,
+//               };
 
-              resolve(dashboardData);
-            });
-          });
-        });
-      });
-    } catch (error) {
-      reject("Error executing Govijob dashboard queries: " + error);
-    }
-  });
-};
+//               resolve(dashboardData);
+//             });
+//           });
+//         });
+//       });
+//     } catch (error) {
+//       reject("Error executing Govijob dashboard queries: " + error);
+//     }
+//   });
+// };
 
 exports.getAllCertificateDashboardData = () => {
   return new Promise(async (resolve, reject) => {
