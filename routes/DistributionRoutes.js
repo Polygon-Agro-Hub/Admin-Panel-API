@@ -361,4 +361,10 @@ router.get(
   distributionEp.getTodaysDeliverieData
 );
 
+router.get(
+  "/get-targeted-customers-orders",
+  // authMiddleware,
+  distributionEp.getTargetedCustomerOrders
+);
+
 module.exports = router;

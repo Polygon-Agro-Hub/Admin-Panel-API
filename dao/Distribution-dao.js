@@ -1517,7 +1517,7 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
         else if (employee === "Driver") {
           return resolve("DVR00001");
         }
-        
+
       }
 
       const highestId = results[0].empId;
@@ -1633,15 +1633,15 @@ exports.createDistributionOfficerPersonal = (
 
 
 exports.vehicleRegisterDao = (
-  id, 
-  driverData, 
-  licFrontImg, 
-  licBackImg, 
-  insFrontImg, 
-  insBackImg, 
-  vehFrontImg, 
-  vehBackImg, 
-  vehSideImgA, 
+  id,
+  driverData,
+  licFrontImg,
+  licBackImg,
+  insFrontImg,
+  insBackImg,
+  vehFrontImg,
+  vehBackImg,
+  vehSideImgA,
   vehSideImgB
 ) => {
   return new Promise((resolve, reject) => {
@@ -1687,7 +1687,7 @@ exports.vehicleRegisterDao = (
 exports.DeleteOfficerDao = (officerId) => {
   return new Promise((resolve, reject) => {
     const sql = `DELETE FROM collectionofficer WHERE id = ?`;
-    
+
     collectionofficer.query(sql, [officerId], (err, results) => {
       if (err) {
         console.error("Delete officer error:", err);
@@ -2216,12 +2216,12 @@ exports.editCheckPhoneNumberExist = async (phoneNumber, excludeId = null) => {
     let sql = `SELECT COUNT(*) as count FROM collectionofficer 
                WHERE (phoneNumber01 = ? OR phoneNumber02 = ?)`;
     const params = [phoneNumber, phoneNumber];
-    
+
     if (excludeId) {
       sql += ` AND id != ?`;
       params.push(excludeId);
     }
-    
+
     collectionofficer.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results[0].count > 0);
@@ -2270,7 +2270,7 @@ exports.getDriverDataByOfficerId = (officerId) => {
       FROM vehicleregistration vr 
       WHERE vr.coId = ?
     `;
-    
+
     collectionofficer.query(sql, [officerId], (err, results) => {
       if (err) {
         console.error('Error fetching driver data:', err);
@@ -2282,15 +2282,15 @@ exports.getDriverDataByOfficerId = (officerId) => {
 };
 
 exports.updateVehicleRegisterDao = (
-  id, 
-  driverData, 
-  licFrontImg, 
-  licBackImg, 
-  insFrontImg, 
-  insBackImg, 
-  vehFrontImg, 
-  vehBackImg, 
-  vehSideImgA, 
+  id,
+  driverData,
+  licFrontImg,
+  licBackImg,
+  insFrontImg,
+  insBackImg,
+  vehFrontImg,
+  vehBackImg,
+  vehSideImgA,
   vehSideImgB
 ) => {
   return new Promise((resolve, reject) => {
@@ -2883,7 +2883,7 @@ exports.createReason = async (reasonData) => {
     const sql = `INSERT INTO returnreason 
       (indexNo, rsnEnglish, rsnSinhala, rsnTamil) 
       VALUES (?, ?, ?, ?)`;
-    
+
     const values = [
       reasonData.indexNo,
       reasonData.rsnEnglish,
@@ -2930,10 +2930,10 @@ exports.deleteReason = async (id) => {
 exports.updateIndexes = async (reasons) => {
   return new Promise((resolve, reject) => {
     const sql = "UPDATE returnreason SET indexNo = ? WHERE id = ?";
-    
+
     let completed = 0;
     const total = reasons.length;
-    
+
     if (total === 0) {
       resolve(true);
       return;
@@ -3002,7 +3002,7 @@ exports.createHoldReason = async (reasonData) => {
     const sql = `INSERT INTO holdreason 
       (indexNo, rsnEnglish, rsnSinhala, rsnTamil) 
       VALUES (?, ?, ?, ?)`;
-    
+
     const values = [
       reasonData.indexNo,
       reasonData.rsnEnglish,
@@ -3048,10 +3048,10 @@ exports.deleteHoldReason = async (id) => {
 exports.updateHoldReasonIndexes = async (reasons) => {
   return new Promise((resolve, reject) => {
     const sql = "UPDATE holdreason SET indexNo = ? WHERE id = ?";
-    
+
     let completed = 0;
     const total = reasons.length;
-    
+
     if (total === 0) {
       resolve(true);
       return;
@@ -3106,34 +3106,186 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         collection_officer.distributedcenter dc ON o.centerId = dc.id
       WHERE 
         po.status IN ('Out For Delivery', 'Delivered', 'Collected', 'On the way', 'Return', 'Hold')`;
-    
+
     // Add search conditions if search parameters are provided
     const conditions = [];
     const values = [];
-    
+
     if (searchParams.regCode) {
       conditions.push(`dc.regCode LIKE ?`);
       values.push(`%${searchParams.regCode}%`);
     }
-    
+
     if (searchParams.invNo) {
       conditions.push(`po.invNo LIKE ?`);
       values.push(`%${searchParams.invNo}%`);
     }
-    
+
     // Append search conditions to the WHERE clause
     if (conditions.length > 0) {
       sql += ` AND (${conditions.join(' OR ')})`;
     }
-    
+
     // Add ORDER BY clause
     sql += ` ORDER BY po.createdAt DESC`;
-    
+
     marketPlace.query(sql, values, (err, results) => {
       if (err) {
         return reject(err);
       }
       resolve(results);
+    });
+  });
+};
+
+
+
+exports.getTargetedCustomerOrdersDao = (page, limit, status, sheduleDate, centerId, searchText) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT 
+      	COUNT(*) AS total
+      FROM distributedtarget dt
+      LEFT JOIN distributedtargetitems dti ON dti.targetId = dt.id
+      LEFT JOIN distributedcompanycenter dcc ON dt.companycenterId = dcc.id
+      LEFT JOIN distributedcenter dc ON dcc.centerId = dc.id
+      LEFT JOIN market_place.processorders po ON dti.orderId = po.id
+      LEFT JOIN market_place.orders o ON po.orderId = o.id
+      LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+    `;
+
+    let dataSql = `
+      WITH package_item_counts AS (
+        SELECT 
+            op.orderId,
+            COUNT(*) AS totalItems,
+            SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems,
+            CASE
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 AND COUNT(*) > 0 THEN 'Pending'
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                     AND SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
+                ELSE 'Unknown'
+            END AS packageStatus
+        FROM market_place.orderpackageitems opi
+        JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
+        GROUP BY op.orderId
+    ),
+    additional_items_counts AS (
+        SELECT 
+            orderId,
+            COUNT(*) AS totalAdditionalItems,
+            SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
+            CASE
+                WHEN COUNT(*) = 0 THEN 'Unknown'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                     AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+                ELSE 'Unknown'
+            END AS additionalItemsStatus
+        FROM market_place.orderadditionalitems
+        GROUP BY orderId
+    )
+
+
+    SELECT 
+    	po.invNo,
+    	CONCAT(mu.phoneCode, '-', mu.phoneNumber) phoneNum,
+    	dc.regCode,
+    	dc.centerName,
+    	o.sheduleDate,
+    	COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
+       COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
+    	dt.createdAt
+    FROM distributedtarget dt
+    LEFT JOIN distributedtargetitems dti ON dti.targetId = dt.id
+    LEFT JOIN distributedcompanycenter dcc ON dt.companycenterId = dcc.id
+    LEFT JOIN distributedcenter dc ON dcc.centerId = dc.id
+    LEFT JOIN market_place.processorders po ON dti.orderId = po.id
+    LEFT JOIN market_place.orders o ON po.orderId = o.id
+    LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+    LEFT JOIN package_item_counts pic ON pic.orderId = po.id
+    LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+    WHERE 1=1
+    `;
+    const countParams = [];
+    const dataParams = [];
+
+    if (sheduleDate) {
+      dataSql += ` AND DATE(o.sheduleDate) = DATE(?) `;
+      countSql += ` AND DATE(o.sheduleDate) = DATE(?) `;
+      countParams.push(sheduleDate);
+      dataParams.push(sheduleDate);
+    }
+
+     if (centerId) {
+      dataSql += ` AND dcc.centerId = ? `;
+      countSql += ` AND dcc.centerId = ? `;
+      countParams.push(centerId);
+      dataParams.push(centerId);
+    }
+
+    if (searchText) {
+      dataSql += ` AND (po.invNo LIKE ? OR mu.phoneNumber LIKE ?) `;
+      countSql += ` AND (po.invNo LIKE ? OR mu.phoneNumber LIKE ?) `;
+      const searchPattern = `%${searchText}%`;
+      countParams.push(searchPattern, searchPattern);
+      dataParams.push(searchPattern, searchPattern);
+
+    }
+
+    if (status && status.trim() !== '') {
+      if (status === 'Pending') {
+        sql += `
+          AND (
+            (pic.packageStatus = 'Pending' AND (aic.additionalItemsStatus = 'Unknown' OR aic.additionalItemsStatus IS NULL)) OR
+            (pic.packageStatus = 'Unknown' AND aic.additionalItemsStatus = 'Pending') OR
+            (pic.packageStatus IS NULL AND aic.additionalItemsStatus = 'Pending') OR
+            (pic.packageStatus = 'Pending' AND aic.additionalItemsStatus = 'Pending')
+          )
+        `;
+      } else if (status === 'Opened') {
+        sql += `
+          AND (
+            pic.packageStatus = 'Opened' OR
+            aic.additionalItemsStatus = 'Opened'
+          )
+        `;
+      } else if (status === 'Completed') {
+        sql += `
+          AND (
+            (pic.packageStatus = 'Completed' AND (aic.additionalItemsStatus = 'Unknown' OR aic.additionalItemsStatus IS NULL)) OR
+            (pic.packageStatus = 'Unknown' AND aic.additionalItemsStatus = 'Completed') OR
+            (pic.packageStatus IS NULL AND aic.additionalItemsStatus = 'Completed') OR
+            (pic.packageStatus = 'Completed' AND aic.additionalItemsStatus = 'Completed')
+          )
+        `;
+      }
+    }
+
+
+
+    dataSql += ` ORDER BY po.createdAt DESC LIMIT ? OFFSET ?`;
+    dataParams.push(parseInt(limit), parseInt(offset));
+
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        reject(countErr);
+      } else {
+        collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+          if (dataErr) {
+            reject(dataErr);
+          } else {
+            resolve({
+              total: countResults[0].total,
+              items: dataResults,
+            });
+          }
+        });
+      }
     });
   });
 };

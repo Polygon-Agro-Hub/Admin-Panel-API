@@ -2555,3 +2555,24 @@ exports.getTodaysDeliverieData = async (req, res) => {
     });
   }
 };
+
+
+exports.getTargetedCustomerOrders = async (req, res) => {
+  try {
+    // const offset = (page - 1) * limit;
+    const { page, limit, status, sheduleDate, centerId, searchText } = req.query;
+
+    const result = await DistributionDao.getTargetedCustomerOrdersDao(page, limit, status, sheduleDate, centerId, searchText);
+    res.status(200).json({
+      items: result.items,
+      total: result.total
+    });
+  } catch (error) {
+    console.error('Error getting next hold reason index:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to get next index',
+      error: error.message
+    });
+  }
+};
