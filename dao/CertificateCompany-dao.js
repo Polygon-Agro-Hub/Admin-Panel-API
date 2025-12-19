@@ -1680,7 +1680,8 @@ exports.getFarmerClustersAudits = async (searchTerm, connection) => {
       fo.empId as officerEmpId,
       fo.JobRole as officerJobRole,
       au.userName,
-      (CONCAT(fo2.firstName, ' ', fo2.lastName)) as assignedByCFO
+      (CONCAT(fo2.firstName, ' ', fo2.lastName)) as assignedByCFO,
+      fo2.empId as assigedOfficerEmpId
     FROM feildaudits fa
     LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
     LEFT JOIN farmcluster fc ON cp.clusterId = fc.id
