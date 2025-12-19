@@ -2560,13 +2560,17 @@ exports.getTodaysDeliverieData = async (req, res) => {
 exports.getTargetedCustomerOrders = async (req, res) => {
   try {
     // const offset = (page - 1) * limit;
-    const { page, limit, status, sheduleDate, centerId, searchText } = req.query;
+    const { page, limit, status, sheduleDate, centerId, searchText } = await DistributionValidation.getTargetedCustomerOrdersSchema.validateAsync(req.query);
 
     const result = await DistributionDao.getTargetedCustomerOrdersDao(page, limit, status, sheduleDate, centerId, searchText);
     res.status(200).json({
       items: result.items,
       total: result.total
     });
+
+    console.log(result.items);
+    console.log(result.total);
+
   } catch (error) {
     console.error('Error getting next hold reason index:', error);
     res.status(500).json({
