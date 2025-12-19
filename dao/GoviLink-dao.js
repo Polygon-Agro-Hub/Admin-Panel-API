@@ -151,7 +151,9 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
         os.englishName AS service,
         f.district AS district,
         gj.status AS status,
-        COALESCE(au.userName, CONCAT(fo2.firstName, ' ', fo2.lastName)) AS assignedBy,
+        au.userName AS assignedByAdmin, 
+        CONCAT(fo2.firstName, ' ', fo2.lastName) AS assignedByOfficer,
+        fo2.empId AS assignedByEmpId,
         gj.sheduleDate AS scheduledDate,
         gj.createdAt AS createdAt,
         CASE 
@@ -542,6 +544,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         gj.status AS status,
         gj.assignBy AS assignBy,
         au.userName AS assignedByName,
+        concat(fo1.firstName, ' ', fo1.lastName) AS AssignedOfficer,
         'Requested Service' AS visitPurpose,
         jao.createdAt AS assignedOn,
         'no' AS onScreenTime
@@ -551,6 +554,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
       LEFT JOIN agro_world_admin.adminusers au ON gj.assignBy = au.id
       LEFT JOIN plant_care.jobassignofficer jao ON gj.id = jao.jobId AND jao.isActive = 1
       LEFT JOIN plant_care.feildofficer fo ON jao.officerId = fo.id
+      LEFT JOIN plant_care.feildofficer fo1 ON gj.assignByCFO = fo1.id
       ${where1}
     )
 
@@ -569,6 +573,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         fa.status AS status,
         fa.assignBy AS assignBy,
         au.userName AS assignedByName,
+        concat(fo1.firstName, ' ', fo1.lastName) AS AssignedOfficer,
         fa.propose AS visitPurpose,
         fa.assignDate AS assignedOn,
         fa.onScreenTime AS onScreenTime
@@ -579,6 +584,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
       LEFT JOIN plant_care.users u ON cp.userId = u.id
       LEFT JOIN plant_care.feildauditcluster fac ON fac.feildAuditId = fa.id
       LEFT JOIN plant_care.farms f ON fac.farmId = f.id
+      LEFT JOIN plant_care.feildofficer fo1 ON fa.assignByCFO = fo1.id
       ${where2}
     )
 
