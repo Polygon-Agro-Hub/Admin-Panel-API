@@ -363,7 +363,7 @@ router.get(
 
 router.get(
   "/get-targeted-customers-orders",
-  // authMiddleware,
+  authMiddleware,
   distributionEp.getTargetedCustomerOrders
 );
 
