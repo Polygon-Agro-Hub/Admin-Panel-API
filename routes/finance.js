@@ -164,4 +164,10 @@ router.put(
   financeController.RejectInvestmentRequestEp
 );
 
+router.get(
+  '/get-inspection-details/:id',
+  // authMiddleware, 
+  financeController.getInspectionDerailsEp
+);
+
 module.exports = router;

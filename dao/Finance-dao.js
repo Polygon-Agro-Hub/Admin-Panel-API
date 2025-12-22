@@ -1942,3 +1942,35 @@ exports.RejectInvestmentRequestDao = (id) => {
     });
   });
 };
+
+
+exports.getInspectionDerailsDao = (id) => {
+  console.log('id', id)
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        category,
+        JSON_ARRAYAGG(
+            JSON_OBJECT(
+                'qIndex', qIndex,
+                'quaction', quaction,
+                'ansType', ansType,
+                'answer', answer
+            )
+        ) AS questions
+      FROM inspection 
+      WHERE reqId = 2
+      GROUP BY category
+      ORDER BY 
+          FIELD(category, 'Personal', 'ID', 'Finance', 'Land', 'Investment', 'Cultivation', 'Cropping', 'ProfitRisk', 'Economical', 'Labor', 'Harvest');
+    `;
+
+    investment.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log('result', result)
+      resolve(result);
+    });
+  });
+};

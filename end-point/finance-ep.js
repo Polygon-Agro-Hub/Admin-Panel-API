@@ -774,7 +774,7 @@ exports.createPaymentHistory = async (req, res) => {
     );
 
     const { receivers, amount, paymentReference } = validatedBody;
-    const issueBy = req.user.userId; 
+    const issueBy = req.user.userId;
 
     console.log("Creating payment history:", {
       receivers,
@@ -1065,11 +1065,11 @@ exports.getAllInvestmentRequests = async (req, res) => {
     console.log('Fetching all investment requests with filters:', { status, search });
 
     const filters = {};
-    
+
     if (status) {
       filters.status = status;
     }
-    
+
     if (search) {
       filters.search = search;
     }
@@ -1077,7 +1077,7 @@ exports.getAllInvestmentRequests = async (req, res) => {
     const results = await financeDao.GetAllInvestmentRequestsDAO(filters);
 
     console.log(`Retrieved ${results.length} investment request records`);
-    
+
     res.json({
       count: results.length,
       data: results
@@ -1153,10 +1153,10 @@ exports.getOfficersByDistrictAndRoleForInvestment = async (req, res) => {
 exports.assignOfficerToInvestmentRequest = async (req, res) => {
   try {
     const { requestId, officerId } = req.body;
-    
+
     const assignByUserId = req.user.userId;
-    console.log('Assigning officer to investment request:', assignByUserId );
-    
+    console.log('Assigning officer to investment request:', assignByUserId);
+
     console.log('Authentication debug:', {
       user: req.user,
       assignByUserId: assignByUserId
@@ -1269,7 +1269,7 @@ exports.getAllPublishedProjects = async (req, res) => {
     // console.log({ page, limit });
     console.log('result', result);
 
-    return res.status(200).json({items: result});
+    return res.status(200).json({ items: result });
   } catch (error) {
 
 
@@ -1284,7 +1284,7 @@ exports.getAllPublishedProjects = async (req, res) => {
 exports.GetAllApprovedInvestmentRequests = async (req, res) => {
   try {
     const { status, search } = req.query;
-    
+
     const filters = {
       status: status || undefined,
       search: search || undefined,
@@ -1308,7 +1308,7 @@ exports.GetAllApprovedInvestmentRequests = async (req, res) => {
 };
 
 exports.UpdateInvestmentRequestPublishStatus = async (req, res) => {
-    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
     const requestId = req.params.id;
@@ -1318,7 +1318,7 @@ exports.UpdateInvestmentRequestPublishStatus = async (req, res) => {
 
     // First check if request exists and is approved
     const request = await financeDao.GetApprovedInvestmentRequestByIdDAO(requestId);
-    
+
     if (!request) {
       return res.status(404).json({
         status: false,
@@ -1341,7 +1341,7 @@ exports.UpdateInvestmentRequestPublishStatus = async (req, res) => {
     }
 
     // Update publish status
-    await financeDao.UpdateInvestmentRequestPublishStatusDAO(requestId,publishBy);
+    await financeDao.UpdateInvestmentRequestPublishStatusDAO(requestId, publishBy);
 
     res.status(200).json({
       status: true,
@@ -1359,7 +1359,7 @@ exports.UpdateInvestmentRequestPublishStatus = async (req, res) => {
 exports.GetProjectInvestment = async (req, res) => {
   try {
     const { search } = req.query;
-    
+
     const filters = {
       search: search || undefined,
     };
@@ -1388,7 +1388,7 @@ exports.getALlInvestments = async (req, res) => {
   try {
     // const { id, status } = req.query;
 
-    const {id, status, search} = await getAllInvestmentSchema.validateAsync(
+    const { id, status, search } = await getAllInvestmentSchema.validateAsync(
       req.query
     );
 
@@ -1417,13 +1417,13 @@ exports.getALlInvestments = async (req, res) => {
 exports.ApproveInvestmentRequestEp = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
-  
+
   try {
 
     const { id } = await getInvestmentIdSchema.validateAsync(
       req.params
     );
-    
+
     const result = await financeDao.approveInvestmentRequestDao(Number(id));
 
     // console.log({ page, limit });
@@ -1435,13 +1435,13 @@ exports.ApproveInvestmentRequestEp = async (req, res) => {
         message: "Action completed successfully.",
         data: result
       });
-    } 
+    }
     else if (result?.affectedRows === 0) {
       return res.status(400).json({
         success: false,
         message: "Action failed"
       });
-    } 
+    }
     // return res.status(200).json({
     //       success: true,
     //       message: "Action completed successfully.",
@@ -1464,13 +1464,13 @@ exports.ApproveInvestmentRequestEp = async (req, res) => {
 exports.RejectInvestmentRequestEp = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
-  
+
   try {
 
     const { id } = await getInvestmentIdSchema.validateAsync(
       req.params
     );
-    
+
     const result = await financeDao.RejectInvestmentRequestDao(Number(id));
 
     // console.log({ page, limit });
@@ -1482,13 +1482,13 @@ exports.RejectInvestmentRequestEp = async (req, res) => {
         message: "Action completed successfully.",
         data: result
       });
-    } 
+    }
     else if (result?.affectedRows === 0) {
       return res.status(400).json({
         success: false,
         message: "Action failed"
       });
-    } 
+    }
     // return res.status(200).json({
     //       success: true,
     //       message: "Action completed successfully.",
@@ -1508,4 +1508,36 @@ exports.RejectInvestmentRequestEp = async (req, res) => {
   }
 };
 
+exports.getInspectionDerailsEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
 
+  try {
+
+    const { id } = await getInvestmentIdSchema.validateAsync(
+      req.params
+    );
+
+    const result = await financeDao.getInspectionDerailsDao(Number(id));
+
+    // console.log({ page, limit });
+    // console.log('result', result);
+
+    res.status(200).json({
+      success: true,
+      message: "Inspection details retrieved successfully.",
+      data: result
+    });
+
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching collection officers:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
