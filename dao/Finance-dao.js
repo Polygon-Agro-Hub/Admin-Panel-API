@@ -1375,8 +1375,8 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
         DATE_FORMAT(ir.createdAt, '%M %d, %Y') AS Requested_On,
         COALESCE(ao.userName, '--') AS Assigned_By
       FROM investmentrequest ir
-      INNER JOIN users u ON ir.farmerId = u.id
-      LEFT JOIN feildofficer co ON ir.officerId = co.id
+      INNER JOIN plant_care.users u ON ir.farmerId = u.id
+      LEFT JOIN plant_care.feildofficer co ON ir.officerId = co.id
       LEFT JOIN agro_world_admin.adminusers ao ON ir.assignedBy = ao.id
       WHERE ir.reqStatus = 'Pending'
     `;
@@ -1406,7 +1406,7 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
     // Order by most recent first
     sql += ` ORDER BY ir.id`;
 
-    plantcare.query(sql, params, (err, results) => {
+    investment.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1424,8 +1424,6 @@ exports.GetInvestmentRequestByIdDAO = (requestId) => {
         u.NICnumber AS NIC_Number,
         u.phoneNumber AS Phone_number,
         cg.cropNameEnglish AS Crop,
-        cv.varietyNameEnglish AS Variety,
-        cert.srtName AS Certificate,
         CONCAT(
           COALESCE(ir.extentha, 0), ' Acres ',
           COALESCE(ir.extentac, 0), ' Perches'
@@ -1435,15 +1433,13 @@ exports.GetInvestmentRequestByIdDAO = (requestId) => {
         DATE_FORMAT(ir.startDate, '%M %d, %Y') AS Expected_Start_Date,
         DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time
       FROM investmentrequest ir
-      INNER JOIN users u ON ir.farmerId = u.id
-      LEFT JOIN cropvariety cv ON ir.varietyId = cv.id
-      LEFT JOIN cropgroup cg ON cv.cropGroupId = cg.id
-      LEFT JOIN certificates cert ON ir.certificateId = cert.id
+      INNER JOIN plant_care.users u ON ir.farmerId = u.id
+      LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
       WHERE ir.jobId = ?
       LIMIT 1
     `;
 
-    plantcare.query(sql, [requestId], (err, results) => {
+    investment.query(sql, [requestId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1461,8 +1457,6 @@ exports.GetApprovedInvestmentRequestByIdDAO = (requestId) => {
         u.NICnumber AS NIC_Number,
         u.phoneNumber AS Phone_number,
         cg.cropNameEnglish AS Crop,
-        cv.varietyNameEnglish AS Variety,
-        cert.srtName AS Certificate,
         CONCAT(
           COALESCE(ir.extentha, 0), ' Acres ',
           COALESCE(ir.extentac, 0), ' Perches'
@@ -1473,15 +1467,13 @@ exports.GetApprovedInvestmentRequestByIdDAO = (requestId) => {
         DATE_FORMAT(ir.startDate, '%M %d, %Y') AS Expected_Start_Date,
         DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time
       FROM investmentrequest ir
-      INNER JOIN users u ON ir.farmerId = u.id
-      LEFT JOIN cropvariety cv ON ir.varietyId = cv.id
-      LEFT JOIN cropgroup cg ON cv.cropGroupId = cg.id
-      LEFT JOIN certificates cert ON ir.certificateId = cert.id
+      INNER JOIN plant_care.users u ON ir.farmerId = u.id
+      LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
       WHERE ir.id = ?
       LIMIT 1
     `;
 
-    plantcare.query(sql, [requestId], (err, results) => {
+    investment.query(sql, [requestId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1499,7 +1491,7 @@ exports.assignOfficerToInvestmentRequestDAO = (
     let connection;
 
     try {
-      connection = await plantcare.promise().getConnection();
+      connection = await investment.promise().getConnection();
       await connection.beginTransaction();
 
       // Check if investment request exists
@@ -1515,7 +1507,7 @@ exports.assignOfficerToInvestmentRequestDAO = (
 
       // Check if officer exists and is active
       const [officerExists] = await connection.query(
-        `SELECT id FROM feildofficer WHERE id = ? AND status = 'Approved'`,
+        `SELECT id FROM plant_care.feildofficer WHERE id = ? AND status = 'Approved'`,
         [assignOfficerId]
       );
 
@@ -1600,7 +1592,7 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
           WHERE ir.officerId = fo.id 
         ) AS jobCount
       FROM 
-        feildofficer fo
+        plant_care.feildofficer fo
       WHERE 
         fo.distrct LIKE ?
         AND fo.JobRole = ?
@@ -1611,7 +1603,7 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
 
     const params = [`%${district}%`, jobRole];
 
-    plantcare.query(sql, params, (err, results) => {
+    investment.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
@@ -1622,15 +1614,13 @@ exports.getAllPublishedProjectsDAO = (searchText) => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT ir.id, u.firstName, u.lastName, u.phoneNumber, u.NICnumber AS farmerNic,
-        cv.varietyNameEnglish, cg.cropNameEnglish, ir.assignDate, ir.assignedBy, 
+       cg.cropNameEnglish, ir.assignDate, ir.assignedBy, 
         ir.jobId, ir.publishStatus, ir.reqStatus, ir.nicFront, ir.nicBack,
         ir.extentac, ir.expectedYield, ir.startDate, ir.investment, 
-        c.srtName, ir.publishDate, au.userName AS publishedBy
-      FROM plant_care.investmentrequest ir
+        ir.publishDate, au.userName AS publishedBy
+      FROM investmentrequest ir
       LEFT JOIN plant_care.users u ON ir.farmerId = u.id
-      LEFT JOIN plant_care.cropvariety cv ON ir.varietyId = cv.id
-      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
-      LEFT JOIN plant_care.certificates c ON ir.certificateId = c.id
+      LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
       LEFT JOIN agro_world_admin.adminusers au ON ir.publishBy = au.id
       WHERE ir.reqStatus = 'Approved'
       AND ir.publishStatus = 'Published'
@@ -1651,7 +1641,7 @@ exports.getAllPublishedProjectsDAO = (searchText) => {
       params.push(searchValue, searchValue, searchValue);
     }
 
-    plantcare.query(sql, params, (err, results) => {
+    investment.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
@@ -1663,8 +1653,6 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
     let sql = `
       SELECT 
         ir.id,
-        ir.varietyId,
-        ir.certificateId,
         ir.farmerId,
         ir.officerId,
         ir.jobId,
@@ -1689,16 +1677,12 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
         u.lastName,
         u.phoneNumber,
         u.NICnumber,
-        cv.varietyNameEnglish,
         cg.cropNameEnglish,
-        c.srtName AS certificateName,
         fo.empId AS officerEmpId
-      FROM plant_care.investmentrequest ir
-      LEFT JOIN plant_care.rejectinvestmentrequest rir ON ir.id = rir.reqId
+      FROM investmentrequest ir
+      LEFT JOIN rejectinvestmentrequest rir ON ir.id = rir.reqId
       LEFT JOIN plant_care.users u ON ir.farmerId = u.id
-      LEFT JOIN plant_care.cropvariety cv ON ir.varietyId = cv.id
-      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
-      LEFT JOIN plant_care.certificates c ON ir.certificateId = c.id
+      LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
       LEFT JOIN plant_care.feildofficer fo ON ir.officerId = fo.id
       WHERE ir.reqStatus = 'Rejected'
     `;
@@ -1715,7 +1699,7 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
     // Order by most recent rejection first
     sql += ` ORDER BY rir.createdAt DESC`;
 
-    admin.query(sql, params, (err, results) => {
+    investment.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1740,8 +1724,8 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
         DATE_FORMAT(ir.createdAt, '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
         COALESCE(ao.userName, '--') AS Assigned_By
       FROM investmentrequest ir
-      INNER JOIN users u ON ir.farmerId = u.id
-      LEFT JOIN feildofficer co ON ir.officerId = co.id
+      INNER JOIN plant_care.users u ON ir.farmerId = u.id
+      LEFT JOIN plant_care.feildofficer co ON ir.officerId = co.id
       LEFT JOIN agro_world_admin.adminusers ao ON ir.assignedBy = ao.id
       WHERE ir.reqStatus = 'Approved'
     `;
@@ -1768,7 +1752,7 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
     // Order by most recent approval first
     sql += ` ORDER BY ir.createdAt DESC`;
 
-    plantcare.query(sql, params, (err, results) => {
+    investment.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1808,9 +1792,8 @@ exports.GetProjectInvesmentDAO = (filters = {}) => {
         ai.defineShares,
         ( SELECT SUM(i.shares) FROM investment i WHERE i.reqId = ir.id AND i.invtStatus = 'Approved' ) AS fillShares
       FROM investmentrequest ir
-      INNER JOIN cropvariety cv ON ir.varietyId = cv.id
-      INNER JOIN cropgroup cg ON cv.cropGroupId = cg.id
-      INNER JOIN users u ON ir.farmerId = u.id
+      INNER JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
+      INNER JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN approvedinvestmentrequest ai ON ir.id = ai.reqId
       WHERE ir.reqStatus IS NOT NULL
     `;
@@ -1831,7 +1814,7 @@ exports.GetProjectInvesmentDAO = (filters = {}) => {
 
     sql += ` ORDER BY ir.createdAt DESC`;
 
-    plantcare.query(sql, params, (err, results) => {
+    investment.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1862,8 +1845,8 @@ exports.getAllInvestmentsDao = (
         iu.phoneNumber,
         iu.phoneCode,
         i.createdAt
-        FROM plant_care.investment i 
-        LEFT JOIN plant_care.investmentusers iu  ON i.investerId = iu.id
+        FROM investment i 
+        LEFT JOIN investmentusers iu  ON i.investerId = iu.id
         WHERE i.reqId = ?
     `;
 
@@ -1892,7 +1875,7 @@ exports.getAllInvestmentsDao = (
     dataSql += " ORDER BY i.createdAt DESC";
     console.log(dataSql);
 
-    marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+    investment.query(dataSql, params, (dataErr, dataResults) => {
       if (dataErr) {
         console.error("Error in data query:", dataErr);
         return reject(dataErr);
@@ -1914,7 +1897,7 @@ exports.approveInvestmentRequestDao = (id) => {
       WHERE id = ?
     `;
 
-    plantcare.query(sql, [id], (err, result) => {
+    investment.query(sql, [id], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -1933,7 +1916,7 @@ exports.RejectInvestmentRequestDao = (id) => {
       WHERE id = ?
     `;
 
-    plantcare.query(sql, [id], (err, result) => {
+    investment.query(sql, [id], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -1949,20 +1932,27 @@ exports.getInspectionDerailsDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-        category,
-        JSON_ARRAYAGG(
+        JSON_OBJECTAGG(
+          category,
+          questions
+        ) AS categories
+      FROM (
+        SELECT 
+          category,
+          JSON_ARRAYAGG(
             JSON_OBJECT(
-                'qIndex', qIndex,
-                'quaction', quaction,
-                'ansType', ansType,
-                'answer', answer
+              'qIndex', qIndex,
+              'quaction', quaction,
+              'ansType', ansType,
+              'answer', answer
             )
-        ) AS questions
-      FROM inspection 
-      WHERE reqId = 2
-      GROUP BY category
-      ORDER BY 
-          FIELD(category, 'Personal', 'ID', 'Finance', 'Land', 'Investment', 'Cultivation', 'Cropping', 'ProfitRisk', 'Economical', 'Labor', 'Harvest');
+          ) AS questions
+        FROM inspection 
+        WHERE reqId = ?
+        GROUP BY category
+        ORDER BY 
+          FIELD(category, 'Personal', 'ID', 'Finance', 'Land', 'Investment', 'Cultivation', 'Cropping', 'ProfitRisk', 'Economical', 'Labor', 'Harvest')
+      ) AS grouped_data;
     `;
 
     investment.query(sql, [id], (err, result) => {
