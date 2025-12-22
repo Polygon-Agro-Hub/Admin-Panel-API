@@ -3,7 +3,7 @@ const {
   plantcare,
   collectionofficer,
   marketPlace,
-  dash,
+  investment,
 } = require("../startup/database");
 
 exports.saveOfficerService = (englishName, tamilName, sinhalaName, srvFee) => {

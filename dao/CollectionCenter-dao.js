@@ -3,7 +3,6 @@ const {
   plantcare,
   collectionofficer,
   marketPlace,
-  dash,
 } = require("../startup/database");
 const Joi = require("joi");
 

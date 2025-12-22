@@ -2,7 +2,6 @@ const {
   plantcare,
   collectionofficer,
   marketPlace,
-  dash,
 } = require("../startup/database");
 const XLSX = require("xlsx");
 

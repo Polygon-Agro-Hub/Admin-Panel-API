@@ -3,7 +3,6 @@ const {
   plantcare,
   collectionofficer,
   marketPlace,
-  dash,
 } = require("../startup/database");
 const bcrypt = require("bcryptjs");
 const { Upload } = require("@aws-sdk/lib-storage");

@@ -2,7 +2,7 @@ const {
   plantcare,
   collectionofficer,
   marketPlace,
-  dash,
+  investment,
 } = require("../startup/database");
 const { error } = require("console");
 const Joi = require("joi");

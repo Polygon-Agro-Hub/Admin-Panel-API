@@ -2,7 +2,7 @@ const {
   plantcare,
   collectionofficer,
   marketPlace,
-  dash,
+  investment,
 } = require("../startup/database");
 const Joi = require("joi");
 const path = require("path");

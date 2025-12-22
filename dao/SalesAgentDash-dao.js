@@ -2,8 +2,7 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  dash,
-  marketPlace,
+  marketPlace
 } = require("../startup/database");
 const { Upload } = require("@aws-sdk/lib-storage");
 const Joi = require("joi");
