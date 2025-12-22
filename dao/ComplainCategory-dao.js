@@ -380,6 +380,8 @@ exports.getMarketplaceComplaintById = (complaintId) => {
         mu.phonecode AS phonecode,
         mu.phoneNumber AS phone,
         CONCAT(mu.phonecode, '-', mu.phoneNumber) AS ContactNumber,
+        mu.companyName,
+        CONCAT(mu.companyPhoneCode, '-', mu.companyPhone) AS companyContactNumber,
         mc.refId AS refNo,
         cc.categoryEnglish,
         GROUP_CONCAT(mci.image) AS imageUrls
