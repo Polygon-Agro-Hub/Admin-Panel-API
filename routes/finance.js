@@ -170,4 +170,10 @@ router.get(
   financeController.getInspectionDerailsEp
 );
 
+router.get(
+  "/audited-govicare-requests",
+  authMiddleware,
+  financeController.GetAllAuditedInvestmentRequests
+);
+
 module.exports = router;
