@@ -1964,3 +1964,54 @@ exports.getInspectionDerailsDao = (id) => {
     });
   });
 };
+
+exports.GetAllAuditedInvestmentRequestsDAO = (filters = {}) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+    SELECT 
+    ir.id AS No,
+    ir.jobId AS Request_ID,
+    CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
+    u.phoneNumber AS Phone_number,
+    ir.nicFront AS NIC_Front_Image,
+    ir.nicBack AS NIC_Back_Image,
+    co.empId,
+    ir.reqCahangeTime
+FROM investments.investmentrequest ir
+INNER JOIN plant_care.users u 
+    ON ir.farmerId = u.id
+LEFT JOIN plant_care.feildofficer co 
+    ON ir.officerId = co.id
+WHERE EXISTS (
+    SELECT 1
+    FROM investments.inspection i
+    WHERE i.reqId = ir.id
+)
+
+    `;
+
+    const params = [];
+
+    // Search filter (searches in Request ID, Phone Number, EMP ID)
+    if (filters.search) {
+      sql += ` AND (
+        ir.jobId LIKE ? OR 
+        u.phoneNumber LIKE ? OR 
+        CONCAT(u.firstName, ' ', u.lastName) LIKE ? OR
+        co.empId LIKE ?
+      )`;
+      const searchTerm = `%${filters.search}%`;
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+
+    // Order by most recent approval first
+    sql += ` ORDER BY ir.createdAt DESC`;
+
+    investment.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
