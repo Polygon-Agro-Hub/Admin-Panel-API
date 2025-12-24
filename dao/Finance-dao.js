@@ -719,7 +719,7 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
         }
 
         console.log("Query Results:", dataResults); // Add logging for debugging
-        
+
         // Remove the firstName and lastName from final response if you don't want them
         const formattedResults = dataResults.map(item => {
           const { firstName, lastName, ...rest } = item;
@@ -1941,44 +1941,63 @@ exports.RejectInvestmentRequestDao = (id) => {
 };
 
 
-exports.getInspectionDerailsDao = (id) => {
-  console.log('id', id)
-  return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT 
-        JSON_OBJECTAGG(
-          category,
-          questions
-        ) AS categories
-      FROM (
-        SELECT 
-          category,
-          JSON_ARRAYAGG(
-            JSON_OBJECT(
-              'qIndex', qIndex,
-              'quaction', quaction,
-              'ansType', ansType,
-              'answer', answer
-            )
-          ) AS questions
-        FROM inspection 
-        WHERE reqId = ?
-        GROUP BY category
-        ORDER BY 
-          FIELD(category, 'Personal', 'ID', 'Finance', 'Land', 'Investment', 'Cultivation', 'Cropping', 'ProfitRisk', 'Economical', 'Labor', 'Harvest')
-      ) AS grouped_data;
-    `;
+exports.getInspectionDerailsDao = async (id) => {
+  console.log('id', id);
 
-    investment.query(sql, [id], (err, result) => {
-      if (err) {
-        return reject(err);
-      }
-      console.log('result', result)
-      resolve(result);
+  return new Promise((resolve, reject) => {
+    const queries = [
+      { sql: `SELECT * FROM inspectionpersonal WHERE reqId = ?`, key: 'Personal' },
+      { sql: `SELECT * FROM inspectionidproof WHERE reqId = ?`, key: 'ID' },
+      { sql: `SELECT * FROM inspectionfinance WHERE reqId = ?`, key: 'Finance' },
+      { sql: `SELECT * FROM inspectionland WHERE reqId = ?`, key: 'Land' },
+      { sql: `SELECT * FROM inspectioninvestment WHERE reqId = ?`, key: 'Investment' },
+      { sql: `SELECT * FROM inspectioncultivation WHERE reqId = ?`, key: 'Cultivation' },
+      { sql: `SELECT * FROM inspectioncropping WHERE reqId = ?`, key: 'Cropping' },
+      { sql: `SELECT * FROM inspectionprofit WHERE reqId = ?`, key: 'ProfitRisk' },
+      { sql: `SELECT * FROM inspectioneconomical WHERE reqId = ?`, key: 'Economical' },
+      { sql: `SELECT * FROM inspectionlabour WHERE reqId = ?`, key: 'Labor' },
+      { sql: `SELECT * FROM inspectionharveststorage WHERE reqId = ?`, key: 'Harvest' }
+    ];
+
+    const result = {
+      Personal: {},
+      ID: {},
+      Finance: {},
+      Land: {},
+      Investment: {},
+      Cultivation: {},
+      Cropping: {},
+      ProfitRisk: {},
+      Economical: {},
+      Labor: {},
+      Harvest: {}
+    };
+
+    let completedQueries = 0;
+
+    queries.forEach((query, index) => {
+      investment.query(query.sql, [id], (err, queryResult) => {
+        if (err) {
+          return reject(err);
+        }
+
+        // Extract the first record as object, or empty object if no results
+        if (queryResult && queryResult.length > 0) {
+          result[query.key] = queryResult[0];
+        } else {
+          result[query.key] = {};
+        }
+        
+        completedQueries++;
+
+        if (completedQueries === queries.length) {
+          console.log('formattedResult', result);
+          resolve(result);
+        }
+      });
     });
   });
 };
-
 exports.GetAllAuditedInvestmentRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
     let sql = `

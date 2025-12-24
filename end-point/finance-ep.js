@@ -1527,7 +1527,7 @@ exports.getInspectionDerailsEp = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Inspection details retrieved successfully.",
-      data: result[0],
+      data: result,
       shares
     });
 
