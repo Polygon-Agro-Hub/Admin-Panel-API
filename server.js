@@ -153,7 +153,7 @@ app.use(BASE_PATH + '/api/finance', financeRoutes)
 app.use("/uploads", express.static("uploads"));
 
 app.get(BASE_PATH + "/test", (req, res) => {
-  res.send("Test route is working 7/29!");
+  res.send(`Test route is working 12/24! ${process.env.DB_NAME_INV}`);
   console.log("test route is working");
 });
 
