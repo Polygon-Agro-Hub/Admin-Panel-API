@@ -2076,3 +2076,95 @@ exports.getDetailsForDivideShareDao = (id) => {
     });
   });
 };
+
+
+exports.devideSharesDao = (sharesData) => {
+  console.log('sharesData', sharesData);
+
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO investments.approvedinvestmentrequest
+      (reqId, totValue, defineShares, minShare, maxShare)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+
+    const values = [
+      sharesData.id,         
+      sharesData.totalValue,    
+      sharesData.numShares,     
+      sharesData.minimumShare,  
+      sharesData.maximumShare         
+    ];
+
+    investment.query(sql, values, (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log('result', result);
+      resolve(result);
+    });
+  });
+};
+
+
+exports.ApproveRequestDao = (id) => {
+  console.log('id', id);
+
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE investmentrequest ir
+      SET ir.reqStatus = 'Approved'
+      WHERE ir.id = ?
+    `;
+
+    investment.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log('result', result);
+      resolve(result);
+    });
+  });
+};
+
+
+exports.updateRejectReasonDao = (id, reason) => {
+  console.log('id, reason', id, reason);
+
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO investments.rejectinvestmentrequest
+      (reqId, reason)
+      VALUES (?, ?)
+    `;
+
+    investment.query(sql, [id, reason], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log('result', result);
+      resolve(result);
+    });
+  });
+};
+
+
+exports.rejectRequestDao = (id) => {
+  console.log('id', id);
+
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE investmentrequest ir
+      SET ir.reqStatus = 'Rejected'
+      WHERE ir.id = ?
+    `;
+
+    investment.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log('result', result);
+      resolve(result);
+    });
+  });
+};
