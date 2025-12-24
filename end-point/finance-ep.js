@@ -1519,6 +1519,7 @@ exports.getInspectionDerailsEp = async (req, res) => {
     );
 
     const result = await financeDao.getInspectionDerailsDao(Number(id));
+    const shares = await financeDao.getDetailsForDivideShareDao(Number(id));
 
     // console.log({ page, limit });
     // console.log('result', result);
@@ -1526,7 +1527,8 @@ exports.getInspectionDerailsEp = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Inspection details retrieved successfully.",
-      data: result[0]
+      data: result[0],
+      shares
     });
 
   } catch (error) {
