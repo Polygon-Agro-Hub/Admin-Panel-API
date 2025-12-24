@@ -1960,17 +1960,17 @@ exports.getInspectionDerailsDao = async (id) => {
     ];
 
     const result = {
-      Personal: [],
-      ID: [],
-      Finance: [],
-      Land: [],
-      Investment:[],
-      Cultivation:[],
-      Cropping:[],
-      ProfitRisk:[],
-      Economical:[],
-      Labor:[],
-      Harvest:[]
+      Personal: {},
+      ID: {},
+      Finance: {},
+      Land: {},
+      Investment: {},
+      Cultivation: {},
+      Cropping: {},
+      ProfitRisk: {},
+      Economical: {},
+      Labor: {},
+      Harvest: {}
     };
 
     let completedQueries = 0;
@@ -1981,7 +1981,13 @@ exports.getInspectionDerailsDao = async (id) => {
           return reject(err);
         }
 
-        result[query.key] = queryResult;
+        // Extract the first record as object, or empty object if no results
+        if (queryResult && queryResult.length > 0) {
+          result[query.key] = queryResult[0];
+        } else {
+          result[query.key] = {};
+        }
+        
         completedQueries++;
 
         if (completedQueries === queries.length) {
@@ -1992,7 +1998,6 @@ exports.getInspectionDerailsDao = async (id) => {
     });
   });
 };
-
 exports.GetAllAuditedInvestmentRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
     let sql = `
