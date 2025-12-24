@@ -1678,12 +1678,12 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
         u.phoneNumber,
         u.NICnumber,
         cg.cropNameEnglish,
-        fo.empId AS officerEmpId
+        au.userName AS rejectedBy
       FROM investmentrequest ir
       LEFT JOIN rejectinvestmentrequest rir ON ir.id = rir.reqId
       LEFT JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
-      LEFT JOIN plant_care.feildofficer fo ON ir.officerId = fo.id
+      LEFT JOIN agro_world_admin.adminusers au ON rir.rejectedBy = au.id
       WHERE ir.reqStatus = 'Rejected'
     `;
 
@@ -1722,7 +1722,21 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
         ir.nicFront AS NIC_Front_Image,
         ir.nicBack AS NIC_Back_Image,
         DATE_FORMAT(ir.createdAt, '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
-        COALESCE(ao.userName, '--') AS Assigned_By
+        COALESCE(ao.userName, '--') AS Assigned_By,
+        ( 
+          SELECT JSON_OBJECT(
+            'approveId',air.id,
+            'totValue', air.totValue,
+            'defineShares', air.defineShares,
+            'minShare', air.minShare,
+            'maxShare', air.maxShare,
+            'defineBy', aou.userName,
+            'definedAt', air.createdAt
+         )
+         FROM approvedinvestmentrequest air
+         LEFT JOIN agro_world_admin.adminusers aou ON air.defineBy = aou.id
+         WHERE air.reqId = ir.id
+        ) AS approvedDetails
       FROM investmentrequest ir
       INNER JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.feildofficer co ON ir.officerId = co.id
@@ -1795,7 +1809,7 @@ exports.GetProjectInvesmentDAO = (filters = {}) => {
       INNER JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
       INNER JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN approvedinvestmentrequest ai ON ir.id = ai.reqId
-      WHERE ir.reqStatus IS NOT NULL
+      WHERE ir.reqStatus = 'Approved' AND publishStatus = 'Published'
     `;
 
     const params = [];
@@ -1961,6 +1975,85 @@ exports.getInspectionDerailsDao = (id) => {
       }
       console.log('result', result)
       resolve(result);
+    });
+  });
+};
+
+exports.GetAllAuditedInvestmentRequestsDAO = (filters = {}) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+    SELECT 
+    ir.id AS No,
+    ir.jobId AS Request_ID,
+    CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
+    u.phoneNumber AS Phone_number,
+    ir.nicFront AS NIC_Front_Image,
+    ir.nicBack AS NIC_Back_Image,
+    co.empId,
+    ir.reqCahangeTime
+FROM investments.investmentrequest ir
+INNER JOIN plant_care.users u 
+    ON ir.farmerId = u.id
+LEFT JOIN plant_care.feildofficer co 
+    ON ir.officerId = co.id
+WHERE EXISTS (
+    SELECT 1
+    FROM investments.inspection i
+    WHERE i.reqId = ir.id
+)
+
+    `;
+
+    const params = [];
+
+    // Search filter (searches in Request ID, Phone Number, EMP ID)
+    if (filters.search) {
+      sql += ` AND (
+        ir.jobId LIKE ? OR 
+        u.phoneNumber LIKE ? OR 
+        CONCAT(u.firstName, ' ', u.lastName) LIKE ? OR
+        co.empId LIKE ?
+      )`;
+      const searchTerm = `%${filters.search}%`;
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+
+    // Order by most recent approval first
+    sql += ` ORDER BY ir.createdAt DESC`;
+
+    investment.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getDetailsForDivideShareDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        ir.id,
+        ir.reqCahangeTime,
+        ir.jobId,
+        u.phoneNumber AS farmerPhone,
+        fo.empId,
+        CONCAT(fo.phoneCode1, ' ',fo.phoneNumber1) AS officerPhone,
+        (COALESCE(cg.costFeild, 0)* ( ir.extentac + COALESCE(ir.extentha, 0)*2.47105 + COALESCE(extentp, 0)/160 )) AS totalValue
+      FROM investmentrequest ir
+      LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
+      LEFT JOIN plant_care.users u ON ir.farmerId = u.id
+      LEFT JOIN plant_care.feildofficer fo ON ir.officerId = fo.id
+      WHERE ir.id = ?
+    `;
+
+    investment.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log('result', result)
+      resolve(result[0]);
     });
   });
 };

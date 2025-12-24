@@ -1519,6 +1519,7 @@ exports.getInspectionDerailsEp = async (req, res) => {
     );
 
     const result = await financeDao.getInspectionDerailsDao(Number(id));
+    const shares = await financeDao.getDetailsForDivideShareDao(Number(id));
 
     // console.log({ page, limit });
     // console.log('result', result);
@@ -1539,5 +1540,31 @@ exports.getInspectionDerailsEp = async (req, res) => {
     return res
       .status(500)
       .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
+exports.GetAllAuditedInvestmentRequests = async (req, res) => {
+  try {
+    const { status, search } = req.query;
+
+    const filters = {
+      status: status || undefined,
+      search: search || undefined,
+    };
+
+    const results = await financeDao.GetAllAuditedInvestmentRequestsDAO(filters);
+    const count = results.length;
+
+    res.status(200).json({
+      count: count,
+      data: results,
+    });
+  } catch (error) {
+    console.error('Error in GetAllApprovedInvestmentRequests:', error);
+    res.status(500).json({
+      count: 0,
+      data: [],
+      error: 'Internal server error',
+    });
   }
 };
