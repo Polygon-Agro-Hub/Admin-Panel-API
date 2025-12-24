@@ -176,4 +176,16 @@ router.get(
   financeController.GetAllAuditedInvestmentRequests
 );
 
+router.post(
+  "/devide-shares",
+  authMiddleware,
+  financeController.devideSharesRequestEp
+);
+
+router.post(
+  "/reject-request",
+  authMiddleware,
+  financeController.rejectRequestEp
+);
+
 module.exports = router;
