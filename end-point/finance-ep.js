@@ -1527,7 +1527,8 @@ exports.getInspectionDerailsEp = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Inspection details retrieved successfully.",
-      data: result[0]
+      data: result,
+      shares
     });
 
   } catch (error) {
@@ -1565,6 +1566,106 @@ exports.GetAllAuditedInvestmentRequests = async (req, res) => {
       count: 0,
       data: [],
       error: 'Internal server error',
+    });
+  }
+};
+
+
+exports.devideSharesRequestEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+  try {
+    const { sharesData } = req.body;
+
+    console.log('sharesData', sharesData)
+
+    // Validate required fields
+    if (!sharesData) {
+      return res.status(400).json({
+        message: "sharesdata is required",
+        status: false,
+      });
+    }
+
+    const result = await financeDao.devideSharesDao(
+      sharesData
+    );
+
+    if (result) {
+      approveRequestResult = await financeDao.ApproveRequestDao(
+        sharesData.id
+      );
+    }
+
+    res.status(200).json({
+      message: "Request Approved Successfully",
+      status: true,
+      data: approveRequestResult,
+    });
+  } catch (err) {
+    console.error("Error Approving the request:", err);
+
+    if (err.message.includes("not found")) {
+      return res.status(404).json({
+        message: err.message,
+        status: false,
+      });
+    }
+
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  }
+};
+
+
+exports.rejectRequestEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+  try {
+    const { reqId, reason } = req.body;
+
+    console.log(' reqId, reason',  reqId, reason)
+
+    // Validate required fields
+    if (!reqId || !reason ) {
+      return res.status(400).json({
+        message: "reqId, reason are required",
+        status: false,
+      });
+    }
+
+    const result = await financeDao.updateRejectReasonDao(
+      reqId, reason
+    );
+
+    if (result) {
+      rejectRequestResult = await financeDao.rejectRequestDao(
+        reqId
+      );
+    }
+
+    res.status(200).json({
+      message: "Request Approved Successfully",
+      status: true,
+      data: rejectRequestResult,
+    });
+  } catch (err) {
+    console.error("Error Approving the request:", err);
+
+    if (err.message.includes("not found")) {
+      return res.status(404).json({
+        message: err.message,
+        status: false,
+      });
+    }
+
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
     });
   }
 };
