@@ -3026,43 +3026,47 @@ exports.insertUserXLSXData = (data) => {
 
 exports.getUserFeedbackDetails = (page, limit) => {
   return new Promise((resolve, reject) => {
-    const offset = (page - 1) * limit; // Calculate the offset for pagination
-
-    const limitInt = parseInt(limit, 10);
-    const offsetInt = parseInt(offset, 10);
-
-    const sql = `
-    SELECT 
-        du.firstName,
-        du.lastName,
-        du.createdAt AS deletedUserCreatedAt,
-        GROUP_CONCAT(fl.orderNumber ORDER BY fl.orderNumber ASC) AS orderNumbers,
-        GROUP_CONCAT(fl.feedbackEnglish ORDER BY fl.orderNumber ASC) AS feedbacks
-    FROM 
-        userfeedback uf
-    JOIN 
-        deleteduser du ON uf.deletedUserId = du.id
-    JOIN 
-        feedbacklist fl ON uf.feedbackId = fl.id
-    GROUP BY 
-        du.firstName, du.lastName, du.createdAt
-    ORDER BY 
-        du.createdAt
-    LIMIT ? OFFSET ?;
+    let sql = `
+      SELECT 
+          du.firstName,
+          du.lastName,
+          du.createdAt AS deletedUserCreatedAt,
+          GROUP_CONCAT(fl.orderNumber ORDER BY fl.orderNumber ASC) AS orderNumbers,
+          GROUP_CONCAT(fl.feedbackEnglish ORDER BY fl.orderNumber ASC) AS feedbacks
+      FROM 
+          userfeedback uf
+      JOIN 
+          deleteduser du ON uf.deletedUserId = du.id
+      JOIN 
+          feedbacklist fl ON uf.feedbackId = fl.id
+      GROUP BY 
+          du.firstName, du.lastName, du.createdAt
+      ORDER BY 
+          du.createdAt
     `;
 
-    console.log("Executing paginated SQL query:", sql);
+    const params = [];
 
-    plantcare.query(sql, [limitInt, offsetInt], (err, results) => {
+    // Apply pagination ONLY if limit is provided
+    if (limit) {
+      const limitInt = parseInt(limit, 10);
+      const offsetInt = (parseInt(page, 10) - 1) * limitInt;
+
+      sql += ` LIMIT ? OFFSET ?`;
+      params.push(limitInt, offsetInt);
+    }
+
+    console.log("Executing SQL query:", sql);
+
+    plantcare.query(sql, params, (err, results) => {
       if (err) {
-        console.error("Error details:", err); // Log the full error details
+        console.error("Error details:", err);
         return reject(
           new Error("An error occurred while fetching user feedback details")
         );
       }
 
-      console.log("Query Results:", results); // Log the results for debugging
-      resolve(results); // Resolve the promise with the results
+      resolve(results);
     });
   });
 };
