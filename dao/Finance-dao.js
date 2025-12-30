@@ -2015,9 +2015,10 @@ INNER JOIN plant_care.users u
     ON ir.farmerId = u.id
 LEFT JOIN plant_care.feildofficer co 
     ON ir.officerId = co.id
-WHERE EXISTS (
+WHERE ir.reqStatus = 'Pending' AND
+EXISTS (
     SELECT 1
-    FROM investments.inspection i
+    FROM investments.inspectionpersonal i
     WHERE i.reqId = ir.id
 )
 
