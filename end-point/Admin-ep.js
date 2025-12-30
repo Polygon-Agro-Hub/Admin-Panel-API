@@ -230,7 +230,7 @@ exports.getAllUsers = async (req, res) => {
   try {
     console.log(req.query);
 
-    const { page, limit, nic, regStatus, district } =
+    const { page, limit, nic, regStatus, district, plan } =
       await ValidateSchema.getAllUsersSchema.validateAsync(req.query);
     const offset = (page - 1) * limit;
 
@@ -239,7 +239,8 @@ exports.getAllUsers = async (req, res) => {
       offset,
       nic,
       regStatus,
-      district
+      district,
+      plan
     );
 
     console.log("Successfully fetched users");
