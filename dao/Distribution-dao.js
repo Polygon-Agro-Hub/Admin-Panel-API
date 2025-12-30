@@ -3320,3 +3320,94 @@ exports.getTargetedCustomerOrdersDao = (
     });
   });
 };
+
+exports.getDistributedVehiclesDao = (
+  page,
+  limit,
+  centerName,     
+  vehicleType,    
+  searchText      
+) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(DISTINCT co.id) AS total
+      FROM collectionofficer co
+      LEFT JOIN vehicleregistration vr ON co.id = vr.coId
+      LEFT JOIN collectioncenter cc ON co.centerId = cc.id
+      WHERE co.jobRole = 'Driver'
+    `;
+
+    let dataSql = `
+      SELECT 
+        vr.insNo,
+        vr.vType,
+        vr.vCapacity,
+        cc.regCode,
+        cc.centerName,
+        co.empId,
+        co.createdAt
+      FROM collectionofficer co
+      LEFT JOIN vehicleregistration vr ON co.id = vr.coId
+      LEFT JOIN collectioncenter cc ON co.centerId = cc.id
+      WHERE co.jobRole = 'Driver'
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    if (centerName) {
+      const cond = ` AND cc.centerName = ? `;
+      countSql += cond;
+      dataSql += cond;
+      countParams.push(centerName);
+      dataParams.push(centerName);
+    }
+
+    if (vehicleType) {
+      const cond = ` AND vr.vType = ? `;
+      countSql += cond;
+      dataSql += cond;
+      countParams.push(vehicleType);
+      dataParams.push(vehicleType);
+    }
+
+    if (searchText) {
+      const pattern = `%${searchText}%`;
+      const cond = `
+        AND (
+          COALESCE(vr.insNo, '') LIKE ?
+          OR COALESCE(co.empId, '') LIKE ?
+        )
+      `;
+
+      countSql += cond;
+      dataSql += cond;
+      countParams.push(pattern, pattern);
+      dataParams.push(pattern, pattern);
+    }
+
+    dataSql += ` ORDER BY co.createdAt DESC LIMIT ? OFFSET ? `;
+    dataParams.push(parseInt(limit), parseInt(offset));
+
+    collectionofficer.query(countSql, countParams, (countErr, countRes) => {
+      if (countErr) {
+        reject(countErr);
+      } else {
+        collectionofficer.query(dataSql, dataParams, (dataErr, dataRes) => {
+          if (dataErr) {
+            reject(dataErr);
+          } else {
+            resolve({
+              total: countRes[0].total,
+              items: dataRes,
+            });
+          }
+        });
+      }
+    });
+  });
+};
+
+
