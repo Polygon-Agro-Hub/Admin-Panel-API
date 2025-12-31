@@ -1327,7 +1327,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => {});
+    doc.on("end", () => { });
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -1548,7 +1548,7 @@ exports.createDistributionOfficerPersonal = (
       // Prepare data for QR code generation
       const qrData = `
             {
-                "empId": "${officerData.empId}",
+                "empId": "${lastId}",
             }
             `;
 
@@ -2566,10 +2566,9 @@ exports.dcmGetSelectedOfficerTargetsDao = (
       OR o.isPackage = 0
     )
     AND (
-      ${
-        deliveryLocationData && deliveryLocationData.length > 0
-          ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-          : ""
+      ${deliveryLocationData && deliveryLocationData.length > 0
+        ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+        : ""
       }
       o.centerId = ?
     )
@@ -3324,9 +3323,9 @@ exports.getTargetedCustomerOrdersDao = (
 exports.getDistributedVehiclesDao = (
   page,
   limit,
-  centerName,     
-  vehicleType,    
-  searchText      
+  centerName,
+  vehicleType,
+  searchText
 ) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
@@ -3411,3 +3410,72 @@ exports.getDistributedVehiclesDao = (
 };
 
 
+exports.getTodayDiliveryTrackingCenterDetailsDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+      	po.outDlvrDate,
+      	dc.centerName,
+      	dc.regCode
+      FROM processorders po
+      LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
+      LEFT JOIN collection_officer.distributedcenter dc ON cof1.distributedCenterId = dc.id
+      WHERE po.id = ?
+    `;
+
+    marketPlace.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+
+exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+          dor.id AS orderId,
+          drv.empId,
+          CONCAT(drv.firstNameEnglish, ' ', drv.lastNameEnglish) AS driverName,
+          CONCAT(drv.phoneCode01, '-', drv.phoneNumber01) AS driverPhone,
+          dor.createdAt AS collectTime,
+          dor.startTime,
+          (
+              SELECT JSON_ARRAYAGG(
+                  JSON_OBJECT(
+                  	 'holdId',dho.id,
+                      'holdTime', dho.createdAt,
+                      'holdReason', hr.rsnEnglish,
+                      'restartedTime', dho.restartedTime
+                  )
+              )
+              FROM driverholdorders dho
+              LEFT JOIN holdreason hr ON dho.holdReasonId = hr.id
+              WHERE dho.drvOrderId = dor.id
+          ) AS holdDetails,
+          rr.rsnEnglish AS returnReson,
+          dro.note AS returnNote,
+          dro.createdAt AS returnTime,
+          dor.receivedTime AS returnRecivedTime,
+          dor.completeTime AS completeTime,
+          dor.handOverTime AS moneyHandoverTime
+      FROM driverorders dor
+      LEFT JOIN collectionofficer drv ON dor.driverId = drv.id
+      LEFT JOIN driverreturnorders dro ON dor.id = dro.drvOrderId
+      LEFT JOIN returnreason rr ON dro.returnReasonId = rr.id
+      WHERE dor.orderId = ?
+    `;
+
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};

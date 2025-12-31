@@ -1147,18 +1147,18 @@ exports.getAllCompanyNames = async (req, res) => {
 const sanitizeOfficerData = (data) => {
   const sanitized = { ...data };
   const numericFields = ['irmId'];
-  
+
   numericFields.forEach(field => {
     if (sanitized[field] === '' || sanitized[field] === undefined) {
       sanitized[field] = null;
     }
   });
-  
+
   // Also handle optional phone number
   if (sanitized.phoneNumber02 === '' || sanitized.phoneNumber02 === undefined) {
     sanitized.phoneNumber02 = null;
   }
-  
+
   return sanitized;
 };
 
@@ -1232,9 +1232,9 @@ exports.createDistributionOfficer = async (req, res) => {
   try {
     // Validate request body
     if (!req.body.officerData) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "Officer data is required",
-        status: false 
+        status: false
       });
     }
 
@@ -1252,7 +1252,7 @@ exports.createDistributionOfficer = async (req, res) => {
       DistributionDao.checkNICExist(officerData.nic),
       DistributionDao.checkEmailExist(officerData.email),
       DistributionDao.checkPhoneNumberExist(officerData.phoneNumber01),
-      officerData.phoneNumber02 
+      officerData.phoneNumber02
         ? DistributionDao.checkPhoneNumberExist(officerData.phoneNumber02)
         : Promise.resolve(false)
     ]);
@@ -1283,9 +1283,9 @@ exports.createDistributionOfficer = async (req, res) => {
       );
     } catch (err) {
       console.error("Error processing profile image:", err);
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "Invalid profile image format",
-        status: false 
+        status: false
       });
     }
 
@@ -1352,7 +1352,7 @@ exports.createDistributionOfficer = async (req, res) => {
 
       } catch (driverError) {
         console.error("Error processing driver data:", driverError);
-        
+
         // Rollback: Delete the officer
         try {
           await DistributionDao.DeleteOfficerDao(officerId);
@@ -1379,9 +1379,9 @@ exports.createDistributionOfficer = async (req, res) => {
   } catch (error) {
     // Handle Joi validation errors
     if (error.isJoi) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: error.details[0].message,
-        status: false 
+        status: false
       });
     }
 
@@ -1664,9 +1664,9 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
   try {
     // Parse officer data
     if (!req.body.officerData) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "Officer data is required",
-        status: false 
+        status: false
       });
     }
 
@@ -1677,9 +1677,9 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
     // Get existing officer data
     const existingOfficer = await DistributionDao.getOfficerById(id);
     if (!existingOfficer) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: "Officer not found",
-        status: false 
+        status: false
       });
     }
 
@@ -1693,7 +1693,7 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       DistributionDao.editCheckNICExist(officerData.nic, id),
       DistributionDao.EditCheckEmailExist(officerData.email, id),
       DistributionDao.editCheckPhoneNumberExist(officerData.phoneNumber01, id),
-      officerData.phoneNumber02 
+      officerData.phoneNumber02
         ? DistributionDao.editCheckPhoneNumberExist(officerData.phoneNumber02, id)
         : Promise.resolve(false)
     ]);
@@ -1715,7 +1715,7 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
 
     // Process profile image
     let profileImageUrl = existingOfficer.image;
-    
+
     if (req.body.file) {
       try {
         // Delete old image if exists
@@ -1730,9 +1730,9 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
         );
       } catch (err) {
         console.error("Error processing profile image:", err);
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "Invalid profile image format",
-          status: false 
+          status: false
         });
       }
     }
@@ -1783,14 +1783,14 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
         }
 
         const driverData = JSON.parse(req.body.driverData);
-        
+
         // Check if driver record exists
         const existingDriverData = await DistributionDao.getDriverDataByOfficerId(id);
-        
+
         // Process driver images
         const imageUrls = await processDriverImagesForUpdate(
-          req, 
-          driverData, 
+          req,
+          driverData,
           existingDriverData
         );
 
@@ -1851,7 +1851,7 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
           ].filter(Boolean);
 
           await Promise.all(imagesToDelete.map(url => deleteFromS3(url)));
-          
+
           // Delete driver record
           await DistributionDao.deleteDriverData(id);
           console.log('Driver data deleted as job role changed');
@@ -1872,9 +1872,9 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
     console.error("Stack trace:", error.stack);
 
     if (error.isJoi) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: error.details[0].message,
-        status: false 
+        status: false
       });
     }
 
@@ -2071,17 +2071,17 @@ exports.claimDistributedOfficer = async (req, res) => {
 exports.getOfficerById = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log('Get Officer By ID URL:', fullUrl);
-  
+
   try {
     const { id } = req.params;
-    
+
     // Get officer data
     const officerData = await DistributionDao.getOfficerById(id);
-    
+
     if (!officerData || officerData.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: "Distribution Officer not found",
-        status: false 
+        status: false
       });
     }
 
@@ -2096,7 +2096,7 @@ exports.getOfficerById = async (req, res) => {
     // If job role is Driver, fetch driver data with images
     if (officerData[0].jobRole === "Driver") {
       const driverData = await DistributionDao.getDriverDataByOfficerId(id);
-      
+
       if (driverData) {
         console.log('Driver Data found for officer:', id);
         response.driverData = [driverData];
@@ -2108,18 +2108,18 @@ exports.getOfficerById = async (req, res) => {
 
     console.log("Successfully fetched distribution officer details");
     res.status(200).json(response);
-    
+
   } catch (err) {
     if (err.isJoi) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: err.details[0].message,
-        status: false 
+        status: false
       });
     }
     console.error("Error executing query:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "An error occurred while fetching data.",
-      status: false 
+      status: false
     });
   }
 };
@@ -2182,7 +2182,7 @@ exports.getReasonById = async (req, res) => {
   try {
     const { id } = req.params;
     const reason = await DistributionDao.getReasonById(id);
-    
+
     if (!reason) {
       return res.status(404).json({
         status: false,
@@ -2274,7 +2274,7 @@ exports.deleteReason = async (req, res) => {
       id: reason.id,
       indexNo: index + 1
     }));
-    
+
     await DistributionDao.updateIndexes(reasonsWithNewIndexes);
 
     res.status(200).json({
@@ -2361,7 +2361,7 @@ exports.getHoldReasonById = async (req, res) => {
   try {
     const { id } = req.params;
     const reason = await DistributionDao.getHoldReasonById(id);
-    
+
     if (!reason) {
       return res.status(404).json({
         status: false,
@@ -2452,7 +2452,7 @@ exports.deleteHoldReason = async (req, res) => {
       id: reason.id,
       indexNo: index + 1
     }));
-    
+
     await DistributionDao.updateHoldReasonIndexes(reasonsWithNewIndexes);
 
     res.status(200).json({
@@ -2519,26 +2519,26 @@ exports.getTodaysDeliverieData = async (req, res) => {
   try {
     // Extract search parameters from query string
     const { regCode, invNo, searchType = 'partial' } = req.query;
-    
+
     // Build search parameters object
     const searchParams = {};
-    
+
     if (regCode && regCode.trim() !== '') {
       searchParams.regCode = regCode.trim();
     }
-    
+
     if (invNo && invNo.trim() !== '') {
       searchParams.invNo = invNo.trim();
     }
-    
+
     // Optional: Add exact match if specified
     if (searchType === 'exact') {
       searchParams.exactMatch = true;
     }
-    
+
     // Get deliveries with optional search
     const deliveries = await DistributionDao.getAllTodaysDeliveries(searchParams);
-    
+
     res.status(200).json({
       status: true,
       data: deliveries,
@@ -2585,11 +2585,34 @@ exports.getDistributedVehicles = async (req, res) => {
   try {
     const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
 
-    const result = await DistributionDao.getDistributedVehiclesDao( page, limit, centerName, vehicleType, searchText );
+    const result = await DistributionDao.getDistributedVehiclesDao(page, limit, centerName, vehicleType, searchText);
 
     res.status(200).json({
       total: result.total,
       items: result.items
+    });
+  } catch (error) {
+    console.error('Get Distributed Vehicles Error:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to load vehicles',
+      error: error.message
+    });
+  }
+};
+
+
+exports.getTodayDiliveryTracking = async (req, res) => {
+  try {
+    // const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
+    const { id } = req.params;
+    // use param as 1041 for testing & add joi validation & uncomment auth middleware in routes
+    const centerDetails = await DistributionDao.getTodayDiliveryTrackingCenterDetailsDao(id);
+    const driverDetails = await DistributionDao.getTodayDiliveryTrackingDriverDetailsDao(id);
+
+    res.status(200).json({
+      centerDetails,
+      driverDetails
     });
   } catch (error) {
     console.error('Get Distributed Vehicles Error:', error);
