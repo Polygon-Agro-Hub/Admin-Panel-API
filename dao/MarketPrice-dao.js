@@ -251,24 +251,15 @@ exports.getAllMarketPriceDAO = (crop, grade, search) => {
   });
 };
 
-
-
-
-
-
-
-
-
-
-
 exports.getAllCropNameDAO = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-        SELECT id, cropNameEnglish
-        FROM cropgroup  
-        `;
+      SELECT id, cropNameEnglish
+      FROM cropgroup
+      ORDER BY cropNameEnglish ASC
+    `;
 
-        plantcare.query(sql, (err, results) => {
+    plantcare.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -276,8 +267,6 @@ exports.getAllCropNameDAO = () => {
     });
   });
 };
-
-
 
 exports.getAllxlsxlistCount = () => {
   return new Promise((resolve, reject) => {
