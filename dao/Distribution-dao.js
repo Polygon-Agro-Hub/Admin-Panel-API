@@ -1548,7 +1548,7 @@ exports.createDistributionOfficerPersonal = (
       // Prepare data for QR code generation
       const qrData = `
             {
-                "empId": "${officerData.empId}",
+                "empId": "${lastId}",
             }
             `;
 
