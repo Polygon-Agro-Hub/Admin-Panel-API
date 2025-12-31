@@ -851,7 +851,6 @@ exports.insertFarmerIntoCluster = async (clusterId, farmerId, connection) => {
   );
 };
 
-// Update farmer cluster (name, district, certificate)
 exports.updateFarmerCluster = async (
   clusterId,
   updateData,
@@ -859,7 +858,7 @@ exports.updateFarmerCluster = async (
   connection
 ) => {
   try {
-    const { clusterName, district, certificateId } = updateData;
+    const { clusterName, district, certificateId, farmersToAdd } = updateData;
 
     // Get current cluster data
     const [currentCluster] = await connection.query(
@@ -907,32 +906,126 @@ exports.updateFarmerCluster = async (
       };
     }
 
-    // If no fields to update
-    if (updateFields.length === 0) {
-      return {
-        message: "No changes detected",
-        changes: {},
-      };
+    // Update cluster if there are changes
+    if (updateFields.length > 0) {
+      // Add modifyBy and modifyDate
+      updateFields.push("modifyBy = ?");
+      updateValues.push(userId);
+      updateFields.push("modifyDate = NOW()");
+
+      // Add clusterId for WHERE clause
+      updateValues.push(clusterId);
+
+      const updateQuery = `
+        UPDATE farmcluster 
+        SET ${updateFields.join(", ")} 
+        WHERE id = ?
+      `;
+
+      const [result] = await connection.query(updateQuery, updateValues);
+
+      if (result.affectedRows === 0) {
+        throw new Error("Failed to update cluster");
+      }
     }
 
-    // Add modifyBy and modifyDate
-    updateFields.push("modifyBy = ?");
-    updateValues.push(userId);
-    updateFields.push("modifyDate = NOW()");
+    // Handle bulk farmer additions
+    const farmersAdded = [];
+    const farmerErrors = [];
 
-    // Add clusterId for WHERE clause
-    updateValues.push(clusterId);
+    if (farmersToAdd && Array.isArray(farmersToAdd) && farmersToAdd.length > 0) {
+      for (const farmer of farmersToAdd) {
+        try {
+          const { nic, farmId } = farmer;
 
-    const updateQuery = `
-      UPDATE farmcluster 
-      SET ${updateFields.join(", ")} 
-      WHERE id = ?
-    `;
+          // Validate farmer data
+          if (!nic || !farmId) {
+            farmerErrors.push({
+              nic: nic || 'N/A',
+              farmId: farmId || 'N/A',
+              error: 'NIC and Farm ID are required'
+            });
+            continue;
+          }
 
-    const [result] = await connection.query(updateQuery, updateValues);
+          // Check if farmer exists - matching against regCode (farm registration code)
+          const [farmerExists] = await connection.query(
+            `SELECT u.id as userId, u.NICnumber, u.firstName, u.lastName, f.id as farmId, f.regCode 
+             FROM users u 
+             INNER JOIN farms f ON u.id = f.userId 
+             WHERE u.NICnumber = ? AND f.regCode = ?`,
+            [nic.trim(), farmId.trim()]
+          );
 
-    if (result.affectedRows === 0) {
-      throw new Error("Failed to update cluster");
+          if (farmerExists.length === 0) {
+            farmerErrors.push({
+              nic: nic.trim(),
+              farmId: farmId.trim(),
+              error: 'Farmer or farm not found with the provided NIC and Farm Registration Code'
+            });
+            continue;
+          }
+
+          const farmerData = farmerExists[0];
+          const farmerFullName = `${farmerData.firstName || ''} ${farmerData.lastName || ''}`.trim();
+
+          // Check if farmer is already in this cluster
+          const [alreadyInCluster] = await connection.query(
+            `SELECT id FROM farmclusterfarmers WHERE clusterId = ? AND farmId = ?`,
+            [clusterId, farmerData.farmId]
+          );
+
+          if (alreadyInCluster.length > 0) {
+            farmerErrors.push({
+              nic: nic.trim(),
+              farmId: farmId.trim(),
+              farmerName: farmerFullName,
+              error: 'Farmer is already in this cluster'
+            });
+            continue;
+          }
+
+          // // Check if farmer is in another cluster
+          // const [inOtherCluster] = await connection.query(
+          //   `SELECT fc.clsName 
+          //    FROM farmclusterfarmers fcf
+          //    INNER JOIN farmcluster fc ON fcf.clusterId = fc.id
+          //    WHERE fcf.farmId = ? AND fcf.clusterId != ?`,
+          //   [farmerData.farmId, clusterId]
+          // );
+
+          // if (inOtherCluster.length > 0) {
+          //   farmerErrors.push({
+          //     nic: nic.trim(),
+          //     farmId: farmId.trim(),
+          //     farmerName: farmerFullName,
+          //     error: `Farmer is already in cluster: ${inOtherCluster[0].clsName}`
+          //   });
+          //   continue;
+          // }
+
+          // Add farmer to cluster
+          await connection.query(
+            `INSERT INTO farmclusterfarmers (clusterId, farmId, createdAt) VALUES (?, ?, NOW())`,
+            [clusterId, farmerData.farmId]
+          );
+
+          farmersAdded.push({
+            nic: nic.trim(),
+            farmId: farmId.trim(),
+            farmerName: farmerFullName,
+            farmRegCode: farmerData.regCode
+          });
+
+        } catch (error) {
+          console.error('Error processing farmer:', error);
+          farmerErrors.push({
+            nic: farmer.nic || 'N/A',
+            farmId: farmer.farmId || 'N/A',
+            error: error.message || 'Failed to add farmer'
+          });
+        }
+      }
     }
 
     // Get updated cluster data
@@ -960,10 +1053,21 @@ exports.updateFarmerCluster = async (
       [clusterId]
     );
 
+    // Build response message
+    let message = "Cluster updated successfully";
+    if (farmersAdded.length > 0) {
+      message += `. ${farmersAdded.length} farmer(s) added`;
+    }
+    if (farmerErrors.length > 0) {
+      message += `. ${farmerErrors.length} farmer(s) failed to add`;
+    }
+
     return {
-      message: "Cluster updated successfully",
+      message,
       updatedCluster: updatedCluster[0],
       changes: changes,
+      farmersAdded: farmersAdded,
+      farmerErrors: farmerErrors,
     };
   } catch (error) {
     console.error("DAO Error updating farmer cluster:", error);
@@ -1303,9 +1407,8 @@ exports.updateClusterStatus = async (
     );
 
     return {
-      message: `Cluster status updated from ${
-        oldStatus || "Not Started"
-      } to ${status} successfully`,
+      message: `Cluster status updated from ${oldStatus || "Not Started"
+        } to ${status} successfully`,
       data: updatedCluster[0],
       changes: {
         oldStatus: oldStatus || "Not Started",

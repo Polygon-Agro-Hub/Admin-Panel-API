@@ -1810,12 +1810,11 @@ exports.deleteClusterUser = async (req, res) => {
   }
 };
 
-// Update farmer cluster name
 exports.updateFarmerCluster = async (req, res) => {
   let connection;
   try {
     const { clusterId } = req.params;
-    const { clusterName, district, certificateId } = req.body;
+    const { clusterName, district, certificateId, farmersToAdd } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -1830,6 +1829,7 @@ exports.updateFarmerCluster = async (req, res) => {
       clusterName,
       district,
       certificateId,
+      farmersToAdd,
     });
     if (error) {
       return res.status(400).json({
@@ -1839,6 +1839,7 @@ exports.updateFarmerCluster = async (req, res) => {
     }
 
     connection = await plantcare.promise().getConnection();
+    await connection.beginTransaction();
 
     // Check if cluster exists
     const [existing] = await connection.query(
@@ -1846,6 +1847,7 @@ exports.updateFarmerCluster = async (req, res) => {
       [clusterId]
     );
     if (existing.length === 0) {
+      await connection.rollback();
       await connection.release();
       return res.status(404).json({
         status: false,
@@ -1862,6 +1864,7 @@ exports.updateFarmerCluster = async (req, res) => {
         [certificateId]
       );
       if (certificateExists.length === 0) {
+        await connection.rollback();
         await connection.release();
         return res.status(400).json({
           status: false,
@@ -1879,6 +1882,7 @@ exports.updateFarmerCluster = async (req, res) => {
           connection
         );
       if (nameExists) {
+        await connection.rollback();
         await connection.release();
         return res.status(400).json({
           status: false,
@@ -1890,29 +1894,35 @@ exports.updateFarmerCluster = async (req, res) => {
     // Update cluster
     const result = await certificateCompanyDao.updateFarmerCluster(
       clusterId,
-      { clusterName, district, certificateId },
+      { clusterName, district, certificateId, farmersToAdd },
       userId,
       connection
     );
 
+    await connection.commit();
     await connection.release();
 
     return res.status(200).json({
       status: true,
-      message: "Cluster updated successfully",
+      message: result.message,
       data: result.updatedCluster,
       changes: result.changes,
+      farmersAdded: result.farmersAdded || [],
+      farmerErrors: result.farmerErrors || [],
     });
   } catch (err) {
+    if (connection) {
+      await connection.rollback();
+      await connection.release();
+    }
     console.error("Error updating cluster:", err);
     return res.status(500).json({
       status: false,
-      message: "Internal server error",
+      message: err.message || "Internal server error",
     });
-  } finally {
-    if (connection) await connection.release();
   }
 };
+
 
 // Get farmer cluster certificates
 exports.getFarmerClusterCertificates = async (req, res) => {
