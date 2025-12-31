@@ -1519,7 +1519,25 @@ exports.getInspectionDerailsEp = async (req, res) => {
     );
 
     const result = await financeDao.getInspectionDerailsDao(Number(id));
-    const shares = await financeDao.getDetailsForDivideShareDao(Number(id));
+    const sharesData = await financeDao.getDetailsForDivideShareDao(Number(id));
+
+      const hasDivideData =
+      sharesData.totValue != null ||
+      sharesData.defineShares != null ||
+      sharesData.maxShare != null ||
+      sharesData.minShare != null;
+
+    const shares = {
+      ...sharesData,
+      divideData: hasDivideData
+        ? {
+            totValue: sharesData.totValue,
+            defineShares: sharesData.defineShares,
+            maxShare: sharesData.maxShare,
+            minShare: sharesData.minShare
+          }
+        : null
+    };
 
     // console.log({ page, limit });
     // console.log('result', result);

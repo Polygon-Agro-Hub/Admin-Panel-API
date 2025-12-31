@@ -3320,3 +3320,165 @@ exports.getTargetedCustomerOrdersDao = (
     });
   });
 };
+
+
+
+
+exports.getReturnRecievedDataDao = (
+  sheduleDate,
+  centerId,
+  deliveryLocationData,
+  searchText
+) => {
+  return new Promise((resolve, reject) => {
+
+    let dataSql =
+      `
+      SELECT do.id, coff.id AS driverId, coff.empId, po.id AS processOrderId, po.invNO, o.id AS orderId, o.total, o.centerId, o.phoneCode1, o.phone1, o.sheduleDate, oh.city AS houseCity,
+      oa.city AS apartmentCity, rr.rsnEnglish AS reason, dro.createdAt AS returnAt, do.receivedTime, do.handOverOfficer
+          
+      FROM collection_officer.driverorders do
+      LEFT JOIN collection_officer.collectionofficer coff ON do.driverId = coff.id
+      LEFT JOIN market_place.processorders po ON do.orderId = po.id
+      LEFT JOIN market_place.orders o ON po.orderId = o.id
+      LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
+      LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+      LEFT JOIN collection_officer.driverreturnorders dro ON dro.drvOrderId = do.id
+      LEFT JOIN collection_officer.returnreason rr ON dro.returnReasonId = rr.id
+      WHERE do.drvStatus = 'Return Received'
+    `;
+    const dataParams = [];
+
+    if (deliveryLocationData && deliveryLocationData.length > 0) {
+      dataParams.push(deliveryLocationData, deliveryLocationData);
+    }
+
+    if (centerId) {
+      dataParams.push(centerId);
+    }
+
+    if (centerId) {
+      dataSql += ` AND (
+          ${deliveryLocationData && deliveryLocationData.length > 0
+            ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+            : ""}
+          o.centerId = ?
+        )`;
+    }
+
+    if (sheduleDate) {
+      const cond = ` AND DATE(o.sheduleDate) = DATE(?) `;
+      dataSql += cond;
+      dataParams.push(sheduleDate);
+    }
+
+    // if (centerId) {
+    //   const cond = ` AND dcc.centerId = ? `;
+    //   dataSql += cond;
+    //   dataParams.push(centerId);
+    // }
+
+    
+
+    if (searchText) {
+      const searchPattern = `%${searchText}%`;
+
+      const cond = `
+        AND (
+          po.invNo LIKE ? 
+         
+        )
+      `;
+      dataSql += cond;
+      dataParams.push(searchPattern);
+    }
+
+    dataSql += ` ORDER BY po.createdAt DESC`;
+
+    collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+      if (dataErr) {
+        reject(dataErr);
+      } else {
+        resolve({
+          total: dataResults.length,
+          items: dataResults,
+        });
+      }
+    });
+  });
+};
+
+
+exports.getDeliveryChargeCity = (companyCenterId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT dc.city 
+      FROM collection_officer.centerowncity coc
+      LEFT JOIN collection_officer.deliverycharge dc 
+        ON coc.cityId = dc.id
+      WHERE coc.companyCenterId = ?
+    `;
+
+    collectionofficer.query(sql, [companyCenterId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      // Map result rows into an array of city values
+      const cities = results.map(row => row.city);
+      resolve(cities);
+    });
+  });
+};
+
+exports.getAllCityCenterMapping = (companyId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        dc.city,
+        dcc.centerId,
+        dist.centerName,
+        dist.regCode
+      FROM collection_officer.distributedcompanycenter dcc
+      JOIN collection_officer.centerowncity coc ON dcc.id = coc.companyCenterId
+      JOIN collection_officer.deliverycharge dc ON coc.cityId = dc.id
+      LEFT JOIN collection_officer.distributedcenter dist ON dcc.centerId = dist.id
+      WHERE dcc.companyId = ?
+    `;
+
+    collectionofficer.query(sql, [companyId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      // Create a map: city -> centerId
+      const cityToCenterMap = {};
+      results.forEach(row => {
+        cityToCenterMap[row.city.toLowerCase()] = {
+          centerId: row.centerId,
+          centerName: row.centerName,
+          regCode: row.regCode
+        };
+      });
+
+      resolve(cityToCenterMap);
+    });
+  });
+};
+
+exports.getCenterName = (centerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT centerName, regCode 
+      FROM collection_officer.distributedcenter 
+      WHERE id = ?
+    `;
+
+    collectionofficer.query(sql, [centerId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};

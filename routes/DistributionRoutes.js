@@ -367,4 +367,10 @@ router.get(
   distributionEp.getTargetedCustomerOrders
 );
 
+router.get(
+  "/get-return-recieved-data",
+  authMiddleware,
+  distributionEp.getReturnRecievedOrders
+);
+
 module.exports = router;

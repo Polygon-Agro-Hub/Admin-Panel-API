@@ -99,3 +99,9 @@ exports.getTargetedCustomerOrdersSchema = Joi.object({
     .pattern(/^\+94-\d{9}$/)
     .optional()
 });
+
+exports.getReturnRecievedDataSchema = Joi.object({
+    sheduleDate: Joi.date().optional(),
+    centerId: Joi.number().integer().positive().optional(),
+    searchText: Joi.string().trim().min(1).max(50).optional()
+  });
