@@ -367,4 +367,10 @@ router.get(
   distributionEp.getTargetedCustomerOrders
 );
 
+router.get(
+  "/get-distributed-vehicles",
+  // authMiddleware,
+  distributionEp.getDistributedVehicles
+);
+
 module.exports = router;

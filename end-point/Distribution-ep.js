@@ -2580,3 +2580,23 @@ exports.getTargetedCustomerOrders = async (req, res) => {
     });
   }
 };
+
+exports.getDistributedVehicles = async (req, res) => {
+  try {
+    const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
+
+    const result = await DistributionDao.getDistributedVehiclesDao( page, limit, centerName, vehicleType, searchText );
+
+    res.status(200).json({
+      total: result.total,
+      items: result.items
+    });
+  } catch (error) {
+    console.error('Get Distributed Vehicles Error:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to load vehicles',
+      error: error.message
+    });
+  }
+};

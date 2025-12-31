@@ -33,6 +33,7 @@ exports.getAllUsersSchema = Joi.object({
   nic: Joi.string().allow(""),
   regStatus: Joi.string().allow(""),
   district: Joi.string().allow(""),
+  plan: Joi.string().optional(),
 });
 
 exports.getAllUsersRepSchema = Joi.object({

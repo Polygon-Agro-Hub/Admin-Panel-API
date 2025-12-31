@@ -99,3 +99,11 @@ exports.getTargetedCustomerOrdersSchema = Joi.object({
     .pattern(/^\+94-\d{9}$/)
     .optional()
 });
+
+exports.getDistributedVehiclesSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(5000).default(10),
+  centerName: Joi.string().optional(),
+  vehicleType: Joi.string().optional(),
+  searchText: Joi.string().trim().min(1).max(50).optional(),
+});
