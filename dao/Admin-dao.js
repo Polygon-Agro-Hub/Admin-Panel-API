@@ -3,7 +3,6 @@ const {
   plantcare,
   collectionofficer,
   marketPlace,
-  dash,
 } = require("../startup/database");
 const bcrypt = require("bcryptjs");
 const { Upload } = require("@aws-sdk/lib-storage");
@@ -110,7 +109,7 @@ exports.adminCreateUser = (firstName, lastName, phoneNumber, NICnumber) => {
   });
 };
 
-exports.getAllUsers = (limit, offset, searchItem, regStatus, district) => {
+exports.getAllUsers = (limit, offset, searchItem, regStatus, district, plan) => {
   return new Promise((resolve, reject) => {
     let whereConditions = [];
     let countParams = [];
@@ -148,6 +147,13 @@ exports.getAllUsers = (limit, offset, searchItem, regStatus, district) => {
       const districtQuery = `%${district}%`;
       countParams.push(districtQuery);
       dataParams.push(districtQuery);
+    }
+
+    if (plan) {
+      whereConditions.push("users.membership LIKE ?");
+      const planQuery = `%${plan}%`;
+      countParams.push(planQuery);
+      dataParams.push(planQuery);
     }
 
     // Combine WHERE conditions if any exist
@@ -2899,36 +2905,177 @@ exports.getReportfarmerDetails = (userId) => {
   });
 };
 
+// exports.insertUserXLSXData = (data) => {
+//   return new Promise(async (resolve, reject) => {
+//     try {
+//       const schema = Joi.object({
+//         "First Name": Joi.string().trim().min(2).max(50).required(),
+//         "Last Name": Joi.string().trim().min(2).max(50).required(),
+//         "Phone Number": Joi.alternatives()
+//           .try(
+//             Joi.string().pattern(/^\+94\d{9}$/),
+//             Joi.number().integer().min(94000000000).max(94999999999)
+//           )
+//           .required(),
+//         "NIC Number": Joi.alternatives()
+//           .try(
+//             Joi.string(),
+//             Joi.number().integer().min(10000000000).max(199999999999)
+//           )
+//           .required(),
+//         Membership: Joi.required(),
+//         District: Joi.required(),
+//       }).required();
+
+//       const validatedData = [];
+//       const duplicateData = [];
+//       const phoneSet = new Set();
+//       const nicSet = new Set();
+
+//       // Check for duplicates within the Excel file
+//       for (let i = 0; i < data.length; i++) {
+//         const { error, value } = schema.validate(data[i]);
+//         if (error) {
+//           reject(
+//             new Error(
+//               `Validation error in row ${i + 1}: ${error.details[0].message}`
+//             )
+//           );
+//           return;
+//         }
+
+//         const phone = String(value["Phone Number"]);
+//         const nic = String(value["NIC Number"]);
+
+//         if (phoneSet.has(phone) || nicSet.has(nic)) {
+//           duplicateData.push({
+//             firstName: value["First Name"],
+//             lastName: value["Last Name"],
+//             phoneNumber: phone,
+//             NICnumber: nic,
+//           });
+//         } else {
+//           phoneSet.add(phone);
+//           nicSet.add(nic);
+//           validatedData.push(value);
+//         }
+//       }
+
+//       // Database check for existing users
+//       const phones = validatedData.map((row) =>
+//         String(row["Phone Number"]).startsWith("+")
+//           ? row["Phone Number"]
+//           : `+${row["Phone Number"]}`
+//       );
+//       const nics = validatedData.map((row) => String(row["NIC Number"]));
+
+//       const existingUsers = await new Promise((resolve, reject) => {
+//         const sql = `
+//           SELECT firstName, lastName, phoneNumber, NICnumber 
+//           FROM users 
+//           WHERE phoneNumber IN (?) OR NICnumber IN (?)
+//         `;
+//         plantcare.query(sql, [phones, nics], (err, results) => {
+//           if (err) reject(err);
+//           else resolve(results);
+//         });
+//       });
+
+//       // Filter new users
+//       const existingPhones = new Set(
+//         existingUsers.map((user) => user.phoneNumber)
+//       );
+//       const existingNICs = new Set(existingUsers.map((user) => user.NICnumber));
+
+//       const newUsers = validatedData.filter((user) => {
+//         const phone = String(user["Phone Number"]);
+//         const nic = String(user["NIC Number"]);
+//         return !existingPhones.has(phone) && !existingNICs.has(nic);
+//       });
+
+//       if (newUsers.length > 0) {
+//         const sql = `
+//           INSERT INTO users 
+//           (firstName, lastName, phoneNumber, NICnumber, membership, district) 
+//           VALUES ?
+//         `;
+//         const values = newUsers.map((row) => [
+//           row["First Name"],
+//           row["Last Name"],
+//           String(row["Phone Number"]).startsWith("+")
+//             ? row["Phone Number"]
+//             : `+${row["Phone Number"]}`,
+//           String(row["NIC Number"]),
+//           row["Membership"],
+//           row["District"],
+//         ]);
+
+//         await new Promise((resolve, reject) => {
+//           plantcare.query(sql, [values], (err, result) => {
+//             if (err) reject(err);
+//             else resolve(result);
+//           });
+//         });
+//       }
+
+//       resolve({
+//         message: "Partial data inserted. Some users already exist.",
+//         existingUsers,
+//         duplicateData, // Duplicates within Excel
+//         totalRows: data.length,
+//         insertedRows: newUsers.length,
+//       });
+//     } catch (error) {
+//       reject(error);
+//     }
+//   });
+// };
+
 exports.insertUserXLSXData = (data) => {
   return new Promise(async (resolve, reject) => {
     try {
       const schema = Joi.object({
-        "First Name": Joi.string().trim().min(2).max(50).required(),
-        "Last Name": Joi.string().trim().min(2).max(50).required(),
+        "First Name": Joi.string().trim().min(2).max(50),
+        "Last Name": Joi.string().trim().min(2).max(50),
         "Phone Number": Joi.alternatives()
           .try(
             Joi.string().pattern(/^\+94\d{9}$/),
             Joi.number().integer().min(94000000000).max(94999999999)
-          )
-          .required(),
+          ),
         "NIC Number": Joi.alternatives()
           .try(
             Joi.string(),
             Joi.number().integer().min(10000000000).max(199999999999)
-          )
-          .required(),
-        Membership: Joi.required(),
-        District: Joi.required(),
+          ),
+        Membership: Joi.optional(),
+        District: Joi.optional(),
       }).required();
 
       const validatedData = [];
       const duplicateData = [];
+      const emptyRows = [];
       const phoneSet = new Set();
       const nicSet = new Set();
 
-      // Check for duplicates within the Excel file
+      // Process each row
       for (let i = 0; i < data.length; i++) {
-        const { error, value } = schema.validate(data[i]);
+        const row = data[i];
+        
+        // Check if all fields in the row are empty
+        const isEmptyRow = 
+          (!row["First Name"] || row["First Name"].toString().trim() === "") &&
+          (!row["Last Name"] || row["Last Name"].toString().trim() === "") &&
+          (!row["Phone Number"] || row["Phone Number"].toString().trim() === "") &&
+          (!row["NIC Number"] || row["NIC Number"].toString().trim() === "") &&
+          (!row["Membership"] || row["Membership"].toString().trim() === "") &&
+          (!row["District"] || row["District"].toString().trim() === "");
+
+        if (isEmptyRow) {
+          emptyRows.push(i + 1); // Store row number (1-based index)
+          continue; // Skip this empty row
+        }
+
+        const { error, value } = schema.validate(row);
         if (error) {
           reject(
             new Error(
@@ -2938,30 +3085,50 @@ exports.insertUserXLSXData = (data) => {
           return;
         }
 
-        const phone = String(value["Phone Number"]);
-        const nic = String(value["NIC Number"]);
+        // Convert values to string for comparison
+        const phone = String(value["Phone Number"]).trim();
+        const nic = String(value["NIC Number"]).trim();
 
+        // Check for duplicates within the Excel file
         if (phoneSet.has(phone) || nicSet.has(nic)) {
           duplicateData.push({
             firstName: value["First Name"],
             lastName: value["Last Name"],
             phoneNumber: phone,
             NICnumber: nic,
+            rowNumber: i + 1,
           });
         } else {
           phoneSet.add(phone);
           nicSet.add(nic);
-          validatedData.push(value);
+          validatedData.push({
+            ...value,
+            rowNumber: i + 1
+          });
         }
       }
 
+      // If no valid data after skipping empties
+      if (validatedData.length === 0) {
+        resolve({
+          message: "No valid data found. All rows were empty or contained duplicates.",
+          emptyRows: emptyRows,
+          duplicateData: duplicateData,
+          totalRows: data.length,
+          insertedRows: 0,
+          skippedRows: emptyRows.length,
+          duplicateRows: duplicateData.length
+        });
+        return;
+      }
+
       // Database check for existing users
-      const phones = validatedData.map((row) =>
-        String(row["Phone Number"]).startsWith("+")
-          ? row["Phone Number"]
-          : `+${row["Phone Number"]}`
-      );
-      const nics = validatedData.map((row) => String(row["NIC Number"]));
+      const phones = validatedData.map((row) => {
+        const phone = String(row["Phone Number"]).trim();
+        return phone.startsWith("+") ? phone : `+${phone}`;
+      });
+      
+      const nics = validatedData.map((row) => String(row["NIC Number"]).trim());
 
       const existingUsers = await new Promise((resolve, reject) => {
         const sql = `
@@ -2982,11 +3149,13 @@ exports.insertUserXLSXData = (data) => {
       const existingNICs = new Set(existingUsers.map((user) => user.NICnumber));
 
       const newUsers = validatedData.filter((user) => {
-        const phone = String(user["Phone Number"]);
-        const nic = String(user["NIC Number"]);
-        return !existingPhones.has(phone) && !existingNICs.has(nic);
+        const phone = String(user["Phone Number"]).trim();
+        const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
+        const nic = String(user["NIC Number"]).trim();
+        return !existingPhones.has(formattedPhone) && !existingNICs.has(nic);
       });
 
+      let insertedRows = 0;
       if (newUsers.length > 0) {
         const sql = `
           INSERT INTO users 
@@ -2996,10 +3165,10 @@ exports.insertUserXLSXData = (data) => {
         const values = newUsers.map((row) => [
           row["First Name"],
           row["Last Name"],
-          String(row["Phone Number"]).startsWith("+")
-            ? row["Phone Number"]
-            : `+${row["Phone Number"]}`,
-          String(row["NIC Number"]),
+          String(row["Phone Number"]).trim().startsWith("+")
+            ? String(row["Phone Number"]).trim()
+            : `+${String(row["Phone Number"]).trim()}`,
+          String(row["NIC Number"]).trim(),
           row["Membership"],
           row["District"],
         ]);
@@ -3007,17 +3176,26 @@ exports.insertUserXLSXData = (data) => {
         await new Promise((resolve, reject) => {
           plantcare.query(sql, [values], (err, result) => {
             if (err) reject(err);
-            else resolve(result);
+            else {
+              insertedRows = result.affectedRows || newUsers.length;
+              resolve(result);
+            }
           });
         });
       }
 
       resolve({
-        message: "Partial data inserted. Some users already exist.",
+        message: newUsers.length > 0 
+          ? "Data inserted successfully. Some users already exist or were duplicates." 
+          : "No new users inserted. All users already exist in database or were duplicates.",
         existingUsers,
         duplicateData, // Duplicates within Excel
+        emptyRows, // Empty rows that were skipped
         totalRows: data.length,
-        insertedRows: newUsers.length,
+        insertedRows: insertedRows,
+        skippedRows: emptyRows.length,
+        duplicateRows: duplicateData.length,
+        processedRows: validatedData.length
       });
     } catch (error) {
       reject(error);
@@ -3025,45 +3203,50 @@ exports.insertUserXLSXData = (data) => {
   });
 };
 
+
 exports.getUserFeedbackDetails = (page, limit) => {
   return new Promise((resolve, reject) => {
-    const offset = (page - 1) * limit; // Calculate the offset for pagination
-
-    const limitInt = parseInt(limit, 10);
-    const offsetInt = parseInt(offset, 10);
-
-    const sql = `
-    SELECT 
-        du.firstName,
-        du.lastName,
-        du.createdAt AS deletedUserCreatedAt,
-        GROUP_CONCAT(fl.orderNumber ORDER BY fl.orderNumber ASC) AS orderNumbers,
-        GROUP_CONCAT(fl.feedbackEnglish ORDER BY fl.orderNumber ASC) AS feedbacks
-    FROM 
-        userfeedback uf
-    JOIN 
-        deleteduser du ON uf.deletedUserId = du.id
-    JOIN 
-        feedbacklist fl ON uf.feedbackId = fl.id
-    GROUP BY 
-        du.firstName, du.lastName, du.createdAt
-    ORDER BY 
-        du.createdAt
-    LIMIT ? OFFSET ?;
+    let sql = `
+      SELECT 
+          du.firstName,
+          du.lastName,
+          du.createdAt AS deletedUserCreatedAt,
+          GROUP_CONCAT(fl.orderNumber ORDER BY fl.orderNumber ASC) AS orderNumbers,
+          GROUP_CONCAT(fl.feedbackEnglish ORDER BY fl.orderNumber ASC) AS feedbacks
+      FROM 
+          userfeedback uf
+      JOIN 
+          deleteduser du ON uf.deletedUserId = du.id
+      JOIN 
+          feedbacklist fl ON uf.feedbackId = fl.id
+      GROUP BY 
+          du.firstName, du.lastName, du.createdAt
+      ORDER BY 
+          du.createdAt
     `;
 
-    console.log("Executing paginated SQL query:", sql);
+    const params = [];
 
-    plantcare.query(sql, [limitInt, offsetInt], (err, results) => {
+    // Apply pagination ONLY if limit is provided
+    if (limit) {
+      const limitInt = parseInt(limit, 10);
+      const offsetInt = (parseInt(page, 10) - 1) * limitInt;
+
+      sql += ` LIMIT ? OFFSET ?`;
+      params.push(limitInt, offsetInt);
+    }
+
+    console.log("Executing SQL query:", sql);
+
+    plantcare.query(sql, params, (err, results) => {
       if (err) {
-        console.error("Error details:", err); // Log the full error details
+        console.error("Error details:", err);
         return reject(
           new Error("An error occurred while fetching user feedback details")
         );
       }
 
-      console.log("Query Results:", results); // Log the results for debugging
-      resolve(results); // Resolve the promise with the results
+      resolve(results);
     });
   });
 };

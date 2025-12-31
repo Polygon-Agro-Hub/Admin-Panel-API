@@ -2,7 +2,7 @@ const {
   plantcare,
   collectionofficer,
   marketPlace,
-  dash,
+  investment,
 } = require("../startup/database");
 const QRCode = require("qrcode");
 const nodemailer = require("nodemailer");
@@ -1456,7 +1456,10 @@ exports.getOfficerByIdDAO = (id) => {
               COM.companyNameEnglish,
               CEN.centerName,
               CEN.regCode AS centerRegCode,
-              DC.centerName AS distributedCenterName
+              DC.centerName AS distributedCenterName,
+              DC.regCode AS distributedCenterRegCode,
+              VR.*,
+              VR.id AS vehicleRegId
           FROM 
               collectionofficer COF
           JOIN 
@@ -1465,6 +1468,8 @@ exports.getOfficerByIdDAO = (id) => {
               collectioncenter CEN ON COF.centerId = CEN.id
           LEFT JOIN 
               distributedcenter DC ON COF.distributedCenterId = DC.id
+          LEFT JOIN
+               vehicleregistration VR ON COF.id = VR.coId
           WHERE 
               COF.id = ?`;
 
@@ -1520,9 +1525,25 @@ exports.getOfficerByIdDAO = (id) => {
           companyNameEnglish: officer.companyNameEnglish,
           centerName: officer.centerName,
           distributedCenterName: officer.distributedCenterName || null,
+          distributedCenterRegCode: officer.distributedCenterRegCode || null,
           fullEmpId: officer.empId,
           centerRegCode: officer.centerRegCode,
-        },
+          licNo: officer.licNo,
+          insNo: officer.insNo,
+          insExpDate: officer.insExpDate,
+          vType: officer.vType,
+          vCapacity: officer.vCapacity,
+          vRegNo: officer.vRegNo,
+          licFrontImg: officer.licFrontImg,
+          licBackImg: officer.licBackImg,
+          insFrontImg: officer.insFrontImg,
+          insBackImg: officer.insBackImg,
+          vehFrontImg: officer.vehFrontImg,
+          vehBackImg: officer.vehBackImg,
+          vehSideImgA: officer.vehSideImgA,
+          vehSideImgB: officer.vehSideImgB
+        }
+        
       });
     });
   });
@@ -2407,6 +2428,241 @@ exports.getCollectionCenterForReportDao = () => {
     `;
 
     collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getAllDrivers = (
+  page,
+  limit,
+  searchNIC,
+  centerStatus,
+  status,
+  centerId
+) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+            SELECT COUNT(*) as total
+            FROM collectionofficer coff
+            JOIN company cm ON coff.companyId = cm.id
+            LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
+            LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
+            LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
+            WHERE coff.jobRole = 'Driver' AND cm.id = 2
+        `;
+
+    let dataSql = `
+            SELECT
+                coff.id,
+                coff.image,
+                coff.firstNameEnglish,
+                coff.lastNameEnglish,
+                coff.empId,
+                coff.status,
+                coff.claimStatus,
+                coff.jobRole,
+                coff.phoneCode01,
+                coff.phoneNumber01,
+                coff.nic,
+                -- Show officer name instead of ID for officerModiyBy
+                CASE 
+                    WHEN coff.officerModiyBy IS NOT NULL THEN CONCAT(coff_modify.firstNameEnglish, ' ', coff_modify.lastNameEnglish)
+                    ELSE NULL
+                END as officerModiyBy,
+                -- Show admin username instead of ID for adminModifyBy
+                CASE 
+                    WHEN coff.adminModifyBy IS NOT NULL THEN admin_users.userName
+                    ELSE NULL
+                END as adminModifyBy,
+                cm.companyNameEnglish,
+                dc.centerName,
+                dc.regCode,
+                CASE 
+                    WHEN coff.adminModifyBy IS NOT NULL THEN 'Admin'
+                    WHEN coff.officerModiyBy IS NOT NULL THEN 'Officer'
+                    ELSE 'None'
+                END as modifiedByType,
+                CASE 
+                    WHEN coff.adminModifyBy IS NOT NULL THEN admin_users.userName
+                    WHEN coff.officerModiyBy IS NOT NULL THEN CONCAT(coff_modify.firstNameEnglish, ' ', coff_modify.lastNameEnglish)
+                    ELSE 'Not Modified'
+                END as modifiedBy
+            FROM collectionofficer coff
+            JOIN company cm ON coff.companyId = cm.id
+            LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
+            LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
+            LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
+            WHERE coff.jobRole = 'Driver' AND cm.id = 2
+        `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    if (centerStatus) {
+      let claimStatusValue;
+      if (centerStatus === "Claimed") {
+        claimStatusValue = 1;
+      } else if (centerStatus === "Disclaimed") {
+        claimStatusValue = 0;
+      }
+
+      console.log("this is claimstatus value", claimStatusValue);
+
+      if (claimStatusValue !== undefined) {
+        countSql += " AND coff.claimStatus = ? ";
+        dataSql += " AND coff.claimStatus = ? ";
+        countParams.push(claimStatusValue);
+        dataParams.push(claimStatusValue);
+      }
+    }
+
+    if (status) {
+      countSql += " AND coff.status LIKE ? ";
+      dataSql += " AND coff.status LIKE ? ";
+      countParams.push(status);
+      dataParams.push(status);
+    }
+
+    if (centerId) {
+      countSql += " AND coff.distributedCenterId = ?";
+      dataSql += " AND coff.distributedCenterId = ?";
+      countParams.push(centerId);
+      dataParams.push(centerId);
+    }
+
+    if (searchNIC) {
+      const searchCondition = `
+                AND (
+                    coff.nic LIKE ?
+                    OR coff.firstNameEnglish LIKE ?
+                    OR cm.companyNameEnglish LIKE ?
+                    OR coff.phoneNumber01 LIKE ?
+                    OR coff.phoneNumber02 LIKE ?
+                    OR coff.district LIKE ?
+                    OR coff.empId LIKE ?
+                    OR dc.centerName LIKE ?
+                )
+            `;
+      countSql += searchCondition;
+      dataSql += searchCondition;
+      const searchValue = `%${searchNIC}%`;
+      countParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
+      dataParams.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue
+      );
+    }
+
+    dataSql += " LIMIT ? OFFSET ?";
+    dataParams.push(limit, offset);
+
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
+      }
+
+      const total = countResults[0].total;
+
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+
+        resolve({ items: dataResults, total });
+      });
+    });
+  });
+};
+
+exports.getAllDistributionCenterNamesDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT DC.id, DC.regCode, DC.centerName, C.id AS companyId
+    FROM collection_officer.company C
+    LEFT JOIN collection_officer.distributedcompanycenter DCC ON DCC.companyId = C.id
+    LEFT JOIN collection_officer.distributedcenter DC ON DCC.centerId = DC.id
+    WHERE C.isDistributed = 1 AND C.id = 2 GROUP BY DC.id, DC.regCode, DC.centerName
+    ORDER BY DC.centerName ASC
+        `;
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      resolve(results); // Resolve the promise with the query results
+    });
+  });
+};
+
+exports.getAllDistributionCenterManagerDao = (centerId) => {
+  console.log('centerId', centerId)
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, firstNameEnglish, lastNameEnglish, empId
+      FROM collectionofficer
+      WHERE jobRole = 'Distribution Centre Manager' 
+        AND companyId = 2 
+        AND status = 'Approved' 
+        AND distributedCenterId = ?
+    `;
+
+    collectionofficer.query(sql, [centerId], (err, results) => {
+      if (err) {
+        console.error('Database error in getAllCenterManagerDao:', err);
+        return reject(new Error('Failed to fetch center managers'));
+      }
+
+      resolve(results || []);
+    });
+  });
+};
+
+exports.claimDriverDetailsDao = (id, centerId, irmId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE collectionofficer
+      SET distributedCenterId = ?, irmId = ?, claimStatus = 1
+      WHERE id = ?
+    `;
+    collectionofficer.query(sql, [centerId, irmId, id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.disclaimDriverDetailsDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+          UPDATE collectionofficer
+          SET distributedCenterId = NULL, irmId = NULL, claimStatus = 0
+          WHERE id = ?
+      `;
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }

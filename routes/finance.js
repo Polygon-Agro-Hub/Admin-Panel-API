@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../middlewares/authMiddleware");
 const financeController = require("../end-point/finance-ep");
-const multer = require('multer');
+const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.get("/dashboard", financeController.getDashboardData);
@@ -13,10 +13,16 @@ router.get(
 );
 
 // Get govi job dashboard data
-router.get('/govi-job-dashboard-data', financeController.getGovijobDashboardData);
+router.get(
+  "/govi-job-dashboard-data",
+  financeController.getGovijobDashboardData
+);
 
-router.get('/service-payments', financeController.getAllServicePayments);
-router.get('/certificate-payments', financeController.getAllCertificatePayments);
+router.get("/service-payments", financeController.getAllServicePayments);
+router.get(
+  "/certificate-payments",
+  financeController.getAllCertificatePayments
+);
 
 // Get all agent commission
 router.get(
@@ -59,21 +65,43 @@ router.get(
   financeController.getALlFarmerPayments
 );
 
-router.post('/payment-history', authMiddleware, upload.single('file'), financeController.createPaymentHistory);
-router.put('/payment-history/:id', authMiddleware, upload.single('file'),financeController.updatePaymentHistory);
-router.get('/payment-history/:id', authMiddleware, financeController.getPaymentHistoryById);
-router.get('/payment-history', authMiddleware, financeController.getAllPaymentHistory);
-router.delete('/payment-history/:id', authMiddleware, financeController.deletePaymentHistory);
+router.post(
+  "/payment-history",
+  authMiddleware,
+  upload.single("file"),
+  financeController.createPaymentHistory
+);
+router.put(
+  "/payment-history/:id",
+  authMiddleware,
+  upload.single("file"),
+  financeController.updatePaymentHistory
+);
+router.get(
+  "/payment-history/:id",
+  authMiddleware,
+  financeController.getPaymentHistoryById
+);
+router.get(
+  "/payment-history",
+  authMiddleware,
+  financeController.getAllPaymentHistory
+);
+router.delete(
+  "/payment-history/:id",
+  authMiddleware,
+  financeController.deletePaymentHistory
+);
 
 router.get(
-  '/govicare-requests',
+  "/govicare-requests",
   authMiddleware,
   financeController.getAllInvestmentRequests
 );
 
 // Get single investment request by ID
 router.get(
-  '/govicare-requests/:id',
+  "/govicare-requests/:id",
   authMiddleware,
   financeController.getInvestmentRequestById
 );
@@ -82,34 +110,82 @@ router.get(
   "/get-all-published-projects",
   authMiddleware,
   financeController.getAllPublishedProjects
-)
-
+);
 
 router.get(
-  '/officers', 
-  financeController.getOfficersByDistrictAndRoleForInvestment);
+  "/officers",
+  financeController.getOfficersByDistrictAndRoleForInvestment
+);
 router.post(
-  '/assign-officer',
-  authMiddleware,  
+  "/assign-officer",
+  authMiddleware,
   financeController.assignOfficerToInvestmentRequest
 );
 
 router.get(
-  '/rejected-investment-requests', 
-  authMiddleware, 
+  "/rejected-investment-requests",
+  authMiddleware,
   financeController.getAllRejectedInvestmentRequests
 );
 
 router.get(
-  '/approved-govicare-requests', authMiddleware,
+  "/approved-govicare-requests",
+  authMiddleware,
   financeController.GetAllApprovedInvestmentRequests
 );
 
 router.put(
-  '/govicare-requests/:id/publish',
-  authMiddleware, 
+  "/govicare-requests/:id/publish",
+  authMiddleware,
   financeController.UpdateInvestmentRequestPublishStatus
 );
 
+router.get(
+  "/project-investments",
+  authMiddleware,
+  financeController.GetProjectInvestment
+);
+router.get(
+  "/get-all-investments",
+  authMiddleware,
+  financeController.getALlInvestments
+);
+
+router.put(
+  '/approve-investment-status/:id',
+  authMiddleware, 
+  financeController.ApproveInvestmentRequestEp
+);
+
+
+router.put(
+  '/reject-investment-status/:id',
+  authMiddleware, 
+  financeController.RejectInvestmentRequestEp
+);
+
+router.get(
+  '/get-inspection-details/:id',
+  // authMiddleware, 
+  financeController.getInspectionDerailsEp
+);
+
+router.get(
+  "/audited-govicare-requests",
+  authMiddleware,
+  financeController.GetAllAuditedInvestmentRequests
+);
+
+router.post(
+  "/devide-shares",
+  authMiddleware,
+  financeController.devideSharesRequestEp
+);
+
+router.post(
+  "/reject-request",
+  authMiddleware,
+  financeController.rejectRequestEp
+);
 
 module.exports = router;

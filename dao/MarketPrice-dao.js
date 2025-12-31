@@ -1,4 +1,4 @@
-const { plantcare, collectionofficer, marketPlace, dash } = require('../startup/database');
+const { plantcare, collectionofficer, marketPlace } = require('../startup/database');
 const Joi = require('joi');
 const path = require('path');
 

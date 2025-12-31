@@ -23,7 +23,7 @@ console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
 console.log("----------------------");
 
 const express = require('express');
-const {  admin, plantcare, collectionofficer, marketPlace, dash } = require('./startup/database');
+const {  admin, plantcare, collectionofficer, marketPlace, investment } = require('./startup/database');
 const routes = require('./routes/Admin');
 const collectionOfficerRoutes = require('./routes/CollectionOfficer');
 const routesNewws = require('./routes/News');
@@ -114,14 +114,14 @@ marketPlace.getConnection((err, connection) => {
   connection.release();
 });
 
-// dash.getConnection((err, connection) => {
-//   if (err) {
-//     console.error("Error connecting to the database in index.js (dash):", err);
-//     return;
-//   }
-//   console.log("Connected to the MySQL database in server.js.(dash)  ✅  ");
-//   connection.release();
-// });
+investment.getConnection((err, connection) => {
+  if (err) {
+    console.error("Error connecting to the database in index.js (investments):", err);
+    return;
+  }
+  console.log("Connected to the MySQL database in server.js.(investments)  ✅  ");
+  connection.release();
+});
 
 // Add base path for all routes
 const BASE_PATH = "/agro-api/admin-api";
@@ -153,7 +153,7 @@ app.use(BASE_PATH + '/api/finance', financeRoutes)
 app.use("/uploads", express.static("uploads"));
 
 app.get(BASE_PATH + "/test", (req, res) => {
-  res.send("Test route is working 7/29!");
+  res.send(`Test route is working 12/24! ${process.env.DB_NAME_INV}`);
   console.log("test route is working");
 });
 

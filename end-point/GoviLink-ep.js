@@ -414,3 +414,72 @@ exports.replyFieldOfficerComplain = async (req, res) => {
     });
   }
 };
+
+exports.getDriverComplainById = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = req.params;
+
+    console.log("Fetching driver complain with ID:", id);
+
+    const result = await GoviLinkDAO.GetDriverComplainByIdDAO(id);
+
+    if (!result) {
+      console.log("Driver complain not found");
+      return res.status(404).json({
+        error: "Driver complain not found"
+      });
+    }
+
+    console.log("Successfully retrieved driver complain");
+    res.json(result);
+  } catch (err) {
+    console.error("Error fetching driver complain by ID:", err);
+    res.status(500).json({
+      error: "An error occurred while fetching driver complain"
+    });
+  }
+};
+
+exports.replyDriverComplain = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reply } = req.body;
+    const replyBy = req.user.userId;
+
+    console.log('Replying to driver complaint:', id);
+
+    // Validate reply is not empty
+    if (!reply || reply.trim() === '') {
+      return res.status(400).json({ 
+        error: 'Reply cannot be empty' 
+      });
+    }
+
+    // Call the DAO function
+    await GoviLinkDAO.ReplyDriverComplainDAO(
+      id,
+      reply.trim(),
+      replyBy
+    );
+
+    console.log('Successfully replied to driver complaint');
+    res.json({ 
+      message: 'Reply sent successfully',
+      success: true 
+    });
+  } catch (err) {
+    if (err.message === 'Complaint not found') {
+      console.error('Driver complaint not found:', err);
+      return res.status(404).json({ 
+        error: 'Driver complaint not found' 
+      });
+    }
+
+    console.error('Error replying to driver complaint:', err);
+    res.status(500).json({ 
+      error: 'An error occurred while sending the reply' 
+    });
+  }
+};

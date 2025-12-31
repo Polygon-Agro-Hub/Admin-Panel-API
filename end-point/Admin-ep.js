@@ -230,7 +230,7 @@ exports.getAllUsers = async (req, res) => {
   try {
     console.log(req.query);
 
-    const { page, limit, nic, regStatus, district } =
+    const { page, limit, nic, regStatus, district, plan } =
       await ValidateSchema.getAllUsersSchema.validateAsync(req.query);
     const offset = (page - 1) * limit;
 
@@ -239,7 +239,8 @@ exports.getAllUsers = async (req, res) => {
       offset,
       nic,
       regStatus,
-      district
+      district,
+      plan
     );
 
     console.log("Successfully fetched users");
@@ -2573,44 +2574,35 @@ exports.getFarmerListReport = async (req, res) => {
 
 exports.getUserFeedbackDetails = async (req, res) => {
   try {
-    // Construct the full URL for logging purposes
-    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-    console.log("Request URL:", fullUrl);
+    let { page, limit } = req.query;
 
-    // Extract pagination parameters (page and limit) from the query string
-    const { page = 1, limit = 10 } = req.query; // Set default values for page and limit
-    console.log("Pagination:", page, limit);
+    page = page ? Number(page) : 1;
+    limit = limit ? Number(limit) : null;
 
-    // Validate that page and limit are numbers
-    if (isNaN(page) || isNaN(limit) || page < 1 || limit < 1) {
+    if ((page && isNaN(page)) || (limit && isNaN(limit))) {
       return res.status(400).json({ error: "Invalid page or limit" });
     }
 
-    // Fetch user feedback details from the DAO with pagination
     const feedbackDetails = await adminDao.getUserFeedbackDetails(page, limit);
     const feedbackCount = await adminDao.getUserFeedbackCount();
     const deletedUserCount = await adminDao.getDeletedUserCount();
 
-    console.log("Successfully fetched user feedback details");
-    console.log(feedbackDetails);
-    console.log("Feedback Count:", feedbackCount);
-    console.log("Deleted User Count:", deletedUserCount);
-
-    // Respond with the paginated feedback details and count information
     res.json({
       feedbackDetails,
       feedbackCount,
       deletedUserCount,
       page,
       limit,
+      totalRecords: feedbackDetails.length,
     });
   } catch (error) {
     console.error("Error fetching user feedback details:", error);
-    return res.status(500).json({
+    res.status(500).json({
       error: "An error occurred while fetching user feedback details",
     });
   }
 };
+
 
 exports.getNextOrderNumber = async (req, res) => {
   try {

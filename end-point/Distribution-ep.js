@@ -1656,138 +1656,288 @@ exports.getOfficerByIdMonthly = async (req, res) => {
 
 exports.updateDistributionOfficerDetails = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log(fullUrl);
+  console.log('Update Request URL:', fullUrl);
   const { id } = req.params;
-  const adminId = req.user.userId
+  const adminId = req.user.userId;
+  let officerId = null;
 
   try {
+    // Parse officer data
+    if (!req.body.officerData) {
+      return res.status(400).json({ 
+        error: "Officer data is required",
+        status: false 
+      });
+    }
+
     const officerData = JSON.parse(req.body.officerData);
-    console.log('officer data', officerData)
-    const qrCode = await DistributionDao.getQrImage(id);
+    console.log('Updating officer:', officerData.firstNameEnglish, officerData.lastNameEnglish);
+    officerId = id;
 
-    const isExistingNIC = await DistributionDao.editCheckNICExist(officerData.nic, id);
-    if (isExistingNIC) {
-      return res.status(400).json({ error: "NIC already exists" });
+    // Get existing officer data
+    const existingOfficer = await DistributionDao.getOfficerById(id);
+    if (!existingOfficer) {
+      return res.status(404).json({ 
+        error: "Officer not found",
+        status: false 
+      });
     }
 
-    const isExistingEmail = await DistributionDao.EditCheckEmailExist(officerData.email, id);
-    if (isExistingEmail) {
-      return res.status(400).json({ error: "Email already exists" });
+    // Parallel validation checks
+    const [
+      isExistingNIC,
+      isExistingEmail,
+      isExistingPhoneNumber01,
+      isExistingPhoneNumber02
+    ] = await Promise.all([
+      DistributionDao.editCheckNICExist(officerData.nic, id),
+      DistributionDao.EditCheckEmailExist(officerData.email, id),
+      DistributionDao.editCheckPhoneNumberExist(officerData.phoneNumber01, id),
+      officerData.phoneNumber02 
+        ? DistributionDao.editCheckPhoneNumberExist(officerData.phoneNumber02, id)
+        : Promise.resolve(false)
+    ]);
+
+    // Collect validation errors
+    const validationErrors = [];
+    if (isExistingNIC) validationErrors.push({ field: 'nic', message: 'NIC already exists' });
+    if (isExistingEmail) validationErrors.push({ field: 'email', message: 'Email already exists' });
+    if (isExistingPhoneNumber01) validationErrors.push({ field: 'phoneNumber01', message: 'Primary phone number already exists' });
+    if (isExistingPhoneNumber02) validationErrors.push({ field: 'phoneNumber02', message: 'Secondary phone number already exists' });
+
+    if (validationErrors.length > 0) {
+      return res.status(409).json({
+        error: "Validation failed",
+        errors: validationErrors,
+        status: false
+      });
     }
 
-    const isExistingPhoneNumber01 = await DistributionDao.checkPhoneNumberExist(officerData.phoneNumber01, id);
-    if (isExistingPhoneNumber01) {
-      return res.status(400).json({ error: "Primary phone number already exists" });
-    }
-
-    if (officerData.phoneNumber02) {
-      const isExistingPhoneNumber02 = await DistributionDao.checkPhoneNumberExist(officerData.phoneNumber02, id);
-      if (isExistingPhoneNumber02) {
-        return res.status(400).json({ error: "Secondary phone number already exists" });
-      }
-    }
-
-    let profileImageUrl = null;
-
+    // Process profile image
+    let profileImageUrl = existingOfficer.image;
+    
     if (req.body.file) {
-      console.log("Received");
-      // Delete existing QR code or profile image from S3 if it exists
-      if (qrCode.image) {
-        await deleteFromS3(qrCode.image);
+      try {
+        // Delete old image if exists
+        if (existingOfficer.image) {
+          await deleteFromS3(existingOfficer.image);
+        }
+
+        profileImageUrl = await processBase64Image(
+          req.body.file,
+          `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}`,
+          "distributionofficer/image"
+        );
+      } catch (err) {
+        console.error("Error processing profile image:", err);
+        return res.status(400).json({ 
+          error: "Invalid profile image format",
+          status: false 
+        });
       }
-
-      const base64String = req.body.file.split(",")[1]; // Extract the Base64 content
-      const mimeType = req.body.file.match(/data:(.*?);base64,/)[1]; // Extract MIME type
-      const fileBuffer = Buffer.from(base64String, "base64"); // Decode Base64 to buffer
-
-      const fileExtension = mimeType.split("/")[1]; // Extract file extension from MIME type
-      const fileName = `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}.${fileExtension}`;
-
-      profileImageUrl = await uploadFileToS3(
-        fileBuffer,
-        fileName,
-        "collectionofficer/image"
-      );
-    } else {
-      profileImageUrl = qrCode.image; // Retain existing image if no new file is provided
     }
 
-    const {
-      centerId,
-      companyId,
-      irmId,
-      firstNameEnglish,
-      lastNameEnglish,
-      firstNameSinhala,
-      lastNameSinhala,
-      firstNameTamil,
-      lastNameTamil,
-      jobRole,
-      empId,
-      empType,
-      phoneCode01,
-      phoneNumber01,
-      phoneCode02,
-      phoneNumber02,
-      nic,
-      email,
-      houseNumber,
-      streetName,
-      city,
-      district,
-      province,
-      country,
-      languages,
-      accHolderName,
-      accNumber,
-      bankName,
-      branchName,
-    } = officerData;
-    console.log(empId);
-
+    // Update officer details
     await DistributionDao.updateDistributionOfficerDetails(
       id,
-      centerId,
-      companyId,
-      irmId,
-      firstNameEnglish,
-      lastNameEnglish,
-      firstNameSinhala,
-      lastNameSinhala,
-      firstNameTamil,
-      lastNameTamil,
-      jobRole,
-      empId,
-      empType,
-      phoneCode01,
-      phoneNumber01,
-      phoneCode02,
-      phoneNumber02,
-      nic,
-      email,
-      houseNumber,
-      streetName,
-      city,
-      district,
-      province,
-      country,
-      languages,
-      accHolderName,
-      accNumber,
-      bankName,
-      branchName,
+      officerData.centerId,
+      officerData.companyId,
+      officerData.irmId,
+      officerData.firstNameEnglish,
+      officerData.lastNameEnglish,
+      officerData.firstNameSinhala,
+      officerData.lastNameSinhala,
+      officerData.firstNameTamil,
+      officerData.lastNameTamil,
+      officerData.jobRole,
+      officerData.empId,
+      officerData.empType,
+      officerData.phoneCode01,
+      officerData.phoneNumber01,
+      officerData.phoneCode02,
+      officerData.phoneNumber02,
+      officerData.nic,
+      officerData.email,
+      officerData.houseNumber,
+      officerData.streetName,
+      officerData.city,
+      officerData.district,
+      officerData.province,
+      officerData.country,
+      officerData.languages,
+      officerData.accHolderName,
+      officerData.accNumber,
+      officerData.bankName,
+      officerData.branchName,
       profileImageUrl,
       adminId
     );
 
-    res.json({ message: "Collection officer details updated successfully" });
-  } catch (err) {
-    console.error("Error updating collection officer details:", err);
-    if (err.isJoi) {
-      return res.status(400).json({ error: err.details[0].message });
+    console.log('Officer details updated successfully');
+
+    // Handle driver data if job role is Driver
+    if (officerData.jobRole === "Driver") {
+      try {
+        if (!req.body.driverData) {
+          throw new Error("Driver data is required for Driver role");
+        }
+
+        const driverData = JSON.parse(req.body.driverData);
+        
+        // Check if driver record exists
+        const existingDriverData = await DistributionDao.getDriverDataByOfficerId(id);
+        
+        // Process driver images
+        const imageUrls = await processDriverImagesForUpdate(
+          req, 
+          driverData, 
+          existingDriverData
+        );
+
+        if (existingDriverData) {
+          // Update existing driver record
+          await DistributionDao.updateVehicleRegisterDao(
+            id,
+            driverData,
+            imageUrls.licFrontImageUrl,
+            imageUrls.licBackImageUrl,
+            imageUrls.insFrontImageUrl,
+            imageUrls.insBackImageUrl,
+            imageUrls.vehicleFrontImageUrl,
+            imageUrls.vehicleBackImageUrl,
+            imageUrls.vehicleSideAImageUrl,
+            imageUrls.vehicleSideBImageUrl
+          );
+          console.log('Driver data updated successfully');
+        } else {
+          // Create new driver record
+          await DistributionDao.vehicleRegisterDao(
+            id,
+            driverData,
+            imageUrls.licFrontImageUrl,
+            imageUrls.licBackImageUrl,
+            imageUrls.insFrontImageUrl,
+            imageUrls.insBackImageUrl,
+            imageUrls.vehicleFrontImageUrl,
+            imageUrls.vehicleBackImageUrl,
+            imageUrls.vehicleSideAImageUrl,
+            imageUrls.vehicleSideBImageUrl
+          );
+          console.log('Driver data created successfully');
+        }
+
+      } catch (driverError) {
+        console.error("Error processing driver data:", driverError);
+        return res.status(400).json({
+          error: "Error processing driver information: " + driverError.message,
+          status: false
+        });
+      }
+    } else if (existingOfficer.jobRole === "Driver" && officerData.jobRole !== "Driver") {
+      // If changing from Driver to another role, delete driver data
+      try {
+        const existingDriverData = await DistributionDao.getDriverDataByOfficerId(id);
+        if (existingDriverData) {
+          // Delete images from S3
+          const imagesToDelete = [
+            existingDriverData.licFrontImg,
+            existingDriverData.licBackImg,
+            existingDriverData.insFrontImg,
+            existingDriverData.insBackImg,
+            existingDriverData.vehFrontImg,
+            existingDriverData.vehBackImg,
+            existingDriverData.vehSideImgA,
+            existingDriverData.vehSideImgB
+          ].filter(Boolean);
+
+          await Promise.all(imagesToDelete.map(url => deleteFromS3(url)));
+          
+          // Delete driver record
+          await DistributionDao.deleteDriverData(id);
+          console.log('Driver data deleted as job role changed');
+        }
+      } catch (deleteError) {
+        console.error("Error deleting driver data:", deleteError);
+        // Don't fail the update if driver data deletion fails
+      }
     }
-    res.status(500).json({ error: "Failed to update collection officer details" });
+
+    return res.status(200).json({
+      message: "Distribution Officer updated successfully",
+      status: true
+    });
+
+  } catch (error) {
+    console.error("Error updating distribution officer:", error);
+    console.error("Stack trace:", error.stack);
+
+    if (error.isJoi) {
+      return res.status(400).json({ 
+        error: error.details[0].message,
+        status: false 
+      });
+    }
+
+    if (error instanceof SyntaxError && error.message.includes('JSON')) {
+      return res.status(400).json({
+        error: "Invalid JSON format in request data",
+        status: false
+      });
+    }
+
+    return res.status(500).json({
+      error: "An unexpected error occurred while updating the distribution officer",
+      status: false
+    });
   }
+};
+
+// Helper function to process driver images for update
+const processDriverImagesForUpdate = async (req, driverData, existingDriverData) => {
+  const imageFields = [
+    { key: 'licFront', name: driverData.licFrontName, path: 'vehicleregistration/licFrontImg', existing: existingDriverData?.licFrontImg },
+    { key: 'licBack', name: driverData.licBackName, path: 'vehicleregistration/licBackImg', existing: existingDriverData?.licBackImg },
+    { key: 'insFront', name: driverData.insFrontName, path: 'vehicleregistration/insFrontImg', existing: existingDriverData?.insFrontImg },
+    { key: 'insBack', name: driverData.insBackName, path: 'vehicleregistration/insBackImg', existing: existingDriverData?.insBackImg },
+    { key: 'vehiFront', name: driverData.vFrontName, path: 'vehicleregistration/vehFrontImg', existing: existingDriverData?.vehFrontImg },
+    { key: 'vehiBack', name: driverData.vBackName, path: 'vehicleregistration/vehBackImg', existing: existingDriverData?.vehBackImg },
+    { key: 'vehiSideA', name: driverData.vSideAName, path: 'vehicleregistration/vehSideImgA', existing: existingDriverData?.vehSideImgA },
+    { key: 'vehiSideB', name: driverData.vSideBName, path: 'vehicleregistration/vehSideImgB', existing: existingDriverData?.vehSideImgB }
+  ];
+
+  const uploadPromises = imageFields.map(async (field) => {
+    // If new image provided, upload it and delete old one
+    if (req.body[field.key]) {
+      if (field.existing) {
+        await deleteFromS3(field.existing);
+      }
+      return await processBase64Image(req.body[field.key], field.name, field.path);
+    }
+    // Otherwise keep existing image
+    return field.existing || null;
+  });
+
+  const [
+    licFrontImageUrl,
+    licBackImageUrl,
+    insFrontImageUrl,
+    insBackImageUrl,
+    vehicleFrontImageUrl,
+    vehicleBackImageUrl,
+    vehicleSideAImageUrl,
+    vehicleSideBImageUrl
+  ] = await Promise.all(uploadPromises);
+
+  return {
+    licFrontImageUrl,
+    licBackImageUrl,
+    insFrontImageUrl,
+    insBackImageUrl,
+    vehicleFrontImageUrl,
+    vehicleBackImageUrl,
+    vehicleSideAImageUrl,
+    vehicleSideBImageUrl
+  };
 };
 
 
@@ -1920,29 +2070,60 @@ exports.claimDistributedOfficer = async (req, res) => {
 
 exports.getOfficerById = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log(fullUrl);
+  console.log('Get Officer By ID URL:', fullUrl);
+  
   try {
-    const id = req.params.id;
+    const { id } = req.params;
+    
+    // Get officer data
     const officerData = await DistributionDao.getOfficerById(id);
-
-    console.log('officerData', officerData)
-
-    if (!officerData) {
-      return res.status(404).json({ error: "Distribution Officer not found" });
+    
+    if (!officerData || officerData.length === 0) {
+      return res.status(404).json({ 
+        error: "Distribution Officer not found",
+        status: false 
+      });
     }
 
-    console.log(
-      "Successfully fetched distribution officer, company, and bank details"
-    );
-    res.json({ officerData });
+    console.log('Officer Data:', officerData[0]);
+
+    // Prepare response
+    const response = {
+      officerData: officerData,
+      status: true
+    };
+
+    // If job role is Driver, fetch driver data with images
+    if (officerData[0].jobRole === "Driver") {
+      const driverData = await DistributionDao.getDriverDataByOfficerId(id);
+      
+      if (driverData) {
+        console.log('Driver Data found for officer:', id);
+        response.driverData = [driverData];
+      } else {
+        console.log('No driver data found for officer:', id);
+        response.driverData = [];
+      }
+    }
+
+    console.log("Successfully fetched distribution officer details");
+    res.status(200).json(response);
+    
   } catch (err) {
     if (err.isJoi) {
-      return res.status(400).json({ error: err.details[0].message });
+      return res.status(400).json({ 
+        error: err.details[0].message,
+        status: false 
+      });
     }
     console.error("Error executing query:", err);
-    res.status(500).send("An error occurred while fetching data.");
+    res.status(500).json({ 
+      error: "An error occurred while fetching data.",
+      status: false 
+    });
   }
 };
+
 
 
 exports.getAllDistributionCenterList = async (req, res) => {
@@ -1974,5 +2155,448 @@ exports.getAllDistributionCenterList = async (req, res) => {
 
     console.error("Error fetching news:", err);
     res.status(500).json({ error: "An error occurred while fetching news" });
+  }
+};
+
+
+exports.getAllReasons = async (req, res) => {
+  try {
+    const reasons = await DistributionDao.getAllReasons();
+    res.status(200).json({
+      status: true,
+      message: 'Reasons retrieved successfully',
+      data: reasons
+    });
+  } catch (error) {
+    console.error('Error fetching reasons:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to retrieve reasons',
+      error: error.message
+    });
+  }
+};
+
+// Get reason by ID
+exports.getReasonById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reason = await DistributionDao.getReasonById(id);
+    
+    if (!reason) {
+      return res.status(404).json({
+        status: false,
+        message: 'Reason not found'
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: 'Reason retrieved successfully',
+      data: reason
+    });
+  } catch (error) {
+    console.error('Error fetching reason:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to retrieve reason',
+      error: error.message
+    });
+  }
+};
+
+// Create new reason
+exports.createReason = async (req, res) => {
+  try {
+    const { rsnEnglish, rsnSinhala, rsnTamil } = req.body;
+
+    // Validation
+    if (!rsnEnglish || !rsnSinhala || !rsnTamil) {
+      return res.status(400).json({
+        status: false,
+        message: 'All language fields are required'
+      });
+    }
+
+    // Get next index
+    const nextIndex = await DistributionDao.getNextIndex();
+
+    const reasonData = {
+      indexNo: nextIndex,
+      rsnEnglish: rsnEnglish.trim(),
+      rsnSinhala: rsnSinhala.trim(),
+      rsnTamil: rsnTamil.trim()
+    };
+
+    const result = await DistributionDao.createReason(reasonData);
+
+    res.status(201).json({
+      status: true,
+      message: 'Reason created successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error creating reason:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to create reason',
+      error: error.message
+    });
+  }
+};
+
+
+// Delete reason
+exports.deleteReason = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if trying to delete ID 1
+    if (id === '1' || parseInt(id) === 1) {
+      return res.status(403).json({
+        status: false,
+        message: 'Cannot delete the default reason (ID: 1)'
+      });
+    }
+
+    const affectedRows = await DistributionDao.deleteReason(id);
+
+    if (affectedRows === 0) {
+      return res.status(404).json({
+        status: false,
+        message: 'Reason not found'
+      });
+    }
+
+    // After deletion, get all reasons and update their indexes
+    const allReasons = await DistributionDao.getAllReasons();
+    const reasonsWithNewIndexes = allReasons.map((reason, index) => ({
+      id: reason.id,
+      indexNo: index + 1
+    }));
+    
+    await DistributionDao.updateIndexes(reasonsWithNewIndexes);
+
+    res.status(200).json({
+      status: true,
+      message: 'Reason deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting reason:', error);
+    res.status(500).json({
+      status: false,
+      message: error.message || 'Failed to delete reason',
+      error: error.message
+    });
+  }
+};
+
+// Update indexes after drag and drop reordering
+exports.updateIndexes = async (req, res) => {
+  try {
+    const { reasons } = req.body;
+
+    if (!reasons || !Array.isArray(reasons)) {
+      return res.status(400).json({
+        status: false,
+        message: 'Invalid request format. Expected an array of reasons.'
+      });
+    }
+
+    await DistributionDao.updateIndexes(reasons);
+
+    res.status(200).json({
+      status: true,
+      message: 'Indexes updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating indexes:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to update indexes',
+      error: error.message
+    });
+  }
+};
+
+// Get next available index
+exports.getNextIndex = async (req, res) => {
+  try {
+    const nextIndex = await DistributionDao.getNextIndex();
+    res.status(200).json({
+      status: true,
+      data: { nextIndex }
+    });
+  } catch (error) {
+    console.error('Error getting next index:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to get next index',
+      error: error.message
+    });
+  }
+};
+
+
+exports.getAllHoldReasons = async (req, res) => {
+  try {
+    const reasons = await DistributionDao.getAllHoldReasons();
+    res.status(200).json({
+      status: true,
+      message: 'Hold reasons retrieved successfully',
+      data: reasons
+    });
+  } catch (error) {
+    console.error('Error fetching hold reasons:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to retrieve hold reasons',
+      error: error.message
+    });
+  }
+};
+
+// Get hold reason by ID
+exports.getHoldReasonById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reason = await DistributionDao.getHoldReasonById(id);
+    
+    if (!reason) {
+      return res.status(404).json({
+        status: false,
+        message: 'Hold reason not found'
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: 'Hold reason retrieved successfully',
+      data: reason
+    });
+  } catch (error) {
+    console.error('Error fetching hold reason:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to retrieve hold reason',
+      error: error.message
+    });
+  }
+};
+
+// Create new hold reason
+exports.createHoldReason = async (req, res) => {
+  try {
+    const { rsnEnglish, rsnSinhala, rsnTamil } = req.body;
+
+    // Validation
+    if (!rsnEnglish || !rsnSinhala || !rsnTamil) {
+      return res.status(400).json({
+        status: false,
+        message: 'All language fields are required'
+      });
+    }
+
+    // Get next index
+    const nextIndex = await DistributionDao.getNextHoldReasonIndex();
+
+    const reasonData = {
+      indexNo: nextIndex,
+      rsnEnglish: rsnEnglish.trim(),
+      rsnSinhala: rsnSinhala.trim(),
+      rsnTamil: rsnTamil.trim()
+    };
+
+    const result = await DistributionDao.createHoldReason(reasonData);
+
+    res.status(201).json({
+      status: true,
+      message: 'Hold reason created successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error creating hold reason:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to create hold reason',
+      error: error.message
+    });
+  }
+};
+
+// Delete hold reason
+exports.deleteHoldReason = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if trying to delete ID 1
+    if (id === '1' || parseInt(id) === 1) {
+      return res.status(403).json({
+        status: false,
+        message: 'Cannot delete the default reason (ID: 1)'
+      });
+    }
+
+    const affectedRows = await DistributionDao.deleteHoldReason(id);
+
+    if (affectedRows === 0) {
+      return res.status(404).json({
+        status: false,
+        message: 'Hold reason not found'
+      });
+    }
+
+    // After deletion, get all reasons and update their indexes
+    const allReasons = await DistributionDao.getAllHoldReasons();
+    const reasonsWithNewIndexes = allReasons.map((reason, index) => ({
+      id: reason.id,
+      indexNo: index + 1
+    }));
+    
+    await DistributionDao.updateHoldReasonIndexes(reasonsWithNewIndexes);
+
+    res.status(200).json({
+      status: true,
+      message: 'Hold reason deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting hold reason:', error);
+    res.status(500).json({
+      status: false,
+      message: error.message || 'Failed to delete hold reason',
+      error: error.message
+    });
+  }
+};
+
+// Update indexes after drag and drop reordering
+exports.updateHoldReasonIndexes = async (req, res) => {
+  try {
+    const { reasons } = req.body;
+
+    if (!reasons || !Array.isArray(reasons)) {
+      return res.status(400).json({
+        status: false,
+        message: 'Invalid request format. Expected an array of reasons.'
+      });
+    }
+
+    await DistributionDao.updateHoldReasonIndexes(reasons);
+
+    res.status(200).json({
+      status: true,
+      message: 'Indexes updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating hold reason indexes:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to update indexes',
+      error: error.message
+    });
+  }
+};
+
+// Get next available index
+exports.getNextHoldReasonIndex = async (req, res) => {
+  try {
+    const nextIndex = await DistributionDao.getNextHoldReasonIndex();
+    res.status(200).json({
+      status: true,
+      data: { nextIndex }
+    });
+  } catch (error) {
+    console.error('Error getting next hold reason index:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to get next index',
+      error: error.message
+    });
+  }
+};
+
+exports.getTodaysDeliverieData = async (req, res) => {
+  try {
+    // Extract search parameters from query string
+    const { regCode, invNo, searchType = 'partial' } = req.query;
+    
+    // Build search parameters object
+    const searchParams = {};
+    
+    if (regCode && regCode.trim() !== '') {
+      searchParams.regCode = regCode.trim();
+    }
+    
+    if (invNo && invNo.trim() !== '') {
+      searchParams.invNo = invNo.trim();
+    }
+    
+    // Optional: Add exact match if specified
+    if (searchType === 'exact') {
+      searchParams.exactMatch = true;
+    }
+    
+    // Get deliveries with optional search
+    const deliveries = await DistributionDao.getAllTodaysDeliveries(searchParams);
+    
+    res.status(200).json({
+      status: true,
+      data: deliveries,
+      count: deliveries.length,
+      searchApplied: Object.keys(searchParams).length > 0,
+      searchParams: Object.keys(searchParams).length > 0 ? searchParams : null
+    });
+  } catch (error) {
+    console.error('Error fetching today\'s deliveries:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to fetch today\'s deliveries',
+      error: error.message
+    });
+  }
+};
+
+
+exports.getTargetedCustomerOrders = async (req, res) => {
+  try {
+    // const offset = (page - 1) * limit;
+    const { page, limit, status, sheduleDate, centerId, searchText } = await DistributionValidation.getTargetedCustomerOrdersSchema.validateAsync(req.query);
+
+    const result = await DistributionDao.getTargetedCustomerOrdersDao(page, limit, status, sheduleDate, centerId, searchText);
+    res.status(200).json({
+      items: result.items,
+      total: result.total
+    });
+
+    console.log(result.items);
+    console.log(result.total);
+
+  } catch (error) {
+    console.error('Error getting next hold reason index:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to get next index',
+      error: error.message
+    });
+  }
+};
+
+exports.getDistributedVehicles = async (req, res) => {
+  try {
+    const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
+
+    const result = await DistributionDao.getDistributedVehiclesDao( page, limit, centerName, vehicleType, searchText );
+
+    res.status(200).json({
+      total: result.total,
+      items: result.items
+    });
+  } catch (error) {
+    console.error('Get Distributed Vehicles Error:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to load vehicles',
+      error: error.message
+    });
   }
 };

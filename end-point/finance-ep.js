@@ -8,6 +8,8 @@ const {
   createPaymentHistorySchema,
   updatePaymentHistorySchema,
   paymentHistoryIdSchema,
+  getAllInvestmentSchema,
+  getInvestmentIdSchema
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
@@ -279,6 +281,12 @@ exports.getCertificateDashboardData = async (req, res) => {
       incomeStatus = "increased";
     }
 
+    // Cap relativeIncomeValue at 100 (FIXED)
+    const relativeIncomeValue = Math.min(
+      100,
+      Math.abs(parseFloat(incomeChangePercentage.toFixed(2)))
+    );
+
     // Create data structure up to current month only
     const monthNames = [
       "Jan",
@@ -332,17 +340,13 @@ exports.getCertificateDashboardData = async (req, res) => {
           ?.count || 0,
     };
 
-    // Format recent payments with validity period
+    // Format recent payments with validity period (FIXED)
+    // Validity period now comes pre-formatted from SQL
     const formattedRecentPayments = dashboardData.recentPayments.map(
       (payment) => ({
         transactionId: payment.transactionId,
         farmerName: payment.farmerName,
-        validityPeriod:
-          payment.validityMonths > 0
-            ? `${payment.validityMonths} month${
-                payment.validityMonths !== 1 ? "s" : ""
-              }`
-            : "Expired",
+        validityPeriod: payment.validityMonths || "Expired",
         amount: payment.amount,
         dateTime: payment.dateTime,
       })
@@ -356,9 +360,7 @@ exports.getCertificateDashboardData = async (req, res) => {
           activeEnrollments: dashboardData.stats.activeEnrollments,
           expiredEnrollments: dashboardData.stats.expiredEnrollments,
           monthlyIncome: currentIncome,
-          relativeIncomeValue: Math.abs(
-            parseFloat(incomeChangePercentage.toFixed(2))
-          ),
+          relativeIncomeValue: relativeIncomeValue, // Now capped at 100
           incomeStatus: incomeStatus,
         },
         recentPayments: formattedRecentPayments,
@@ -772,7 +774,7 @@ exports.createPaymentHistory = async (req, res) => {
     );
 
     const { receivers, amount, paymentReference } = validatedBody;
-    const issueBy = req.user.userId; 
+    const issueBy = req.user.userId;
 
     console.log("Creating payment history:", {
       receivers,
@@ -1063,11 +1065,11 @@ exports.getAllInvestmentRequests = async (req, res) => {
     console.log('Fetching all investment requests with filters:', { status, search });
 
     const filters = {};
-    
+
     if (status) {
       filters.status = status;
     }
-    
+
     if (search) {
       filters.search = search;
     }
@@ -1075,7 +1077,7 @@ exports.getAllInvestmentRequests = async (req, res) => {
     const results = await financeDao.GetAllInvestmentRequestsDAO(filters);
 
     console.log(`Retrieved ${results.length} investment request records`);
-    
+
     res.json({
       count: results.length,
       data: results
@@ -1151,10 +1153,10 @@ exports.getOfficersByDistrictAndRoleForInvestment = async (req, res) => {
 exports.assignOfficerToInvestmentRequest = async (req, res) => {
   try {
     const { requestId, officerId } = req.body;
-    
+
     const assignByUserId = req.user.userId;
-    console.log('Assigning officer to investment request:', assignByUserId );
-    
+    console.log('Assigning officer to investment request:', assignByUserId);
+
     console.log('Authentication debug:', {
       user: req.user,
       assignByUserId: assignByUserId
@@ -1267,7 +1269,7 @@ exports.getAllPublishedProjects = async (req, res) => {
     // console.log({ page, limit });
     console.log('result', result);
 
-    return res.status(200).json({items: result});
+    return res.status(200).json({ items: result });
   } catch (error) {
 
 
@@ -1282,7 +1284,7 @@ exports.getAllPublishedProjects = async (req, res) => {
 exports.GetAllApprovedInvestmentRequests = async (req, res) => {
   try {
     const { status, search } = req.query;
-    
+
     const filters = {
       status: status || undefined,
       search: search || undefined,
@@ -1306,7 +1308,7 @@ exports.GetAllApprovedInvestmentRequests = async (req, res) => {
 };
 
 exports.UpdateInvestmentRequestPublishStatus = async (req, res) => {
-    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
     const requestId = req.params.id;
@@ -1316,7 +1318,7 @@ exports.UpdateInvestmentRequestPublishStatus = async (req, res) => {
 
     // First check if request exists and is approved
     const request = await financeDao.GetApprovedInvestmentRequestByIdDAO(requestId);
-    
+
     if (!request) {
       return res.status(404).json({
         status: false,
@@ -1339,7 +1341,7 @@ exports.UpdateInvestmentRequestPublishStatus = async (req, res) => {
     }
 
     // Update publish status
-    await financeDao.UpdateInvestmentRequestPublishStatusDAO(requestId,publishBy);
+    await financeDao.UpdateInvestmentRequestPublishStatusDAO(requestId, publishBy);
 
     res.status(200).json({
       status: true,
@@ -1354,3 +1356,316 @@ exports.UpdateInvestmentRequestPublishStatus = async (req, res) => {
   }
 };
 
+exports.GetProjectInvestment = async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    const filters = {
+      search: search || undefined,
+    };
+
+    const results = await financeDao.GetProjectInvesmentDAO(filters);
+    const count = results.length;
+
+    res.status(200).json({
+      count: count,
+      data: results,
+    });
+  } catch (error) {
+    console.error('Error in GetProjectInvestment:', error);
+    res.status(500).json({
+      count: 0,
+      data: [],
+      error: 'Internal server error',
+    });
+  }
+};
+
+exports.getALlInvestments = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    // const { id, status } = req.query;
+
+    const { id, status, search } = await getAllInvestmentSchema.validateAsync(
+      req.query
+    );
+
+    // Call the DAO to get all collection officers
+    const result = await financeDao.getAllInvestmentsDao(
+      id, status, search
+    );
+
+    // console.log({ page, limit });
+    console.log('result', result);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching collection officers:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
+exports.ApproveInvestmentRequestEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+
+    const { id } = await getInvestmentIdSchema.validateAsync(
+      req.params
+    );
+
+    const result = await financeDao.approveInvestmentRequestDao(Number(id));
+
+    // console.log({ page, limit });
+    console.log('result', result);
+
+    if (result?.affectedRows === 1) {
+      return res.status(200).json({
+        success: true,
+        message: "Action completed successfully.",
+        data: result
+      });
+    }
+    else if (result?.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Action failed"
+      });
+    }
+    // return res.status(200).json({
+    //       success: true,
+    //       message: "Action completed successfully.",
+    //       data: result
+    //     });
+
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching collection officers:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
+exports.RejectInvestmentRequestEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+
+    const { id } = await getInvestmentIdSchema.validateAsync(
+      req.params
+    );
+
+    const result = await financeDao.RejectInvestmentRequestDao(Number(id));
+
+    // console.log({ page, limit });
+    console.log('result', result);
+
+    if (result?.affectedRows === 1) {
+      return res.status(200).json({
+        success: true,
+        message: "Action completed successfully.",
+        data: result
+      });
+    }
+    else if (result?.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Action failed"
+      });
+    }
+    // return res.status(200).json({
+    //       success: true,
+    //       message: "Action completed successfully.",
+    //       data: result
+    //     });
+
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching collection officers:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
+exports.getInspectionDerailsEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+
+    const { id } = await getInvestmentIdSchema.validateAsync(
+      req.params
+    );
+
+    const result = await financeDao.getInspectionDerailsDao(Number(id));
+    const shares = await financeDao.getDetailsForDivideShareDao(Number(id));
+
+    // console.log({ page, limit });
+    // console.log('result', result);
+
+    res.status(200).json({
+      success: true,
+      message: "Inspection details retrieved successfully.",
+      data: result,
+      shares
+    });
+
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching collection officers:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
+exports.GetAllAuditedInvestmentRequests = async (req, res) => {
+  try {
+    const { status, search } = req.query;
+
+    const filters = {
+      status: status || undefined,
+      search: search || undefined,
+    };
+
+    const results = await financeDao.GetAllAuditedInvestmentRequestsDAO(filters);
+    const count = results.length;
+
+    res.status(200).json({
+      count: count,
+      data: results,
+    });
+  } catch (error) {
+    console.error('Error in GetAllApprovedInvestmentRequests:', error);
+    res.status(500).json({
+      count: 0,
+      data: [],
+      error: 'Internal server error',
+    });
+  }
+};
+
+
+exports.devideSharesRequestEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+  try {
+    const { sharesData } = req.body;
+
+    console.log('sharesData', sharesData)
+
+    // Validate required fields
+    if (!sharesData) {
+      return res.status(400).json({
+        message: "sharesdata is required",
+        status: false,
+      });
+    }
+
+    const result = await financeDao.devideSharesDao(
+      sharesData
+    );
+
+    if (result) {
+      approveRequestResult = await financeDao.ApproveRequestDao(
+        sharesData.id
+      );
+    }
+
+    res.status(200).json({
+      message: "Request Approved Successfully",
+      status: true,
+      data: approveRequestResult,
+    });
+  } catch (err) {
+    console.error("Error Approving the request:", err);
+
+    if (err.message.includes("not found")) {
+      return res.status(404).json({
+        message: err.message,
+        status: false,
+      });
+    }
+
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  }
+};
+
+
+exports.rejectRequestEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log("Request URL:", fullUrl);
+  try {
+    const { reqId, reason } = req.body;
+
+    console.log(' reqId, reason',  reqId, reason)
+
+    // Validate required fields
+    if (!reqId || !reason ) {
+      return res.status(400).json({
+        message: "reqId, reason are required",
+        status: false,
+      });
+    }
+
+    const result = await financeDao.updateRejectReasonDao(
+      reqId, reason
+    );
+
+    if (result) {
+      rejectRequestResult = await financeDao.rejectRequestDao(
+        reqId
+      );
+    }
+
+    res.status(200).json({
+      message: "Request Approved Successfully",
+      status: true,
+      data: rejectRequestResult,
+    });
+  } catch (err) {
+    console.error("Error Approving the request:", err);
+
+    if (err.message.includes("not found")) {
+      return res.status(404).json({
+        message: err.message,
+        status: false,
+      });
+    }
+
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  }
+};

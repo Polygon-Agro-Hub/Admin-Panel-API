@@ -87,3 +87,23 @@ exports.dcmGetparmasIdSchema = Joi.object({
     completingStatus: Joi.string().allow('').optional(),
     
 });
+
+exports.getTargetedCustomerOrdersSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(100),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+  status: Joi.string().valid('Unknown', 'Pending', 'Opened', 'Completed').optional(),
+  sheduleDate: Joi.date().iso().optional(),
+  centerId: Joi.number().integer().positive().optional(),
+  searchText: Joi.string().trim().min(1).max(50).optional(),
+  phoneNumber: Joi.string()
+    .pattern(/^\+94-\d{9}$/)
+    .optional()
+});
+
+exports.getDistributedVehiclesSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(5000).default(10),
+  centerName: Joi.string().optional(),
+  vehicleType: Joi.string().optional(),
+  searchText: Joi.string().trim().min(1).max(50).optional(),
+});

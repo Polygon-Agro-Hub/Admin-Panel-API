@@ -1,4 +1,4 @@
-const { admin, plantcare, collectionofficer, marketPlace, dash, } = require("../startup/database");
+const { admin, plantcare, collectionofficer, marketPlace, investment, } = require("../startup/database");
 const { Upload } = require("@aws-sdk/lib-storage");
 const Joi = require("joi");
 
@@ -380,6 +380,8 @@ exports.getMarketplaceComplaintById = (complaintId) => {
         mu.phonecode AS phonecode,
         mu.phoneNumber AS phone,
         CONCAT(mu.phonecode, '-', mu.phoneNumber) AS ContactNumber,
+        mu.companyName,
+        CONCAT(mu.companyPhoneCode, '-', mu.companyPhone) AS companyContactNumber,
         mc.refId AS refNo,
         cc.categoryEnglish,
         GROUP_CONCAT(mci.image) AS imageUrls
@@ -692,5 +694,143 @@ exports.GetAllCompanyForOfficerComplain = () => {
       }
       resolve(results);
     });
+  });
+};
+
+exports.GetAllDriverComplainDAO = (
+  page,
+  limit,
+  status,
+  category,
+  comCategory,
+  filterCompany,
+  searchText,
+  rpstatus
+) => {
+  return new Promise((resolve, reject) => {
+    const Sqlparams = [];
+    const Counterparams = [];
+    const offset = (page - 1) * limit;
+
+    // SQL to count total records - Added missing JOINs
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM drivercomplains oc
+  LEFT JOIN collectionofficer co ON oc.driverId = co.id
+  LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
+  LEFT JOIN  company c ON co.companyId = c.id
+  LEFT JOIN  distributedcenter dc ON co.distributedCenterId = dc.id
+  LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+  LEFT JOIN agro_world_admin.adminusers au ON oc.adminReplyBy = au.id
+  WHERE 1=1
+    `;
+
+    // SQL to fetch paginated data
+    let sql = `
+    SELECT 
+    oc.id, 
+    oc.refNo,
+    co.empId AS empId,
+    CONCAT (co.firstNameEnglish, ' ', co.lastNameEnglish) AS officerName,
+    CONCAT (co.firstNameSinhala, ' ', co.lastNameSinhala) AS officerNameSinhala,
+    CONCAT (co.firstNameTamil, ' ', co.lastNameTamil) AS officerNameTamil,
+    c.companyNameEnglish AS companyName,
+    cc.categoryEnglish AS complainCategory,
+    ar.role,
+    oc.createdAt,
+    oc.complain,
+    oc.status AS status,
+    oc.reply,
+    dc.regCode,
+    au.userName AS replyBy
+  FROM drivercomplains oc
+  LEFT JOIN collectionofficer co ON oc.driverId = co.id
+  LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
+  LEFT JOIN  company c ON co.companyId = c.id
+  LEFT JOIN  distributedcenter dc ON co.distributedCenterId = dc.id
+  LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
+  LEFT JOIN agro_world_admin.adminusers au ON oc.adminReplyBy = au.id
+  WHERE 1=1
+    `;
+
+    // Add filter for status
+    if (status) {
+      countSql += " AND oc.status = ? ";
+      sql += " AND oc.status = ? ";
+      Sqlparams.push(status);
+      Counterparams.push(status);
+    }
+
+    // Fixed category filter to use the correct alias
+    if (category) {
+      countSql += " AND ar.role = ? ";
+      sql += " AND ar.role = ? ";
+      Sqlparams.push(category);
+      Counterparams.push(category);
+    }
+
+    if (comCategory) {
+      countSql += " AND oc.complainCategory = ? ";
+      sql += " AND oc.complainCategory = ? ";
+      Sqlparams.push(comCategory);
+      Counterparams.push(comCategory);
+    }
+
+    if (filterCompany) {
+      countSql += " AND c.id = ? ";
+      sql += " AND c.id = ? ";
+      Sqlparams.push(filterCompany);
+      Counterparams.push(filterCompany);
+    }
+
+    // Add search functionality
+    if (searchText) {
+      countSql += `
+        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
+      `;
+      sql += `
+        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
+      `;
+      const searchQuery = `%${searchText}%`;
+      Sqlparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+      Counterparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+    }
+
+    if (rpstatus) {
+      console.log('rpstatus', rpstatus)
+      if (rpstatus === "Yes") {
+        countSql += " AND oc.reply IS NOT NULL ";
+        sql += " AND oc.reply IS NOT NULL ";
+      } else {
+        countSql += " AND oc.reply IS NULL ";
+        sql += " AND oc.reply IS NULL ";
+      }
+    }
+
+    // Add pagination
+    sql += " ORDER BY oc.createdAt DESC LIMIT ? OFFSET ?";
+    Sqlparams.push(parseInt(limit), parseInt(offset));
+
+    // Execute count query to get total records
+    collectionofficer.query(
+      countSql,
+      Counterparams,
+      (countErr, countResults) => {
+        if (countErr) {
+          return reject(countErr);
+        }
+
+        const total = countResults[0]?.total || 0;
+
+        // Execute main query to get paginated results
+        collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
+          if (dataErr) {
+            return reject(dataErr);
+          }
+
+          resolve({ results, total });
+        });
+      }
+    );
   });
 };

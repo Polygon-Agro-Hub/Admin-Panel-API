@@ -2,7 +2,7 @@ const {
   plantcare,
   collectionofficer,
   marketPlace,
-  dash,
+  investment,
 } = require("../startup/database");
 const { error } = require("console");
 const Joi = require("joi");
@@ -32,7 +32,16 @@ exports.checkExistingDistributionCenter = (checkData) => {
       WHERE (centerName = ? OR regCode = ? OR contact01 = ? OR email = ?)
     `;
 
-    const values = [name, regCode, contact01, email, name, regCode, contact01, email];
+    const values = [
+      name,
+      regCode,
+      contact01,
+      email,
+      name,
+      regCode,
+      contact01,
+      email,
+    ];
 
     // Add exclusion for update operations
     if (excludeId) {
@@ -57,20 +66,16 @@ exports.checkExistingDistributionCenter = (checkData) => {
             message = "name";
             break;
           case "regCode":
-            message =
-              "regCode";
+            message = "regCode";
             break;
           case "email":
-            message =
-              "email";
+            message = "email";
             break;
           case "contact":
-            message =
-              "contact";
+            message = "contact";
             break;
           default:
-            message =
-              "default";
+            message = "default";
         }
 
         resolve({
@@ -693,7 +698,6 @@ exports.GetDistributionHeadDetailsByIdDao = (id) => {
   });
 };
 
-
 exports.UpdateDistributionHeadDao = (id, updateData, adminId) => {
   console.log("id", id);
   console.log("updateData", updateData);
@@ -737,7 +741,7 @@ exports.UpdateDistributionHeadDao = (id, updateData, adminId) => {
       updateData.bankName,
       updateData.branchName,
       updateData.image,
-      'Not Approved',
+      "Not Approved",
       updateData.claimStatus,
       updateData.onlineStatus,
       adminId,
@@ -939,7 +943,8 @@ exports.DeleteDistributionCenter = (id) => {
 exports.generateRegCode = (province, district, city, callback) => {
   // Generate the prefix based on province and district with "P" after province initial
   const prefix =
-    province.charAt(0).toUpperCase() + 'P' +
+    province.charAt(0).toUpperCase() +
+    "P" +
     district.charAt(0).toUpperCase() +
     city.charAt(0).toUpperCase();
 
@@ -967,7 +972,6 @@ exports.generateRegCode = (province, district, city, callback) => {
     callback(null, newRegCode);
   });
 };
-
 
 exports.GetDistributionCenterByName = (name) => {
   return new Promise((resolve, reject) => {
@@ -1323,7 +1327,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => { });
+    doc.on("end", () => {});
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -1513,11 +1517,9 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
           return resolve("DCM00001");
         } else if (employee === "Distribution Officer") {
           return resolve("DIO00001");
-        }
-        else if (employee === "Driver") {
+        } else if (employee === "Driver") {
           return resolve("DVR00001");
         }
-        
       }
 
       const highestId = results[0].empId;
@@ -1564,9 +1566,7 @@ exports.createDistributionOfficerPersonal = (
 
       // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
-      if (
-        officerData.jobRole === "Distribution Centre Manager"
-      ) {
+      if (officerData.jobRole === "Distribution Centre Manager") {
         officerData.irmId = null;
       }
 
@@ -1631,17 +1631,16 @@ exports.createDistributionOfficerPersonal = (
   });
 };
 
-
 exports.vehicleRegisterDao = (
-  id, 
-  driverData, 
-  licFrontImg, 
-  licBackImg, 
-  insFrontImg, 
-  insBackImg, 
-  vehFrontImg, 
-  vehBackImg, 
-  vehSideImgA, 
+  id,
+  driverData,
+  licFrontImg,
+  licBackImg,
+  insFrontImg,
+  insBackImg,
+  vehFrontImg,
+  vehBackImg,
+  vehSideImgA,
   vehSideImgB
 ) => {
   return new Promise((resolve, reject) => {
@@ -1671,7 +1670,7 @@ exports.vehicleRegisterDao = (
         vehFrontImg,
         vehBackImg,
         vehSideImgA,
-        vehSideImgB
+        vehSideImgB,
       ],
       (err, results) => {
         if (err) {
@@ -1687,7 +1686,7 @@ exports.vehicleRegisterDao = (
 exports.DeleteOfficerDao = (officerId) => {
   return new Promise((resolve, reject) => {
     const sql = `DELETE FROM collectionofficer WHERE id = ?`;
-    
+
     collectionofficer.query(sql, [officerId], (err, results) => {
       if (err) {
         console.error("Delete officer error:", err);
@@ -1855,7 +1854,12 @@ exports.getOfficerByIdMonthly = (id) => {
   });
 };
 
-exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => {
+exports.getDistributedCenterTargetDao = async (
+  id,
+  status,
+  date,
+  searchText
+) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [id];
     let sql = `
@@ -1911,8 +1915,8 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
     `;
 
     // === Add Status Filter ===
-    if (status && status.trim() !== '') {
-      if (status === 'Pending') {
+    if (status && status.trim() !== "") {
+      if (status === "Pending") {
         sql += `
           AND (
             (pic.packageStatus = 'Pending' AND (aic.additionalItemsStatus = 'Unknown' OR aic.additionalItemsStatus IS NULL)) OR
@@ -1921,14 +1925,14 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
             (pic.packageStatus = 'Pending' AND aic.additionalItemsStatus = 'Pending')
           )
         `;
-      } else if (status === 'Opened') {
+      } else if (status === "Opened") {
         sql += `
           AND (
             pic.packageStatus = 'Opened' OR
             aic.additionalItemsStatus = 'Opened'
           )
         `;
-      } else if (status === 'Completed') {
+      } else if (status === "Completed") {
         sql += `
           AND (
             (pic.packageStatus = 'Completed' AND (aic.additionalItemsStatus = 'Unknown' OR aic.additionalItemsStatus IS NULL)) OR
@@ -1945,21 +1949,21 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
       let dateValue;
 
       // Handle different date formats
-      if (typeof date === 'string') {
+      if (typeof date === "string") {
         dateValue = date.trim();
       } else if (date instanceof Date) {
         // Convert Date object to YYYY-MM-DD format
-        dateValue = date.toISOString().split('T')[0];
+        dateValue = date.toISOString().split("T")[0];
       }
 
-      if (dateValue && dateValue !== '') {
+      if (dateValue && dateValue !== "") {
         sql += ` AND DATE(o.sheduleDate) = DATE(?)`;
         sqlParams.push(dateValue);
       }
     }
 
     // Add search text filter
-    if (searchText && searchText.trim() !== '') {
+    if (searchText && searchText.trim() !== "") {
       sql += ` AND po.invNo LIKE ?`;
       sqlParams.push(`%${searchText.trim()}%`);
     }
@@ -1968,7 +1972,7 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
       sql += `
      AND ((o.sheduleDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY))  
        OR (o.sheduleDate < CURDATE() AND dt.complete != dt.target))
-      `
+      `;
     }
 
     // Add ORDER BY for consistent results
@@ -1987,13 +1991,13 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
     `;
 
     // Add logging for debugging
-    console.log('SQL Query:', sql);
-    console.log('SQL Parameters:', sqlParams);
-    console.log('Filter Parameters:', { id, status, date, searchText });
+    console.log("SQL Query:", sql);
+    console.log("SQL Parameters:", sqlParams);
+    console.log("Filter Parameters:", { id, status, date, searchText });
 
     collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
-        console.error('Database query error:', err);
+        console.error("Database query error:", err);
         reject(err);
       } else {
         console.log(`Query returned ${results.length} results`);
@@ -2003,8 +2007,12 @@ exports.getDistributedCenterTargetDao = async (id, status, date, searchText) => 
   });
 };
 
-
-exports.getEachDistributedCenterOfficersDao = (data, status, role, searchText) => {
+exports.getEachDistributedCenterOfficersDao = (
+  data,
+  status,
+  role,
+  searchText
+) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [data.companyId, data.centerId];
     let sql = `
@@ -2048,7 +2056,6 @@ exports.getEachDistributedCenterOfficersDao = (data, status, role, searchText) =
   });
 };
 
-
 exports.getCenterAndCompanyIdDao = (companyCenteerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -2067,8 +2074,12 @@ exports.getCenterAndCompanyIdDao = (companyCenteerId) => {
   });
 };
 
-
-exports.getDistributionOutForDlvrOrderDao = (id, searchText, filterDate, status) => {
+exports.getDistributionOutForDlvrOrderDao = (
+  id,
+  searchText,
+  filterDate,
+  status
+) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [id];
     let sql = `
@@ -2105,9 +2116,9 @@ exports.getDistributionOutForDlvrOrderDao = (id, searchText, filterDate, status)
 
     // Add status filter (only 'On Time' or 'Late')
     if (status) {
-      if (status === 'On Time') {
+      if (status === "On Time") {
         sql += ` AND po.outDlvrDate IS NOT NULL AND po.outDlvrDate <= o.sheduleDate `;
-      } else if (status === 'Late') {
+      } else if (status === "Late") {
         sql += ` AND po.outDlvrDate IS NOT NULL AND po.outDlvrDate > o.sheduleDate `;
       }
     }
@@ -2196,7 +2207,7 @@ exports.updateDistributionOfficerDetails = (
       bankName,
       branchName,
       profileImageUrl,
-      adminId
+      adminId,
     ];
 
     sql += ` WHERE id = ?`;
@@ -2207,6 +2218,24 @@ exports.updateDistributionOfficerDetails = (
         return reject(err);
       }
       resolve(results);
+    });
+  });
+};
+
+exports.editCheckPhoneNumberExist = async (phoneNumber, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM collectionofficer 
+               WHERE (phoneNumber01 = ? OR phoneNumber02 = ?)`;
+    const params = [phoneNumber, phoneNumber];
+
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
     });
   });
 };
@@ -2226,6 +2255,105 @@ exports.editCheckNICExist = async (nic, excludeId = null) => {
   });
 };
 
+exports.getOfficerById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `SELECT * FROM collectionofficer WHERE id = ?`;
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.getDriverDataByOfficerId = (officerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        vr.*,
+        SUBSTRING_INDEX(vr.licFrontImg, '/', -1) as licFrontName,
+        SUBSTRING_INDEX(vr.licBackImg, '/', -1) as licBackName,
+        SUBSTRING_INDEX(vr.insFrontImg, '/', -1) as insFrontName,
+        SUBSTRING_INDEX(vr.insBackImg, '/', -1) as insBackName,
+        SUBSTRING_INDEX(vr.vehFrontImg, '/', -1) as vFrontName,
+        SUBSTRING_INDEX(vr.vehBackImg, '/', -1) as vBackName,
+        SUBSTRING_INDEX(vr.vehSideImgA, '/', -1) as vSideAName,
+        SUBSTRING_INDEX(vr.vehSideImgB, '/', -1) as vSideBName
+      FROM vehicleregistration vr 
+      WHERE vr.coId = ?
+    `;
+
+    collectionofficer.query(sql, [officerId], (err, results) => {
+      if (err) {
+        console.error("Error fetching driver data:", err);
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.updateVehicleRegisterDao = (
+  id,
+  driverData,
+  licFrontImg,
+  licBackImg,
+  insFrontImg,
+  insBackImg,
+  vehFrontImg,
+  vehBackImg,
+  vehSideImgA,
+  vehSideImgB
+) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE vehicleregistration 
+      SET licNo = ?, insNo = ?, insExpDate = ?, vType = ?, vCapacity = ?, 
+          vRegNo = ?, licFrontImg = ?, licBackImg = ?, insFrontImg = ?, 
+          insBackImg = ?, vehFrontImg = ?, vehBackImg = ?, 
+          vehSideImgA = ?, vehSideImgB = ?
+      WHERE coId = ?
+    `;
+
+    collectionofficer.query(
+      sql,
+      [
+        driverData.licNo,
+        driverData.insNo,
+        driverData.insExpDate,
+        driverData.vType,
+        driverData.vCapacity,
+        driverData.vRegNo,
+        licFrontImg,
+        licBackImg,
+        insFrontImg,
+        insBackImg,
+        vehFrontImg,
+        vehBackImg,
+        vehSideImgA,
+        vehSideImgB,
+        id,
+      ],
+      (err, results) => {
+        if (err) {
+          console.error("Vehicle registration update error:", err);
+          return reject(err);
+        }
+        resolve(results);
+      }
+    );
+  });
+};
+
+exports.deleteDriverData = (officerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `DELETE FROM vehicleregistration WHERE coId = ?`;
+    collectionofficer.query(sql, [officerId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
 exports.EditCheckEmailExist = async (email, excludeId = null) => {
   return new Promise((resolve, reject) => {
     let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE email = ?`;
@@ -2240,7 +2368,6 @@ exports.EditCheckEmailExist = async (email, excludeId = null) => {
     });
   });
 };
-
 
 exports.getOfficerDailyDistributionTargetDao = async (id, date) => {
   return new Promise((resolve, reject) => {
@@ -2272,8 +2399,7 @@ exports.getOfficerDailyDistributionTargetDao = async (id, date) => {
   });
 };
 
-
-exports.getSelectTargetItems = (targetId, searchText = '', status = '') => {
+exports.getSelectTargetItems = (targetId, searchText = "", status = "") => {
   return new Promise((resolve, reject) => {
     let sql = `
       WITH package_item_statuses AS (
@@ -2363,7 +2489,6 @@ exports.getSelectTargetItems = (targetId, searchText = '', status = '') => {
       params.push(`%${searchText}%`);
     }
 
-
     collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
@@ -2372,9 +2497,6 @@ exports.getSelectTargetItems = (targetId, searchText = '', status = '') => {
     });
   });
 };
-
-
-
 
 exports.getDistributedCompanyCenter = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
@@ -2411,16 +2533,21 @@ exports.getDeliveryChargeCity = (companyCenterId) => {
       }
 
       // Map result rows into an array of city values
-      const cities = results.map(row => row.city);
+      const cities = results.map((row) => row.city);
       resolve(cities);
     });
   });
 };
 
-exports.dcmGetSelectedOfficerTargetsDao = (officerId, deliveryLocationData, search, packageStatus, centerId) => {
-  console.log('officerId', officerId)
+exports.dcmGetSelectedOfficerTargetsDao = (
+  officerId,
+  deliveryLocationData,
+  search,
+  packageStatus,
+  centerId
+) => {
+  console.log("officerId", officerId);
   return new Promise((resolve, reject) => {
-
     const params = [officerId];
 
     if (deliveryLocationData && deliveryLocationData.length > 0) {
@@ -2439,24 +2566,23 @@ exports.dcmGetSelectedOfficerTargetsDao = (officerId, deliveryLocationData, sear
       OR o.isPackage = 0
     )
     AND (
-      ${deliveryLocationData && deliveryLocationData.length > 0
-        ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-        : ""}
+      ${
+        deliveryLocationData && deliveryLocationData.length > 0
+          ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+          : ""
+      }
       o.centerId = ?
     )
      `;
-
-
 
     if (search) {
       whereClause += ` AND (po.invNo LIKE ?)`;
       const searchPattern = `%${search}%`;
       params.push(searchPattern);
-
     }
 
     if (packageStatus) {
-      if (packageStatus === 'Pending') {
+      if (packageStatus === "Pending") {
         whereClause += ` 
         AND (
           (pic.packedItems = 0 AND pic.totalItems > 0) 
@@ -2464,7 +2590,7 @@ exports.dcmGetSelectedOfficerTargetsDao = (officerId, deliveryLocationData, sear
           (COALESCE(aic.packedAdditionalItems, 0) = 0 AND COALESCE(aic.totalAdditionalItems, 0) > 0)
         )
       `;
-      } else if (packageStatus === 'Completed') {
+      } else if (packageStatus === "Completed") {
         whereClause += ` 
         AND (
           (pic.totalItems > 0 AND pic.packedItems = pic.totalItems) 
@@ -2472,7 +2598,7 @@ exports.dcmGetSelectedOfficerTargetsDao = (officerId, deliveryLocationData, sear
           (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0))
         )
       `;
-      } else if (packageStatus === 'Opened') {
+      } else if (packageStatus === "Opened") {
         whereClause += ` 
         AND (
           (pic.packedItems > 0 AND pic.totalItems > pic.packedItems) 
@@ -2573,16 +2699,15 @@ LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
 
       `;
 
-
-    console.log('Executing Data Query...');
+    console.log("Executing Data Query...");
     marketPlace.query(dataSql, params, (dataErr, dataResults) => {
       if (dataErr) {
         console.error("Error in data query:", dataErr);
         return reject(dataErr);
       }
-      console.log('dataResults', dataResults)
+      console.log("dataResults", dataResults);
       resolve({
-        items: dataResults
+        items: dataResults,
       });
     });
   });
@@ -2601,7 +2726,6 @@ exports.getCompanyAndCenter = (officerId) => {
     });
   });
 };
-
 
 exports.checkEmailExistDC = async (email, excludeId = null) => {
   return new Promise((resolve, reject) => {
@@ -2674,12 +2798,16 @@ exports.claimDistributedOfficersDao = (data) => {
       SET distributedCenterId = ?, irmId = ?, claimStatus = 1
       WHERE id = ?
     `;
-    collectionofficer.query(sql, [data.centerId, data.irmId, data.id], (err, results) => {
-      if (err) {
-        return reject(err);
+    collectionofficer.query(
+      sql,
+      [data.centerId, data.irmId, data.id],
+      (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(results);
       }
-      resolve(results);
-    });
+    );
   });
 };
 
@@ -2718,7 +2846,6 @@ exports.getOfficerById = (id) => {
   });
 };
 
-
 exports.GetAllDistributionCenterList = (companyId) => {
   return new Promise((resolve, reject) => {
     const sql =
@@ -2731,3 +2858,556 @@ exports.GetAllDistributionCenterList = (companyId) => {
     });
   });
 };
+
+exports.getAllReasons = async () => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM returnreason ORDER BY indexNo ASC";
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+// Get reason by ID
+exports.getReasonById = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM returnreason WHERE id = ?";
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+// Create new reason
+exports.createReason = async (reasonData) => {
+  return new Promise((resolve, reject) => {
+    const sql = `INSERT INTO returnreason 
+      (indexNo, rsnEnglish, rsnSinhala, rsnTamil) 
+      VALUES (?, ?, ?, ?)`;
+
+    const values = [
+      reasonData.indexNo,
+      reasonData.rsnEnglish,
+      reasonData.rsnSinhala,
+      reasonData.rsnTamil,
+    ];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve({ id: results.insertId, ...reasonData });
+      }
+    });
+  });
+};
+
+// Delete reason (only if id > 1)
+exports.deleteReason = async (id) => {
+  return new Promise((resolve, reject) => {
+    // Check if id is 1
+    if (id === 1 || id === "1") {
+      reject(new Error("Cannot delete the default reason (ID: 1)"));
+      return;
+    }
+
+    const sql = "DELETE FROM returnreason WHERE id = ?";
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        if (results.affectedRows === 0) {
+          reject(new Error("Reason not found"));
+        } else {
+          resolve(results.affectedRows);
+        }
+      }
+    });
+  });
+};
+
+// Update all indexes after reordering
+exports.updateIndexes = async (reasons) => {
+  return new Promise((resolve, reject) => {
+    const sql = "UPDATE returnreason SET indexNo = ? WHERE id = ?";
+
+    let completed = 0;
+    const total = reasons.length;
+
+    if (total === 0) {
+      resolve(true);
+      return;
+    }
+
+    reasons.forEach((reason) => {
+      collectionofficer.query(sql, [reason.indexNo, reason.id], (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          completed++;
+          if (completed === total) {
+            resolve(true);
+          }
+        }
+      });
+    });
+  });
+};
+
+exports.getNextIndex = async () => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT MAX(indexNo) as maxIndex FROM returnreason";
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        const nextIndex = (results[0].maxIndex || 0) + 1;
+        resolve(nextIndex);
+      }
+    });
+  });
+};
+
+exports.getAllHoldReasons = async () => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM holdreason ORDER BY indexNo ASC";
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+// Get hold reason by ID
+exports.getHoldReasonById = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT * FROM holdreason WHERE id = ?";
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+// Create new hold reason
+exports.createHoldReason = async (reasonData) => {
+  return new Promise((resolve, reject) => {
+    const sql = `INSERT INTO holdreason 
+      (indexNo, rsnEnglish, rsnSinhala, rsnTamil) 
+      VALUES (?, ?, ?, ?)`;
+
+    const values = [
+      reasonData.indexNo,
+      reasonData.rsnEnglish,
+      reasonData.rsnSinhala,
+      reasonData.rsnTamil,
+    ];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve({ id: results.insertId, ...reasonData });
+      }
+    });
+  });
+};
+
+// Delete hold reason (only if id > 1)
+exports.deleteHoldReason = async (id) => {
+  return new Promise((resolve, reject) => {
+    // Check if id is 1
+    if (id === 1 || id === "1") {
+      reject(new Error("Cannot delete the default reason (ID: 1)"));
+      return;
+    }
+
+    const sql = "DELETE FROM holdreason WHERE id = ?";
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        if (results.affectedRows === 0) {
+          reject(new Error("Reason not found"));
+        } else {
+          resolve(results.affectedRows);
+        }
+      }
+    });
+  });
+};
+
+// Update all indexes after reordering
+exports.updateHoldReasonIndexes = async (reasons) => {
+  return new Promise((resolve, reject) => {
+    const sql = "UPDATE holdreason SET indexNo = ? WHERE id = ?";
+
+    let completed = 0;
+    const total = reasons.length;
+
+    if (total === 0) {
+      resolve(true);
+      return;
+    }
+
+    reasons.forEach((reason) => {
+      collectionofficer.query(sql, [reason.indexNo, reason.id], (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          completed++;
+          if (completed === total) {
+            resolve(true);
+          }
+        }
+      });
+    });
+  });
+};
+
+// Get next available index for hold reasons
+exports.getNextHoldReasonIndex = async () => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT MAX(indexNo) as maxIndex FROM holdreason";
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        const nextIndex = (results[0].maxIndex || 0) + 1;
+        resolve(nextIndex);
+      }
+    });
+  });
+};
+
+exports.getAllTodaysDeliveries = (searchParams = {}) => {
+  return new Promise((resolve, reject) => {
+    // Base SQL query
+    let sql = `
+      SELECT 
+        po.invNo,
+        dc.regCode,
+        o.sheduleTime,
+        po.createdAt,
+        po.status,
+        TIME(po.outDlvrDate) as outDlvrTime
+      FROM 
+        market_place.processorders po
+      INNER JOIN 
+        market_place.orders o ON po.orderId = o.id
+      INNER JOIN 
+        collection_officer.distributedcenter dc ON o.centerId = dc.id
+      WHERE 
+        po.status IN ('Out For Delivery', 'Delivered', 'Collected', 'On the way', 'Return', 'Hold')`;
+
+    // Add search conditions if search parameters are provided
+    const conditions = [];
+    const values = [];
+
+    if (searchParams.regCode) {
+      conditions.push(`dc.regCode LIKE ?`);
+      values.push(`%${searchParams.regCode}%`);
+    }
+
+    if (searchParams.invNo) {
+      conditions.push(`po.invNo LIKE ?`);
+      values.push(`%${searchParams.invNo}%`);
+    }
+
+    // Append search conditions to the WHERE clause
+    if (conditions.length > 0) {
+      sql += ` AND (${conditions.join(" OR ")})`;
+    }
+
+    // Add ORDER BY clause
+    sql += ` ORDER BY po.createdAt DESC`;
+
+    marketPlace.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getTargetedCustomerOrdersDao = (
+  page,
+  limit,
+  status,
+  sheduleDate,
+  centerId,
+  searchText
+) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    const statusCTE = `
+      WITH package_item_counts AS (
+        SELECT 
+            op.orderId,
+            COUNT(*) AS totalItems,
+            SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems,
+            CASE
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 AND COUNT(*) > 0 THEN 'Pending'
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                     AND SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+                WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
+                ELSE 'Unknown'
+            END AS packageStatus
+        FROM market_place.orderpackageitems opi
+        JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
+        GROUP BY op.orderId
+    ),
+    additional_items_counts AS (
+        SELECT 
+            orderId,
+            COUNT(*) AS totalAdditionalItems,
+            SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
+            CASE
+                WHEN COUNT(*) = 0 THEN 'Unknown'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
+                     AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
+                WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+                ELSE 'Unknown'
+            END AS additionalItemsStatus
+        FROM market_place.orderadditionalitems
+        GROUP BY orderId
+    )
+    `;
+
+    let countSql =
+      statusCTE +
+      `
+        SELECT COUNT(*) AS total
+        FROM distributedtarget dt
+        LEFT JOIN distributedtargetitems dti ON dti.targetId = dt.id
+        LEFT JOIN distributedcompanycenter dcc ON dt.companycenterId = dcc.id
+        LEFT JOIN distributedcenter dc ON dcc.centerId = dc.id
+        LEFT JOIN market_place.processorders po ON dti.orderId = po.id
+        LEFT JOIN market_place.orders o ON po.orderId = o.id
+        LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+        LEFT JOIN collectionofficer cof ON po.packBy = cof.id
+        LEFT JOIN package_item_counts pic ON pic.orderId = po.id
+        LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+        WHERE 1=1
+      `;
+
+    let dataSql =
+      statusCTE +
+      `
+        SELECT 
+          po.invNo,
+          CONCAT(mu.phoneCode, '-', mu.phoneNumber) phoneNum,
+          dc.regCode,
+          dc.centerName,
+          o.sheduleDate,
+          COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
+          COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
+          cof.empId,
+          dt.createdAt
+        FROM distributedtarget dt
+        LEFT JOIN distributedtargetitems dti ON dti.targetId = dt.id
+        LEFT JOIN distributedcompanycenter dcc ON dt.companycenterId = dcc.id
+        LEFT JOIN distributedcenter dc ON dcc.centerId = dc.id
+        LEFT JOIN market_place.processorders po ON dti.orderId = po.id
+        LEFT JOIN market_place.orders o ON po.orderId = o.id
+        LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+        LEFT JOIN collectionofficer cof ON po.packBy = cof.id
+        LEFT JOIN package_item_counts pic ON pic.orderId = po.id
+        LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+        WHERE 1=1
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    if (sheduleDate) {
+      const cond = ` AND DATE(o.sheduleDate) = DATE(?) `;
+      countSql += cond;
+      dataSql += cond;
+      countParams.push(sheduleDate);
+      dataParams.push(sheduleDate);
+    }
+
+    if (centerId) {
+      const cond = ` AND dcc.centerId = ? `;
+      countSql += cond;
+      dataSql += cond;
+      countParams.push(centerId);
+      dataParams.push(centerId);
+    }
+
+    if (searchText) {
+      const digitsOnly = searchText.replace(/\D/g, "");
+      const searchPattern = `%${searchText}%`;
+      const phonePattern = `%${digitsOnly}%`;
+
+      const cond = `
+        AND (
+          po.invNo LIKE ? 
+          OR REPLACE(REPLACE(CONCAT(mu.phoneCode, mu.phoneNumber), '+', ''), '-', '') LIKE ?
+        )
+      `;
+      countSql += cond;
+      dataSql += cond;
+      countParams.push(searchPattern, phonePattern);
+      dataParams.push(searchPattern, phonePattern);
+    }
+
+    if (status && status.trim() !== "") {
+      let statusCondition = "";
+      if (status === "Pending") {
+        statusCondition = `
+          AND (
+            (pic.packageStatus = 'Pending' AND (aic.additionalItemsStatus = 'Unknown' OR aic.additionalItemsStatus IS NULL)) OR
+            (pic.packageStatus = 'Unknown' AND aic.additionalItemsStatus = 'Pending') OR
+            (pic.packageStatus IS NULL AND aic.additionalItemsStatus = 'Pending') OR
+            (pic.packageStatus = 'Pending' AND aic.additionalItemsStatus = 'Pending')
+          )
+        `;
+      } else if (status === "Opened") {
+        statusCondition = `
+          AND (pic.packageStatus = 'Opened' OR aic.additionalItemsStatus = 'Opened')
+        `;
+      } else if (status === "Completed") {
+        statusCondition = `
+          AND (
+            (pic.packageStatus = 'Completed' AND (aic.additionalItemsStatus = 'Unknown' OR aic.additionalItemsStatus IS NULL)) OR
+            (pic.packageStatus = 'Unknown' AND aic.additionalItemsStatus = 'Completed') OR
+            (pic.packageStatus IS NULL AND aic.additionalItemsStatus = 'Completed') OR
+            (pic.packageStatus = 'Completed' AND aic.additionalItemsStatus = 'Completed')
+          )
+        `;
+      }
+      countSql += statusCondition;
+      dataSql += statusCondition;
+    }
+
+    dataSql += ` ORDER BY po.createdAt DESC LIMIT ? OFFSET ?`;
+    dataParams.push(parseInt(limit), parseInt(offset));
+
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        reject(countErr);
+      } else {
+        collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+          if (dataErr) {
+            reject(dataErr);
+          } else {
+            resolve({
+              total: countResults[0].total,
+              items: dataResults,
+            });
+          }
+        });
+      }
+    });
+  });
+};
+
+exports.getDistributedVehiclesDao = (
+  page,
+  limit,
+  centerName,     
+  vehicleType,    
+  searchText      
+) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(DISTINCT co.id) AS total
+      FROM collectionofficer co
+      LEFT JOIN vehicleregistration vr ON co.id = vr.coId
+      LEFT JOIN collectioncenter cc ON co.centerId = cc.id
+      WHERE co.jobRole = 'Driver'
+    `;
+
+    let dataSql = `
+      SELECT 
+        vr.insNo,
+        vr.vType,
+        vr.vCapacity,
+        cc.regCode,
+        cc.centerName,
+        co.empId,
+        co.createdAt
+      FROM collectionofficer co
+      LEFT JOIN vehicleregistration vr ON co.id = vr.coId
+      LEFT JOIN collectioncenter cc ON co.centerId = cc.id
+      WHERE co.jobRole = 'Driver'
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    if (centerName) {
+      const cond = ` AND cc.centerName = ? `;
+      countSql += cond;
+      dataSql += cond;
+      countParams.push(centerName);
+      dataParams.push(centerName);
+    }
+
+    if (vehicleType) {
+      const cond = ` AND vr.vType = ? `;
+      countSql += cond;
+      dataSql += cond;
+      countParams.push(vehicleType);
+      dataParams.push(vehicleType);
+    }
+
+    if (searchText) {
+      const pattern = `%${searchText}%`;
+      const cond = `
+        AND (
+          COALESCE(vr.insNo, '') LIKE ?
+          OR COALESCE(co.empId, '') LIKE ?
+        )
+      `;
+
+      countSql += cond;
+      dataSql += cond;
+      countParams.push(pattern, pattern);
+      dataParams.push(pattern, pattern);
+    }
+
+    dataSql += ` ORDER BY co.createdAt DESC LIMIT ? OFFSET ? `;
+    dataParams.push(parseInt(limit), parseInt(offset));
+
+    collectionofficer.query(countSql, countParams, (countErr, countRes) => {
+      if (countErr) {
+        reject(countErr);
+      } else {
+        collectionofficer.query(dataSql, dataParams, (dataErr, dataRes) => {
+          if (dataErr) {
+            reject(dataErr);
+          } else {
+            resolve({
+              total: countRes[0].total,
+              items: dataRes,
+            });
+          }
+        });
+      }
+    });
+  });
+};
+
+

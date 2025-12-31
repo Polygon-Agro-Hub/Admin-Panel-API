@@ -69,18 +69,28 @@ router.get(
   GoviLinkEp.getFieldAuditDetails
 );
 
-
 router.get(
   "/get-complain-details/:id",
   authMiddleware,
   GoviLinkEp.getFieldOfficerComplainById
 );
 
- router.put(
-  '/reply-field-officer-complain/:id', 
-  authMiddleware, 
+router.put(
+  "/reply-field-officer-complain/:id",
+  authMiddleware,
   GoviLinkEp.replyFieldOfficerComplain
 );
 
+router.get(
+  "/get-driver-complain/:id",
+  authMiddleware,
+  GoviLinkEp.getDriverComplainById
+);
+
+router.put(
+  "/reply-driver-complain/:id",
+  authMiddleware,
+  GoviLinkEp.replyDriverComplain
+);
 
 module.exports = router;

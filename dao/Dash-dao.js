@@ -3,7 +3,7 @@ const {
   plantcare,
   collectionofficer,
   marketPlace,
-  dash,
+  investment,
 } = require("../startup/database");
 
 const QRCode = require("qrcode");
@@ -286,7 +286,6 @@ const checkPhoneExist = (phoneNumber) => {
   });
 };
 
-
 const createSalesAgent = (officerData, profileImageUrl, newSalseAgentId) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -499,7 +498,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => { });
+    doc.on("end", () => {});
 
     const watermarkPath = "./assets/bg.png";
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -794,7 +793,6 @@ const getAllOrders = (
       params.push(...Array(9).fill(searchValue));
     }
 
-
     if (orderStatus) {
       console.log("Order Status:", orderStatus);
 
@@ -810,7 +808,6 @@ const getAllOrders = (
         whereConditions.push(`po.paymentMethod = ?`);
         params.push("Cash");
       }
-
     }
 
     if (paymentStatus !== undefined && paymentStatus !== "") {
@@ -826,9 +823,9 @@ const getAllOrders = (
     if (date) {
       whereConditions.push(`DATE(o.sheduleDate) = DATE(?)`);
       console.log(date);
-      let formattedDate = '';
+      let formattedDate = "";
       const d = new Date(date);
-      formattedDate = d.toISOString().split('T')[0];
+      formattedDate = d.toISOString().split("T")[0];
       console.log(formattedDate);
       params.push(formattedDate);
     }
@@ -842,7 +839,6 @@ const getAllOrders = (
 
     dataSql += " ORDER BY po.createdAt DESC LIMIT ? OFFSET ?";
     console.log(dataSql);
-
 
     // Execute count query first
     marketPlace.query(countSql, params, (countErr, countResults) => {
@@ -938,16 +934,13 @@ const GetAllSalesAgentComplainDAO = (
     if (replyStatus) {
       console.log(replyStatus);
 
-      if (replyStatus === 'No') {
+      if (replyStatus === "No") {
         countSql += " AND dc.reply IS NULL ";
         sql += " AND dc.reply IS NULL ";
-
-      } else if (replyStatus === 'Yes') {
+      } else if (replyStatus === "Yes") {
         countSql += " AND dc.reply IS NOT NULL ";
         sql += " AND dc.reply IS NOT NULL ";
-
       }
-
     }
 
     // Add filter for category (role)
@@ -999,7 +992,6 @@ const GetAllSalesAgentComplainDAO = (
           return reject(dataErr);
         }
         console.log(results);
-
 
         resolve({ results, total });
       });
@@ -1100,7 +1092,6 @@ const checkPhoneExistSaEdit = (phoneNumber, id) => {
   });
 };
 
-
 const checkEmailExistSaEdit = (email, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1137,20 +1128,30 @@ const getUserOrdersDao = async (userId, status) => {
 
     console.log(status, "-------");
 
-    if (status === "Assinged") {
+    if (status === "Assigned") {
       sql += " AND P.status = 'Ordered'";
     } else if (status === "Processing") {
       sql += " AND P.status = 'Processing'";
-    } else if (status === "Delivered") {
-      sql += " AND P.status = 'Delivered'";
-    } else if (status === "Cancelled") {
-      sql += " AND P.status = 'Cancelled'";
-    } else if (status === "Faild") {
-      sql += " AND P.status = 'Faild'";
-    } else if (status === "On the way") {
-      sql += " AND P.status = 'On the way'";
     } else if (status === "Out For Delivery") {
       sql += " AND P.status = 'Out For Delivery'";
+    } else if (status === "Ready to Pickup") {
+      sql += " AND P.status = 'Ready to Pickup'";
+    } else if (status === "Picked up") { 
+      sql += " AND P.status = 'Picked up'";
+    } else if (status === "Collected") {
+      sql += " AND P.status = 'Collected'";
+    } else if (status === "On the way") {
+      sql += " AND P.status = 'On the way'";
+    } else if (status === "Delivered") {
+      sql += " AND P.status = 'Delivered'";
+    } else if (status === "Hold") {
+      sql += " AND P.status = 'Hold'";
+    } else if (status === "Return") {
+      sql += " AND P.status = 'Return'";
+    } else if (status === "Return Received") {
+      sql += " AND P.status = 'Return Received'";
+    } else if (status === "Cancelled") {
+      sql += " AND P.status = 'Cancelled'";
     }
 
     marketPlace.query(sql, [userId, status], (err, results) => {
@@ -1228,8 +1229,6 @@ const createSalesTarget = (id) => {
   });
 };
 
-
-
 module.exports = {
   GetAllSalesAgentComplainDAO,
   getAllSalesCustomers,
@@ -1253,5 +1252,5 @@ module.exports = {
   checkEmailExistSaEdit,
   getUserOrdersDao,
   genarateNewSalesAgentIdDao,
-  createSalesTarget
+  createSalesTarget,
 };

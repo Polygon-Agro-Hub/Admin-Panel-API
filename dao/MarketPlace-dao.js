@@ -2,7 +2,6 @@ const {
   plantcare,
   collectionofficer,
   marketPlace,
-  dash,
 } = require("../startup/database");
 const XLSX = require("xlsx");
 
@@ -1234,7 +1233,7 @@ exports.createProductTypesDao = async (data) => {
 
 exports.viewProductTypeDao = async () => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT * FROM producttypes ORDER BY typeName";
+    const sql = "SELECT * FROM producttypes ORDER BY shortCode";
     marketPlace.query(sql, (err, results) => {
       if (err) {
         return reject(err);

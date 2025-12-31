@@ -89,7 +89,7 @@ exports.updateCoupenValidation = Joi.object({
   id: Joi.number().required(),
   code: Joi.string().required(),
   type: Joi.string().required(),
-  percentage: Joi.number().min(0).max(100).optional(),
+  percentage: Joi.number().min(0).max(100).optional().allow(null),
   status: Joi.string().required(),
   checkLimit: Joi.boolean().truthy(1).falsy(0).required(),
   startDate: Joi.date().required(),

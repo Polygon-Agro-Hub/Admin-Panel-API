@@ -150,15 +150,15 @@ router.post(
   "/create-distribution-officer",
   authMiddleware,
   upload.fields([
-    { name: 'file', maxCount: 1 },
-    { name: 'licFront', maxCount: 1 },
-    { name: 'licBack', maxCount: 1 },
-    { name: 'insFront', maxCount: 1 },
-    { name: 'insBack', maxCount: 1 },
-    { name: 'vehiFront', maxCount: 1 },
-    { name: 'vehiBack', maxCount: 1 },
-    { name: 'vehiSideA', maxCount: 1 },
-    { name: 'vehiSideB', maxCount: 1 }
+    { name: "file", maxCount: 1 },
+    { name: "licFront", maxCount: 1 },
+    { name: "licBack", maxCount: 1 },
+    { name: "insFront", maxCount: 1 },
+    { name: "insBack", maxCount: 1 },
+    { name: "vehiFront", maxCount: 1 },
+    { name: "vehiBack", maxCount: 1 },
+    { name: "vehiSideA", maxCount: 1 },
+    { name: "vehiSideB", maxCount: 1 },
   ]),
   distributionEp.createDistributionOfficer
 );
@@ -186,7 +186,6 @@ router.get(
   authMiddleware,
   distributionEp.getAllAssigningCities
 );
-
 
 router.post(
   "/assign-city-to-distributed-center",
@@ -218,7 +217,6 @@ router.get(
   distributionEp.getDistributionOutForDlvrOrder
 );
 
-
 router.get(
   "/officer-details-monthly/:id",
   // authMiddleware,
@@ -228,7 +226,17 @@ router.get(
 router.put(
   "/update-distribution-officer-details/:id",
   authMiddleware,
-  upload.single("image"),
+  upload.fields([
+    { name: 'file', maxCount: 1 },
+    { name: 'licFront', maxCount: 1 },
+    { name: 'licBack', maxCount: 1 },
+    { name: 'insFront', maxCount: 1 },
+    { name: 'insBack', maxCount: 1 },
+    { name: 'vehiFront', maxCount: 1 },
+    { name: 'vehiBack', maxCount: 1 },
+    { name: 'vehiSideA', maxCount: 1 },
+    { name: 'vehiSideB', maxCount: 1 }
+  ]),
   distributionEp.updateDistributionOfficerDetails
 );
 
@@ -238,17 +246,17 @@ router.get(
   distributionEp.getOfficerDailyDistributionTarget
 );
 
-router.get('/get-selected-officer-targets', 
-    authMiddleware,
-    distributionEp.dcmGetSelectedOfficerTargets
+router.get(
+  "/get-selected-officer-targets",
+  authMiddleware,
+  distributionEp.dcmGetSelectedOfficerTargets
 );
 
-
-router.patch('/claim-distributed-Officer', 
-    authMiddleware,
-    distributionEp.claimDistributedOfficer
+router.patch(
+  "/claim-distributed-Officer",
+  authMiddleware,
+  distributionEp.claimDistributedOfficer
 );
-
 
 router.get(
   "/get-officer-details/:id",
@@ -262,5 +270,107 @@ router.get(
   distributionEp.getAllDistributionCenterList
 );
 
+// Get all reasons
+router.get(
+  "/get-all-return-reasons",
+  authMiddleware,
+  distributionEp.getAllReasons
+);
+
+// Get reason by ID
+router.get(
+  "/get-return-reason/:id",
+  authMiddleware,
+  distributionEp.getReasonById
+);
+
+// Create new reason
+router.post(
+  "/create-return-reason",
+  authMiddleware,
+  distributionEp.createReason
+);
+
+// Delete reason
+router.delete(
+  "/delete-return-reason/:id",
+  authMiddleware,
+  distributionEp.deleteReason
+);
+
+// Update indexes after reordering
+router.post(
+  "/update-return-reason-indexes",
+  authMiddleware,
+  distributionEp.updateIndexes
+);
+
+// Get next available index
+router.get(
+  "/get-next-return-reason-index",
+  authMiddleware,
+  distributionEp.getNextIndex
+);
+
+//--hold reasons ---
+
+router.get(
+  "/get-all-hold-reasons",
+  authMiddleware,
+  distributionEp.getAllHoldReasons
+);
+
+// Get hold reason by ID
+router.get(
+  "/get-hold-reason/:id",
+  authMiddleware,
+  distributionEp.getHoldReasonById
+);
+
+// Create new hold reason
+router.post(
+  "/create-hold-reason",
+  authMiddleware,
+  distributionEp.createHoldReason
+);
+
+// Delete hold reason
+router.delete(
+  "/delete-hold-reason/:id",
+  authMiddleware,
+  distributionEp.deleteHoldReason
+);
+
+// Update indexes after reordering
+router.post(
+  "/update-hold-reason-indexes",
+  authMiddleware,
+  distributionEp.updateHoldReasonIndexes
+);
+
+// Get next available index
+router.get(
+  "/get-next-hold-reason-index",
+  authMiddleware,
+  distributionEp.getNextHoldReasonIndex
+);
+
+router.get(
+  "/get-todays-deliveries",
+  authMiddleware,
+  distributionEp.getTodaysDeliverieData
+);
+
+router.get(
+  "/get-targeted-customers-orders",
+  authMiddleware,
+  distributionEp.getTargetedCustomerOrders
+);
+
+router.get(
+  "/get-distributed-vehicles",
+  // authMiddleware,
+  distributionEp.getDistributedVehicles
+);
 
 module.exports = router;
