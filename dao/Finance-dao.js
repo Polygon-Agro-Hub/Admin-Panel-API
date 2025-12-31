@@ -799,6 +799,7 @@ exports.getAllCertificatePayments = (
           cp.transactionId LIKE ?
           OR u.firstName LIKE ?
           OR u.lastName LIKE ?
+          OR CONCAT(u.firstName, ' ', u.lastName) LIKE ?
           OR fc.clsName LIKE ?
           OR cp.amount LIKE ?
         )
@@ -812,9 +813,11 @@ exports.getAllCertificatePayments = (
         searchValue,
         searchValue,
         searchValue,
+        searchValue,
         searchValue
       );
       dataParams.push(
+        searchValue,
         searchValue,
         searchValue,
         searchValue,
