@@ -3098,6 +3098,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
     // Base SQL query
     let sql = `
       SELECT 
+        po.id,
         po.invNo,
         dc.regCode,
         o.sheduleTime,
