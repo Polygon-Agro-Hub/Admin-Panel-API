@@ -2056,18 +2056,20 @@ EXISTS (
 exports.getDetailsForDivideShareDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT
-        ir.id,
-        ir.reqCahangeTime,
-        ir.jobId,
-        u.phoneNumber AS farmerPhone,
-        fo.empId,
-        CONCAT(fo.phoneCode1, ' ',fo.phoneNumber1) AS officerPhone,
-        (COALESCE(cg.costFeild, 0)* ( ir.extentac + COALESCE(ir.extentha, 0)*2.47105 + COALESCE(extentp, 0)/160 )) AS totalValue
-      FROM investmentrequest ir
-      LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
-      LEFT JOIN plant_care.users u ON ir.farmerId = u.id
-      LEFT JOIN plant_care.feildofficer fo ON ir.officerId = fo.id
+    SELECT
+    ir.id,
+    ir.reqCahangeTime,
+    ir.jobId,
+    u.phoneNumber AS farmerPhone,
+    fo.empId,
+    CONCAT(fo.phoneCode1, ' ',fo.phoneNumber1) AS officerPhone,
+    (COALESCE(cg.costFeild, 0)* ( ir.extentac + COALESCE(ir.extentha, 0)*2.47105 + COALESCE(extentp, 0)/160 )) AS totalValue,
+    air.totValue, air.defineShares, air.maxShare, air.minShare
+  FROM investments.investmentrequest ir
+  LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
+  LEFT JOIN plant_care.users u ON ir.farmerId = u.id
+  LEFT JOIN plant_care.feildofficer fo ON ir.officerId = fo.id
+  LEFT JOIN investments.approvedinvestmentrequest air ON air.reqId = ir.id
       WHERE ir.id = ?
     `;
 

@@ -2623,3 +2623,119 @@ exports.getTodayDiliveryTracking = async (req, res) => {
     });
   }
 };
+
+
+exports.getReturnRecievedOrders = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    // const offset = (page - 1) * limit;
+    const { sheduleDate, centerId, searchText } = await DistributionValidation.getReturnRecievedDataSchema.validateAsync(req.query);
+
+    console.log('centerId cehck', centerId)
+
+    const companyId = 2;
+
+      let companyCenterId;
+      let deliveryLocationData;
+      let cityToCenterMap = {};
+      let selectedCenterInfo = null;
+    
+    if (centerId) {
+      console.log('centerId', centerId)
+      // Specific center selected
+      companyCenterId = await DistributionDao.getDistributedCompanyCenter(companyId, centerId);
+
+      console.log('companyCenterId', companyCenterId)
+
+      if (companyCenterId?.[0]?.companyCenterId) {
+        deliveryLocationData = await DistributionDao.getDeliveryChargeCity(companyCenterId[0].companyCenterId);
+      }
+
+      console.log('deliveryLocationData', deliveryLocationData)
+      
+      // Get the center name and regCode for the selected center
+      selectedCenterInfo = await DistributionDao.getCenterName(centerId);
+
+      console.log('selectedCenterInfo', selectedCenterInfo)
+    } else {
+      console.log('centerId', 'no')
+      // No center selected - get all city-to-center mappings
+      cityToCenterMap = await DistributionDao.getAllCityCenterMapping(companyId);
+
+      console.log('cityToCenterMap', cityToCenterMap)
+    }
+
+    const result = await DistributionDao.getReturnRecievedDataDao(sheduleDate, centerId, deliveryLocationData, searchText);
+
+    const items = result.items;
+    const dataArray = [];
+
+    let grandTotal = 0;
+
+for (const order of items) {
+  let effectiveCenterId = order.centerId;
+  let centerName = null;
+  let regCode = null;
+
+  if (!effectiveCenterId) {
+    const orderCity = (order.houseCity || order.apartmentCity || '').toLowerCase();
+
+    if (centerId && deliveryLocationData?.length > 0) {
+      if (
+        orderCity &&
+        deliveryLocationData.some(city => city.toLowerCase() === orderCity)
+      ) {
+        effectiveCenterId = centerId;
+        centerName = selectedCenterInfo?.centerName;
+        regCode = selectedCenterInfo?.regCode;
+      }
+    } 
+    else if (!centerId && orderCity && cityToCenterMap[orderCity]) {
+      effectiveCenterId = cityToCenterMap[orderCity].centerId;
+      centerName = cityToCenterMap[orderCity].centerName;
+      regCode = cityToCenterMap[orderCity].regCode;
+    }
+  }
+  else if (centerId && effectiveCenterId === centerId) {
+    centerName = selectedCenterInfo?.centerName;
+    regCode = selectedCenterInfo?.regCode;
+  }
+  else if ((centerId === undefined || centerId === null) && effectiveCenterId) {
+    const tempCenterInfo = await DistributionDao.getCenterName(effectiveCenterId);
+    centerName = tempCenterInfo?.centerName;
+    regCode = tempCenterInfo?.regCode;
+  }
+
+  if (!effectiveCenterId) continue;
+
+  grandTotal += Number(order.total) || 0;
+
+  dataArray.push({
+    ...order,
+    effectiveCenterId,
+    centerName,
+    regCode
+  });
+}
+
+
+
+    res.status(200).json({
+      items: dataArray,
+      total: dataArray.length,
+      grandTotal: grandTotal
+    });
+
+    console.log(dataArray,);
+    console.log(dataArray.length);
+
+  } catch (error) {
+    console.error('Error getting next hold reason index:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to get next index',
+      error: error.message
+    });
+  }
+};

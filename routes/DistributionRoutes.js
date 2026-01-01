@@ -379,4 +379,10 @@ router.get(
   distributionEp.getTodayDiliveryTracking
 );
 
+router.get(
+  "/get-return-recieved-data",
+  authMiddleware,
+  distributionEp.getReturnRecievedOrders
+);
+
 module.exports = router;

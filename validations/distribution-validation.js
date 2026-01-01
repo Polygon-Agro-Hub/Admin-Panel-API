@@ -100,6 +100,12 @@ exports.getTargetedCustomerOrdersSchema = Joi.object({
     .optional()
 });
 
+exports.getReturnRecievedDataSchema = Joi.object({
+  sheduleDate: Joi.date().optional(),
+  centerId: Joi.number().integer().positive().optional(),
+  searchText: Joi.string().trim().min(1).max(50).optional()
+});
+
 exports.getDistributedVehiclesSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(5000).default(10),
