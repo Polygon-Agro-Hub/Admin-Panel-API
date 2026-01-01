@@ -1120,7 +1120,9 @@ exports.getInvestmentRequestById = async (req, res) => {
 
 exports.getOfficersByDistrictAndRoleForInvestment = async (req, res) => {
   try {
-    const { district, jobRole } = req.query;
+    const { district, jobRole, Farmer_ID } = req.query;
+
+    console.log('Farmer_ID:', Farmer_ID);
 
     if (!district || !jobRole) {
       return res.status(400).json({
@@ -1131,7 +1133,8 @@ exports.getOfficersByDistrictAndRoleForInvestment = async (req, res) => {
 
     const officers = await financeDao.getOfficersByDistrictAndRoleForInvestmentDAO(
       district,
-      jobRole
+      jobRole,
+      Farmer_ID
     );
 
     res.status(200).json({

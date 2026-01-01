@@ -1364,6 +1364,7 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
         ir.jobId AS Request_ID,
         CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
         u.phoneNumber AS Phone_number,
+        u.id AS Farmer_ID,
         u.district,
         co.empId,
         ir.publishStatus,
@@ -1428,7 +1429,7 @@ exports.GetInvestmentRequestByIdDAO = (requestId) => {
         u.phoneNumber AS Phone_number,
         cg.cropNameEnglish AS Crop,
         CONCAT(
-          COALESCE(ir.extentha, 0), ' Acres ',
+          COALESCE(ir.extentha * 2.471, 0), ' Acres ',
           COALESCE(ir.extentac, 0), ' Perches'
         ) AS Extent,
         ir.investment AS Expected_Investment,
@@ -1579,7 +1580,7 @@ exports.assignOfficerToInvestmentRequestDAO = (
   });
 };
 
-exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
+exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole, Farmer_ID) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -1589,6 +1590,7 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
         fo.lastName,
         fo.JobRole,
         fo.distrct as district,
+        fo.assignDistrict,
         (
           SELECT COUNT(*)
           FROM investmentrequest ir 
@@ -1596,15 +1598,17 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
         ) AS jobCount
       FROM 
         plant_care.feildofficer fo
+      INNER JOIN 
+        plant_care.users u ON FIND_IN_SET(LOWER(u.district), LOWER(REPLACE(fo.assignDistrict, ' ', ''))) > 0
       WHERE 
-        fo.distrct LIKE ?
+        u.id = ?
         AND fo.JobRole = ?
         AND fo.status = 'Approved'
       ORDER BY 
         jobCount ASC, fo.firstName, fo.lastName
     `;
 
-    const params = [`%${district}%`, jobRole];
+    const params = [Farmer_ID, jobRole];
 
     investment.query(sql, params, (err, results) => {
       if (err) return reject(err);
