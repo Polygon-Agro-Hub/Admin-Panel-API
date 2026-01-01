@@ -2199,6 +2199,14 @@ exports.getUserOrdersDao = async (userId, status) => {
       sql += " AND P.status = 'Ready to Pickup' ";
     } else if (status === "Picked up") {
       sql += " AND P.status = 'Picked up' ";
+    } else if (status === "Collected") {
+      sql += " AND P.status = 'Collected' ";
+    } else if (status === "Hold") {
+      sql += " AND P.status = 'Hold' ";
+    } else if (status === "Return") {
+      sql += " AND P.status = 'Return' ";
+    } else if (status === "Return Received") {
+      sql += " AND P.status = 'Return Received' ";
     }
 
     marketPlace.query(sql, [userId, status], (err, results) => {

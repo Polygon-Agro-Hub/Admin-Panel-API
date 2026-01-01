@@ -373,4 +373,16 @@ router.get(
   distributionEp.getDistributedVehicles
 );
 
+router.get(
+  "/get-today-delivery-tracking/:id",
+  // authMiddleware,
+  distributionEp.getTodayDiliveryTracking
+);
+
+router.get(
+  "/get-return-recieved-data",
+  authMiddleware,
+  distributionEp.getReturnRecievedOrders
+);
+
 module.exports = router;

@@ -1327,7 +1327,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => {});
+    doc.on("end", () => { });
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -1548,7 +1548,7 @@ exports.createDistributionOfficerPersonal = (
       // Prepare data for QR code generation
       const qrData = `
             {
-                "empId": "${officerData.empId}",
+                "empId": "${lastId}",
             }
             `;
 
@@ -2566,10 +2566,9 @@ exports.dcmGetSelectedOfficerTargetsDao = (
       OR o.isPackage = 0
     )
     AND (
-      ${
-        deliveryLocationData && deliveryLocationData.length > 0
-          ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-          : ""
+      ${deliveryLocationData && deliveryLocationData.length > 0
+        ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+        : ""
       }
       o.centerId = ?
     )
@@ -3099,6 +3098,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
     // Base SQL query
     let sql = `
       SELECT 
+        po.id,
         po.invNo,
         dc.regCode,
         o.sheduleTime,
@@ -3321,12 +3321,171 @@ exports.getTargetedCustomerOrdersDao = (
   });
 };
 
+exports.getReturnRecievedDataDao = (
+  sheduleDate,
+  centerId,
+  deliveryLocationData,
+  searchText
+) => {
+  return new Promise((resolve, reject) => {
+
+    let dataSql =
+      `
+      SELECT do.id, coff.id AS driverId, coff.empId, po.id AS processOrderId, po.invNO, o.id AS orderId, o.total, o.centerId, o.phoneCode1, o.phone1, o.sheduleDate, oh.city AS houseCity,
+      oa.city AS apartmentCity, rr.rsnEnglish AS reason, dro.createdAt AS returnAt, do.receivedTime, do.handOverOfficer
+          
+      FROM collection_officer.driverorders do
+      LEFT JOIN collection_officer.collectionofficer coff ON do.driverId = coff.id
+      LEFT JOIN market_place.processorders po ON do.orderId = po.id
+      LEFT JOIN market_place.orders o ON po.orderId = o.id
+      LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
+      LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+      LEFT JOIN collection_officer.driverreturnorders dro ON dro.drvOrderId = do.id
+      LEFT JOIN collection_officer.returnreason rr ON dro.returnReasonId = rr.id
+      WHERE do.drvStatus = 'Return Received'
+    `;
+    const dataParams = [];
+
+    if (deliveryLocationData && deliveryLocationData.length > 0) {
+      dataParams.push(deliveryLocationData, deliveryLocationData);
+    }
+
+    if (centerId) {
+      dataParams.push(centerId);
+    }
+
+    if (centerId) {
+      dataSql += ` AND (
+          ${deliveryLocationData && deliveryLocationData.length > 0
+            ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+            : ""}
+          o.centerId = ?
+        )`;
+    }
+
+    if (sheduleDate) {
+      const cond = ` AND DATE(o.sheduleDate) = DATE(?) `;
+      dataSql += cond;
+      dataParams.push(sheduleDate);
+    }
+
+    // if (centerId) {
+    //   const cond = ` AND dcc.centerId = ? `;
+    //   dataSql += cond;
+    //   dataParams.push(centerId);
+    // }
+
+    
+
+    if (searchText) {
+      const searchPattern = `%${searchText}%`;
+
+      const cond = `
+        AND (
+          po.invNo LIKE ? 
+         
+        )
+      `;
+      dataSql += cond;
+      dataParams.push(searchPattern);
+    }
+
+    dataSql += ` ORDER BY po.createdAt DESC`;
+
+    collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+      if (dataErr) {
+        reject(dataErr);
+      } else {
+        resolve({
+          total: dataResults.length,
+          items: dataResults,
+        });
+      }
+    });
+  });
+};
+
+
+exports.getDeliveryChargeCity = (companyCenterId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT dc.city 
+      FROM collection_officer.centerowncity coc
+      LEFT JOIN collection_officer.deliverycharge dc 
+        ON coc.cityId = dc.id
+      WHERE coc.companyCenterId = ?
+    `;
+
+    collectionofficer.query(sql, [companyCenterId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      // Map result rows into an array of city values
+      const cities = results.map(row => row.city);
+      resolve(cities);
+    });
+  });
+};
+
+exports.getAllCityCenterMapping = (companyId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        dc.city,
+        dcc.centerId,
+        dist.centerName,
+        dist.regCode
+      FROM collection_officer.distributedcompanycenter dcc
+      JOIN collection_officer.centerowncity coc ON dcc.id = coc.companyCenterId
+      JOIN collection_officer.deliverycharge dc ON coc.cityId = dc.id
+      LEFT JOIN collection_officer.distributedcenter dist ON dcc.centerId = dist.id
+      WHERE dcc.companyId = ?
+    `;
+
+    collectionofficer.query(sql, [companyId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      // Create a map: city -> centerId
+      const cityToCenterMap = {};
+      results.forEach(row => {
+        cityToCenterMap[row.city.toLowerCase()] = {
+          centerId: row.centerId,
+          centerName: row.centerName,
+          regCode: row.regCode
+        };
+      });
+
+      resolve(cityToCenterMap);
+    });
+  });
+};
+
+exports.getCenterName = (centerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT centerName, regCode 
+      FROM collection_officer.distributedcenter 
+      WHERE id = ?
+    `;
+
+    collectionofficer.query(sql, [centerId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
 exports.getDistributedVehiclesDao = (
   page,
   limit,
-  centerName,     
-  vehicleType,    
-  searchText      
+  centerName,
+  vehicleType,
+  searchText
 ) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
@@ -3411,3 +3570,72 @@ exports.getDistributedVehiclesDao = (
 };
 
 
+exports.getTodayDiliveryTrackingCenterDetailsDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+      	po.outDlvrDate,
+      	dc.centerName,
+      	dc.regCode
+      FROM processorders po
+      LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
+      LEFT JOIN collection_officer.distributedcenter dc ON cof1.distributedCenterId = dc.id
+      WHERE po.id = ?
+    `;
+
+    marketPlace.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+
+exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+          dor.id AS orderId,
+          drv.empId,
+          CONCAT(drv.firstNameEnglish, ' ', drv.lastNameEnglish) AS driverName,
+          CONCAT(drv.phoneCode01, '-', drv.phoneNumber01) AS driverPhone,
+          dor.createdAt AS collectTime,
+          dor.startTime,
+          (
+              SELECT JSON_ARRAYAGG(
+                  JSON_OBJECT(
+                  	 'holdId',dho.id,
+                      'holdTime', dho.createdAt,
+                      'holdReason', hr.rsnEnglish,
+                      'restartedTime', dho.restartedTime
+                  )
+              )
+              FROM driverholdorders dho
+              LEFT JOIN holdreason hr ON dho.holdReasonId = hr.id
+              WHERE dho.drvOrderId = dor.id
+          ) AS holdDetails,
+          rr.rsnEnglish AS returnReson,
+          dro.note AS returnNote,
+          dro.createdAt AS returnTime,
+          dor.receivedTime AS returnRecivedTime,
+          dor.completeTime AS completeTime,
+          dor.handOverTime AS moneyHandoverTime
+      FROM driverorders dor
+      LEFT JOIN collectionofficer drv ON dor.driverId = drv.id
+      LEFT JOIN driverreturnorders dro ON dor.id = dro.drvOrderId
+      LEFT JOIN returnreason rr ON dro.returnReasonId = rr.id
+      WHERE dor.orderId = ?
+    `;
+
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
