@@ -3573,7 +3573,9 @@ exports.getDistributedVehiclesDao = (
 exports.getTodayDiliveryTrackingCenterDetailsDao = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT 
+      SELECT
+        po.id,
+        po.invNo,   
       	po.outDlvrDate,
       	dc.centerName,
       	dc.regCode

@@ -2605,8 +2605,9 @@ exports.getDistributedVehicles = async (req, res) => {
 exports.getTodayDiliveryTracking = async (req, res) => {
   try {
     // const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
-    const { id } = req.params;
-    // use param as 1041 for testing & add joi validation & uncomment auth middleware in routes
+    
+    const id = req.params.id;
+
     const centerDetails = await DistributionDao.getTodayDiliveryTrackingCenterDetailsDao(id);
     const driverDetails = await DistributionDao.getTodayDiliveryTrackingDriverDetailsDao(id);
 
@@ -2614,6 +2615,8 @@ exports.getTodayDiliveryTracking = async (req, res) => {
       centerDetails,
       driverDetails
     });
+    console.log(centerDetails);
+    console.log(driverDetails);
   } catch (error) {
     console.error('Get Distributed Vehicles Error:', error);
     res.status(500).json({
