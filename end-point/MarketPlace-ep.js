@@ -2380,3 +2380,37 @@ exports.getPostInvoiceDetails = async (req, res) => {
     });
   }
 };
+
+exports.manageSeo = async (req, res) => {
+  try {
+    
+    const { id, pageName, slug, discription, keywords } = req.body;
+
+    if (!pageName) {
+      return res.status(400).json({
+        message: "Page name is required",
+        status: false,
+      });
+    }
+
+    const result = await MarketPlaceDao.postManageSeoDao({
+      id,
+      pageName,
+      slug,
+      discription,
+      keywords
+    });
+
+    return res.status(201).json({
+      message: "SEO details saved successfully",
+      status: true,
+    });
+
+  } catch (error) {
+    console.error("Error saving SEO details:", error);
+    return res.status(500).json({
+      message: "An error occurred while saving SEO details",
+      status: false,
+    });
+  }
+}
