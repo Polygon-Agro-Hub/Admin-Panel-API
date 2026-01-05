@@ -3104,15 +3104,34 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         o.sheduleTime,
         po.createdAt,
         po.status,
-        TIME(po.outDlvrDate) as outDlvrTime
+        TIME(po.outDlvrDate) as outDlvrTime,
+        dro.createdAt AS collectTime,
+        drv.empId AS driverEmpId,
+        dro.startTime AS driverStartTime,
+        drr.createdAt AS returnTime,
+        dro.completeTime AS deliveryTime
       FROM 
         market_place.processorders po
       INNER JOIN 
         market_place.orders o ON po.orderId = o.id
       INNER JOIN 
         collection_officer.distributedcenter dc ON o.centerId = dc.id
+      LEFT JOIN
+        collection_officer.driverorders dro ON po.id = dro.orderId
+      LEFT JOIN
+        collection_officer.collectionofficer drv ON dro.driverId = drv.id
+      LEFT JOIN
+        collection_officer.driverholdorders dho ON dro.id = dho.drvOrderId
+        AND dho.id = (
+            SELECT MAX(id) 
+            FROM collection_officer.driverholdorders 
+            WHERE drvOrderId = dro.id
+        )
+      LEFT JOIN 
+        collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
       WHERE 
-        po.status IN ('Out For Delivery', 'Delivered', 'Collected', 'On the way', 'Return', 'Hold')`;
+        po.status IN ('Out For Delivery', 'Delivered', 'Collected', 'On the way', 'Return', 'Hold')
+      `;
 
     // Add search conditions if search parameters are provided
     const conditions = [];
@@ -3357,8 +3376,8 @@ exports.getReturnRecievedDataDao = (
     if (centerId) {
       dataSql += ` AND (
           ${deliveryLocationData && deliveryLocationData.length > 0
-            ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-            : ""}
+          ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+          : ""}
           o.centerId = ?
         )`;
     }
@@ -3375,7 +3394,7 @@ exports.getReturnRecievedDataDao = (
     //   dataParams.push(centerId);
     // }
 
-    
+
 
     if (searchText) {
       const searchPattern = `%${searchText}%`;
@@ -3573,7 +3592,9 @@ exports.getDistributedVehiclesDao = (
 exports.getTodayDiliveryTrackingCenterDetailsDao = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT 
+      SELECT
+        po.id,
+        po.invNo,   
       	po.outDlvrDate,
       	dc.centerName,
       	dc.regCode

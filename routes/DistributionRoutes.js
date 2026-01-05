@@ -369,7 +369,7 @@ router.get(
 
 router.get(
   "/get-distributed-vehicles",
-  // authMiddleware,
+  authMiddleware,
   distributionEp.getDistributedVehicles
 );
 
