@@ -3649,6 +3649,7 @@ exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
       LEFT JOIN collectionofficer drv ON dor.driverId = drv.id
       LEFT JOIN driverreturnorders dro ON dor.id = dro.drvOrderId
       LEFT JOIN returnreason rr ON dro.returnReasonId = rr.id
+      LEFT JOIN processorders po ON dor.orderId = po.id
       WHERE dor.orderId = ?
     `;
 
