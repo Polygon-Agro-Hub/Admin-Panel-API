@@ -3101,6 +3101,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         po.id,
         po.invNo,
         dc.regCode,
+        dc.centerName,
         o.sheduleTime,
         po.createdAt,
         po.status,
