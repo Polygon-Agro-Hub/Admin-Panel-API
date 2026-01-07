@@ -3101,6 +3101,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         po.id,
         po.invNo,
         dc.regCode,
+        dc.centerName,
         o.sheduleTime,
         po.createdAt,
         po.status,
@@ -3109,7 +3110,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         drv.empId AS driverEmpId,
         dro.startTime AS driverStartTime,
         drr.createdAt AS returnTime,
-        dro.completeTime AS deliveryTime
+        po.deliveredTime AS deliveryTime
       FROM 
         market_place.processorders po
       INNER JOIN 
@@ -3642,12 +3643,13 @@ exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
           dro.note AS returnNote,
           dro.createdAt AS returnTime,
           dor.receivedTime AS returnRecivedTime,
-          dor.completeTime AS completeTime,
+          po.deliveredTime AS completeTime,
           dor.handOverTime AS moneyHandoverTime
       FROM driverorders dor
       LEFT JOIN collectionofficer drv ON dor.driverId = drv.id
       LEFT JOIN driverreturnorders dro ON dor.id = dro.drvOrderId
       LEFT JOIN returnreason rr ON dro.returnReasonId = rr.id
+      LEFT JOIN market_place.processorders po ON dor.orderId = po.id
       WHERE dor.orderId = ?
     `;
 

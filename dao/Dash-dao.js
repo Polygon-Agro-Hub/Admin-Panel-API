@@ -1120,7 +1120,8 @@ const getUserOrdersDao = async (userId, status) => {
         P.paymentMethod,
         P.isPaid,
         O.fullTotal,
-        O.isPackage
+        O.isPackage,
+        P.status
       FROM processorders P
       JOIN orders O ON P.orderId = O.id
       WHERE O.userId = ? 

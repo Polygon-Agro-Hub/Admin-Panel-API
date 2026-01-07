@@ -3176,3 +3176,30 @@ exports.getPosPackageDetailsDAO = (orderId) => {
     });
   });
 };
+
+exports.postManageSeoDao = async (payload) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO govimartseo
+        (pageName, slug, discription, keywords)
+      VALUES (?, ?, ?, ?)
+    `;
+
+    const params = [
+      payload.pageName,
+      payload.slug,
+      payload.discription,
+      JSON.stringify(payload.keywords || []),
+    ];
+
+    marketPlace.query(sql, params, (err, result) => {
+      if (err) return reject(err);
+
+      resolve({
+        id: result.insertId,
+        pageName: payload.pageName,
+      });
+    });
+  });
+};
+
