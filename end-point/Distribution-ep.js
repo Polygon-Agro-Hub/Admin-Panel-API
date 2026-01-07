@@ -2603,6 +2603,8 @@ exports.getDistributedVehicles = async (req, res) => {
 
 
 exports.getTodayDiliveryTracking = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
   try {
     // const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
     
@@ -2615,7 +2617,7 @@ exports.getTodayDiliveryTracking = async (req, res) => {
       centerDetails,
       driverDetails
     });
-    console.log(centerDetails);
+    // console.log(centerDetails);
     console.log(driverDetails);
   } catch (error) {
     console.error('Get Distributed Vehicles Error:', error);
