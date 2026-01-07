@@ -564,9 +564,12 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
   return new Promise((resolve, reject) => {
     // Count query
     let countSql = `
-      SELECT COUNT(DISTINCT OC.id) as total 
-      FROM ongoingcultivations OC
-      LEFT JOIN users U ON OC.userId = U.id
+      SELECT 
+        COUNT(*) as total
+      FROM users U
+      LEFT JOIN ongoingcultivations OC  ON OC.userId = U.id
+      LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+      INNER JOIN farms F ON F.userId = U.id
       WHERE 1=1
     `;
 
@@ -579,12 +582,11 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
         U.lastName, 
         U.NICnumber,
         U.phoneNumber,
-        COUNT(DISTINCT OCC.id) AS CropCount,
         COUNT(DISTINCT F.id) AS FarmCount
-      FROM ongoingcultivations OC
-      LEFT JOIN users U ON OC.userId = U.id
+      FROM users U
+      LEFT JOIN ongoingcultivations OC  ON OC.userId = U.id
       LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
-      LEFT JOIN farms F ON F.userId = U.id
+      INNER JOIN farms F ON F.userId = U.id
       WHERE 1=1
     `;
 
@@ -612,6 +614,8 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
       ORDER BY OC.createdAt DESC 
       LIMIT ? OFFSET ?
     `;
+
+    countSql += ` GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber `
     dataParams.push(limit, offset);
 
     // Fetch total count
@@ -724,7 +728,7 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
         u.firstName AS userFirstName,
         u.lastName AS userLastName,
         (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
-        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasksm,
+        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks,
         f.farmName,
         occ.planType
       FROM 
@@ -4132,87 +4136,6 @@ exports.deleteFarmDao = (farmId) => {
   });
 };
 
-// exports.getAllFarmsWithCultivations = (userId, searchItem) => {
-//   return new Promise((resolve, reject) => {
-//     let params = [];
-//     let searchSql = "";
-
-//     if (searchItem) {
-//       searchSql = `
-//         AND (
-//           U.NICnumber LIKE ? OR
-//           U.firstName LIKE ? OR
-//           U.lastName LIKE ? OR
-//           F.farmName LIKE ?
-//         )
-//       `;
-//       const searchQuery = `%${searchItem}%`;
-//       params.push(searchQuery, searchQuery, searchQuery, searchQuery);
-//     }
-
-//     // Filter by specific user
-//     if (userId) {
-//       searchSql += " AND U.id = ? ";
-//       params.push(userId);
-//     }
-
-//     const sql = `
-//       SELECT
-//         F.id AS farmId,
-//         F.farmName,
-//         F.farmIndex,
-//         F.staffCount,
-//         F.district AS farmDistrict,
-//         F.createdAt AS farmCreatedAt,
-//         U.id AS userId,
-//         U.firstName,
-//         U.lastName,
-//         U.NICnumber,
-//         COUNT(DISTINCT OC.id) AS cultivationCount
-//       FROM farms F
-//       LEFT JOIN users U ON F.userId = U.id
-//       LEFT JOIN ongoingcultivations OC ON OC.userId = U.id
-//       WHERE 1=1 ${searchSql}
-//       GROUP BY F.id, U.id
-//       ORDER BY F.createdAt DESC
-//     `;
-
-//     plantcare.query(sql, params, (err, results) => {
-//       if (err) return reject(err);
-
-//       // Group farms by user
-//       const usersMap = {};
-//       results.forEach(row => {
-//         if (!usersMap[row.userId]) {
-//           usersMap[row.userId] = {
-//             userId: row.userId,
-//             firstName: row.firstName,
-//             lastName: row.lastName,
-//             NICnumber: row.NICnumber,
-//             farms: [],
-//           };
-//         }
-
-//         usersMap[row.userId].farms.push({
-//           farmId: row.farmId,
-//           farmName: row.farmName,
-//           farmIndex: row.farmIndex,
-//           staffCount: row.staffCount,
-//           farmDistrict: row.farmDistrict,
-//           farmCreatedAt: row.farmCreatedAt,
-//           cultivationCount: row.cultivationCount, // updated
-//         });
-//       });
-
-//       const items = Object.values(usersMap);
-
-//       resolve({
-//         totalUsers: items.length,
-//         items,
-//       });
-//     });
-//   });
-// };
 exports.getAllFarmsWithCultivations = (userId, searchItem) => {
   return new Promise((resolve, reject) => {
     let params = [];
@@ -4246,7 +4169,8 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
         U.firstName,
         U.lastName,
         U.NICnumber,
-        COUNT(DISTINCT OCC.id) AS cultivationCount
+        COUNT(DISTINCT OCC.id) AS cultivationCount,
+        (F.extentac + F.extentha * 2.47105 + F.extentp / 160) AS area
       FROM farms F
       LEFT JOIN users U ON F.userId = U.id
       LEFT JOIN ongoingcultivations OC ON OC.userId = U.id
@@ -4282,6 +4206,7 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
           farmDistrict: row.farmDistrict,
           farmCreatedAt: row.farmCreatedAt,
           cultivationCount: row.cultivationCount,
+          area: parseFloat(row.area).toFixed(2),
         });
       });
 
