@@ -728,7 +728,7 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
         u.firstName AS userFirstName,
         u.lastName AS userLastName,
         (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
-        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasksm,
+        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks,
         f.farmName,
         occ.planType
       FROM 
