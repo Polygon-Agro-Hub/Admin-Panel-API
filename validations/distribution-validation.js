@@ -113,3 +113,11 @@ exports.getDistributedVehiclesSchema = Joi.object({
   vehicleType: Joi.string().optional(),
   searchText: Joi.string().trim().min(1).max(50).optional(),
 });
+
+exports.getDistributedDriversSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(5000).default(10),
+  status: Joi.string().optional(),
+  vehicleType: Joi.string().optional(),
+  searchText: Joi.string().trim().min(1).max(50).optional(),
+});
