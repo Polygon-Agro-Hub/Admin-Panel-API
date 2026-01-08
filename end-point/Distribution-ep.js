@@ -1841,9 +1841,9 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       DistributionDao.editCheckPhoneNumberExist(officerData.phoneNumber01, id),
       officerData.phoneNumber02
         ? DistributionDao.editCheckPhoneNumberExist(
-            officerData.phoneNumber02,
-            id
-          )
+          officerData.phoneNumber02,
+          id
+        )
         : Promise.resolve(false),
     ]);
 
@@ -2767,23 +2767,14 @@ exports.getNextHoldReasonIndex = async (req, res) => {
 exports.getTodaysDeliverieData = async (req, res) => {
   try {
     // Extract search parameters from query string
-    const { regCode, invNo, searchType = "partial" } = req.query;
+    // const { regCode, invNo, activeTab } = req.query;
+    const searchParams = await DistributionValidation.getTodaysDeliverieDataSchema.validateAsync(req.query);
 
-    // Build search parameters object
-    const searchParams = {};
-
-    if (regCode && regCode.trim() !== "") {
-      searchParams.regCode = regCode.trim();
+    if (searchParams.activeTab && searchParams.activeTab.trim() !== "") {
+      searchParams.activeTab = searchParams.activeTab.trim();
     }
 
-    if (invNo && invNo.trim() !== "") {
-      searchParams.invNo = invNo.trim();
-    }
-
-    // Optional: Add exact match if specified
-    if (searchType === "exact") {
-      searchParams.exactMatch = true;
-    }
+    console.log("Search Parameters:", searchParams);
 
     // Get deliveries with optional search
     const deliveries = await DistributionDao.getAllTodaysDeliveries(
@@ -2794,8 +2785,6 @@ exports.getTodaysDeliverieData = async (req, res) => {
       status: true,
       data: deliveries,
       count: deliveries.length,
-      searchApplied: Object.keys(searchParams).length > 0,
-      searchParams: Object.keys(searchParams).length > 0 ? searchParams : null,
     });
   } catch (error) {
     console.error("Error fetching today's deliveries:", error);
@@ -3037,7 +3026,7 @@ exports.getDistributedDriversAndVehicles = async (req, res) => {
   try {
     // const { id } = req.params;
 
-    const id = 66; 
+    const id = 66;
 
     const { page, limit, status, vehicleType, searchText } = await DistributionValidation.getDistributedDriversSchema.validateAsync(req.query);
 
