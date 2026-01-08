@@ -127,3 +127,10 @@ exports.getTodaysDeliverieDataSchema = Joi.object({
   regCode: Joi.number().integer().positive().optional(),
   invNo: Joi.string().optional(),
 })
+
+exports.getDistributedCenterPikupOderShema = Joi.object({
+    companycenterId: Joi.number().integer().positive().required(),
+    date: Joi.date().iso().optional(),
+    time: Joi.string().optional(),
+    searchText: Joi.string().optional()
+})

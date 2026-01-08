@@ -3778,3 +3778,116 @@ exports.getDistributedDriversAndVehiclesDao = (
     });
   });
 };
+
+exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
+  return new Promise((resolve, reject) => {
+    // Base SQL query
+    let sql = `
+    SELECT
+        po.invNo,
+        o.fullTotal,
+        po.status,
+        mu.phoneCode AS customerPhoneCode,
+        mu.phoneNumber AS customerPhoneNumber,
+        o.phonecode1 AS receiverPhoneCode,
+        o.phone1 AS receiverPhone,
+        o.sheduleDate,
+        o.sheduleTime,
+        po.isPaid
+    FROM collection_officer.distributedtarget dt
+    LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
+    LEFT JOIN market_place.processorders po ON dti.orderId = po.id
+    LEFT JOIN market_place.orders o ON po.orderId = o.id
+    LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+    WHERE 1=1
+    `;
+
+    const conditions = [];
+    const values = [];
+
+    // Required parameter: companycenterId
+    if (searchParams.companycenterId) {
+      conditions.push(`dt.companycenterId = ?`);
+      values.push(searchParams.companycenterId);
+    } else {
+      return reject(new Error("companycenterId is required"));
+    }
+
+    // Filter by status (Ready to Pickup or Picked up)
+    if (searchParams.activeTab) {
+      if (searchParams.activeTab === 'ready-to-pickup') {
+        conditions.push(`po.status = ?`);
+        values.push('Ready to Pickup');
+      } else if (searchParams.activeTab === 'picked-up') {
+        conditions.push(`po.status = ?`);
+        values.push('Picked up');
+      } else {
+        // Default to both statuses if not specified
+        conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
+      }
+    } else {
+      // Default to both statuses
+      conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
+    }
+
+    // Date filter
+    if (searchParams.date) {
+      let dateValue;
+      
+      if (typeof searchParams.date === "string") {
+        dateValue = searchParams.date.trim();
+      } else if (searchParams.date instanceof Date) {
+        dateValue = searchParams.date.toISOString().split("T")[0];
+      }
+      
+      if (dateValue && dateValue !== "") {
+        conditions.push(`DATE(o.sheduleDate) = DATE(?)`);
+        values.push(dateValue);
+      }
+    }
+
+    // Time filter (previously 'status' parameter for sheduleTime)
+    if (searchParams.sheduleTime && searchParams.sheduleTime.trim() !== "") {
+      conditions.push(`o.sheduleTime = ?`);
+      values.push(searchParams.sheduleTime.trim());
+    }
+
+    // Search text filter
+    if (searchParams.searchText && searchParams.searchText.trim() !== "") {
+      const searchPattern = `%${searchParams.searchText.trim()}%`;
+      conditions.push(`(
+        po.invNo LIKE ? OR 
+        CONCAT(mu.phoneCode, mu.phoneNumber) LIKE ? OR
+        CONCAT(o.phonecode1, o.phone1) LIKE ?
+      )`);
+      values.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    // Append all conditions to the WHERE clause
+    if (conditions.length > 0) {
+      sql += ` AND (${conditions.join(" AND ")})`;
+    }
+
+    // Add ORDER BY clause
+    sql += `
+    ORDER BY 
+        o.sheduleDate ASC,
+        o.sheduleTime ASC,
+        po.invNo DESC
+    `;
+
+    // Debug logging
+    console.log("SQL Query:", sql);
+    console.log("SQL Parameters:", values);
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        console.error("Database query error:", err);
+        reject(err);
+      } else {
+        console.log(`Query returned ${results.length} results`);
+        resolve(results);
+      }
+    });
+  });
+};
