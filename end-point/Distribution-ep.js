@@ -3035,9 +3035,8 @@ exports.getReturnRecievedOrders = async (req, res) => {
 
 exports.getDistributedDriversAndVehicles = async (req, res) => {
   try {
-    // const { id } = req.params;
-
-    const id = 66; 
+    
+    const { id } = req.params;
 
     const { page, limit, status, vehicleType, searchText } = await DistributionValidation.getDistributedDriversSchema.validateAsync(req.query);
 
@@ -3049,6 +3048,8 @@ exports.getDistributedDriversAndVehicles = async (req, res) => {
       vehicleType,
       searchText
     );
+
+    console.log("Distributed Drivers and Vehicles:", result);
 
     res.status(200).json({
       success: true,
