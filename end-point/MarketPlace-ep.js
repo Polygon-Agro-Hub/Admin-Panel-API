@@ -661,6 +661,7 @@ exports.getMarketplacePackageById = async (req, res) => {
     const packageItems = await MarketPlaceDao.getPackageEachItemsDao(id);
 
     const packageData = {
+      id: firstRow.id,
       displayName: firstRow.displayName,
       status: firstRow.status || "Enabled",
       description: firstRow.description,
@@ -1225,6 +1226,8 @@ exports.editPackage = async (req, res) => {
     const packageItems = package.packageItems;
     const id = req.params.id;
 
+    console.log('id', id)
+
 
     let profileImageUrl = null;
 
@@ -1240,6 +1243,8 @@ exports.editPackage = async (req, res) => {
         message: "A package with this display name already exists. Please choose a different name.",
       });
     }
+
+    console.log('so far good')
 
 
 

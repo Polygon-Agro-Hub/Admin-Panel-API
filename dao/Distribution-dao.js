@@ -1327,7 +1327,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => { });
+    doc.on("end", () => {});
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -2566,9 +2566,10 @@ exports.dcmGetSelectedOfficerTargetsDao = (
       OR o.isPackage = 0
     )
     AND (
-      ${deliveryLocationData && deliveryLocationData.length > 0
-        ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-        : ""
+      ${
+        deliveryLocationData && deliveryLocationData.length > 0
+          ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+          : ""
       }
       o.centerId = ?
     )
@@ -3348,9 +3349,7 @@ exports.getReturnRecievedDataDao = (
   searchText
 ) => {
   return new Promise((resolve, reject) => {
-
-    let dataSql =
-      `
+    let dataSql = `
       SELECT do.id, coff.id AS driverId, coff.empId, po.id AS processOrderId, po.invNO, o.id AS orderId, o.total, o.centerId, o.phoneCode1, o.phone1, o.sheduleDate, oh.city AS houseCity,
       oa.city AS apartmentCity, rr.rsnEnglish AS reason, dro.createdAt AS returnAt, do.receivedTime, do.handOverOfficer
           
@@ -3376,9 +3375,11 @@ exports.getReturnRecievedDataDao = (
 
     if (centerId) {
       dataSql += ` AND (
-          ${deliveryLocationData && deliveryLocationData.length > 0
-          ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-          : ""}
+          ${
+            deliveryLocationData && deliveryLocationData.length > 0
+              ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+              : ""
+          }
           o.centerId = ?
         )`;
     }
@@ -3394,8 +3395,6 @@ exports.getReturnRecievedDataDao = (
     //   dataSql += cond;
     //   dataParams.push(centerId);
     // }
-
-
 
     if (searchText) {
       const searchPattern = `%${searchText}%`;
@@ -3425,7 +3424,6 @@ exports.getReturnRecievedDataDao = (
   });
 };
 
-
 exports.getDeliveryChargeCity = (companyCenterId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -3442,7 +3440,7 @@ exports.getDeliveryChargeCity = (companyCenterId) => {
       }
 
       // Map result rows into an array of city values
-      const cities = results.map(row => row.city);
+      const cities = results.map((row) => row.city);
       resolve(cities);
     });
   });
@@ -3470,11 +3468,11 @@ exports.getAllCityCenterMapping = (companyId) => {
 
       // Create a map: city -> centerId
       const cityToCenterMap = {};
-      results.forEach(row => {
+      results.forEach((row) => {
         cityToCenterMap[row.city.toLowerCase()] = {
           centerId: row.centerId,
           centerName: row.centerName,
-          regCode: row.regCode
+          regCode: row.regCode,
         };
       });
 
@@ -3589,7 +3587,6 @@ exports.getDistributedVehiclesDao = (
   });
 };
 
-
 exports.getTodayDiliveryTrackingCenterDetailsDao = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -3614,7 +3611,6 @@ exports.getTodayDiliveryTrackingCenterDetailsDao = async (id) => {
     });
   });
 };
-
 
 exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
   return new Promise((resolve, reject) => {
@@ -3659,6 +3655,94 @@ exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
       } else {
         resolve(results[0]);
       }
+    });
+  });
+};
+
+exports.getDistributedDriversAndVehiclesDao = (
+  distributedCompanyCenterId,
+  page,
+  limit,
+  status,
+  vehicleType,
+  searchText
+) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let whereConditions = ` WHERE dcc.id = ? `;
+    let params = [distributedCompanyCenterId];
+
+    if (status) {
+      whereConditions += ` AND co.status = ? `;
+      params.push(status);
+    }
+
+    if (vehicleType) {
+      whereConditions += ` AND vr.vType = ? `;
+      params.push(vehicleType);
+    }
+
+    if (searchText) {
+      whereConditions += `
+        AND (
+          co.empId LIKE ?
+          OR co.phoneNumber01 LIKE ?
+          OR co.nic LIKE ?
+        )
+      `;
+      params.push(`%${searchText}%`, `%${searchText}%`, `%${searchText}%`);
+    }
+
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM distributedcompanycenter dcc
+      INNER JOIN distributedcenter dc ON dcc.centerId = dc.id
+      INNER JOIN collectionofficer co ON co.distributedCenterId = dc.id
+      LEFT JOIN vehicleregistration vr ON co.id = vr.coId
+      ${whereConditions}
+    `;
+
+    const dataSql = `
+      SELECT 
+        co.id AS officerId,
+        co.empId,
+        co.firstNameEnglish AS firstName,
+        co.lastNameEnglish AS lastName,
+        vr.vType AS vehicleType,
+        vr.vCapacity AS capacity,
+        co.phoneNumber01 AS phone,
+        co.phoneNumber02,
+        co.nic,
+        co.status,
+        dc.id AS distributedCenterId,
+        dc.centerName,
+        dc.regCode
+      FROM distributedcompanycenter dcc
+      INNER JOIN distributedcenter dc ON dcc.centerId = dc.id
+      INNER JOIN collectionofficer co ON co.distributedCenterId = dc.id
+      LEFT JOIN vehicleregistration vr ON co.id = vr.coId
+      ${whereConditions}
+      LIMIT ? OFFSET ?
+    `;
+
+    collectionofficer.query(countSql, params, (err, countResult) => {
+      if (err) return reject(err);
+
+      const total = countResult[0].total;
+
+      collectionofficer.query(
+        dataSql,
+        [...params, limit, offset],
+        (err, results) => {
+          if (err) return reject(err);
+
+          resolve({
+            total,
+            items: results,
+          });
+        }
+      );
     });
   });
 };

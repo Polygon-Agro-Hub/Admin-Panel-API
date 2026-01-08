@@ -385,4 +385,11 @@ router.get(
   distributionEp.getReturnRecievedOrders
 );
 
+router.get(
+  "/get-distributed-drivers-and-vehicles/:id",
+  // authMiddleware,
+  distributionEp.getDistributedDriversAndVehicles
+);
+
+
 module.exports = router;

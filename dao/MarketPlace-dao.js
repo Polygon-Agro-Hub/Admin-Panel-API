@@ -837,6 +837,7 @@ exports.getMarketplacePackageByIdDAO = async (id) => {
         return reject(new Error("Package not found"));
       }
       resolve(results);
+      console.log('results', results)
     });
   });
 };
@@ -3071,10 +3072,7 @@ exports.getCouponByCodeDao = async (code) => {
 exports.removeMarketplacePckages = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-          UPDATE marketplacepackages 
-          SET 
-            isValid = 0,
-            status = 'Enabled'
+          DELETE FROM marketplacepackages 
           WHERE id = ?`;
     marketPlace.query(sql, [id], (err, results) => {
       if (err) {
