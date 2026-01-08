@@ -3057,7 +3057,7 @@ exports.getDistributedDriversAndVehicles = async (req, res) => {
 
 exports.getDistributedCenterPikupOder = async (req, res) => {
   try {
-    // Validate input parameters
+
     const { companycenterId, time, date, searchText } =
       await DistributionValidation.getDistributedCenterPikupOderShema.validateAsync(
         req.query
@@ -3065,18 +3065,18 @@ exports.getDistributedCenterPikupOder = async (req, res) => {
     
     console.log("Params:", req.query);
 
-    // Convert date to proper format if it's a Date object
     let formattedDate = date;
     if (date instanceof Date) {
       formattedDate = date.toISOString().split("T")[0];
     }
 
-    // Call the DAO function
+    const searchParams = {
+      companycenterId: companycenterId,
+      sheduleTime: time, 
+      searchText: searchText
+    };
     const results = await DistributionDao.getDistributedCenterPikupOderDao(
-      companycenterId,
-      time,
-      formattedDate,
-      searchText
+      searchParams
     );
 
     console.log(`Successfully retrieved ${results.length} pickup orders`);
@@ -3093,6 +3093,14 @@ exports.getDistributedCenterPikupOder = async (req, res) => {
       return res.status(400).json({ 
         status: false, 
         error: err.details[0].message 
+      });
+    }
+
+    // Handle specific error from DAO
+    if (err.message === "companycenterId is required") {
+      return res.status(400).json({ 
+        status: false, 
+        error: "Company center ID is required" 
       });
     }
 
