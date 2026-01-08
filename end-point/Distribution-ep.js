@@ -3065,3 +3065,54 @@ exports.getDistributedDriversAndVehicles = async (req, res) => {
     });
   }
 };
+
+exports.getDistributedCenterPikupOder = async (req, res) => {
+  try {
+    // Validate input parameters
+    const { companycenterId, time, date, searchText } =
+      await DistributionValidation.getDistributedCenterPikupOderShema.validateAsync(
+        req.query
+      );
+    
+    console.log("Params:", req.query);
+
+    // Convert date to proper format if it's a Date object
+    let formattedDate = date;
+    if (date instanceof Date) {
+      formattedDate = date.toISOString().split("T")[0];
+    }
+
+    // Call the DAO function
+    const results = await DistributionDao.getDistributedCenterPikupOderDao(
+      companycenterId,
+      time,
+      formattedDate,
+      searchText
+    );
+
+    console.log(`Successfully retrieved ${results.length} pickup orders`);
+    res.json({ 
+      status: true, 
+      message: "Pickup orders retrieved successfully",
+      count: results.length,
+      data: results 
+    });
+  } catch (err) {
+    // Handle validation errors
+    if (err.isJoi) {
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ 
+        status: false, 
+        error: err.details[0].message 
+      });
+    }
+
+    // Handle database or other errors
+    console.error("Error fetching pickup orders:", err);
+    res.status(500).json({ 
+      status: false, 
+      error: "An error occurred while fetching pickup orders",
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+};

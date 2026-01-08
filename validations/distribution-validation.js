@@ -121,3 +121,10 @@ exports.getDistributedDriversSchema = Joi.object({
   vehicleType: Joi.string().optional(),
   searchText: Joi.string().trim().min(1).max(50).optional(),
 });
+
+exports.getDistributedCenterPikupOderShema = Joi.object({
+    companycenterId: Joi.number().integer().positive().required(),
+    date: Joi.date().iso().optional(),
+    time: Joi.string().optional(),
+    searchText: Joi.string().optional()
+})

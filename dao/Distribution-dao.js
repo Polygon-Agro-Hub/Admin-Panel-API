@@ -3746,3 +3746,91 @@ exports.getDistributedDriversAndVehiclesDao = (
     });
   });
 };
+
+exports.getDistributedCenterPikupOderDao = async (
+  companycenterId,
+  status,
+  date,
+  searchText
+) => {
+  return new Promise((resolve, reject) => {
+    const sqlParams = [companycenterId];
+    let sql = `
+    SELECT
+        po.invNo,
+        o.fullTotal,
+        po.status,
+        mu.phoneCode AS customerPhoneCode,
+        mu.phoneNumber AS customerPhoneNumber,
+        o.phonecode1 AS receiverPhoneCode,
+        o.phone1 AS receiverPhone,
+        o.sheduleDate,
+        o.sheduleTime,
+        po.isPaid
+    FROM collection_officer.distributedtarget dt
+    LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
+    LEFT JOIN market_place.processorders po ON dti.orderId = po.id
+    LEFT JOIN market_place.orders o ON po.orderId = o.id
+    LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+    WHERE dt.companycenterId = ?
+    `;
+
+    sql += ` AND po.status IN ('Ready to Pickup', 'Picked up')`;
+
+    if (date) {
+      let dateValue;
+      
+      if (typeof date === "string") {
+        dateValue = date.trim();
+      } else if (date instanceof Date) {
+        dateValue = date.toISOString().split("T")[0];
+      }
+      
+      if (dateValue && dateValue !== "") {
+        sql += ` AND DATE(o.sheduleDate) = DATE(?)`;
+        sqlParams.push(dateValue);
+      }
+    }
+
+    if (status && status.trim() !== "") {
+      sql += ` AND o.sheduleTime = ?`;
+      sqlParams.push(status.trim());
+    }
+
+    if (searchText && searchText.trim() !== "") {
+      const searchPattern = `%${searchText.trim()}%`;
+      sql += ` AND (
+        po.invNo LIKE ? OR 
+        CONCAT(mu.phoneCode, mu.phoneNumber) LIKE ? OR
+        CONCAT(o.phonecode1, o.phone1) LIKE ?
+      )`;
+      sqlParams.push(
+        searchPattern, 
+        searchPattern, 
+        searchPattern
+      );
+    }
+
+    sql += `
+    ORDER BY 
+        o.sheduleDate ASC,
+        o.sheduleTime ASC,
+        po.invNo DESC
+    `;
+
+    // Debug logging
+    console.log("SQL Query:", sql);
+    console.log("SQL Parameters:", sqlParams);
+
+    // Assuming your database connection is named 'dbConnection'
+    collectionofficer.query(sql, sqlParams, (err, results) => {
+      if (err) {
+        console.error("Database query error:", err);
+        reject(err);
+      } else {
+        console.log(`Query returned ${results.length} results`);
+        resolve(results);
+      }
+    });
+  });
+};

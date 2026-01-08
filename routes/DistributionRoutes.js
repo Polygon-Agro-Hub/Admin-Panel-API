@@ -391,5 +391,11 @@ router.get(
   distributionEp.getDistributedDriversAndVehicles
 );
 
+router.get(
+  "/get-distributed-center-pickup-orders",
+  authMiddleware,
+  distributionEp.getDistributedCenterPikupOder
+);
+
 
 module.exports = router;
