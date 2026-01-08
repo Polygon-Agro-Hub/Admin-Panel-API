@@ -2,6 +2,9 @@ const CollectionCenterDao = require("../dao/CollectionCenter-dao");
 const ValidateSchema = require("../validations/CollectionCenter-validation");
 const XLSX = require('xlsx');
 
+const uploadFileToS3 = require("../middlewares/s3upload");
+const deleteFromS3 = require("../middlewares/s3delete");
+
 exports.getAllCollectionCenter = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -653,18 +656,71 @@ exports.createCompany = async (req, res) => {
       }
     };
 
-    // Process logo and favicon
-    const logoFile = processBase64Image(logoBase64, 'logo');
-    const faviconFile = processBase64Image(faviconBase64, 'favicon');
+    // ================= IMAGE UPLOAD =================
+let logoUrl = null;
+let faviconUrl = null;
 
-    // Generate URLs (you can customize this based on your storage strategy)
-    const generateFileUrl = (filename) => {
-      if (!filename) return null;
-      return `${req.protocol}://${req.get("host")}/uploads/${filename}`;
-    };
+const uploadBase64Image = async (base64, filePrefix, folder) => {
+  if (!base64) return null;
 
-    const logoUrl = logoFile ? generateFileUrl(logoFile.filename) : null;
-    const faviconUrl = faviconFile ? generateFileUrl(faviconFile.filename) : null;
+  if (typeof base64 !== "string" || !base64.startsWith("data:")) {
+    throw new Error("Invalid image data");
+  }
+
+  const mimeMatch = base64.match(/^data:(.+);base64,/);
+  if (!mimeMatch) {
+    throw new Error("Invalid base64 format");
+  }
+
+  const mimeType = mimeMatch[1];
+  const base64Data = base64.replace(/^data:.+;base64,/, "");
+  const fileBuffer = Buffer.from(base64Data, "base64");
+
+  const fileExtension = mimeType.split("/")[1].split("+")[0];
+
+  const safeCompanyName = companyNameEnglish
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "_");
+
+  const fileName = `${safeCompanyName}_${filePrefix}.${fileExtension}`;
+
+  return await uploadFileToS3(fileBuffer, fileName, folder);
+};
+
+// Upload logo
+try {
+  logoUrl = await uploadBase64Image(
+    logoBase64,
+    "logo",
+    "company/image"
+  );
+
+  faviconUrl = await uploadBase64Image(
+    faviconBase64,
+    "favicon",
+    "company/image"
+  );
+} catch (err) {
+  console.error("Image upload error:", err);
+  return res.status(400).json({
+    status: false,
+    error: "Invalid image format or upload failed",
+  });
+}
+    
+
+    // // Process logo and favicon
+    // const logoFile = processBase64Image(logoBase64, 'logo');
+    // const faviconFile = processBase64Image(faviconBase64, 'favicon');
+
+    // // Generate URLs (you can customize this based on your storage strategy)
+    // const generateFileUrl = (filename) => {
+    //   if (!filename) return null;
+    //   return `${req.protocol}://${req.get("host")}/uploads/${filename}`;
+    // };
+
+    // const logoUrl = logoFile ? generateFileUrl(logoFile.filename) : null;
+    // const faviconUrl = faviconFile ? generateFileUrl(faviconFile.filename) : null;
 
     const newsId = await CollectionCenterDao.createCompany(
       regNumber,
