@@ -1327,7 +1327,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => {});
+    doc.on("end", () => { });
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -2566,10 +2566,9 @@ exports.dcmGetSelectedOfficerTargetsDao = (
       OR o.isPackage = 0
     )
     AND (
-      ${
-        deliveryLocationData && deliveryLocationData.length > 0
-          ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-          : ""
+      ${deliveryLocationData && deliveryLocationData.length > 0
+        ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+        : ""
       }
       o.centerId = ?
     )
@@ -3101,22 +3100,25 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       SELECT 
         po.id,
         po.invNo,
-        dc.regCode,
-        dc.centerName,
+        COALESCE(dc.regCode, dc2.regCode) AS regCode,
+        COALESCE(dc.centerName, dc2.centerName) AS centerName,
         o.sheduleTime,
+        o.sheduleDate,
         po.createdAt,
         po.status,
         TIME(po.outDlvrDate) as outDlvrTime,
         dro.createdAt AS collectTime,
         drv.empId AS driverEmpId,
+        CONCAT(drv.phoneCode01,'-', drv.phoneNumber01) AS driverPhone,
         dro.startTime AS driverStartTime,
         drr.createdAt AS returnTime,
-        po.deliveredTime AS deliveryTime
+        po.deliveredTime AS deliveryTime,
+        dho.createdAt AS holdTime
       FROM 
         market_place.processorders po
       INNER JOIN 
         market_place.orders o ON po.orderId = o.id
-      INNER JOIN 
+      LEFT JOIN 
         collection_officer.distributedcenter dc ON o.centerId = dc.id
       LEFT JOIN
         collection_officer.driverorders dro ON po.id = dro.orderId
@@ -3131,17 +3133,44 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         )
       LEFT JOIN 
         collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
+      LEFT JOIN 
+        collection_officer.collectionofficer cof2 ON po.outBy = cof2.id
+      LEFT JOIN
+        collection_officer.distributedcenter dc2 ON cof2.distributedCenterId = dc2.id
       WHERE 
-        po.status IN ('Out For Delivery', 'Delivered', 'Collected', 'On the way', 'Return', 'Hold')
+        DATE(o.sheduleDate) = CURDATE()
       `;
-
+    // DATE(o.sheduleDate) = CURDATE()
     // Add search conditions if search parameters are provided
     const conditions = [];
     const values = [];
 
+    if (searchParams.activeTab) {
+      console.log(searchParams.activeTab);
+      if (searchParams.activeTab === 'out-for-delivery') {
+        conditions.push(`po.status = ?`);
+        values.push('Out For Delivery');
+      } else if (searchParams.activeTab === 'collected') {
+        conditions.push(`po.status = ?`);
+        values.push('Collected');
+      }else if (searchParams.activeTab === 'on-the-way') {
+        conditions.push(`po.status = ?`);
+        values.push('On the way');
+      }else if (searchParams.activeTab === 'hold') {
+        conditions.push(`po.status = ?`);
+        values.push('Hold');
+      }else if (searchParams.activeTab === 'return') {
+        conditions.push(`po.status = ?`);
+        values.push('Return');
+      }else if (searchParams.activeTab === 'delivered') {
+        conditions.push(`po.status = ?`);
+        values.push('Delivered');
+      }
+    }
+
     if (searchParams.regCode) {
-      conditions.push(`dc.regCode LIKE ?`);
-      values.push(`%${searchParams.regCode}%`);
+      conditions.push(`dc.id = ? OR dc2.id = ?`);
+      values.push(searchParams.regCode, searchParams.regCode);
     }
 
     if (searchParams.invNo) {
@@ -3375,11 +3404,10 @@ exports.getReturnRecievedDataDao = (
 
     if (centerId) {
       dataSql += ` AND (
-          ${
-            deliveryLocationData && deliveryLocationData.length > 0
-              ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-              : ""
-          }
+          ${deliveryLocationData && deliveryLocationData.length > 0
+          ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+          : ""
+        }
           o.centerId = ?
         )`;
     }

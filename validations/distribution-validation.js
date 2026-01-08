@@ -29,63 +29,63 @@ exports.getAllDistributionCentreSchema = Joi.object({
 });
 
 exports.getAllDistributionOfficersSchema = Joi.object({
-    page: Joi.number().integer().min(1).default(1).optional(),
-    limit: Joi.number().integer().min(1).max(100).default(10).optional(),
-    centerStatus: Joi.string().optional(),
-    status: Joi.string().optional(),
-    nic: Joi.string().allow('').optional(), // Allow empty NIC
+  page: Joi.number().integer().min(1).default(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).default(10).optional(),
+  centerStatus: Joi.string().optional(),
+  status: Joi.string().optional(),
+  nic: Joi.string().allow('').optional(), // Allow empty NIC
   centerName: Joi.string().allow('').optional(), // Allow empty centerName
-    company: Joi.number().optional(),
-    role: Joi.string().optional(),
-    centerId: Joi.number().optional(),
+  company: Joi.number().optional(),
+  role: Joi.string().optional(),
+  centerId: Joi.number().optional(),
 });
 
 exports.getRoleShema = Joi.object({
-    role: Joi.string().required(),
+  role: Joi.string().required(),
 })
 
 exports.assignCityToDistributedCcenterShema = Joi.object({
-    cityId: Joi.number().integer().positive().required(),
-    centerId: Joi.number().integer().positive().required()
+  cityId: Joi.number().integer().positive().required(),
+  centerId: Joi.number().integer().positive().required()
 })
 
 exports.getAllAssigningCitiesShema = Joi.object({
-    provine: Joi.string().required(),
-    district: Joi.string().required(),
+  provine: Joi.string().required(),
+  district: Joi.string().required(),
 })
 
 exports.getDistributedCenterTargetShema = Joi.object({
-    id: Joi.number().integer().positive().required(),
-    date: Joi.date().iso().optional(),
-    status: Joi.string().optional(),
-    searchText: Joi.string().optional()
+  id: Joi.number().integer().positive().required(),
+  date: Joi.date().iso().optional(),
+  status: Joi.string().optional(),
+  searchText: Joi.string().optional()
 })
 
 exports.getDistributedCenterOfficersShema = Joi.object({
-    id: Joi.number().integer().positive().required(),
-    role: Joi.string().optional(),
-    status: Joi.string().optional(),
-    searchText: Joi.string().optional()
+  id: Joi.number().integer().positive().required(),
+  role: Joi.string().optional(),
+  status: Joi.string().optional(),
+  searchText: Joi.string().optional()
 })
 
 exports.getDistributionOutForDlvrOrderShema = Joi.object({
-    id: Joi.number().integer().positive().required(),
-    date: Joi.string().allow('').optional(),
-    status: Joi.string().optional(),
-    searchText: Joi.string().optional()
+  id: Joi.number().integer().positive().required(),
+  date: Joi.string().allow('').optional(),
+  status: Joi.string().optional(),
+  searchText: Joi.string().optional()
 })
 
 exports.getOfficerDailyDistributionTargetShema = Joi.object({
-    id: Joi.number().integer().positive().required(),
-    date: Joi.date().required()
+  id: Joi.number().integer().positive().required(),
+  date: Joi.date().required()
 })
 
 exports.dcmGetparmasIdSchema = Joi.object({
-    targetId: Joi.number().integer().required(),
-    searchText: Joi.string().allow('').optional(),
-    status: Joi.string().allow('').optional(),
-    completingStatus: Joi.string().allow('').optional(),
-    
+  targetId: Joi.number().integer().required(),
+  searchText: Joi.string().allow('').optional(),
+  status: Joi.string().allow('').optional(),
+  completingStatus: Joi.string().allow('').optional(),
+
 });
 
 exports.getTargetedCustomerOrdersSchema = Joi.object({
@@ -121,6 +121,12 @@ exports.getDistributedDriversSchema = Joi.object({
   vehicleType: Joi.string().optional(),
   searchText: Joi.string().trim().min(1).max(50).optional(),
 });
+
+exports.getTodaysDeliverieDataSchema = Joi.object({
+  activeTab: Joi.string().valid('out-for-delivery', 'collected', 'on-the-way', 'hold', 'return', 'delivered', 'all').required(),
+  regCode: Joi.number().integer().positive().optional(),
+  invNo: Joi.string().optional(),
+})
 
 exports.getDistributedCenterPikupOderShema = Joi.object({
     companycenterId: Joi.number().integer().positive().required(),
