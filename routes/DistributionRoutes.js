@@ -375,7 +375,7 @@ router.get(
 
 router.get(
   "/get-today-delivery-tracking/:id",
-  // authMiddleware,
+  authMiddleware,
   distributionEp.getTodayDiliveryTracking
 );
 
@@ -387,7 +387,7 @@ router.get(
 
 router.get(
   "/get-distributed-drivers-and-vehicles/:id",
-  // authMiddleware,
+  authMiddleware,
   distributionEp.getDistributedDriversAndVehicles
 );
 

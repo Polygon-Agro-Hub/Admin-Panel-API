@@ -3390,6 +3390,7 @@ exports.getReturnRecievedDataDao = (
       LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
       LEFT JOIN collection_officer.driverreturnorders dro ON dro.drvOrderId = do.id
       LEFT JOIN collection_officer.returnreason rr ON dro.returnReasonId = rr.id
+      LEFT JOIN collection_officer.distributedcenter dc1 ON dc1.id = o.centerId
       WHERE do.drvStatus = 'Return Received'
     `;
     const dataParams = [];
@@ -3403,14 +3404,16 @@ exports.getReturnRecievedDataDao = (
     }
 
     if (centerId) {
-      dataSql += ` AND (
-          ${deliveryLocationData && deliveryLocationData.length > 0
-          ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-          : ""
-        }
-          o.centerId = ?
-        )`;
-    }
+  dataSql += ` AND (`;
+
+  if (deliveryLocationData && deliveryLocationData.length > 0) {
+    dataSql += `(oh.city IN (?) OR oa.city IN (?)) OR `;
+    dataParams.push(deliveryLocationData, deliveryLocationData);
+  }
+
+  dataSql += ` o.centerId = ? )`;
+  dataParams.push(centerId);
+}
 
     if (sheduleDate) {
       const cond = ` AND DATE(o.sheduleDate) = DATE(?) `;
@@ -3418,23 +3421,24 @@ exports.getReturnRecievedDataDao = (
       dataParams.push(sheduleDate);
     }
 
-    // if (centerId) {
-    //   const cond = ` AND dcc.centerId = ? `;
-    //   dataSql += cond;
-    //   dataParams.push(centerId);
-    // }
-
     if (searchText) {
       const searchPattern = `%${searchText}%`;
+      dataSql += `
+          AND (
+            po.invNo LIKE ? OR
+            CONCAT(o.phoneCode1, ' ', o.phone1) LIKE ? OR
+            CONCAT(o.phoneCode1, o.phone1) LIKE ? OR
+            dc1.centerName LIKE ?
 
-      const cond = `
-        AND (
-          po.invNo LIKE ? 
-         
-        )
-      `;
-      dataSql += cond;
-      dataParams.push(searchPattern);
+          )
+        `;
+
+      dataParams.push(
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        searchPattern
+      );
     }
 
     dataSql += ` ORDER BY po.createdAt DESC`;
