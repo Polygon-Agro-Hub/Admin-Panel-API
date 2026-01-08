@@ -1040,7 +1040,15 @@ exports.getCompanyDAO = (id) => {
 
 exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) => {
   return new Promise((resolve, reject) => {
-    let sql = "SELECT * FROM company WHERE (companyNameEnglish = ? OR regNumber = ?)";
+    let sql = `
+      SELECT *
+      FROM company
+      WHERE (
+        BINARY companyNameEnglish = ?
+        OR BINARY regNumber = ?
+      )
+    `;
+
     const sqlParams = [companyNameEnglish, regNumber];
 
     if (id) {
@@ -1052,9 +1060,13 @@ exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) =
       if (err) {
         reject(err);
       } else {
-        // Check if either companyNameEnglish or regNumber already exists
-        const nameExists = results.some(result => result.companyNameEnglish === companyNameEnglish);
-        const regNumberExists = results.some(result => result.regNumber === regNumber);
+        const nameExists = results.some(
+          r => r.companyNameEnglish === companyNameEnglish
+        );
+
+        const regNumberExists = results.some(
+          r => r.regNumber === regNumber
+        );
 
         resolve({
           exists: results.length > 0,
@@ -1065,6 +1077,7 @@ exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) =
     });
   });
 };
+
 
 exports.updateCompany = (
   id,
@@ -2251,26 +2264,24 @@ exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
 exports.checkCompanyRegNumberDao = (regNumber, id) => {
   return new Promise((resolve, reject) => {
     let sql = `
-         SELECT *
-         FROM company
-         WHERE regNumber = ?
-      `;
-    const sqlParams = [regNumber]
+      SELECT *
+      FROM company
+      WHERE BINARY regNumber = ?
+    `;
+
+    const sqlParams = [regNumber];
 
     if (id) {
-      sql += ` AND id != ? `
+      sql += ` AND id != ?`;
       sqlParams.push(id);
     }
-    collectionofficer.query(
-      sql,
-      sqlParams,
-      (err, results) => {
-        if (err) {
-          return reject(err);
-        }
-        resolve(results);
+
+    collectionofficer.query(sql, sqlParams, (err, results) => {
+      if (err) {
+        return reject(err);
       }
-    );
+      resolve(results);
+    });
   });
 };
 
