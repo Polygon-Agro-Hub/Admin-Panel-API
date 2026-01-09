@@ -834,3 +834,37 @@ exports.GetAllDriverComplainDAO = (
     );
   });
 };
+
+exports.getDriverComplainById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = ` 
+    SELECT 
+      oc.id, 
+      oc.refNo, 
+      oc.createdAt, 
+      oc.complain, 
+      oc.complainCategory, 
+      oc.reply, 
+      cof.firstNameEnglish AS firstName, 
+      cof.lastNameEnglish AS lastName, 
+      cof.phoneCode01, 
+      cof.phoneNumber01,  
+      cc.categoryEnglish AS complainCategory, 
+      cof.empId AS empId, 
+      cof.jobRole AS jobRole,
+      CONCAT (cof.firstNameEnglish, ' ', cof.lastNameEnglish) AS officerName,
+      CONCAT (cof.firstNameSinhala, ' ', cof.lastNameSinhala) AS officerNameSinhala,
+      CONCAT (cof.firstNameTamil, ' ', cof.lastNameTamil) AS officerNameTamil
+    FROM drivercomplains oc
+    LEFT JOIN collectionofficer cof ON oc.driverId = cof.id
+    LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
+    WHERE oc.id = ? 
+    `;
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
