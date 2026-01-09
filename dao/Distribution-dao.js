@@ -3165,11 +3165,15 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       }else if (searchParams.activeTab === 'delivered') {
         conditions.push(`po.status = ?`);
         values.push('Delivered');
+      }else if (searchParams.activeTab === 'all') {
+        conditions.push(` po.status IN ('Out For Delivery', 'Collected', 'On the way', 'Hold', 'Return', 'Delivered') `); 
       }
     }
 
     if (searchParams.regCode) {
-      conditions.push(`dc.id = ? OR dc2.id = ?`);
+      console.log("searchParams.regCode",searchParams.regCode);
+      
+      conditions.push(`(dc.id = ? OR dc2.id = ?)`);
       values.push(searchParams.regCode, searchParams.regCode);
     }
 
@@ -3180,7 +3184,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
 
     // Append search conditions to the WHERE clause
     if (conditions.length > 0) {
-      sql += ` AND (${conditions.join(" OR ")})`;
+      sql += ` AND (${conditions.join(" AND ")})`;
     }
 
     // Add ORDER BY clause
