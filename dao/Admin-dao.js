@@ -560,33 +560,112 @@ exports.editMarketPrice = (id, data) => {
   });
 };
 
+// exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
+//   return new Promise((resolve, reject) => {
+//     // Count query
+//     let countSql = `
+//       SELECT 
+//         COUNT(*) as total
+//       FROM users U
+//       LEFT JOIN ongoingcultivations OC  ON OC.userId = U.id
+//       LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+//       INNER JOIN farms F ON F.userId = U.id
+//       WHERE 1=1
+//     `;
+
+//     // Data query with proper grouping
+//     let dataSql = `
+//       SELECT 
+//         OC.id AS cultivationId,
+//         U.id AS userId,
+//         U.firstName, 
+//         U.lastName, 
+//         U.NICnumber,
+//         U.phoneNumber,
+//         COUNT(DISTINCT F.id) AS FarmCount
+//       FROM users U
+//       LEFT JOIN ongoingcultivations OC  ON OC.userId = U.id
+//       LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+//       INNER JOIN farms F ON F.userId = U.id
+//       WHERE 1=1
+//     `;
+
+//     const countParams = [];
+//     const dataParams = [];
+
+//     if (searchItem) {
+//       const searchQuery = `%${searchItem}%`;
+//       const searchCondition = `
+//         AND (
+//           U.NICnumber LIKE ? OR 
+//           U.firstName LIKE ? OR 
+//           U.lastName LIKE ? OR
+//           U.phoneNumber LIKE ?
+//         )
+//       `;
+//       countSql += searchCondition;
+//       dataSql += searchCondition;
+//       countParams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+//       dataParams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+//     }
+
+//     dataSql += `
+//       GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber
+//       ORDER BY OC.createdAt DESC 
+//       LIMIT ? OFFSET ?
+//     `;
+
+//     countSql += ` GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber `
+//     dataParams.push(limit, offset);
+
+//     // Fetch total count
+//     plantcare.query(countSql, countParams, (countErr, countResults) => {
+//       if (countErr) {
+//         return reject(countErr);
+//       }
+
+//       const total = countResults[0].total;
+
+//       // Fetch paginated data
+//       plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
+//         if (dataErr) {
+//           return reject(dataErr);
+//         }
+//         resolve({
+//           total,
+//           items: dataResults,
+//           totalCrops: dataResults.reduce(
+//             (sum, item) => sum + item.CropCount,
+//             0
+//           ),
+//         });
+//       });
+//     });
+//   });
+// };
+
+
 exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
   return new Promise((resolve, reject) => {
     // Count query
     let countSql = `
-      SELECT 
-        COUNT(*) as total
+      SELECT COUNT(DISTINCT U.id) AS total
       FROM users U
-      LEFT JOIN ongoingcultivations OC  ON OC.userId = U.id
-      LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
-      INNER JOIN farms F ON F.userId = U.id
-      WHERE 1=1
+      INNER JOIN farms F ON U.id = F.userId
+      WHERE 1=1;
     `;
 
     // Data query with proper grouping
     let dataSql = `
       SELECT 
-        OC.id AS cultivationId,
-        U.id AS userId,
-        U.firstName, 
-        U.lastName, 
-        U.NICnumber,
-        U.phoneNumber,
-        COUNT(DISTINCT F.id) AS FarmCount
+      	 U.id AS userId,
+         U.firstName, 
+         U.lastName, 
+         U.NICnumber,
+         U.phoneNumber,
+         COUNT(DISTINCT F.id) AS FarmCount
       FROM users U
-      LEFT JOIN ongoingcultivations OC  ON OC.userId = U.id
-      LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
-      INNER JOIN farms F ON F.userId = U.id
+      INNER JOIN farms F ON U.id = F.userId
       WHERE 1=1
     `;
 
@@ -610,12 +689,16 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
     }
 
     dataSql += `
-      GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber
-      ORDER BY OC.createdAt DESC 
+      GROUP BY 
+      	U.id,
+        U.firstName, 
+        U.lastName, 
+        U.NICnumber,
+        U.phoneNumber
+      ORDER BY U.created_at DESC 
       LIMIT ? OFFSET ?
     `;
 
-    countSql += ` GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber `
     dataParams.push(limit, offset);
 
     // Fetch total count
@@ -634,15 +717,12 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
         resolve({
           total,
           items: dataResults,
-          totalCrops: dataResults.reduce(
-            (sum, item) => sum + item.CropCount,
-            0
-          ),
         });
       });
     });
   });
 };
+
 
 exports.getOngoingCultivationsWithUserDetails = () => {
   const sql = `
