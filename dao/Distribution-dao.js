@@ -3420,7 +3420,7 @@ exports.getReturnRecievedDataDao = (
 }
 
     if (sheduleDate) {
-      const cond = ` AND DATE(o.sheduleDate) = DATE(?) `;
+      const cond = ` AND DATE(dro.createdAt) = DATE(?) `;
       dataSql += cond;
       dataParams.push(sheduleDate);
     }
