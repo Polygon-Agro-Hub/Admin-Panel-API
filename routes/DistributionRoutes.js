@@ -397,5 +397,11 @@ router.get(
   distributionEp.getDistributedCenterPikupOder
 );
 
+router.get(
+  "/get-pickup-order-records/:id",
+  authMiddleware,
+  distributionEp.getPickupOrderRecords
+);
+
 
 module.exports = router;
