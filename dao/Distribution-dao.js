@@ -1327,7 +1327,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => {});
+    doc.on("end", () => { });
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -2566,10 +2566,9 @@ exports.dcmGetSelectedOfficerTargetsDao = (
       OR o.isPackage = 0
     )
     AND (
-      ${
-        deliveryLocationData && deliveryLocationData.length > 0
-          ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-          : ""
+      ${deliveryLocationData && deliveryLocationData.length > 0
+        ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+        : ""
       }
       o.centerId = ?
     )
@@ -3101,22 +3100,25 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       SELECT 
         po.id,
         po.invNo,
-        dc.regCode,
-        dc.centerName,
+        COALESCE(dc.regCode, dc2.regCode) AS regCode,
+        COALESCE(dc.centerName, dc2.centerName) AS centerName,
         o.sheduleTime,
+        o.sheduleDate,
         po.createdAt,
         po.status,
         TIME(po.outDlvrDate) as outDlvrTime,
         dro.createdAt AS collectTime,
         drv.empId AS driverEmpId,
+        CONCAT(drv.phoneCode01,'-', drv.phoneNumber01) AS driverPhone,
         dro.startTime AS driverStartTime,
         drr.createdAt AS returnTime,
-        po.deliveredTime AS deliveryTime
+        po.deliveredTime AS deliveryTime,
+        dho.createdAt AS holdTime
       FROM 
         market_place.processorders po
       INNER JOIN 
         market_place.orders o ON po.orderId = o.id
-      INNER JOIN 
+      LEFT JOIN 
         collection_officer.distributedcenter dc ON o.centerId = dc.id
       LEFT JOIN
         collection_officer.driverorders dro ON po.id = dro.orderId
@@ -3131,17 +3133,44 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         )
       LEFT JOIN 
         collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
+      LEFT JOIN 
+        collection_officer.collectionofficer cof2 ON po.outBy = cof2.id
+      LEFT JOIN
+        collection_officer.distributedcenter dc2 ON cof2.distributedCenterId = dc2.id
       WHERE 
-        po.status IN ('Out For Delivery', 'Delivered', 'Collected', 'On the way', 'Return', 'Hold')
+        DATE(o.sheduleDate) = CURDATE()
       `;
-
+    // DATE(o.sheduleDate) = CURDATE()
     // Add search conditions if search parameters are provided
     const conditions = [];
     const values = [];
 
+    if (searchParams.activeTab) {
+      console.log(searchParams.activeTab);
+      if (searchParams.activeTab === 'out-for-delivery') {
+        conditions.push(`po.status = ?`);
+        values.push('Out For Delivery');
+      } else if (searchParams.activeTab === 'collected') {
+        conditions.push(`po.status = ?`);
+        values.push('Collected');
+      }else if (searchParams.activeTab === 'on-the-way') {
+        conditions.push(`po.status = ?`);
+        values.push('On the way');
+      }else if (searchParams.activeTab === 'hold') {
+        conditions.push(`po.status = ?`);
+        values.push('Hold');
+      }else if (searchParams.activeTab === 'return') {
+        conditions.push(`po.status = ?`);
+        values.push('Return');
+      }else if (searchParams.activeTab === 'delivered') {
+        conditions.push(`po.status = ?`);
+        values.push('Delivered');
+      }
+    }
+
     if (searchParams.regCode) {
-      conditions.push(`dc.regCode LIKE ?`);
-      values.push(`%${searchParams.regCode}%`);
+      conditions.push(`dc.id = ? OR dc2.id = ?`);
+      values.push(searchParams.regCode, searchParams.regCode);
     }
 
     if (searchParams.invNo) {
@@ -3361,6 +3390,7 @@ exports.getReturnRecievedDataDao = (
       LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
       LEFT JOIN collection_officer.driverreturnorders dro ON dro.drvOrderId = do.id
       LEFT JOIN collection_officer.returnreason rr ON dro.returnReasonId = rr.id
+      LEFT JOIN collection_officer.distributedcenter dc1 ON dc1.id = o.centerId
       WHERE do.drvStatus = 'Return Received'
     `;
     const dataParams = [];
@@ -3374,15 +3404,16 @@ exports.getReturnRecievedDataDao = (
     }
 
     if (centerId) {
-      dataSql += ` AND (
-          ${
-            deliveryLocationData && deliveryLocationData.length > 0
-              ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-              : ""
-          }
-          o.centerId = ?
-        )`;
-    }
+  dataSql += ` AND (`;
+
+  if (deliveryLocationData && deliveryLocationData.length > 0) {
+    dataSql += `(oh.city IN (?) OR oa.city IN (?)) OR `;
+    dataParams.push(deliveryLocationData, deliveryLocationData);
+  }
+
+  dataSql += ` o.centerId = ? )`;
+  dataParams.push(centerId);
+}
 
     if (sheduleDate) {
       const cond = ` AND DATE(o.sheduleDate) = DATE(?) `;
@@ -3390,23 +3421,24 @@ exports.getReturnRecievedDataDao = (
       dataParams.push(sheduleDate);
     }
 
-    // if (centerId) {
-    //   const cond = ` AND dcc.centerId = ? `;
-    //   dataSql += cond;
-    //   dataParams.push(centerId);
-    // }
-
     if (searchText) {
       const searchPattern = `%${searchText}%`;
+      dataSql += `
+          AND (
+            po.invNo LIKE ? OR
+            CONCAT(o.phoneCode1, ' ', o.phone1) LIKE ? OR
+            CONCAT(o.phoneCode1, o.phone1) LIKE ? OR
+            dc1.centerName LIKE ?
 
-      const cond = `
-        AND (
-          po.invNo LIKE ? 
-         
-        )
-      `;
-      dataSql += cond;
-      dataParams.push(searchPattern);
+          )
+        `;
+
+      dataParams.push(
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        searchPattern
+      );
     }
 
     dataSql += ` ORDER BY po.createdAt DESC`;
@@ -3743,6 +3775,119 @@ exports.getDistributedDriversAndVehiclesDao = (
           });
         }
       );
+    });
+  });
+};
+
+exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
+  return new Promise((resolve, reject) => {
+    // Base SQL query
+    let sql = `
+    SELECT
+        po.invNo,
+        o.fullTotal,
+        po.status,
+        mu.phoneCode AS customerPhoneCode,
+        mu.phoneNumber AS customerPhoneNumber,
+        o.phonecode1 AS receiverPhoneCode,
+        o.phone1 AS receiverPhone,
+        o.sheduleDate,
+        o.sheduleTime,
+        po.isPaid
+    FROM collection_officer.distributedtarget dt
+    LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
+    LEFT JOIN market_place.processorders po ON dti.orderId = po.id
+    LEFT JOIN market_place.orders o ON po.orderId = o.id
+    LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+    WHERE 1=1
+    `;
+
+    const conditions = [];
+    const values = [];
+
+    // Required parameter: companycenterId
+    if (searchParams.companycenterId) {
+      conditions.push(`dt.companycenterId = ?`);
+      values.push(searchParams.companycenterId);
+    } else {
+      return reject(new Error("companycenterId is required"));
+    }
+
+    // Filter by status (Ready to Pickup or Picked up)
+    if (searchParams.activeTab) {
+      if (searchParams.activeTab === 'ready-to-pickup') {
+        conditions.push(`po.status = ?`);
+        values.push('Ready to Pickup');
+      } else if (searchParams.activeTab === 'picked-up') {
+        conditions.push(`po.status = ?`);
+        values.push('Picked up');
+      } else {
+        // Default to both statuses if not specified
+        conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
+      }
+    } else {
+      // Default to both statuses
+      conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
+    }
+
+    // Date filter
+    if (searchParams.date) {
+      let dateValue;
+      
+      if (typeof searchParams.date === "string") {
+        dateValue = searchParams.date.trim();
+      } else if (searchParams.date instanceof Date) {
+        dateValue = searchParams.date.toISOString().split("T")[0];
+      }
+      
+      if (dateValue && dateValue !== "") {
+        conditions.push(`DATE(o.sheduleDate) = DATE(?)`);
+        values.push(dateValue);
+      }
+    }
+
+    // Time filter (previously 'status' parameter for sheduleTime)
+    if (searchParams.sheduleTime && searchParams.sheduleTime.trim() !== "") {
+      conditions.push(`o.sheduleTime = ?`);
+      values.push(searchParams.sheduleTime.trim());
+    }
+
+    // Search text filter
+    if (searchParams.searchText && searchParams.searchText.trim() !== "") {
+      const searchPattern = `%${searchParams.searchText.trim()}%`;
+      conditions.push(`(
+        po.invNo LIKE ? OR 
+        CONCAT(mu.phoneCode, mu.phoneNumber) LIKE ? OR
+        CONCAT(o.phonecode1, o.phone1) LIKE ?
+      )`);
+      values.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    // Append all conditions to the WHERE clause
+    if (conditions.length > 0) {
+      sql += ` AND (${conditions.join(" AND ")})`;
+    }
+
+    // Add ORDER BY clause
+    sql += `
+    ORDER BY 
+        o.sheduleDate ASC,
+        o.sheduleTime ASC,
+        po.invNo DESC
+    `;
+
+    // Debug logging
+    console.log("SQL Query:", sql);
+    console.log("SQL Parameters:", values);
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        console.error("Database query error:", err);
+        reject(err);
+      } else {
+        console.log(`Query returned ${results.length} results`);
+        resolve(results);
+      }
     });
   });
 };

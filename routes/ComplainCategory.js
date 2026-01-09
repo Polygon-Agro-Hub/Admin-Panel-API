@@ -151,3 +151,9 @@ router.get(
   authMiddleware,
   ComplainCategoryEP.getAllDriverComplain
 );
+
+router.get(
+  "/get-driver-complain-by-id/:id",
+  authMiddleware,
+  ComplainCategoryEP.getDriverComplainById
+);
