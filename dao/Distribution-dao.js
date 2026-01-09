@@ -3784,22 +3784,23 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
     // Base SQL query
     let sql = `
     SELECT
-        po.invNo,
-        o.fullTotal,
-        po.status,
-        mu.phoneCode AS customerPhoneCode,
-        mu.phoneNumber AS customerPhoneNumber,
-        o.phonecode1 AS receiverPhoneCode,
-        o.phone1 AS receiverPhone,
-        o.sheduleDate,
-        o.sheduleTime,
-        po.isPaid
-    FROM collection_officer.distributedtarget dt
-    LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
-    LEFT JOIN market_place.processorders po ON dti.orderId = po.id
-    LEFT JOIN market_place.orders o ON po.orderId = o.id
-    LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
-    WHERE 1=1
+    po.id AS processOrderId,  -- Add this line
+    po.invNo,
+    o.fullTotal,
+    po.status,
+    mu.phoneCode AS customerPhoneCode,
+    mu.phoneNumber AS customerPhoneNumber,
+    o.phonecode1 AS receiverPhoneCode,
+    o.phone1 AS receiverPhone,
+    o.sheduleDate,
+    o.sheduleTime,
+    po.isPaid
+FROM collection_officer.distributedtarget dt
+LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
+LEFT JOIN market_place.processorders po ON dti.orderId = po.id
+LEFT JOIN market_place.orders o ON po.orderId = o.id
+LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+WHERE 1=1
     `;
 
     const conditions = [];
@@ -3887,6 +3888,29 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
       } else {
         console.log(`Query returned ${results.length} results`);
         resolve(results);
+      }
+    });
+  });
+};
+
+exports.getPikupOderRecordsDetailsDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        po.id,
+        po.outDlvrDate AS outTime,
+        outOf.empId AS outOfficer,
+        po.deliveredTime
+      FROM processorders po
+      LEFT JOIN collection_officer.collectionofficer outOf ON po.outBy = outOf.id
+      WHERE po.id = ?
+    `;
+
+    marketPlace.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
       }
     });
   });

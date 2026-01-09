@@ -3114,3 +3114,27 @@ exports.getDistributedCenterPikupOder = async (req, res) => {
     });
   }
 };
+exports.getPickupOrderRecords = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+  
+  try {
+    const id = req.params.id;
+
+    const pickupOrderDetails = 
+      await DistributionDao.getPikupOderRecordsDetailsDao(id);
+
+    res.status(200).json({
+      status: true,
+      data: pickupOrderDetails,
+      message: "Pickup order records retrieved successfully"
+    });
+  } catch (error) {
+    console.error("Get Pickup Order Records Error:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to load pickup order records",
+      error: error.message,
+    });
+  }
+};
