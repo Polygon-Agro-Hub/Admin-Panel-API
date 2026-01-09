@@ -129,8 +129,9 @@ exports.getTodaysDeliverieDataSchema = Joi.object({
 })
 
 exports.getDistributedCenterPikupOderShema = Joi.object({
-    companycenterId: Joi.number().integer().positive().required(),
-    date: Joi.date().iso().optional(),
-    time: Joi.string().optional(),
-    searchText: Joi.string().optional()
+     companycenterId: Joi.number().required(),
+  time: Joi.string().allow(''),
+  date: Joi.date().iso().allow(''),
+  searchText: Joi.string().allow(''),
+  activeTab: Joi.string().valid('ready-to-pickup', 'picked-up', 'all').allow('')
 })

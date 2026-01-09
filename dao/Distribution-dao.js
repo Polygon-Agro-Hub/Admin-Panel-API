@@ -3784,7 +3784,7 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
     // Base SQL query
     let sql = `
     SELECT
-    po.id AS processOrderId,  -- Add this line
+    po.id AS processOrderId,
     po.invNo,
     o.fullTotal,
     po.status,
@@ -3814,7 +3814,7 @@ WHERE 1=1
       return reject(new Error("companycenterId is required"));
     }
 
-    // Filter by status (Ready to Pickup or Picked up)
+    // Filter by status based on activeTab
     if (searchParams.activeTab) {
       if (searchParams.activeTab === 'ready-to-pickup') {
         conditions.push(`po.status = ?`);
@@ -3822,8 +3822,8 @@ WHERE 1=1
       } else if (searchParams.activeTab === 'picked-up') {
         conditions.push(`po.status = ?`);
         values.push('Picked up');
-      } else {
-        // Default to both statuses if not specified
+      } else if (searchParams.activeTab === 'all') {
+        // For "All" tab, show both statuses
         conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
       }
     } else {
@@ -3831,7 +3831,7 @@ WHERE 1=1
       conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
     }
 
-    // Date filter
+    // Date filter - FIXED: Use proper date handling
     if (searchParams.date) {
       let dateValue;
       
@@ -3842,26 +3842,41 @@ WHERE 1=1
       }
       
       if (dateValue && dateValue !== "") {
+        // Handle both date-only and datetime strings
         conditions.push(`DATE(o.sheduleDate) = DATE(?)`);
         values.push(dateValue);
       }
     }
 
-    // Time filter (previously 'status' parameter for sheduleTime)
-    if (searchParams.sheduleTime && searchParams.sheduleTime.trim() !== "") {
+    // Time filter - FIXED: Match time slot values
+    if (searchParams.time && searchParams.time.trim() !== "") {
+      const timeValue = searchParams.time.trim();
+      // Try to match common time formats
+      const timeMap = {
+        '8AM-12PM': '8AM-12PM',
+        '12PM-4PM': '12PM-4PM',
+        '4PM-8PM': '4PM-8PM',
+        '8AM - 12PM': '8AM-12PM',
+        '12PM - 4PM': '12PM-4PM',
+        '4PM - 8PM': '4PM-8PM'
+      };
+      
+      const normalizedTime = timeMap[timeValue] || timeValue;
       conditions.push(`o.sheduleTime = ?`);
-      values.push(searchParams.sheduleTime.trim());
+      values.push(normalizedTime);
     }
 
-    // Search text filter
+    // Search text filter - FIXED: Better phone number concatenation
     if (searchParams.searchText && searchParams.searchText.trim() !== "") {
       const searchPattern = `%${searchParams.searchText.trim()}%`;
       conditions.push(`(
         po.invNo LIKE ? OR 
+        mu.phoneNumber LIKE ? OR
+        o.phone1 LIKE ? OR
         CONCAT(mu.phoneCode, mu.phoneNumber) LIKE ? OR
         CONCAT(o.phonecode1, o.phone1) LIKE ?
       )`);
-      values.push(searchPattern, searchPattern, searchPattern);
+      values.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
     }
 
     // Append all conditions to the WHERE clause
@@ -3880,6 +3895,7 @@ WHERE 1=1
     // Debug logging
     console.log("SQL Query:", sql);
     console.log("SQL Parameters:", values);
+    console.log("Search Params Received:", searchParams);
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
