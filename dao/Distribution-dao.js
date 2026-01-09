@@ -3343,20 +3343,36 @@ exports.getTargetedCustomerOrdersDao = (
 };
 
 exports.getReturnRecievedDataDao = (
-  sheduleDate,
+  receivedTime,
   centerId,
   deliveryLocationData,
   searchText
 ) => {
   return new Promise((resolve, reject) => {
     let dataSql = `
-      SELECT do.id, coff.id AS driverId, coff.empId, po.id AS processOrderId, po.invNO, o.id AS orderId, o.total, o.centerId, o.phoneCode1, o.phone1, o.sheduleDate, oh.city AS houseCity,
-      oa.city AS apartmentCity, rr.rsnEnglish AS reason, dro.createdAt AS returnAt, do.receivedTime, do.handOverOfficer
-          
+      SELECT do.id, 
+        coff.id AS driverId, 
+        coff.empId, 
+        po.id AS processOrderId, 
+        po.invNO, 
+        o.id AS orderId, 
+        o.total, 
+        o.centerId, 
+        mp.phoneCode,
+        mp.phoneNumber,
+        o.sheduleDate, 
+        oh.city AS houseCity,
+        oa.city AS apartmentCity, 
+        rr.rsnEnglish AS reason,
+        dro.note AS other, 
+        dro.createdAt AS returnAt, 
+        do.receivedTime, 
+        do.handOverOfficer
       FROM collection_officer.driverorders do
       LEFT JOIN collection_officer.collectionofficer coff ON do.driverId = coff.id
       LEFT JOIN market_place.processorders po ON do.orderId = po.id
       LEFT JOIN market_place.orders o ON po.orderId = o.id
+      LEFT JOIN market_place.marketplaceusers mp ON mp.id = o.userId
       LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
       LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
       LEFT JOIN collection_officer.driverreturnorders dro ON dro.drvOrderId = do.id
@@ -3375,21 +3391,21 @@ exports.getReturnRecievedDataDao = (
     }
 
     if (centerId) {
-  dataSql += ` AND (`;
+      dataSql += ` AND (`;
 
-  if (deliveryLocationData && deliveryLocationData.length > 0) {
-    dataSql += `(oh.city IN (?) OR oa.city IN (?)) OR `;
-    dataParams.push(deliveryLocationData, deliveryLocationData);
-  }
+      if (deliveryLocationData && deliveryLocationData.length > 0) {
+        dataSql += `(oh.city IN (?) OR oa.city IN (?)) OR `;
+        dataParams.push(deliveryLocationData, deliveryLocationData);
+      }
 
-  dataSql += ` o.centerId = ? )`;
-  dataParams.push(centerId);
-}
+      dataSql += ` o.centerId = ? )`;
+      dataParams.push(centerId);
+    }
 
-    if (sheduleDate) {
-      const cond = ` AND DATE(o.sheduleDate) = DATE(?) `;
+    if (receivedTime) {
+      const cond = ` AND DATE(do.receivedTime) = DATE(?) `;
       dataSql += cond;
-      dataParams.push(sheduleDate);
+      dataParams.push(receivedTime);
     }
 
     if (searchText) {
@@ -3397,8 +3413,8 @@ exports.getReturnRecievedDataDao = (
       dataSql += `
           AND (
             po.invNo LIKE ? OR
-            CONCAT(o.phoneCode1, ' ', o.phone1) LIKE ? OR
-            CONCAT(o.phoneCode1, o.phone1) LIKE ? OR
+            CONCAT(mp.phoneCode, ' ', mp.phoneNumber) LIKE ? OR
+            CONCAT(mp.phoneCode, mp.phoneNumber) LIKE  ? OR
             dc1.centerName LIKE ?
 
           )
@@ -3515,7 +3531,7 @@ exports.getDistributedVehiclesDao = (
       SELECT COUNT(DISTINCT co.id) AS total
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
-      LEFT JOIN collectioncenter cc ON co.centerId = cc.id
+      INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
       WHERE co.jobRole = 'Driver'
     `;
 
@@ -3524,13 +3540,13 @@ exports.getDistributedVehiclesDao = (
         vr.insNo,
         vr.vType,
         vr.vCapacity,
-        cc.regCode,
-        cc.centerName,
+        dc.regCode,
+        dc.centerName,
         co.empId,
         co.createdAt
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
-      LEFT JOIN collectioncenter cc ON co.centerId = cc.id
+      INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
       WHERE co.jobRole = 'Driver'
     `;
 
@@ -3538,7 +3554,7 @@ exports.getDistributedVehiclesDao = (
     const dataParams = [];
 
     if (centerName) {
-      const cond = ` AND cc.centerName = ? `;
+      const cond = ` AND dc.centerName = ? `;
       countSql += cond;
       dataSql += cond;
       countParams.push(centerName);

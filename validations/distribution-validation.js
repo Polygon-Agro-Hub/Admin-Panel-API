@@ -101,7 +101,7 @@ exports.getTargetedCustomerOrdersSchema = Joi.object({
 });
 
 exports.getReturnRecievedDataSchema = Joi.object({
-  sheduleDate: Joi.date().optional(),
+  receivedTime: Joi.date().optional(),
   centerId: Joi.number().integer().positive().optional(),
   searchText: Joi.string().trim().min(1).max(50).optional()
 });

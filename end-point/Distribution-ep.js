@@ -2903,7 +2903,7 @@ exports.getReturnRecievedOrders = async (req, res) => {
   console.log(fullUrl);
   try {
     // const offset = (page - 1) * limit;
-    const { sheduleDate, centerId, searchText } =
+    const { receivedTime, centerId, searchText } =
       await DistributionValidation.getReturnRecievedDataSchema.validateAsync(
         req.query
       );
@@ -2950,7 +2950,7 @@ exports.getReturnRecievedOrders = async (req, res) => {
     }
 
     const result = await DistributionDao.getReturnRecievedDataDao(
-      sheduleDate,
+      receivedTime,
       centerId,
       deliveryLocationData,
       searchText
