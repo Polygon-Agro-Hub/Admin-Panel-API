@@ -2892,7 +2892,7 @@ exports.getReturnRecievedOrders = async (req, res) => {
   console.log(fullUrl);
   try {
     // const offset = (page - 1) * limit;
-    const { sheduleDate, centerId, searchText } =
+    const { receivedTime, centerId, searchText } =
       await DistributionValidation.getReturnRecievedDataSchema.validateAsync(
         req.query
       );
@@ -2939,7 +2939,7 @@ exports.getReturnRecievedOrders = async (req, res) => {
     }
 
     const result = await DistributionDao.getReturnRecievedDataDao(
-      sheduleDate,
+      receivedTime,
       centerId,
       deliveryLocationData,
       searchText
@@ -3058,24 +3058,26 @@ exports.getDistributedDriversAndVehicles = async (req, res) => {
 
 exports.getDistributedCenterPikupOder = async (req, res) => {
   try {
-
-    const { companycenterId, time, date, searchText } =
+    const { companycenterId, time, date, searchText, activeTab } =
       await DistributionValidation.getDistributedCenterPikupOderShema.validateAsync(
         req.query
       );
     
-    console.log("Params:", req.query);
+    console.log("API Params received:", req.query);
 
     let formattedDate = date;
-    if (date instanceof Date) {
-      formattedDate = date.toISOString().split("T")[0];
+    if (date && typeof date === 'string') {
+      formattedDate = date.trim();
     }
 
     const searchParams = {
       companycenterId: companycenterId,
-      sheduleTime: time, 
-      searchText: searchText
+      time: time,  // Changed from sheduleTime to time
+      date: formattedDate,
+      searchText: searchText,
+      activeTab: activeTab  // Added activeTab parameter
     };
+    
     const results = await DistributionDao.getDistributedCenterPikupOderDao(
       searchParams
     );
@@ -3111,6 +3113,30 @@ exports.getDistributedCenterPikupOder = async (req, res) => {
       status: false, 
       error: "An error occurred while fetching pickup orders",
       details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+};
+exports.getPickupOrderRecords = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+  
+  try {
+    const id = req.params.id;
+
+    const pickupOrderDetails = 
+      await DistributionDao.getPikupOderRecordsDetailsDao(id);
+
+    res.status(200).json({
+      status: true,
+      data: pickupOrderDetails,
+      message: "Pickup order records retrieved successfully"
+    });
+  } catch (error) {
+    console.error("Get Pickup Order Records Error:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to load pickup order records",
+      error: error.message,
     });
   }
 };
