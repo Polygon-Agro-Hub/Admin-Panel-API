@@ -201,7 +201,7 @@ exports.getAllDistributionCentre = (
     if (searchItem) {
       const searchQuery = `%${searchItem}%`;
       whereClause +=
-        " AND (dc.centerName LIKE ? OR c.companyNameEnglish LIKE ? OR dc.city LIKE ?)"; // Added city to search
+        " AND (dc.regCode LIKE ? OR c.companyNameEnglish LIKE ? OR dc.city LIKE ?)"; // Added city to search
       searchParams.push(searchQuery, searchQuery, searchQuery);
     }
 
