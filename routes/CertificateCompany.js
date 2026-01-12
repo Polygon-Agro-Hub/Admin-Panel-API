@@ -158,6 +158,12 @@ router.post(
   certificateCompanyEp.addSingleFarmerToCluster
 );
 
+router.post(
+  "/check-before-add-single-farmer-to-cluster/:clusterId",
+  authMiddleware,
+  certificateCompanyEp.checkBeforeAddSingleFarmerToCluster
+);
+
 // Get all farmer clusters
 router.get(
   "/get-farmer-clusters",

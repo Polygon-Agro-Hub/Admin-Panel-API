@@ -1608,6 +1608,156 @@ exports.addSingleFarmerToCluster = async (req, res) => {
   }
 };
 
+exports.checkBeforeAddSingleFarmerToCluster = async (req, res) => {
+  let connection;
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    connection = await plantcare.promise().getConnection();
+    await connection.beginTransaction();
+
+    const userId = req.user?.userId;
+    if (!userId) {
+      await connection.rollback();
+      return res.status(401).json({ message: "Unauthorized", status: false });
+    }
+
+    const validationData = {
+      nic: req.body.nic,
+      farmId: req.body.farmId,
+      clusterId: parseInt(req.params.clusterId),
+    };
+
+    const { error } =
+      ValidateSchema.addSingleFarmerToClusterSchema.validate(validationData);
+    if (error) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: error.details[0].message,
+        status: false,
+      });
+    }
+
+    const clusterId = parseInt(req.params.clusterId);
+    const { nic, farmId } = req.body;
+
+    // Step 1: Check if cluster exists and get certificate info
+    const clusterInfo = await certificateCompanyDao.getClusterWithCertificate(
+      clusterId,
+      connection
+    );
+    if (!clusterInfo) {
+      await connection.rollback();
+      return res.status(404).json({
+        message: "Cluster not found",
+        status: false,
+      });
+    }
+
+    // Step 2: Check if user with NIC exists
+    const farmerInfo = await certificateCompanyDao.getFarmerInfoByNIC(
+      nic.trim(),
+      connection
+    );
+    if (!farmerInfo) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `No farmer exists using this NIC`,
+        status: false,
+      });
+    }
+
+    // Step 3: Check if farm exists (regCode exists in farms table)
+    const farmExists = await certificateCompanyDao.checkFarmExists(
+      farmId.trim(),
+      connection
+    );
+    if (!farmExists) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `No farm exists using this ID`,
+        status: false,
+      });
+    }
+
+    // Step 4: Check if farm exists and belongs to the farmer
+    const farmValidation = await certificateCompanyDao.validateFarmerFarm(
+      farmerInfo.id,
+      farmId.trim(),
+      connection
+    );
+
+    if (!farmValidation.farmExists) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `This farm does not belong to the specified farmer`,
+        status: false,
+      });
+    }
+
+    // Step 5: Check if farm is already in cluster
+    const farmExistsInCluster = await certificateCompanyDao.isFarmInCluster(
+      clusterId,
+      farmValidation.farmId,
+      connection
+    );
+
+    if (farmExistsInCluster) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `The farm already added to the cluster`,
+        status: false,
+      });
+    }
+
+    // Optional: Check if farmer already has any farm in cluster
+    const farmerExistsInCluster = await certificateCompanyDao.isFarmerInCluster(
+      clusterId,
+      farmerInfo.id,
+      connection
+    );
+    if (farmerExistsInCluster) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `This farmer already has a farm in the cluster`,
+        status: false,
+      });
+    }
+
+    // Step 6: Get existing certification payment for this cluster
+    const existingPayment = await certificateCompanyDao.getClusterPaymentRecord(
+      clusterId,
+      connection
+    );
+
+    if (!existingPayment) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `No certification payment record found for this cluster`,
+        status: false,
+      });
+    }
+
+    await connection.commit();
+
+    return res.status(201).json({
+      message: `Farmer Added to the Pending List fo the Cluster Successfully`,
+      status: true
+    });
+  } catch (err) {
+    if (connection) await connection.rollback();
+    console.error("Error adding farmer to cluster:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      status: false,
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 // Get all farmer clusters
 exports.getAllFarmerClusters = async (req, res) => {
   let connection;
