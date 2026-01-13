@@ -3116,6 +3116,8 @@ exports.getDistributedCenterPikupOder = async (req, res) => {
     });
   }
 };
+
+
 exports.getPickupOrderRecords = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log('fullUrl', fullUrl);

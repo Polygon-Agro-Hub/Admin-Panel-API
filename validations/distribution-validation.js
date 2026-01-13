@@ -133,5 +133,5 @@ exports.getDistributedCenterPikupOderShema = Joi.object({
   time: Joi.string().allow(''),
   date: Joi.date().iso().allow(''),
   searchText: Joi.string().allow(''),
-  activeTab: Joi.string().valid('ready-to-pickup', 'picked-up', 'all').allow('')
+  activeTab: Joi.string().valid('All', 'Ready to Pickup', 'Picked Up').allow('')
 })

@@ -3832,13 +3832,13 @@ WHERE 1=1
 
     // Filter by status based on activeTab
     if (searchParams.activeTab) {
-      if (searchParams.activeTab === 'ready-to-pickup') {
+      if (searchParams.activeTab === 'Ready to Pickup') {
         conditions.push(`po.status = ?`);
         values.push('Ready to Pickup');
-      } else if (searchParams.activeTab === 'picked-up') {
+      } else if (searchParams.activeTab === 'Picked Up') {
         conditions.push(`po.status = ?`);
         values.push('Picked up');
-      } else if (searchParams.activeTab === 'all') {
+      } else if (searchParams.activeTab === 'All') {
         // For "All" tab, show both statuses
         conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
       }
