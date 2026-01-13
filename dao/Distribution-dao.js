@@ -1327,7 +1327,7 @@ exports.SendGeneratedPasswordDao = async (
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => { });
+    doc.on("end", () => {});
 
     const watermarkPath = path.resolve(__dirname, "../assets/bg.png");
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -2566,9 +2566,10 @@ exports.dcmGetSelectedOfficerTargetsDao = (
       OR o.isPackage = 0
     )
     AND (
-      ${deliveryLocationData && deliveryLocationData.length > 0
-        ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-        : ""
+      ${
+        deliveryLocationData && deliveryLocationData.length > 0
+          ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+          : ""
       }
       o.centerId = ?
     )
@@ -3109,7 +3110,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         TIME(po.outDlvrDate) as outDlvrTime,
         dro.createdAt AS collectTime,
         drv.empId AS driverEmpId,
-        CONCAT(drv.phoneCode01,'-', drv.phoneNumber01) AS driverPhone,
+        CONCAT(drv.phoneCode01, drv.phoneNumber01) AS driverPhone,
         dro.startTime AS driverStartTime,
         drr.createdAt AS returnTime,
         po.deliveredTime AS deliveryTime,
@@ -3147,32 +3148,34 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
 
     if (searchParams.activeTab) {
       console.log(searchParams.activeTab);
-      if (searchParams.activeTab === 'out-for-delivery') {
+      if (searchParams.activeTab === "out-for-delivery") {
         conditions.push(`po.status = ?`);
-        values.push('Out For Delivery');
-      } else if (searchParams.activeTab === 'collected') {
+        values.push("Out For Delivery");
+      } else if (searchParams.activeTab === "collected") {
         conditions.push(`po.status = ?`);
-        values.push('Collected');
-      }else if (searchParams.activeTab === 'on-the-way') {
+        values.push("Collected");
+      } else if (searchParams.activeTab === "on-the-way") {
         conditions.push(`po.status = ?`);
-        values.push('On the way');
-      }else if (searchParams.activeTab === 'hold') {
+        values.push("On the way");
+      } else if (searchParams.activeTab === "hold") {
         conditions.push(`po.status = ?`);
-        values.push('Hold');
-      }else if (searchParams.activeTab === 'return') {
+        values.push("Hold");
+      } else if (searchParams.activeTab === "return") {
         conditions.push(`po.status = ?`);
-        values.push('Return');
-      }else if (searchParams.activeTab === 'delivered') {
+        values.push("Return");
+      } else if (searchParams.activeTab === "delivered") {
         conditions.push(`po.status = ?`);
-        values.push('Delivered');
-      }else if (searchParams.activeTab === 'all') {
-        conditions.push(` po.status IN ('Out For Delivery', 'Collected', 'On the way', 'Hold', 'Return', 'Delivered') `); 
+        values.push("Delivered");
+      } else if (searchParams.activeTab === "all") {
+        conditions.push(
+          ` po.status IN ('Out For Delivery', 'Collected', 'On the way', 'Hold', 'Return', 'Delivered') `
+        );
       }
     }
 
     if (searchParams.regCode) {
-      console.log("searchParams.regCode",searchParams.regCode);
-      
+      console.log("searchParams.regCode", searchParams.regCode);
+
       conditions.push(`(dc.id = ? OR dc2.id = ?)`);
       values.push(searchParams.regCode, searchParams.regCode);
     }
@@ -3444,16 +3447,19 @@ exports.getReturnRecievedDataDao = (
     if (searchText) {
       const searchPattern = `%${searchText}%`;
       dataSql += `
-          AND (
-            po.invNo LIKE ? OR
-            CONCAT(mp.phoneCode, ' ', mp.phoneNumber) LIKE ? OR
-            CONCAT(mp.phoneCode, mp.phoneNumber) LIKE  ? OR
-            dc1.centerName LIKE ?
-
-          )
-        `;
+        AND (
+          po.invNO LIKE ? OR
+          CONCAT(mp.phoneCode, ' ', mp.phoneNumber) LIKE ? OR
+          CONCAT(mp.phoneCode, mp.phoneNumber) LIKE ? OR
+          dc1.centerName LIKE ? OR
+          oh.city LIKE ? OR
+          oa.city LIKE ?
+        )
+      `;
 
       dataParams.push(
+        searchPattern,
+        searchPattern,
         searchPattern,
         searchPattern,
         searchPattern,
@@ -3671,7 +3677,7 @@ exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
           dor.id AS orderId,
           drv.empId,
           CONCAT(drv.firstNameEnglish, ' ', drv.lastNameEnglish) AS driverName,
-          CONCAT(drv.phoneCode01, '-', drv.phoneNumber01) AS driverPhone,
+          CONCAT(drv.phoneCode01, drv.phoneNumber01) AS driverPhone,
           dor.createdAt AS collectTime,
           dor.startTime,
           (
@@ -3836,13 +3842,13 @@ WHERE 1=1
 
     // Filter by status based on activeTab
     if (searchParams.activeTab) {
-      if (searchParams.activeTab === 'ready-to-pickup') {
+      if (searchParams.activeTab === "ready-to-pickup") {
         conditions.push(`po.status = ?`);
-        values.push('Ready to Pickup');
-      } else if (searchParams.activeTab === 'picked-up') {
+        values.push("Ready to Pickup");
+      } else if (searchParams.activeTab === "picked-up") {
         conditions.push(`po.status = ?`);
-        values.push('Picked up');
-      } else if (searchParams.activeTab === 'all') {
+        values.push("Picked up");
+      } else if (searchParams.activeTab === "all") {
         // For "All" tab, show both statuses
         conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
       }
@@ -3854,13 +3860,13 @@ WHERE 1=1
     // Date filter - FIXED: Use proper date handling
     if (searchParams.date) {
       let dateValue;
-      
+
       if (typeof searchParams.date === "string") {
         dateValue = searchParams.date.trim();
       } else if (searchParams.date instanceof Date) {
         dateValue = searchParams.date.toISOString().split("T")[0];
       }
-      
+
       if (dateValue && dateValue !== "") {
         // Handle both date-only and datetime strings
         conditions.push(`DATE(o.sheduleDate) = DATE(?)`);
@@ -3873,14 +3879,14 @@ WHERE 1=1
       const timeValue = searchParams.time.trim();
       // Try to match common time formats
       const timeMap = {
-        '8AM-12PM': '8AM-12PM',
-        '12PM-4PM': '12PM-4PM',
-        '4PM-8PM': '4PM-8PM',
-        '8AM - 12PM': '8AM-12PM',
-        '12PM - 4PM': '12PM-4PM',
-        '4PM - 8PM': '4PM-8PM'
+        "8AM-12PM": "8AM-12PM",
+        "12PM-4PM": "12PM-4PM",
+        "4PM-8PM": "4PM-8PM",
+        "8AM - 12PM": "8AM-12PM",
+        "12PM - 4PM": "12PM-4PM",
+        "4PM - 8PM": "4PM-8PM",
       };
-      
+
       const normalizedTime = timeMap[timeValue] || timeValue;
       conditions.push(`o.sheduleTime = ?`);
       values.push(normalizedTime);
@@ -3896,7 +3902,13 @@ WHERE 1=1
         CONCAT(mu.phoneCode, mu.phoneNumber) LIKE ? OR
         CONCAT(o.phonecode1, o.phone1) LIKE ?
       )`);
-      values.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+      values.push(
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        searchPattern
+      );
     }
 
     // Append all conditions to the WHERE clause
