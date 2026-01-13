@@ -2154,6 +2154,8 @@ exports.updateClusterStatus = async (req, res) => {
 
 // Get all field audits
 exports.getFieldAudits = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
   let connection;
 
   try {
@@ -2166,6 +2168,8 @@ exports.getFieldAudits = async (req, res) => {
       searchTerm,
       connection
     );
+
+    console.log('audits', audits)
 
     res.status(200).json({
       message: "Field audits retrieved successfully",
