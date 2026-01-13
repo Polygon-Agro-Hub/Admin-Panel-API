@@ -3808,12 +3808,21 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
     po.invNo,
     o.fullTotal,
     po.status,
+    mu.title AS customerTitle,
+    mu.firstName,
+    mu.lastName,
     mu.phoneCode AS customerPhoneCode,
     mu.phoneNumber AS customerPhoneNumber,
-    o.phonecode1 AS receiverPhoneCode,
-    o.phone1 AS receiverPhone,
+    o.phonecode1 AS receiverPhoneCode1,
+    o.phone1 AS receiverPhone1,
+    o.phonecode2 AS receiverPhoneCode2,
+    o.phone2 AS receiverPhone2,
     o.sheduleDate,
     o.sheduleTime,
+    o.title,
+    o.fullName,
+    o.orderApp,
+    o.createdAt AS orderCreatedAt,
     po.isPaid
 FROM collection_officer.distributedtarget dt
 LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
@@ -3836,13 +3845,13 @@ WHERE 1=1
 
     // Filter by status based on activeTab
     if (searchParams.activeTab) {
-      if (searchParams.activeTab === 'ready-to-pickup') {
+      if (searchParams.activeTab === 'Ready to Pickup') {
         conditions.push(`po.status = ?`);
         values.push('Ready to Pickup');
-      } else if (searchParams.activeTab === 'picked-up') {
+      } else if (searchParams.activeTab === 'Picked Up') {
         conditions.push(`po.status = ?`);
         values.push('Picked up');
-      } else if (searchParams.activeTab === 'all') {
+      } else if (searchParams.activeTab === 'All') {
         // For "All" tab, show both statuses
         conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
       }
