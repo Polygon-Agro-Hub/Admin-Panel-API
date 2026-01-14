@@ -2849,7 +2849,7 @@ exports.getOfficerById = (id) => {
 exports.GetAllDistributionCenterList = (companyId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT dc.id, dc.centerName FROM collection_officer.distributedcenter dc LEFT JOIN distributedcompanycenter dcc ON dc.id = dcc.centerId WHERE dcc.companyId = ?";
+      "SELECT dc.id, dc.regCode, dc.centerName FROM collection_officer.distributedcenter dc LEFT JOIN distributedcompanycenter dcc ON dc.id = dcc.centerId WHERE dcc.companyId = ?";
     collectionofficer.query(sql, [companyId], (err, results) => {
       if (err) {
         return reject(err);
