@@ -652,7 +652,7 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
       SELECT COUNT(DISTINCT U.id) AS total
       FROM users U
       INNER JOIN farms F ON U.id = F.userId
-      WHERE 1=1;
+      WHERE 1=1
     `;
 
     // Data query with proper grouping
