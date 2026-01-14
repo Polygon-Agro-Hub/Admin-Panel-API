@@ -3121,11 +3121,21 @@ exports.insertUserXLSXData = (data) => {
       const schema = Joi.object({
         "First Name": Joi.string().trim().min(2).max(50),
         "Last Name": Joi.string().trim().min(2).max(50),
-        "Phone Number": Joi.alternatives()
-          .try(
-            Joi.string().pattern(/^\+94\d{9}$/),
-            Joi.number().integer().min(94000000000).max(94999999999)
-          ),
+        "Phone Number": Joi.any()
+          .required()
+          .custom((value, helpers) => {
+            const normalized = normalizeSLMobile(value);
+           
+            if (!normalized) {
+              return helpers.error('any.invalid');
+            }
+          
+            return normalized; // ✅ return normalized value
+          })
+          .messages({
+            'any.invalid': 'Requried a Valid Phone Number, ex: +94XXXXXXXXXX, 94XXXXXXXXXX, 07XXXXXXXX, 7XXXXXXXX',
+            'any.required': 'Phone Number is required'
+          }),
         "NIC Number": Joi.alternatives()
           .try(
             Joi.string(),
@@ -3246,12 +3256,21 @@ exports.insertUserXLSXData = (data) => {
           (firstName, lastName, phoneNumber, NICnumber, membership, district) 
           VALUES ?
         `;
+        // const values = newUsers.map((row) => [
+        //   row["First Name"],
+        //   row["Last Name"],
+        //   String(row["Phone Number"]).trim().startsWith("+")
+        //     ? String(row["Phone Number"]).trim()
+        //     : `+${String(row["Phone Number"]).trim()}`,
+        //   String(row["NIC Number"]).trim(),
+        //   row["Membership"],
+        //   row["District"],
+        // ]);
+
         const values = newUsers.map((row) => [
           row["First Name"],
           row["Last Name"],
-          String(row["Phone Number"]).trim().startsWith("+")
-            ? String(row["Phone Number"]).trim()
-            : `+${String(row["Phone Number"]).trim()}`,
+          normalizeSLMobile(row["Phone Number"]),
           String(row["NIC Number"]).trim(),
           row["Membership"],
           row["District"],
@@ -3287,6 +3306,18 @@ exports.insertUserXLSXData = (data) => {
   });
 };
 
+function normalizeSLMobile(number) {
+  if (!number) return null;
+
+  let mobile = String(number).trim().replace(/\s|-/g, '');
+
+  if (mobile.startsWith('+94') && mobile.length === 12) return mobile;
+  if (mobile.startsWith('94') && mobile.length === 11) return `+${mobile}`;
+  if (mobile.startsWith('0') && mobile.length === 10) return `+94${mobile.substring(1)}`;
+  if (/^\d{9}$/.test(mobile)) return `+94${mobile}`;
+
+  return null;
+}
 
 exports.getUserFeedbackDetails = (page, limit) => {
   return new Promise((resolve, reject) => {
