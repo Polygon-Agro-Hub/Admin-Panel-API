@@ -3972,3 +3972,277 @@ exports.getPikupOderRecordsDetailsDao = async (id) => {
     });
   });
 };
+
+
+exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, deliveryLocationData, centerId) => {
+  console.log('date', date)
+  return new Promise((resolve, reject) => {
+
+    const dataParams = [];
+
+    if (deliveryLocationData && deliveryLocationData.length > 0) {
+      dataParams.push(deliveryLocationData, deliveryLocationData);
+    }
+
+    dataParams.push(centerId);
+
+    // Base SQL query
+    let sql = `
+      SELECT 
+        po.id,
+        po.invNo,
+        dc.regCode,
+        o.sheduleTime,
+        o.sheduleDate,
+        o.phoneCode1,
+        o.phone1,
+        o.fullTotal AS total,
+        po.createdAt,
+        po.status,
+        mpu.title,
+        CONCAT(mpu.firstName,' ',mpu.lastName) AS customerName,
+        CONCAT(mpu.phoneCode,' ',mpu.phoneNumber) AS customerPhone,
+        o.fullName,
+        o.title AS recieverTitle,
+        o.phone2,
+        o.phoneCode2,
+        o.orderApp,
+        po.isPaid,
+        po.paymentMethod,
+        po.outDlvrDate as outDlvrTime,
+        dor.receivedTime
+      FROM 
+        market_place.processorders po
+      LEFT JOIN 
+        collection_officer.driverorders dor ON po.id = dor.orderId
+      LEFT JOIN 
+        market_place.orders o ON po.orderId = o.id
+      LEFT JOIN 
+        market_place.orderhouse oh ON oh.orderId = o.id
+      LEFT JOIN 
+        market_place.orderapartment oa ON oa.orderId = o.id
+      LEFT JOIN 
+        collection_officer.distributedcenter dc ON o.centerId = dc.id
+      LEFT JOIN 
+        market_place.marketplaceusers mpu ON o.userId = mpu.id
+      LEFT JOIN collection_officer.driverreturnorders dro ON dor.id = dro.drvOrderId
+      WHERE 
+        po.isTargetAssigned = 1 
+        AND (
+          ${deliveryLocationData && deliveryLocationData.length > 0
+            ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+            : ""}
+          o.centerId = ?
+        )
+      `;
+
+      if (status) {
+        sql += " AND po.status LIKE ? ";
+      dataParams.push(status);
+    }
+
+    if (date) {
+      console.log('date', date)
+
+      switch (activeTab) {
+    
+        case 'all':
+          sql += " AND DATE(o.sheduleDate) = ? ";
+          break;
+    
+        case 'out-for-delivery':
+          console.log('out', 'date', date)
+          sql += " AND DATE(po.outDlvrDate) = ? ";
+          break;
+        
+        case 'Recieved Date':
+          sql += " AND DATE(dor.receivedTime) = ? ";
+          break;
+
+        default:
+          // optional fallback
+          break;
+      }
+      dataParams.push(date);
+    }
+
+      if (searchText) {
+      const searchCondition = `
+          AND (
+              po.invNo LIKE ?
+              OR po.status LIKE ?
+          )
+      `;
+
+      sql += searchCondition;
+      const searchValue = `%${searchText}%`;
+      dataParams.push(searchValue, searchValue);
+  }
+
+    if (activeTab) {
+      switch (activeTab) {
+    
+        case 'all':
+          sql += "AND po.status IN ('Out For Delivery', 'Collected', 'On the way', 'Return', 'Hold', 'Delivered', 'Return Received')";
+          break;
+    
+        case 'out-for-delivery':
+          sql += " AND po.status = 'Out For Delivery' ";
+          break;
+
+        case 'delivered':
+          sql += " AND po.status = 'delivered' ";
+          break;
+      
+    
+        case 'on-the-way':
+          sql += " AND po.status = 'On the way' ";
+          break;
+    
+        case 'return':
+          sql += " AND po.status = 'Return' ";
+          break;
+        
+        case 'delivered':
+          sql += " AND po.status = 'Delivered' ";
+          break;
+
+        case 'hold':
+          sql += " AND po.status = 'Hold' ";
+          break;
+
+        case 'Return Received':
+          sql += " AND po.status = 'Return Received' ";
+          break;
+
+        case 'Collected':
+          sql += " AND po.status = 'Collected' ";
+          break;
+    
+        default:
+          // optional fallback
+          break;
+      }
+    }
+    
+
+    // Add ORDER BY clause
+    sql += ` ORDER BY po.createdAt DESC`;
+
+    marketPlace.query(sql, dataParams, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+
+// exports.getCenterHomeDeliveryOrdersDao = (searchParams = {}) => {
+//   return new Promise((resolve, reject) => {
+//     // Base SQL query
+//     let sql = `
+//       SELECT 
+//         po.id,
+//         po.invNo,
+//         COALESCE(dc.regCode, dc2.regCode) AS regCode,
+//         COALESCE(dc.centerName, dc2.centerName) AS centerName,
+//         o.sheduleTime,
+//         o.sheduleDate,
+//         po.createdAt,
+//         po.status,
+//         TIME(po.outDlvrDate) as outDlvrTime,
+//         dro.createdAt AS collectTime,
+//         drv.empId AS driverEmpId,
+//         CONCAT(drv.phoneCode01, drv.phoneNumber01) AS driverPhone,
+//         dro.startTime AS driverStartTime,
+//         drr.createdAt AS returnTime,
+//         po.deliveredTime AS deliveryTime,
+//         dho.createdAt AS holdTime
+//       FROM 
+//         market_place.processorders po
+//       INNER JOIN 
+//         market_place.orders o ON po.orderId = o.id
+//       LEFT JOIN 
+//         collection_officer.distributedcenter dc ON o.centerId = dc.id
+//       LEFT JOIN
+//         collection_officer.driverorders dro ON po.id = dro.orderId
+//       LEFT JOIN
+//         collection_officer.collectionofficer drv ON dro.driverId = drv.id
+//       LEFT JOIN
+//         collection_officer.driverholdorders dho ON dro.id = dho.drvOrderId
+//         AND dho.id = (
+//             SELECT MAX(id) 
+//             FROM collection_officer.driverholdorders 
+//             WHERE drvOrderId = dro.id
+//         )
+//       LEFT JOIN 
+//         collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
+//       LEFT JOIN 
+//         collection_officer.collectionofficer cof2 ON po.outBy = cof2.id
+//       LEFT JOIN
+//         collection_officer.distributedcenter dc2 ON cof2.distributedCenterId = dc2.id
+//       WHERE 
+//         DATE(o.sheduleDate) = CURDATE()
+//       `;
+//     // DATE(o.sheduleDate) = CURDATE()
+//     // Add search conditions if search parameters are provided
+//     const conditions = [];
+//     const values = [];
+
+//     if (searchParams.activeTab) {
+//       console.log(searchParams.activeTab);
+//       if (searchParams.activeTab === "out-for-delivery") {
+//         conditions.push(`po.status = ?`);
+//         values.push("Out For Delivery");
+//       } else if (searchParams.activeTab === "collected") {
+//         conditions.push(`po.status = ?`);
+//         values.push("Collected");
+//       } else if (searchParams.activeTab === "on-the-way") {
+//         conditions.push(`po.status = ?`);
+//         values.push("On the way");
+//       } else if (searchParams.activeTab === "hold") {
+//         conditions.push(`po.status = ?`);
+//         values.push("Hold");
+//       } else if (searchParams.activeTab === "return") {
+//         conditions.push(`po.status = ?`);
+//         values.push("Return");
+//       } else if (searchParams.activeTab === "delivered") {
+//         conditions.push(`po.status = ?`);
+//         values.push("Delivered");
+//       } else if (searchParams.activeTab === "all") {
+//         conditions.push(
+//           ` po.status IN ('Out For Delivery', 'Collected', 'On the way', 'Hold', 'Return', 'Delivered') `
+//         );
+//       }
+//     }
+
+//     if (searchParams.regCode) {
+//       console.log("searchParams.regCode", searchParams.regCode);
+
+//       conditions.push(`(dc.id = ? OR dc2.id = ?)`);
+//       values.push(searchParams.regCode, searchParams.regCode);
+//     }
+
+//     if (searchParams.invNo) {
+//       conditions.push(`po.invNo LIKE ?`);
+//       values.push(`%${searchParams.invNo}%`);
+//     }
+
+//     // Append search conditions to the WHERE clause
+//     if (conditions.length > 0) {
+//       sql += ` AND (${conditions.join(" AND ")})`;
+//     }
+
+//     // Add ORDER BY clause
+//     sql += ` ORDER BY po.createdAt DESC`;
+
+//     marketPlace.query(sql, values, (err, results) => {
+//       if (err) {
+//         return reject(err);
+//       }
+//       resolve(results);
+//     });
+//   });
+// };

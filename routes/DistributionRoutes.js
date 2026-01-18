@@ -403,5 +403,11 @@ router.get(
   distributionEp.getPickupOrderRecords
 );
 
+router.get(
+  "/get-center-home-delivery-orders",
+  authMiddleware,
+  distributionEp.getCenterHomeDeliveryOrders
+);
+
 
 module.exports = router;
