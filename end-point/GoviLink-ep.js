@@ -483,3 +483,32 @@ exports.replyDriverComplain = async (req, res) => {
     });
   }
 };
+
+
+exports.getServiceRequestResponseEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    
+    const jobId = req.params.jobId
+    console.log('jobId', jobId)
+    const auditDetails = await GoviLinkDAO.getServiceRequestResponseDao(jobId);
+
+    console.log('auditDetails', auditDetails)
+
+    res.json({
+      success: true,
+      data: auditDetails,
+      total: auditDetails.length,
+      message: "Field audit details fetched successfully"
+    });
+  } catch (err) {
+    console.error("Error fetching field audit details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching field audit details.",
+      error: err.message
+    });
+  }
+};

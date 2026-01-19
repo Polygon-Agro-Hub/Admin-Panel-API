@@ -93,4 +93,10 @@ router.put(
   GoviLinkEp.replyDriverComplain
 );
 
+router.get(
+  "/get-service-request-response/:jobId",
+  authMiddleware,
+  GoviLinkEp.getServiceRequestResponseEp
+);
+
 module.exports = router;

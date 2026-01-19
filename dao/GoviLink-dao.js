@@ -472,8 +472,8 @@ exports.checkDuplicateServiceNames = (
 
 exports.getFieldAuditDetails = (filters = {}, search = {}) => {
   return new Promise((resolve, reject) => {
-    let where1 = " WHERE 1=1 AND DATE(gj.doneDate) = '2025-12-05'";
-    let where2 = " WHERE 1=1 AND DATE(fa.completeDate) = '2025-12-05'";
+    let where1 = " WHERE 1=1 ";
+    let where2 = " WHERE 1=1 ";
     let params1 = [];
     let params2 = [];
 
@@ -778,5 +778,45 @@ exports.ReplyDriverComplainDAO = (complainId, reply, replyBy) => {
         resolve(results);
       }
     );
+  });
+};
+
+
+exports.getServiceRequestResponseDao = (jobId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        gj.id,
+        gj.jobId AS jobId,
+        fo.empId AS empId,
+        f.id AS farmId,
+        f.regCode AS farmCode
+        u.NICnumber AS farmerNIC,
+        f.district AS district,
+        gj.sheduleDate AS scheduledDate,
+        gj.doneDate AS completedDate,
+        gj.status AS status,
+        gj.assignBy AS assignBy,
+        au.userName AS assignedByName,
+        concat(fo1.firstName, ' ', fo1.lastName) AS AssignedOfficer,
+        'Requested Service' AS visitPurpose,
+        jao.createdAt AS assignedOn,
+        ofs.englishName AS serviceName,
+        'no' AS onScreenTime
+      FROM plant_care.govilinkjobs gj
+      LEFT JOIN plant_care.users u ON gj.farmerId = u.id
+      LEFT JOIN plant_care.farms f ON gj.farmId = f.id
+      LEFT JOIN plant_care.officerservices ofs ON gj.servicerId = ofs.id
+      LEFT JOIN agro_world_admin.adminusers au ON gj.assignBy = au.id
+      LEFT JOIN plant_care.jobassignofficer jao ON gj.id = jao.jobId AND jao.isActive = 1
+      LEFT JOIN plant_care.feildofficer fo ON jao.officerId = fo.id
+      LEFT JOIN plant_care.feildofficer fo1 ON gj.assignByCFO = fo1.id
+      WHERE gj.jobId = ?
+    `;
+
+    plantcare.query(sql, [jobId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
   });
 };
