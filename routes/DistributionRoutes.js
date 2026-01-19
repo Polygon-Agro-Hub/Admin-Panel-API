@@ -409,5 +409,11 @@ router.get(
   distributionEp.getCenterHomeDeliveryOrders
 );
 
+router.get(
+  "/polygon-center-dashbord-details/:id",
+  // authMiddleware,
+  distributionEp.getPolygonCenterDashbordDetails
+);
+
 
 module.exports = router;

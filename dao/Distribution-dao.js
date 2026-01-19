@@ -4246,3 +4246,38 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
 //     });
 //   });
 // };
+
+
+exports.getPolygonCenterDashbordDetailsDao = (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+          COALESCE(SUM(dro.handOverPrice), 0) + COALESCE(SUM(pio.handOverPrice), 0) AS total_price,
+          COUNT(po.id) AS total_orders
+      FROM market_place.processorders po
+      LEFT JOIN driverorders dro ON po.id = dro.orderId
+      LEFT JOIN collectionofficer cof_dro ON dro.handOverOfficer = cof_dro.id 
+          AND cof_dro.companyId = ? 
+          AND cof_dro.distributedCenterId = ?
+      LEFT JOIN pickuporders pio ON po.id = pio.orderId
+      LEFT JOIN collectionofficer cof_pio_issued ON pio.orderIssuedOfficer = cof_pio_issued.id 
+          AND cof_pio_issued.companyId = ?
+          AND cof_pio_issued.distributedCenterId = ?
+      LEFT JOIN collectionofficer cof_pio_handover ON pio.handOverOfficer = cof_pio_handover.id 
+          AND cof_pio_handover.companyId = ?
+          AND cof_pio_handover.distributedCenterId = ?
+      WHERE DATE(dro.handOverTime) = CURDATE() OR DATE(pio.handOverPrice) = CURDATE()
+    `;
+
+    collectionofficer.query(sql, [
+      data.companyId, data.centerId, 
+      data.companyId, data.centerId, 
+      data.companyId, data.centerId
+    ], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
