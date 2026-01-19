@@ -99,4 +99,10 @@ router.get(
   GoviLinkEp.getFieldAuditHistoryResponseById
 );
 
+router.get(
+  "/get-service-request-response/:jobId",
+  authMiddleware,
+  GoviLinkEp.getServiceRequestResponseEp
+);
+
 module.exports = router;
