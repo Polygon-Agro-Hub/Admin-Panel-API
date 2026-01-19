@@ -135,3 +135,13 @@ exports.getDistributedCenterPikupOderShema = Joi.object({
   searchText: Joi.string().allow(''),
   activeTab: Joi.string().valid('All', 'Ready to Pickup', 'Picked Up').allow('')
 })
+
+
+exports.getCenterHomeDeliveryOrdersSchema = Joi.object({
+  activeTab: Joi.string(),
+  centerId: Joi.number(),
+  status: Joi.string().allow(''),
+  searchText: Joi.string().allow(''),
+  date: Joi.date().iso().allow(''),
+
+})

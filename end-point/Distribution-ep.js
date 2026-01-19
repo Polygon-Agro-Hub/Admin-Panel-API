@@ -3142,3 +3142,32 @@ exports.getPickupOrderRecords = async (req, res) => {
     });
   }
 };
+
+
+exports.getCenterHomeDeliveryOrders = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+  try {
+    const { activeTab, centerId, status, searchText, date  } =  await DistributionValidation.getCenterHomeDeliveryOrdersSchema.validateAsync(req.query);
+    console.log('centerId', centerId, 'activeTab', activeTab, 'status', status, 'searchText', searchText, 'date', date )
+
+    const deliveryLocationData = await DistributionDao.getDeliveryChargeCity(centerId);
+    const userId = req.user.userId
+
+    const deliveries = await DistributionDao.getCenterHomeDeliveryOrdersDao(activeTab, status, searchText, date, deliveryLocationData, centerId);
+    // console.log('deliveries', deliveries)
+
+    res.status(200).json({
+      status: true,
+      data: deliveries,
+      count: deliveries.length,
+    });
+  } catch (error) {
+    console.error("Error fetching today's deliveries:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to fetch today's deliveries",
+      error: error.message,
+    });
+  }
+};
