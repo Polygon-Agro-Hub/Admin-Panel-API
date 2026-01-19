@@ -483,3 +483,37 @@ exports.replyDriverComplain = async (req, res) => {
     });
   }
 };
+
+exports.getFieldAuditHistoryResponseById = async (req, res) => {
+  try {
+    
+    // const { jobId, farmId } = req.params;
+    
+    const jobId = "FA20251203003"; // For testing purposes
+    const farmId = "197"; // For testing purposes
+
+    // const jobId = "CA20251124003"; 
+    // const farmId = "103"; 
+
+    const data = await GoviLinkDAO.getFieldAuditHistoryResponseByIdDAO(jobId, farmId);
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: "No data found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+};

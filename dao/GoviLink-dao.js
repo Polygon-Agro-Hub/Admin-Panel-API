@@ -780,3 +780,56 @@ exports.ReplyDriverComplainDAO = (complainId, reply, replyBy) => {
     );
   });
 };
+
+exports.getFieldAuditHistoryResponseByIdDAO = (jobId, farmId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        fa.jobId,
+        fac.farmId,
+        cp.certificateId,
+        ct.srtName,
+        sqi.qEnglish,
+        sqi.type,
+        sqi.uploadImage,
+        sqi.officerTickResult,
+        js.problem,
+        js.solution 
+      FROM feildaudits fa
+      LEFT JOIN feildauditcluster fac ON fa.id = fac.feildAuditId
+      LEFT JOIN certificationpayment cp ON fa.paymentId  = cp.id 
+      LEFT JOIN certificates ct ON ct.id = cp.certificateId 
+      LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
+      LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
+      LEFT JOIN jobsuggestions js ON js.slaveId  = sq.id
+      WHERE fa.jobId = ? AND fac.farmId = ?
+    `;
+
+    plantcare.query(sql, [jobId, farmId], (err, results) => {
+      if (err) return reject(err);
+
+      if (results.length === 0) return resolve(null);
+
+      const header = {
+        jobId: results[0].jobId,
+        farmId: results[0].farmId,
+        certificateId: results[0].certificateId,
+        srtName: results[0].srtName,
+      };
+
+      const data = results.map((row) => ({
+        qEnglish: row.qEnglish,
+        type: row.type,
+        uploadImage: row.uploadImage,
+        officerTickResult: row.officerTickResult,
+        problem: row.problem,
+        solution: row.solution,
+      }));
+
+      resolve({
+        ...header,
+        data,
+      });
+    });
+  });
+};
