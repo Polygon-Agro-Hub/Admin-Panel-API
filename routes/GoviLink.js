@@ -93,4 +93,16 @@ router.put(
   GoviLinkEp.replyDriverComplain
 );
 
+router.get(
+  "/get-field-audit-history-response/:jobId/:farmId",
+  authMiddleware,
+  GoviLinkEp.getFieldAuditHistoryResponseById
+);
+
+router.get(
+  "/get-service-request-response/:jobId",
+  authMiddleware,
+  GoviLinkEp.getServiceRequestResponseEp
+);
+
 module.exports = router;

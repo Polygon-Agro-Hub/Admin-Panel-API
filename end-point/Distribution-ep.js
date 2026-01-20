@@ -3171,3 +3171,32 @@ exports.getCenterHomeDeliveryOrders = async (req, res) => {
     });
   }
 };
+
+
+exports.getPolygonCenterDashbordDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+  try {
+    // const { activeTab, centerId, status, searchText, date  } =  await DistributionValidation.getCenterHomeDeliveryOrdersSchema.validateAsync(req.query);
+    const {id} = req.params;
+    const companyCenter = await DistributionDao.getCenterAndCompanyIdDao(id);
+    console.log(companyCenter);
+    
+
+    const result = await DistributionDao.getPolygonCenterDashbordDetailsDao(companyCenter);
+
+    // console.log('deliveries', deliveries)
+
+    res.status(200).json({
+      status: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error fetching today's deliveries:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to fetch today's deliveries",
+      error: error.message,
+    });
+  }
+};

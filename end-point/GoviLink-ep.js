@@ -483,3 +483,67 @@ exports.replyDriverComplain = async (req, res) => {
     });
   }
 };
+
+exports.getFieldAuditHistoryResponseById = async (req, res) => {
+  try {
+    
+    // const { jobId, farmId } = req.params;
+    
+    const jobId = "FA20251203003"; // For testing purposes
+    const farmId = "197"; // For testing purposes
+
+    // const jobId = "CA20251124003"; 
+    // const farmId = "103"; 
+
+    const data = await GoviLinkDAO.getFieldAuditHistoryResponseByIdDAO(jobId, farmId);
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: "No data found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+};
+
+
+
+exports.getServiceRequestResponseEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    
+    const jobId = req.params.jobId
+    console.log('jobId', jobId)
+    const auditDetails = await GoviLinkDAO.getServiceRequestResponseDao(jobId);
+
+    console.log('auditDetails', auditDetails)
+
+    res.json({
+      success: true,
+      data: auditDetails,
+      total: auditDetails.length,
+      message: "Field audit details fetched successfully"
+    });
+  } catch (err) {
+    console.error("Error fetching field audit details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching field audit details.",
+      error: err.message
+    });
+  }
+};
