@@ -94,7 +94,7 @@ router.put(
 );
 
 router.get(
-  "/get-field-audit-history-response/:jobId/:farmId",
+  "/get-field-audit-history-response/:jobId",
   authMiddleware,
   GoviLinkEp.getFieldAuditHistoryResponseById
 );
