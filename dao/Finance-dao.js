@@ -1792,7 +1792,7 @@ exports.UpdateInvestmentRequestPublishStatusDAO = (requestId, publishBy) => {
       WHERE id = ?
     `;
 
-    plantcare.query(sql, [publishBy, requestId], (err, result) => {
+    investment.query(sql, [publishBy, requestId], (err, result) => {
       if (err) {
         return reject(err);
       }
