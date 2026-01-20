@@ -2123,7 +2123,7 @@ exports.ApproveRequestDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investmentrequest ir
-      SET ir.reqStatus = 'Approved'
+      SET ir.reqStatus = 'Approved', ir.reqCahangeTime = CURDATE()
       WHERE ir.id = ?
     `;
 
@@ -2170,6 +2170,34 @@ exports.rejectRequestDao = (id) => {
     `;
 
     investment.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log('result', result);
+      resolve(result);
+    });
+  });
+};
+
+exports.editDevideSharesDao = (sharesData) => {
+  console.log('sharesData', sharesData);
+
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE investments.approvedinvestmentrequest
+      SET totValue = ?, defineShares = ?, minShare = ?, maxShare = ?
+      WHERE reqId = ?
+    `;
+
+    const values = [      
+      sharesData.totalValue,    
+      sharesData.numShares,     
+      sharesData.minimumShare,  
+      sharesData.maximumShare,
+      sharesData.id       
+    ];
+
+    investment.query(sql, values, (err, result) => {
       if (err) {
         return reject(err);
       }
