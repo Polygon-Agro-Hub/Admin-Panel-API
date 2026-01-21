@@ -488,7 +488,6 @@ exports.getFieldAuditHistoryResponseById = async (req, res) => {
   try {
     
     const { jobId } = req.params;
-    // const jobId = "FA20251124018"; // For testing purposes
 
     const data = await GoviLinkDAO.getFieldAuditHistoryResponseByIdDAO(jobId);
 
@@ -554,9 +553,8 @@ exports.getServiceRequestResponseEp = async (req, res) => {
 
 exports.getFieldAuditHistoryClusterResponseById = async (req, res) => {
   try {
-    // const { jobId } = req.params;
-    //const jobId = "CA20251124003";
-     const jobId = "CA20251210003";
+    
+    const { jobId } = req.params;
 
     if (!jobId) {
       return res.status(400).json({
