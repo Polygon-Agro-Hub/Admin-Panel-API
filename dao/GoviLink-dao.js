@@ -587,7 +587,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         fo.empId AS empId,
         COALESCE(f.id, f2.id, f3.id) AS farmId,
         COALESCE(f.regCode, f2.regCode, f3.regCode) AS farmCode,
-        u.NICnumber AS farmerNIC,
+        COALESCE(u.NICnumber, u2.NICnumber) AS farmerNIC,
         f.district AS district,
         fa.sheduleDate AS scheduledDate,
         fa.completeDate AS completedDate,
@@ -605,6 +605,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
       LEFT JOIN plant_care.users u ON cp.userId = u.id
       LEFT JOIN plant_care.feildauditcluster fac ON fac.feildAuditId = fa.id
       LEFT JOIN plant_care.farms f ON fac.farmId = f.id
+      LEFT JOIN plant_care.users u2 ON f.userId = u2.id
       LEFT JOIN plant_care.feildofficer fo1 ON fa.assignByCFO = fo1.id
       LEFT JOIN plant_care.certificationpaymentfarm cpf ON cp.id = cpf.paymentId
       LEFT JOIN plant_care.farms f2 ON cpf.farmId = f2.id
