@@ -525,11 +525,20 @@ exports.getServiceRequestResponseEp = async (req, res) => {
     console.log('jobId', jobId)
     const auditDetails = await GoviLinkDAO.getServiceRequestResponseDao(jobId);
 
+    let advices = [];
+    let suggestions = [];
+    if (auditDetails.id) {
+      advices = await GoviLinkDAO.getAdvicesServiceRequestDao(auditDetails.id);
+      suggestions = await GoviLinkDAO.getSuggestionsServiceRequestDao(auditDetails.id);
+    }
+    
     console.log('auditDetails', auditDetails)
+    console.log('advices', advices)
+    console.log('suggestions', suggestions)
 
     res.json({
       success: true,
-      data: auditDetails,
+      data: {auditDetails: auditDetails, advices: advices, suggestions: suggestions},
       total: auditDetails.length,
       message: "Field audit details fetched successfully"
     });

@@ -556,6 +556,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         gj.jobId AS jobId,
         fo.empId AS empId,
         f.id AS farmId,
+        f.regCode AS farmCode,
         u.NICnumber AS farmerNIC,
         f.district AS district,
         gj.sheduleDate AS scheduledDate,
@@ -585,6 +586,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         fa.jobId AS jobId,
         fo.empId AS empId,
         f.id AS farmId,
+        f.regCode AS farmCode,
         u.NICnumber AS farmerNIC,
         f.district AS district,
         fa.sheduleDate AS scheduledDate,
@@ -855,7 +857,7 @@ exports.getServiceRequestResponseDao = (jobId) => {
         gj.jobId AS jobId,
         fo.empId AS empId,
         f.id AS farmId,
-        f.regCode AS farmCode
+        f.regCode AS farmCode,
         u.NICnumber AS farmerNIC,
         f.district AS district,
         gj.sheduleDate AS scheduledDate,
@@ -871,7 +873,7 @@ exports.getServiceRequestResponseDao = (jobId) => {
       FROM plant_care.govilinkjobs gj
       LEFT JOIN plant_care.users u ON gj.farmerId = u.id
       LEFT JOIN plant_care.farms f ON gj.farmId = f.id
-      LEFT JOIN plant_care.officerservices ofs ON gj.servicerId = ofs.id
+      LEFT JOIN plant_care.officerservices ofs ON gj.serviceId = ofs.id
       LEFT JOIN agro_world_admin.adminusers au ON gj.assignBy = au.id
       LEFT JOIN plant_care.jobassignofficer jao ON gj.id = jao.jobId AND jao.isActive = 1
       LEFT JOIN plant_care.feildofficer fo ON jao.officerId = fo.id
@@ -880,6 +882,47 @@ exports.getServiceRequestResponseDao = (jobId) => {
     `;
 
     plantcare.query(sql, [jobId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.getAdvicesServiceRequestDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        gjs.id,
+        gjs.jobId,
+        gjs.farmerFeedback,
+        gjs.advice,
+        gjs.image
+      FROM plant_care.govijoblinksuggestions gjs
+      WHERE gjs.jobId = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+      console.log('results', results)
+    });
+  });
+};
+
+
+exports.getSuggestionsServiceRequestDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+      gjp.id,
+      gjp.jobId,
+      gjp.problem,
+      gjp.solution
+      FROM plant_care.govijoblinkproblems gjp
+      WHERE gjp.jobId = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
