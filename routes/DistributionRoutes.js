@@ -421,5 +421,11 @@ router.get(
   distributionEp.getPickupCashRevenue
 );
 
+router.get(
+  "/get-driver-cash-revenue/:id",
+  // authMiddleware,
+  distributionEp.getDriverCashRevenue
+);
+
 
 module.exports = router;
