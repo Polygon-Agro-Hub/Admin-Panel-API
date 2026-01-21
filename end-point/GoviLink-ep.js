@@ -487,8 +487,8 @@ exports.replyDriverComplain = async (req, res) => {
 exports.getFieldAuditHistoryResponseById = async (req, res) => {
   try {
     
-    // const { jobId, farmId } = req.params;
-    const jobId = "FA20251124018"; // For testing purposes
+    const { jobId } = req.params;
+    // const jobId = "FA20251124018"; // For testing purposes
 
     const data = await GoviLinkDAO.getFieldAuditHistoryResponseByIdDAO(jobId);
 
@@ -548,6 +548,44 @@ exports.getServiceRequestResponseEp = async (req, res) => {
       success: false,
       message: "An error occurred while fetching field audit details.",
       error: err.message
+    });
+  }
+};
+
+exports.getFieldAuditHistoryClusterResponseById = async (req, res) => {
+  try {
+    // const { jobId } = req.params;
+    //const jobId = "CA20251124003";
+     const jobId = "CA20251210003";
+
+    if (!jobId) {
+      return res.status(400).json({
+        success: false,
+        message: "jobId is required"
+      });
+    }
+
+    const result =
+      await GoviLinkDAO.getFieldAuditHistoryClusterResponseByIdDAO(jobId);
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "No data found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      header: result.header,
+      farms: result.farms
+    });
+
+  } catch (error) {
+    console.error("API Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
     });
   }
 };

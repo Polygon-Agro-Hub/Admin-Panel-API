@@ -105,4 +105,10 @@ router.get(
   GoviLinkEp.getServiceRequestResponseEp
 );
 
+router.get(
+  "/get-field-audit-history-cluster-response/:jobId",
+  authMiddleware,
+  GoviLinkEp.getFieldAuditHistoryClusterResponseById
+);
+
 module.exports = router;

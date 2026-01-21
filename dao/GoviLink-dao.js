@@ -928,3 +928,69 @@ exports.getSuggestionsServiceRequestDao = (id) => {
     });
   });
 };
+
+exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        fa.jobId,
+        cp.certificateId,
+        ct.srtName,
+        cp.payType,
+        f.regCode,
+
+        JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'qEnglish', sqi.qEnglish,
+            'type', sqi.type,
+            'uploadImage', sqi.uploadImage,
+            'officerTickResult', sqi.officerTickResult,
+            'problem', js.problem,
+            'solution', js.solution
+          )
+        ) AS questions
+
+      FROM feildaudits fa
+      LEFT JOIN certificationpayment cp ON fa.paymentId  = cp.id 
+      LEFT JOIN certificates ct ON ct.id = cp.certificateId 
+      LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
+      LEFT JOIN certificationpaymentfarm cpf ON cpf.paymentId = cp.id
+      LEFT JOIN farmcluster fc ON fc.id = cp.clusterId 
+      LEFT JOIN farmclusterfarmers fcf ON fcf.clusterId = fc.id
+      LEFT JOIN farms f ON f.id = fcf.farmId 
+      LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
+      LEFT JOIN jobsuggestions js ON js.slaveId  = sq.id
+
+      WHERE fa.jobId = ?
+
+      GROUP BY 
+        fa.jobId,
+        cp.certificateId,
+        ct.srtName,
+        cp.payType,
+        f.regCode
+    `;
+
+    plantcare.query(sql, [jobId], (err, results) => {
+      if (err) return reject(err);
+      if (!results || results.length === 0) return resolve(null);
+
+      const header = {
+        jobId: results[0].jobId,
+        certificateId: results[0].certificateId,
+        srtName: results[0].srtName,
+        payType: results[0].payType,
+      };
+
+      const farms = results.map((row) => ({
+        regCode: row.regCode,
+        questions: row.questions || [],
+      }));
+
+      resolve({
+        header,
+        farms,
+      });
+    });
+  });
+};
