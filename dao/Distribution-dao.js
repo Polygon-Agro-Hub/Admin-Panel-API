@@ -1717,7 +1717,7 @@ exports.GetDistributionCentersByCompanyIdDAO = (companyId) => {
 exports.GetAllDistributionManagerList = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND distributedCenterId = ?";
+      "SELECT id, empId, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND distributedCenterId = ?";
     collectionofficer.query(sql, [companyId, centerId], (err, results) => {
       if (err) {
         return reject(err);
@@ -4384,6 +4384,85 @@ exports.getDriverCashRevenueDao = (data) => {
         return reject(err);
       }
       resolve(results);
+    });
+  });
+};
+
+
+exports.getHomeDiliveryTrackingCenterDetailsDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        po.id,
+        po.invNo,   
+      	po.outDlvrDate,
+        po.deliveredTime,
+        po.status,
+      	dc.centerName,
+      	dc.regCode,
+        o.centerId,
+        cof1.empId
+      FROM processorders po
+      LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
+      LEFT JOIN collection_officer.distributedcenter dc ON cof1.distributedCenterId = dc.id
+      LEFT JOIN market_place.orders o ON po.orderId = o.id
+      WHERE po.id = ?
+    `;
+
+    marketPlace.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+
+exports.getHomeDiliveryTrackingDriverDetailsDao = async (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+          dor.id AS orderId,
+          drv.empId,
+          CONCAT(drv.firstNameEnglish, ' ', drv.lastNameEnglish) AS driverName,
+          CONCAT('0', drv.phoneNumber01) AS driverPhone,
+          dor.createdAt AS collectTime,
+          dor.startTime,
+          (
+              SELECT JSON_ARRAYAGG(
+                  JSON_OBJECT(
+                  	 'holdId',dho.id,
+                      'holdTime', dho.createdAt,
+                      'holdReason', hr.rsnEnglish,
+                      'restartedTime', dho.restartedTime
+                  )
+              )
+              FROM driverholdorders dho
+              LEFT JOIN holdreason hr ON dho.holdReasonId = hr.id
+              WHERE dho.drvOrderId = dor.id
+          ) AS holdDetails,
+          rr.rsnEnglish AS returnReson,
+          dro.note AS returnNote,
+          dro.createdAt AS returnTime,
+          dor.receivedTime AS returnRecivedTime,
+          dor.handOverTime AS moneyHandoverTime,
+          po.deliveredTime AS completeTime
+      FROM driverorders dor
+      LEFT JOIN collectionofficer drv ON dor.driverId = drv.id
+      LEFT JOIN driverreturnorders dro ON dor.id = dro.drvOrderId
+      LEFT JOIN returnreason rr ON dro.returnReasonId = rr.id
+      LEFT JOIN market_place.processorders po ON dor.orderId = po.id
+      WHERE dor.orderId = ?
+    `;
+
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
     });
   });
 };

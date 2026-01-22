@@ -427,5 +427,11 @@ router.get(
   distributionEp.getDriverCashRevenue
 );
 
+router.get(
+  "/get-home-delivery-tracking/:id",
+  // authMiddleware,
+  distributionEp.getHomeDiliveryTracking
+);
+
 
 module.exports = router;

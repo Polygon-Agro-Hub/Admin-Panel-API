@@ -3268,3 +3268,30 @@ exports.getDriverCashRevenue = async (req, res) => {
     });
   }
 };
+
+exports.getHomeDiliveryTracking = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    // const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
+    
+    const id = req.params.id;
+
+    const centerDetails = await DistributionDao.getHomeDiliveryTrackingCenterDetailsDao(id);
+    const driverDetails = await DistributionDao.getHomeDiliveryTrackingDriverDetailsDao(id);
+
+    res.status(200).json({
+      centerDetails,
+      driverDetails
+    });
+    console.log(centerDetails);
+    console.log(driverDetails);
+  } catch (error) {
+    console.error('Get Distributed Vehicles Error:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to load vehicles',
+      error: error.message
+    });
+  }
+};
