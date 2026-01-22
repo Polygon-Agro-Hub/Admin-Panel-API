@@ -1429,6 +1429,8 @@ exports.GetInvestmentRequestByIdDAO = (requestId) => {
         u.phoneNumber AS Phone_number,
         cg.cropNameEnglish AS Crop,
         ir.extentac AS Extent,
+        ir.extentha AS ExtentH,
+        ir.extentp AS ExtentP,
         ir.investment AS Expected_Investment,
         CONCAT(ir.expectedYield, 'kg') AS Expected_Yield,
         DATE_FORMAT(ir.startDate, '%M %d, %Y') AS Expected_Start_Date,
