@@ -4281,3 +4281,109 @@ exports.getPolygonCenterDashbordDetailsDao = (data) => {
     });
   });
 };
+
+exports.getPickupCashRevenueDao = (data) => {
+  return new Promise((resolve, reject) => {
+    const {
+      companyId,
+      centerId,
+      search,
+      filterDate
+    } = data;
+
+    let sql = `
+      SELECT
+          pio.id,
+          po.invNo,
+          pio.handOverPrice,
+          pio.handOverTime,
+          cof_issued.empId AS issuedOfficerEmpId,
+          cof_handover.empId AS handOverOfficerEmpId
+      FROM collection_officer.pickuporders pio 
+      LEFT JOIN market_place.processorders po ON po.id = pio.orderId
+      LEFT JOIN collection_officer.collectionofficer cof_issued ON pio.orderIssuedOfficer = cof_issued.id
+          AND cof_issued.companyId = ?
+          AND cof_issued.distributedCenterId = ?
+      LEFT JOIN collection_officer.collectionofficer cof_handover ON pio.handOverOfficer = cof_handover.id
+          AND cof_handover.companyId = ?
+          AND cof_handover.distributedCenterId = ?
+      WHERE pio.id IS NOT NULL
+    `;
+
+    const params = [companyId, centerId, companyId, centerId];
+    
+    if (filterDate) {
+      sql += ` AND DATE(pio.handOverTime) = ?`;
+      params.push(filterDate);
+    } else {
+      sql += ` AND DATE(pio.handOverTime) = CURDATE()`;
+    }
+
+    if (search) {
+      sql += ` AND po.invNo LIKE ?`;
+      params.push(`%${search}%`);
+    }
+
+    sql += ` ORDER BY pio.handOverTime DESC`;
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getDriverCashRevenueDao = (data) => {
+  return new Promise((resolve, reject) => {
+    const {
+      companyId,
+      centerId,
+      search,
+      filterDate
+    } = data;
+
+    let sql = `
+      SELECT
+          do.id,
+          po.invNo,
+          do.handOverPrice,
+          do.handOverTime,
+          cof_dro.empId AS driverEmpId,
+          cof_handover.empId AS handOverOfficerEmpId
+      FROM collection_officer.driverorders do 
+      LEFT JOIN market_place.processorders po ON po.id = do.orderId
+      LEFT JOIN collection_officer.collectionofficer cof_dro ON do.driverId = cof_dro.id
+          AND cof_dro.companyId = ?
+          AND cof_dro.distributedCenterId = ?
+      LEFT JOIN collection_officer.collectionofficer cof_handover ON do.handOverOfficer = cof_handover.id
+          AND cof_handover.companyId = ?
+          AND cof_handover.distributedCenterId = ?
+      WHERE do.id IS NOT NULL
+    `;
+
+    const params = [companyId, centerId, companyId, centerId];
+    
+    if (filterDate) {
+      sql += ` AND DATE(do.handOverTime) = ?`;
+      params.push(filterDate);
+    } else {
+      sql += ` AND DATE(do.handOverTime) = CURDATE()`;
+    }
+
+    if (search) {
+      sql += ` AND po.invNo LIKE ?`;
+      params.push(`%${search}%`);
+    }
+
+    sql += ` ORDER BY do.handOverTime DESC`;
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

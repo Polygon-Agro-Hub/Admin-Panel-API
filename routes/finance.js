@@ -188,4 +188,10 @@ router.post(
   financeController.rejectRequestEp
 );
 
+router.patch(
+  "/approve-request",
+  authMiddleware,
+  financeController.approveInvenstmentRequest
+);
+
 module.exports = router;

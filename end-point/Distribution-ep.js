@@ -3200,3 +3200,71 @@ exports.getPolygonCenterDashbordDetails = async (req, res) => {
     });
   }
 };
+
+exports.getPickupCashRevenue = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+  try {
+    const { search, filterDate } = req.query;
+    const { id } = req.params;
+
+    const companyCenter = await DistributionDao.getCenterAndCompanyIdDao(id);
+    console.log(companyCenter);
+
+    const companyId = companyCenter.companyId;
+    const centerId = companyCenter.centerId;
+
+    const result = await DistributionDao.getPickupCashRevenueDao({
+      companyId: companyId,
+      centerId: centerId,
+      search: search || null,
+      filterDate: filterDate || null
+    });
+
+    res.status(200).json({
+      status: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error fetching pickup cash revenue:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to fetch pickup cash revenue",
+      error: error.message,
+    });
+  }
+};
+
+exports.getDriverCashRevenue = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+  try {
+    const { search, filterDate } = req.query;
+    const { id } = req.params;
+
+    const companyCenter = await DistributionDao.getCenterAndCompanyIdDao(id);
+    console.log(companyCenter);
+
+    const companyId = companyCenter.companyId;
+    const centerId = companyCenter.centerId;
+
+    const result = await DistributionDao.getDriverCashRevenueDao({
+      companyId: companyId,
+      centerId: centerId,
+      search: search || null,
+      filterDate: filterDate || null
+    });
+
+    res.status(200).json({
+      status: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error fetching driver cash revenue:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to fetch driver cash revenue",
+      error: error.message,
+    });
+  }
+};

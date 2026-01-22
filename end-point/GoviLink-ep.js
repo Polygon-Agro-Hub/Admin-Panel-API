@@ -487,15 +487,9 @@ exports.replyDriverComplain = async (req, res) => {
 exports.getFieldAuditHistoryResponseById = async (req, res) => {
   try {
     
-    // const { jobId, farmId } = req.params;
-    
-    const jobId = "FA20251203003"; // For testing purposes
-    const farmId = "197"; // For testing purposes
+    const { jobId } = req.params;
 
-    // const jobId = "CA20251124003"; 
-    // const farmId = "103"; 
-
-    const data = await GoviLinkDAO.getFieldAuditHistoryResponseByIdDAO(jobId, farmId);
+    const data = await GoviLinkDAO.getFieldAuditHistoryResponseByIdDAO(jobId);
 
     if (!data) {
       return res.status(404).json({
@@ -530,11 +524,20 @@ exports.getServiceRequestResponseEp = async (req, res) => {
     console.log('jobId', jobId)
     const auditDetails = await GoviLinkDAO.getServiceRequestResponseDao(jobId);
 
+    let advices = [];
+    let suggestions = [];
+    if (auditDetails.id) {
+      advices = await GoviLinkDAO.getAdvicesServiceRequestDao(auditDetails.id);
+      suggestions = await GoviLinkDAO.getSuggestionsServiceRequestDao(auditDetails.id);
+    }
+    
     console.log('auditDetails', auditDetails)
+    console.log('advices', advices)
+    console.log('suggestions', suggestions)
 
     res.json({
       success: true,
-      data: auditDetails,
+      data: {auditDetails: auditDetails, advices: advices, suggestions: suggestions},
       total: auditDetails.length,
       message: "Field audit details fetched successfully"
     });
@@ -544,6 +547,43 @@ exports.getServiceRequestResponseEp = async (req, res) => {
       success: false,
       message: "An error occurred while fetching field audit details.",
       error: err.message
+    });
+  }
+};
+
+exports.getFieldAuditHistoryClusterResponseById = async (req, res) => {
+  try {
+    
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        success: false,
+        message: "jobId is required"
+      });
+    }
+
+    const result =
+      await GoviLinkDAO.getFieldAuditHistoryClusterResponseByIdDAO(jobId);
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "No data found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      header: result.header,
+      farms: result.farms
+    });
+
+  } catch (error) {
+    console.error("API Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
     });
   }
 };

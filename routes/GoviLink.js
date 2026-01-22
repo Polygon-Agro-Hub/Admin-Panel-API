@@ -94,7 +94,7 @@ router.put(
 );
 
 router.get(
-  "/get-field-audit-history-response/:jobId/:farmId",
+  "/get-field-audit-history-response/:jobId",
   authMiddleware,
   GoviLinkEp.getFieldAuditHistoryResponseById
 );
@@ -103,6 +103,12 @@ router.get(
   "/get-service-request-response/:jobId",
   authMiddleware,
   GoviLinkEp.getServiceRequestResponseEp
+);
+
+router.get(
+  "/get-field-audit-history-cluster-response/:jobId",
+  authMiddleware,
+  GoviLinkEp.getFieldAuditHistoryClusterResponseById
 );
 
 module.exports = router;

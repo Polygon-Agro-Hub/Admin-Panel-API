@@ -415,5 +415,17 @@ router.get(
   distributionEp.getPolygonCenterDashbordDetails
 );
 
+router.get(
+  "/get-pikup-cash-revenue/:id",
+  // authMiddleware,
+  distributionEp.getPickupCashRevenue
+);
+
+router.get(
+  "/get-driver-cash-revenue/:id",
+  // authMiddleware,
+  distributionEp.getDriverCashRevenue
+);
+
 
 module.exports = router;

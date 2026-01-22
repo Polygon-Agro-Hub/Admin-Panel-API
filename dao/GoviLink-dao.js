@@ -556,6 +556,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         gj.jobId AS jobId,
         fo.empId AS empId,
         f.id AS farmId,
+        f.regCode AS farmCode,
         u.NICnumber AS farmerNIC,
         f.district AS district,
         gj.sheduleDate AS scheduledDate,
@@ -584,8 +585,9 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         fa.id,
         fa.jobId AS jobId,
         fo.empId AS empId,
-        f.id AS farmId,
-        u.NICnumber AS farmerNIC,
+        COALESCE(f.id, f2.id, f3.id) AS farmId,
+        COALESCE(f.regCode, f2.regCode, f3.regCode) AS farmCode,
+        COALESCE(u.NICnumber, u2.NICnumber) AS farmerNIC,
         f.district AS district,
         fa.sheduleDate AS scheduledDate,
         fa.completeDate AS completedDate,
@@ -603,7 +605,14 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
       LEFT JOIN plant_care.users u ON cp.userId = u.id
       LEFT JOIN plant_care.feildauditcluster fac ON fac.feildAuditId = fa.id
       LEFT JOIN plant_care.farms f ON fac.farmId = f.id
+      LEFT JOIN plant_care.users u2 ON f.userId = u2.id
       LEFT JOIN plant_care.feildofficer fo1 ON fa.assignByCFO = fo1.id
+      LEFT JOIN plant_care.certificationpaymentfarm cpf ON cp.id = cpf.paymentId
+      LEFT JOIN plant_care.farms f2 ON cpf.farmId = f2.id
+      LEFT JOIN plant_care.certificationpaymentcrop cpc ON cp.id = cpc.paymentId
+      LEFT JOIN plant_care.ongoingcultivationscrops ongc ON cpc.cropId = ongc.id
+      LEFT JOIN plant_care.farms f3 ON ongc.farmId = f3.id
+
       ${where2}
     )
 
@@ -781,40 +790,52 @@ exports.ReplyDriverComplainDAO = (complainId, reply, replyBy) => {
   });
 };
 
-exports.getFieldAuditHistoryResponseByIdDAO = (jobId, farmId) => {
+exports.getFieldAuditHistoryResponseByIdDAO = (jobId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
         fa.jobId,
-        fac.farmId,
-        cp.certificateId,
+        ct.id AS certificationId,
+        ct.applicable,
+        cpc.cropId,
+        f.regCode,
+        cg.cropNameEnglish,
         ct.srtName,
+        cp.payType,
         sqi.qEnglish,
         sqi.type,
         sqi.uploadImage,
         sqi.officerTickResult,
         js.problem,
-        js.solution 
+        js.solution
       FROM feildaudits fa
-      LEFT JOIN feildauditcluster fac ON fa.id = fac.feildAuditId
-      LEFT JOIN certificationpayment cp ON fa.paymentId  = cp.id 
-      LEFT JOIN certificates ct ON ct.id = cp.certificateId 
+      LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
+      LEFT JOIN certificates ct ON ct.id = cp.certificateId
+      LEFT JOIN certificationpaymentcrop cpc ON cpc.paymentId = cp.id
+      LEFT JOIN ongoingcultivationscrops occ ON occ.id = cpc.cropId
+      LEFT JOIN farms f ON f.id = occ.farmId
+      LEFT JOIN cropcalender cc ON cc.id = occ.cropCalendar
+      LEFT JOIN cropvariety cv ON cv.id = cc.cropVarietyId
+      LEFT JOIN cropgroup cg ON cg.id = cv.cropGroupId
       LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
       LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
-      LEFT JOIN jobsuggestions js ON js.slaveId  = sq.id
-      WHERE fa.jobId = ? AND fac.farmId = ?
+      LEFT JOIN jobsuggestions js ON js.slaveId = sq.id
+      WHERE fa.jobId = ?
     `;
 
-    plantcare.query(sql, [jobId, farmId], (err, results) => {
+    plantcare.query(sql, [jobId], (err, results) => {
       if (err) return reject(err);
-
       if (results.length === 0) return resolve(null);
 
       const header = {
         jobId: results[0].jobId,
-        farmId: results[0].farmId,
-        certificateId: results[0].certificateId,
+        certificationId: results[0].certificationId,
         srtName: results[0].srtName,
+        payType: results[0].payType,
+        regCode: results[0].regCode,
+        cropId: results[0].cropId,
+        cropNameEnglish: results[0].cropNameEnglish,
+        applicable: results[0].applicable
       };
 
       const data = results.map((row) => ({
@@ -843,7 +864,7 @@ exports.getServiceRequestResponseDao = (jobId) => {
         gj.jobId AS jobId,
         fo.empId AS empId,
         f.id AS farmId,
-        f.regCode AS farmCode
+        f.regCode AS farmCode,
         u.NICnumber AS farmerNIC,
         f.district AS district,
         gj.sheduleDate AS scheduledDate,
@@ -859,7 +880,7 @@ exports.getServiceRequestResponseDao = (jobId) => {
       FROM plant_care.govilinkjobs gj
       LEFT JOIN plant_care.users u ON gj.farmerId = u.id
       LEFT JOIN plant_care.farms f ON gj.farmId = f.id
-      LEFT JOIN plant_care.officerservices ofs ON gj.servicerId = ofs.id
+      LEFT JOIN plant_care.officerservices ofs ON gj.serviceId = ofs.id
       LEFT JOIN agro_world_admin.adminusers au ON gj.assignBy = au.id
       LEFT JOIN plant_care.jobassignofficer jao ON gj.id = jao.jobId AND jao.isActive = 1
       LEFT JOIN plant_care.feildofficer fo ON jao.officerId = fo.id
@@ -869,7 +890,114 @@ exports.getServiceRequestResponseDao = (jobId) => {
 
     plantcare.query(sql, [jobId], (err, results) => {
       if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.getAdvicesServiceRequestDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        gjs.id,
+        gjs.jobId,
+        gjs.farmerFeedback,
+        gjs.advice,
+        gjs.image
+      FROM plant_care.govijoblinksuggestions gjs
+      WHERE gjs.jobId = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
       resolve(results);
+      console.log('results', results)
+    });
+  });
+};
+
+
+exports.getSuggestionsServiceRequestDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+      gjp.id,
+      gjp.jobId,
+      gjp.problem,
+      gjp.solution
+      FROM plant_care.govijoblinkproblems gjp
+      WHERE gjp.jobId = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        fa.jobId,
+        cp.certificateId,
+        ct.srtName,
+        cp.payType,
+        f.regCode,
+
+        JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'qEnglish', sqi.qEnglish,
+            'type', sqi.type,
+            'uploadImage', sqi.uploadImage,
+            'officerTickResult', sqi.officerTickResult,
+            'problem', js.problem,
+            'solution', js.solution
+          )
+        ) AS questions
+
+      FROM feildaudits fa
+      LEFT JOIN certificationpayment cp ON fa.paymentId  = cp.id 
+      LEFT JOIN certificates ct ON ct.id = cp.certificateId 
+      LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
+      LEFT JOIN certificationpaymentfarm cpf ON cpf.paymentId = cp.id
+      LEFT JOIN farmcluster fc ON fc.id = cp.clusterId 
+      LEFT JOIN farmclusterfarmers fcf ON fcf.clusterId = fc.id
+      LEFT JOIN farms f ON f.id = fcf.farmId 
+      LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
+      LEFT JOIN jobsuggestions js ON js.slaveId  = sq.id
+
+      WHERE fa.jobId = ?
+
+      GROUP BY 
+        fa.jobId,
+        cp.certificateId,
+        ct.srtName,
+        cp.payType,
+        f.regCode
+    `;
+
+    plantcare.query(sql, [jobId], (err, results) => {
+      if (err) return reject(err);
+      if (!results || results.length === 0) return resolve(null);
+
+      const header = {
+        jobId: results[0].jobId,
+        certificateId: results[0].certificateId,
+        srtName: results[0].srtName,
+        payType: results[0].payType,
+      };
+
+      const farms = results.map((row) => ({
+        regCode: row.regCode,
+        questions: row.questions || [],
+      }));
+
+      resolve({
+        header,
+        farms,
+      });
     });
   });
 };

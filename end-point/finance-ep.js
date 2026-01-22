@@ -1524,7 +1524,7 @@ exports.getInspectionDerailsEp = async (req, res) => {
     const result = await financeDao.getInspectionDerailsDao(Number(id));
     const sharesData = await financeDao.getDetailsForDivideShareDao(Number(id));
 
-      const hasDivideData =
+    const hasDivideData =
       sharesData.totValue != null ||
       sharesData.defineShares != null ||
       sharesData.maxShare != null ||
@@ -1532,13 +1532,13 @@ exports.getInspectionDerailsEp = async (req, res) => {
 
     const shares = {
       ...sharesData,
-      divideData: hasDivideData
+      devideData: hasDivideData
         ? {
-            totValue: sharesData.totValue,
-            defineShares: sharesData.defineShares,
-            maxShare: sharesData.maxShare,
-            minShare: sharesData.minShare
-          }
+          totValue: sharesData.totValue,
+          defineShares: sharesData.defineShares,
+          maxShare: sharesData.maxShare,
+          minShare: sharesData.minShare
+        }
         : null
     };
 
@@ -1608,20 +1608,41 @@ exports.devideSharesRequestEp = async (req, res) => {
       });
     }
 
-    const result = await financeDao.devideSharesDao(
-      sharesData
-    );
+    let result = null;
 
-    if (result) {
-      approveRequestResult = await financeDao.ApproveRequestDao(
-        sharesData.id
+    if (sharesData.devideType === 'Edit') {
+      result = await financeDao.editDevideSharesDao(
+        sharesData
       );
+      return res.status(200).json({
+        message: "Request Edited Successfully",
+        status: true,
+        data: result,
+      });
+    } else if (sharesData.devideType === 'Create') {
+      result = await financeDao.devideSharesDao(
+        sharesData
+      );
+      return res.status(200).json({
+        message: "Request Created Successfully",
+        status: true,
+        data: result,
+      });
     }
+    // const result = await financeDao.devideSharesDao(
+    //   sharesData
+    // );
+
+    // if (result) {
+    //   approveRequestResult = await financeDao.ApproveRequestDao(
+    //     sharesData.id
+    //   );
+    // }
 
     res.status(200).json({
       message: "Request Approved Successfully",
       status: true,
-      data: approveRequestResult,
+      data: result,
     });
   } catch (err) {
     console.error("Error Approving the request:", err);
@@ -1648,10 +1669,10 @@ exports.rejectRequestEp = async (req, res) => {
   try {
     const { reqId, reason } = req.body;
 
-    console.log(' reqId, reason',  reqId, reason)
+    console.log(' reqId, reason', reqId, reason)
 
     // Validate required fields
-    if (!reqId || !reason ) {
+    if (!reqId || !reason) {
       return res.status(400).json({
         message: "reqId, reason are required",
         status: false,
@@ -1687,6 +1708,40 @@ exports.rejectRequestEp = async (req, res) => {
       message: "Internal server error",
       status: false,
       error: err.message,
+    });
+  }
+};
+
+
+exports.approveInvenstmentRequest = async (req, res) => {
+  try {
+    const { reqId } = req.body;
+
+    if (!reqId) {
+      return res.status(400).json({
+        message: "reqId is required",
+        status: false,
+      });
+    }
+
+    const results = await financeDao.ApproveRequestDao(reqId);
+    if (results.affectedRows !== 0) {
+      res.status(200).json({
+        status: true,
+        message: 'Request approved',
+      });
+    } else {
+      res.status(400).json({
+        status: false,
+        message: 'Request approved faild',
+      })
+    }
+  } catch (error) {
+    console.error('Error in GetAllApprovedInvestmentRequests:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Request approved faild',
+      error: 'Internal server error',
     });
   }
 };
