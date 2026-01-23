@@ -4500,8 +4500,8 @@ exports.getRecivedDelivaryCashDashbordDao = async () => {
       SELECT 
           COUNT(*) AS total_today,
           COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() THEN 1 END) AS scheduled_today,
-          COUNT(DISTINCT dro.orderId) AS all_pickup,
-          COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() THEN dro.orderId END) AS today_pickup,
+          COUNT(DISTINCT dro.orderId) AS all_delivary,
+          COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() THEN dro.orderId END) AS today_delivary,
           COALESCE(SUM(DISTINCT dro.handOverPrice), 0) AS order_price
       FROM market_place.processorders po
       INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
