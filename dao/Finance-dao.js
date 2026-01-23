@@ -1658,39 +1658,40 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-        ir.id,
-        ir.farmerId,
-        ir.officerId,
-        ir.jobId,
-        ir.extentha,
-        ir.extentac,
-        ir.extentp,
-        ir.investment,
-        ir.expectedYield,
-        ir.startDate,
-        ir.nicFront,
-        ir.nicBack,
-        ir.assignDate,
-        ir.publishDate,
-        ir.assignedBy,
-        ir.reqStatus,
-        ir.reqCahangeTime,
-        ir.publishStatus,
-        ir.createdAt,
-        rir.reason AS rejectionReason,
-        rir.createdAt AS rejectedAt,
-        u.firstName,
-        u.lastName,
-        u.phoneNumber,
-        u.NICnumber,
-        cg.cropNameEnglish,
-        au.userName AS rejectedBy
-      FROM investments.investmentrequest ir
-      LEFT JOIN investments.rejectinvestmentrequest rir ON ir.id = rir.reqId
-      LEFT JOIN plant_care.users u ON ir.farmerId = u.id
-      LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
-      LEFT JOIN agro_world_admin.adminusers au ON rir.rejectedBy = au.id
-      WHERE ir.reqStatus = 'Rejected'
+    ir.id,
+    ir.farmerId,
+    ir.officerId,
+    ir.jobId,
+    ir.extentha,
+    ir.extentac,
+    ir.extentp,
+    (ir.extentac + ir.extentha * 2.47105 + ir.extentp / 160) AS extentac,
+    ir.investment,
+    ir.expectedYield,
+    ir.startDate,
+    ir.nicFront,
+    ir.nicBack,
+    ir.assignDate,
+    ir.publishDate,
+    ir.assignedBy,
+    ir.reqStatus,
+    ir.reqCahangeTime,
+    ir.publishStatus,
+    ir.createdAt,
+    rir.reason AS rejectionReason,
+    rir.createdAt AS rejectedAt,
+    u.firstName,
+    u.lastName,
+    u.phoneNumber,
+    u.NICnumber,
+    cg.cropNameEnglish,
+    au.userName AS rejectedBy
+FROM investments.investmentrequest ir
+LEFT JOIN investments.rejectinvestmentrequest rir ON ir.id = rir.reqId
+LEFT JOIN plant_care.users u ON ir.farmerId = u.id
+LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
+LEFT JOIN agro_world_admin.adminusers au ON rir.rejectedBy = au.id
+WHERE ir.reqStatus = 'Rejected'
     `;
 
     const params = [];
