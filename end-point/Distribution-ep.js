@@ -1337,30 +1337,18 @@ exports.createDistributionOfficer = async (req, res) => {
     // Collect all validation errors
     const validationErrors = [];
     if (isExistingNIC)
-      validationErrors.push({ field: "nic", message: "NIC already exists" });
+      validationErrors.push('NIC');
     if (isExistingEmail)
-      validationErrors.push({
-        field: "email",
-        message: "Email already exists",
-      });
+      validationErrors.push('email');
     if (isExistingPhoneNumber01)
-      validationErrors.push({
-        field: "phoneNumber01",
-        message: "Primary phone number already exists",
-      });
+      validationErrors.push('phoneNumber01');
     if (isExistingPhoneNumber02)
-      validationErrors.push({
-        field: "phoneNumber02",
-        message: "Secondary phone number already exists",
-      });
+      validationErrors.push('phoneNumber02');
 
-    // Return all validation errors at once
     if (validationErrors.length > 0) {
-      return res.status(409).json({
-        // 409 Conflict for duplicate resources
-        error: "Validation failed",
+      return res.status(400).json({
         errors: validationErrors,
-        status: false,
+        status: false
       });
     }
 
@@ -1850,22 +1838,13 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
     // Collect validation errors
     const validationErrors = [];
     if (isExistingNIC)
-      validationErrors.push({ field: "nic", message: "NIC already exists" });
+      validationErrors.push('NIC');
     if (isExistingEmail)
-      validationErrors.push({
-        field: "email",
-        message: "Email already exists",
-      });
+      validationErrors.push('Email');
     if (isExistingPhoneNumber01)
-      validationErrors.push({
-        field: "phoneNumber01",
-        message: "Primary phone number already exists",
-      });
+      validationErrors.push('PhoneNumber01');
     if (isExistingPhoneNumber02)
-      validationErrors.push({
-        field: "phoneNumber02",
-        message: "Secondary phone number already exists",
-      });
+      validationErrors.push('PhoneNumber02');
 
     if (validationErrors.length > 0) {
       return res.status(409).json({
@@ -3265,6 +3244,33 @@ exports.getDriverCashRevenue = async (req, res) => {
       status: false,
       message: "Failed to fetch driver cash revenue",
       error: error.message,
+    });
+  }
+};
+
+exports.getHomeDiliveryTracking = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    // const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
+    
+    const id = req.params.id;
+
+    const centerDetails = await DistributionDao.getHomeDiliveryTrackingCenterDetailsDao(id);
+    const driverDetails = await DistributionDao.getHomeDiliveryTrackingDriverDetailsDao(id);
+
+    res.status(200).json({
+      centerDetails,
+      driverDetails
+    });
+    console.log(centerDetails);
+    console.log(driverDetails);
+  } catch (error) {
+    console.error('Get Distributed Vehicles Error:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to load vehicles',
+      error: error.message
     });
   }
 };

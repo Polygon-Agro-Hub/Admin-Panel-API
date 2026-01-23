@@ -4607,7 +4607,7 @@ exports.GetCompaniesDAO = () => {
 exports.GetAllManagerList = () => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, firstName, lastName FROM feildofficer WHERE JobRole = 'Chief Field Officer' AND status = 'Approved'";
+      "SELECT id, empId, firstName, lastName FROM feildofficer WHERE JobRole = 'Chief Field Officer' AND status = 'Approved'";
 
     plantcare.query(sql, (err, results) => {
       if (err) {
