@@ -434,7 +434,7 @@ router.get(
 );
 
 router.get(
-  "/get-recived-cash-dashbord",
+  "/get-recived-cash-dashbord/:id",
   authMiddleware,
   distributionEp.getRecivedCashDashbord
 );
