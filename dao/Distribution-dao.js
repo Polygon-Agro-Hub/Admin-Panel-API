@@ -3728,7 +3728,7 @@ exports.getDistributedDriversAndVehiclesDao = (
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
-    let whereConditions = ` WHERE dcc.id = ? `;
+    let whereConditions = ` WHERE dcc.id = ? AND co.empId LIKE 'DRV%' `;
     let params = [distributedCompanyCenterId];
 
     if (status) {
@@ -3781,6 +3781,7 @@ exports.getDistributedDriversAndVehiclesDao = (
       INNER JOIN collectionofficer co ON co.distributedCenterId = dc.id
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       ${whereConditions}
+      ORDER BY co.empId
       LIMIT ? OFFSET ?
     `;
 
