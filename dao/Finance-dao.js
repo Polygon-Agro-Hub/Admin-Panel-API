@@ -1685,8 +1685,8 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
         u.NICnumber,
         cg.cropNameEnglish,
         au.userName AS rejectedBy
-      FROM investmentrequest ir
-      LEFT JOIN rejectinvestmentrequest rir ON ir.id = rir.reqId
+      FROM investments.investmentrequest ir
+      LEFT JOIN investments.rejectinvestmentrequest rir ON ir.id = rir.reqId
       LEFT JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
       LEFT JOIN agro_world_admin.adminusers au ON rir.rejectedBy = au.id
