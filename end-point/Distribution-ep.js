@@ -3024,7 +3024,7 @@ exports.getReturnRecievedOrders = async (req, res) => {
 
 exports.getDistributedDriversAndVehicles = async (req, res) => {
   try {
-    
+
     const { id } = req.params;
 
     const { page, limit, status, vehicleType, searchText } = await DistributionValidation.getDistributedDriversSchema.validateAsync(req.query);
@@ -3062,7 +3062,7 @@ exports.getDistributedCenterPikupOder = async (req, res) => {
       await DistributionValidation.getDistributedCenterPikupOderShema.validateAsync(
         req.query
       );
-    
+
     console.log("API Params received:", req.query);
 
     let formattedDate = date;
@@ -3077,40 +3077,40 @@ exports.getDistributedCenterPikupOder = async (req, res) => {
       searchText: searchText,
       activeTab: activeTab  // Added activeTab parameter
     };
-    
+
     const results = await DistributionDao.getDistributedCenterPikupOderDao(
       searchParams
     );
 
     console.log(`Successfully retrieved ${results.length} pickup orders`);
-    res.json({ 
-      status: true, 
+    res.json({
+      status: true,
       message: "Pickup orders retrieved successfully",
       count: results.length,
-      data: results 
+      data: results
     });
   } catch (err) {
     // Handle validation errors
     if (err.isJoi) {
       console.error("Validation error:", err.details[0].message);
-      return res.status(400).json({ 
-        status: false, 
-        error: err.details[0].message 
+      return res.status(400).json({
+        status: false,
+        error: err.details[0].message
       });
     }
 
     // Handle specific error from DAO
     if (err.message === "companycenterId is required") {
-      return res.status(400).json({ 
-        status: false, 
-        error: "Company center ID is required" 
+      return res.status(400).json({
+        status: false,
+        error: "Company center ID is required"
       });
     }
 
     // Handle database or other errors
     console.error("Error fetching pickup orders:", err);
-    res.status(500).json({ 
-      status: false, 
+    res.status(500).json({
+      status: false,
       error: "An error occurred while fetching pickup orders",
       details: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
@@ -3121,11 +3121,11 @@ exports.getDistributedCenterPikupOder = async (req, res) => {
 exports.getPickupOrderRecords = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log('fullUrl', fullUrl);
-  
+
   try {
     const id = req.params.id;
 
-    const pickupOrderDetails = 
+    const pickupOrderDetails =
       await DistributionDao.getPikupOderRecordsDetailsDao(id);
 
     res.status(200).json({
@@ -3148,8 +3148,8 @@ exports.getCenterHomeDeliveryOrders = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log('fullUrl', fullUrl);
   try {
-    const { activeTab, centerId, status, searchText, date  } =  await DistributionValidation.getCenterHomeDeliveryOrdersSchema.validateAsync(req.query);
-    console.log('centerId', centerId, 'activeTab', activeTab, 'status', status, 'searchText', searchText, 'date', date )
+    const { activeTab, centerId, status, searchText, date } = await DistributionValidation.getCenterHomeDeliveryOrdersSchema.validateAsync(req.query);
+    console.log('centerId', centerId, 'activeTab', activeTab, 'status', status, 'searchText', searchText, 'date', date)
 
     const deliveryLocationData = await DistributionDao.getDeliveryChargeCity(centerId);
     const userId = req.user.userId
@@ -3178,10 +3178,10 @@ exports.getPolygonCenterDashbordDetails = async (req, res) => {
   console.log('fullUrl', fullUrl);
   try {
     // const { activeTab, centerId, status, searchText, date  } =  await DistributionValidation.getCenterHomeDeliveryOrdersSchema.validateAsync(req.query);
-    const {id} = req.params;
+    const { id } = req.params;
     const companyCenter = await DistributionDao.getCenterAndCompanyIdDao(id);
     console.log(companyCenter);
-    
+
 
     const result = await DistributionDao.getPolygonCenterDashbordDetailsDao(companyCenter);
 
@@ -3274,7 +3274,7 @@ exports.getHomeDiliveryTracking = async (req, res) => {
   console.log('fullUrl', fullUrl)
   try {
     // const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
-    
+
     const id = req.params.id;
 
     const centerDetails = await DistributionDao.getHomeDiliveryTrackingCenterDetailsDao(id);
@@ -3286,6 +3286,31 @@ exports.getHomeDiliveryTracking = async (req, res) => {
     });
     console.log(centerDetails);
     console.log(driverDetails);
+  } catch (error) {
+    console.error('Get Distributed Vehicles Error:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to load vehicles',
+      error: error.message
+    });
+  }
+};
+
+
+exports.getRecivedCashDashbord = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    // const id = req.params.id;
+
+    const pickupResult = await DistributionDao.getRecivedPickUpCashDashbordDao();
+    const delivaryResult = await DistributionDao.getRecivedDelivaryCashDashbordDao();
+
+    res.status(200).json({
+      pickupResult,
+      delivaryResult
+    });
+
   } catch (error) {
     console.error('Get Distributed Vehicles Error:', error);
     res.status(500).json({

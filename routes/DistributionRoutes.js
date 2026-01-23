@@ -433,5 +433,11 @@ router.get(
   distributionEp.getHomeDiliveryTracking
 );
 
+router.get(
+  "/get-recived-cash-dashbord",
+  authMiddleware,
+  distributionEp.getRecivedCashDashbord
+);
+
 
 module.exports = router;

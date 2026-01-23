@@ -4466,3 +4466,55 @@ exports.getHomeDiliveryTrackingDriverDetailsDao = async (id) => {
     });
   });
 };
+
+
+exports.getRecivedPickUpCashDashbordDao = async () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+          COUNT(*) AS total_today,
+          COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() THEN 1 END) AS scheduled_today,
+          COUNT(CASE WHEN DATE(o.sheduleDate) != CURDATE() THEN 1 END) AS not_scheduled_today,
+          COUNT(DISTINCT por.orderId) AS all_pickup,
+          COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() THEN por.orderId END) AS today_pickup,
+          COALESCE(SUM(DISTINCT por.handOverPrice), 0) AS order_price
+      FROM market_place.processorders po
+      INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup'
+      LEFT JOIN collection_officer.pickuporders por ON po.id = por.orderId
+      WHERE DATE(po.outDlvrDate) = CURDATE();
+    `;
+
+    marketPlace.query(sql, [], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.getRecivedDelivaryCashDashbordDao = async () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+          COUNT(*) AS total_today,
+          COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() THEN 1 END) AS scheduled_today,
+          COUNT(DISTINCT dro.orderId) AS all_pickup,
+          COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() THEN dro.orderId END) AS today_pickup,
+          COALESCE(SUM(DISTINCT dro.handOverPrice), 0) AS order_price
+      FROM market_place.processorders po
+      INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
+      LEFT JOIN collection_officer.driverorders dro ON po.id = dro.orderId AND dro.handOverTime IS NOT NULL
+      WHERE DATE(po.outDlvrDate) = CURDATE();
+    `;
+
+    marketPlace.query(sql, [], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
