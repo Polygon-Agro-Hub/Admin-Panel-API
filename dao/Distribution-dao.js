@@ -2081,6 +2081,7 @@ exports.getDistributionOutForDlvrOrderDao = (
   status
 ) => {
   return new Promise((resolve, reject) => {
+    console.log('filterDate', filterDate)
     const sqlParams = [id];
     let sql = `
         SELECT 
@@ -2089,6 +2090,7 @@ exports.getDistributionOutForDlvrOrderDao = (
             cof.firstNameEnglish,
             cof.lastNameEnglish,
             o.sheduleDate,
+            o.sheduleTime,
             po.outDlvrDate,
             CASE 
                 WHEN po.outDlvrDate IS NULL THEN 'Pending'
