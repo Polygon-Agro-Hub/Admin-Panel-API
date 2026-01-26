@@ -4024,3 +4024,27 @@ exports.getFiealdOfficerComplainById = async (req, res) => {
       .json({ error: "An error occurred while fetching center complains" });
   }
 };
+
+exports.getFarmerPensionUnder5YearsDetails = async (req, res) => {
+  try {
+    const { page, limit, searchText } = req.query;
+
+    const result = await adminDao.getFarmerPensionUnder5YearsDetails(
+      page,
+      limit,
+      searchText
+    );
+
+    res.status(200).json({
+      items: result.items,
+      total: result.total,
+    });
+  } catch (error) {
+    console.error("Error getting farmer pension details:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to get farmer pension details",
+      error: error.message,
+    });
+  }
+};
