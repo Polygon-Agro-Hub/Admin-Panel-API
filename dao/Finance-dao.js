@@ -2009,25 +2009,20 @@ exports.GetAllAuditedInvestmentRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
     let sql = `
     SELECT 
-    ir.id AS No,
-    ir.jobId AS Request_ID,
-    CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
-    u.phoneNumber AS Phone_number,
-    ir.nicFront AS NIC_Front_Image,
-    ir.nicBack AS NIC_Back_Image,
-    co.empId,
-    ir.reqCahangeTime
-FROM investments.investmentrequest ir
-INNER JOIN plant_care.users u 
-    ON ir.farmerId = u.id
-LEFT JOIN plant_care.feildofficer co 
-    ON ir.officerId = co.id
-WHERE ir.reqStatus = 'Pending' AND
-EXISTS (
-    SELECT 1
-    FROM investments.inspectionpersonal i
-    WHERE i.reqId = ir.id
-)
+        ir.id AS No,
+        ir.jobId AS Request_ID,
+        CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
+        u.phoneNumber AS Phone_number,
+        ir.nicFront AS NIC_Front_Image,
+        ir.nicBack AS NIC_Back_Image,
+        co.empId,
+        ir.auditedDate AS reqCahangeTime
+    FROM investments.investmentrequest ir
+    INNER JOIN plant_care.users u 
+        ON ir.farmerId = u.id
+    LEFT JOIN plant_care.feildofficer co 
+        ON ir.officerId = co.id
+    WHERE ir.reqStatus = 'Pending' AND ir.auditedDate IS NOT NULL
 
     `;
 
@@ -2062,7 +2057,7 @@ exports.getDetailsForDivideShareDao = (id) => {
     const sql = `
     SELECT
     ir.id,
-    ir.reqCahangeTime,
+    ir.auditedDate AS reqCahangeTime,
     ir.jobId,
     u.phoneNumber AS farmerPhone,
     fo.empId,
