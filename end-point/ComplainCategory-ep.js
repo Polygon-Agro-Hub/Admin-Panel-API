@@ -524,6 +524,7 @@ exports.getAllDistributionComplain = async (req, res) => {
       filterCompany,
       searchText,
       rpstatus,
+      role
     } = req.query;
 
     console.log("searchText", searchText);
@@ -537,7 +538,8 @@ exports.getAllDistributionComplain = async (req, res) => {
         comCategory,
         filterCompany,
         searchText,
-        rpstatus
+        rpstatus,
+        role
       );
 
     console.log("Successfully retrieved all collection centre");

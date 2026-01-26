@@ -490,7 +490,8 @@ exports.GetAllDistributedComplainDAO = (
   comCategory,
   filterCompany,
   searchText,
-  rpstatus
+  rpstatus,
+  role
 ) => {
   return new Promise((resolve, reject) => {
     const Sqlparams = [];
@@ -547,11 +548,11 @@ exports.GetAllDistributedComplainDAO = (
     }
 
     // Fixed category filter to use the correct alias
-    if (category) {
-      countSql += " AND ar.role = ? ";
-      sql += " AND ar.role = ? ";
-      Sqlparams.push(category);
-      Counterparams.push(category);
+    if (parseInt(role) !== 1) {
+      countSql += " AND cc.roleId = ? ";
+      sql += " AND cc.roleId = ? ";
+      Sqlparams.push(role);
+      Counterparams.push(role);
     }
 
     if (comCategory) {
