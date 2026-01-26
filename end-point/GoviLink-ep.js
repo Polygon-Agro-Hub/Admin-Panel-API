@@ -530,6 +530,11 @@ exports.getServiceRequestResponseEp = async (req, res) => {
       advices = await GoviLinkDAO.getAdvicesServiceRequestDao(auditDetails.id);
       suggestions = await GoviLinkDAO.getSuggestionsServiceRequestDao(auditDetails.id);
     }
+
+    auditDetails.cropNames = auditDetails.cropNames.split(',').map(crop => crop.trim());
+
+    auditDetails.cropNames = auditDetails.cropNames;
+
     
     console.log('auditDetails', auditDetails)
     console.log('advices', advices)
