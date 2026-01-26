@@ -458,4 +458,10 @@ router.put(
   AdminEp.updatePensionRequestStatus
 );
 
+router.get(
+  "/farmer-pension-under-5-years-details",
+  authMiddleware,
+  AdminEp.getFarmerPensionUnder5YearsDetails
+);
+
 module.exports = router;

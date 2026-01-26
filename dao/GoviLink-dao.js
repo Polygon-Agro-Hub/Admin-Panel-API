@@ -859,33 +859,55 @@ exports.getFieldAuditHistoryResponseByIdDAO = (jobId) => {
 exports.getServiceRequestResponseDao = (jobId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT 
-        gj.id,
-        gj.jobId AS jobId,
-        fo.empId AS empId,
-        f.id AS farmId,
-        f.regCode AS farmCode,
-        u.NICnumber AS farmerNIC,
-        f.district AS district,
-        gj.sheduleDate AS scheduledDate,
-        gj.doneDate AS completedDate,
-        gj.status AS status,
-        gj.assignBy AS assignBy,
-        au.userName AS assignedByName,
-        concat(fo1.firstName, ' ', fo1.lastName) AS AssignedOfficer,
-        'Requested Service' AS visitPurpose,
-        jao.createdAt AS assignedOn,
-        ofs.englishName AS serviceName,
-        'no' AS onScreenTime
-      FROM plant_care.govilinkjobs gj
-      LEFT JOIN plant_care.users u ON gj.farmerId = u.id
-      LEFT JOIN plant_care.farms f ON gj.farmId = f.id
-      LEFT JOIN plant_care.officerservices ofs ON gj.serviceId = ofs.id
-      LEFT JOIN agro_world_admin.adminusers au ON gj.assignBy = au.id
-      LEFT JOIN plant_care.jobassignofficer jao ON gj.id = jao.jobId AND jao.isActive = 1
-      LEFT JOIN plant_care.feildofficer fo ON jao.officerId = fo.id
-      LEFT JOIN plant_care.feildofficer fo1 ON gj.assignByCFO = fo1.id
-      WHERE gj.jobId = ?
+    SELECT 
+    gj.id,
+    gj.jobId AS jobId,
+    fo.empId AS empId,
+    f.id AS farmId,
+    f.regCode AS farmCode,
+    u.NICnumber AS farmerNIC,
+    f.district AS district,
+    gj.sheduleDate AS scheduledDate,
+    gj.doneDate AS completedDate,
+    gj.status AS status,
+    gj.assignBy AS assignBy,
+    au.userName AS assignedByName,
+    CONCAT(fo1.firstName, ' ', fo1.lastName) AS AssignedOfficer,
+    'Requested Service' AS visitPurpose,
+    jao.createdAt AS assignedOn,
+    ofs.englishName AS serviceName,
+    GROUP_CONCAT(cg.cropNameEnglish SEPARATOR ', ') AS cropNames,
+    GROUP_CONCAT(cg.id) AS cropIds,  -- Optional: if you need IDs too
+    'no' AS onScreenTime
+FROM plant_care.govilinkjobs gj
+JOIN plant_care.jobrequestcrops jrc ON gj.id = jrc.jobId
+JOIN plant_care.cropgroup cg ON jrc.cropId = cg.id
+LEFT JOIN plant_care.users u ON gj.farmerId = u.id
+LEFT JOIN plant_care.farms f ON gj.farmId = f.id
+LEFT JOIN plant_care.officerservices ofs ON gj.serviceId = ofs.id
+LEFT JOIN agro_world_admin.adminusers au ON gj.assignBy = au.id
+LEFT JOIN plant_care.jobassignofficer jao ON gj.id = jao.jobId AND jao.isActive = 1
+LEFT JOIN plant_care.feildofficer fo ON jao.officerId = fo.id
+LEFT JOIN plant_care.feildofficer fo1 ON gj.assignByCFO = fo1.id
+WHERE gj.jobId = ?
+GROUP BY 
+    gj.id,
+    gj.jobId,
+    fo.empId,
+    f.id,
+    f.regCode,
+    u.NICnumber,
+    f.district,
+    gj.sheduleDate,
+    gj.doneDate,
+    gj.status,
+    gj.assignBy,
+    au.userName,
+    fo1.firstName,
+    fo1.lastName,
+    jao.createdAt,
+    ofs.englishName,
+    'no'
     `;
 
     plantcare.query(sql, [jobId], (err, results) => {

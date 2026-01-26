@@ -4471,7 +4471,7 @@ exports.getHomeDiliveryTrackingDriverDetailsDao = async (id) => {
 };
 
 
-exports.getRecivedPickUpCashDashbordDao = async () => {
+exports.getRecivedPickUpCashDashbordDao = async (data) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -4484,10 +4484,11 @@ exports.getRecivedPickUpCashDashbordDao = async () => {
       FROM market_place.processorders po
       INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup'
       LEFT JOIN collection_officer.pickuporders por ON po.id = por.orderId
-      WHERE DATE(po.outDlvrDate) = CURDATE();
+      LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
+      WHERE DATE(po.outDlvrDate) = CURDATE() AND cof1.companyId = ? AND cof1.distributedCenterId = ?
     `;
 
-    marketPlace.query(sql, [], (err, results) => {
+    marketPlace.query(sql, [data.companyId, data.centerId], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -4497,7 +4498,7 @@ exports.getRecivedPickUpCashDashbordDao = async () => {
   });
 };
 
-exports.getRecivedDelivaryCashDashbordDao = async () => {
+exports.getRecivedDelivaryCashDashbordDao = async (data) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -4509,10 +4510,11 @@ exports.getRecivedDelivaryCashDashbordDao = async () => {
       FROM market_place.processorders po
       INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
       LEFT JOIN collection_officer.driverorders dro ON po.id = dro.orderId AND dro.handOverTime IS NOT NULL
-      WHERE DATE(po.outDlvrDate) = CURDATE();
+      LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
+      WHERE DATE(po.outDlvrDate) = CURDATE() AND cof1.companyId = ? AND cof1.distributedCenterId = ?
     `;
 
-    marketPlace.query(sql, [], (err, results) => {
+    marketPlace.query(sql, [data.companyId, data.centerId], (err, results) => {
       if (err) {
         reject(err);
       } else {

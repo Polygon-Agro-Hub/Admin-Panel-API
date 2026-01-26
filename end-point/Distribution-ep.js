@@ -3280,10 +3280,10 @@ exports.getRecivedCashDashbord = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log('fullUrl', fullUrl)
   try {
-    // const id = req.params.id;
-
-    const pickupResult = await DistributionDao.getRecivedPickUpCashDashbordDao();
-    const delivaryResult = await DistributionDao.getRecivedDelivaryCashDashbordDao();
+    const id = req.params.id;
+    const companyCenter = await DistributionDao.getCenterAndCompanyIdDao(id);
+    const pickupResult = await DistributionDao.getRecivedPickUpCashDashbordDao(companyCenter);
+    const delivaryResult = await DistributionDao.getRecivedDelivaryCashDashbordDao(companyCenter);
 
     res.status(200).json({
       pickupResult,
