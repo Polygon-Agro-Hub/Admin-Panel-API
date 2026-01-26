@@ -406,7 +406,8 @@ exports.getAllMarketplaceComplaintsWholesale = async (req, res) => {
   console.log(fullUrl);
   try {
     // Fetch all complaints from the marketplacecomplain table
-    const complaints = await ComplainCategoryDAO.getAllMarketplaceComplaintsWholesale();
+    const {role} =await ComplainCategoryValidate.getAllMarketplaceComplaintsSchema.validateAsync(req.query);
+    const complaints = await ComplainCategoryDAO.getAllMarketplaceComplaintsWholesale(role);
 
     if (!complaints || complaints.length === 0) {
       return res.status(404).json({ message: "No complaints found" });

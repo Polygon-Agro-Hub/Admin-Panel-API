@@ -306,7 +306,7 @@ exports.getAllMarketplaceComplaints = (role) => {
       sql += " AND cc.roleId = ? ";
       sqlParams.push(role);
     }
-    
+
     marketPlace.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.error('SQL error in getAllMarketplaceComplaints:', err);
@@ -324,9 +324,9 @@ exports.getAllMarketplaceComplaints = (role) => {
   });
 };
 
-exports.getAllMarketplaceComplaintsWholesale = () => {
+exports.getAllMarketplaceComplaintsWholesale = (role) => {
   return new Promise((resolve, reject) => {
-    const sql = `
+    let sql = `
       SELECT 
         mc.id,
         mc.userId,
@@ -352,7 +352,13 @@ exports.getAllMarketplaceComplaintsWholesale = () => {
       WHERE sa.id = 3
         AND mu.BuyerType = 'wholesale'
     `;
-    marketPlace.query(sql, (err, results) => {
+
+    const sqlParams = [];
+    if(role !== 1){
+      sql += " AND cc.roleId = ? ";
+      sqlParams.push(role);
+    }
+    marketPlace.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.error('SQL error in getAllMarketplaceComplaints:', err);
         return reject({
