@@ -383,7 +383,12 @@ exports.getAllMarketplaceComplaints = async (req, res) => {
   console.log(fullUrl);
   try {
     // Fetch all complaints from the marketplacecomplain table
-    const complaints = await ComplainCategoryDAO.getAllMarketplaceComplaints();
+    const {role} =await ComplainCategoryValidate.getAllMarketplaceComplaintsSchema.validateAsync(req.query);
+    // const role = req.query.role;
+    console.log(role);
+    
+    
+    const complaints = await ComplainCategoryDAO.getAllMarketplaceComplaints(role);
 
     if (!complaints || complaints.length === 0) {
       return res.status(404).json({ message: "No complaints found" });
@@ -401,7 +406,8 @@ exports.getAllMarketplaceComplaintsWholesale = async (req, res) => {
   console.log(fullUrl);
   try {
     // Fetch all complaints from the marketplacecomplain table
-    const complaints = await ComplainCategoryDAO.getAllMarketplaceComplaintsWholesale();
+    const {role} =await ComplainCategoryValidate.getAllMarketplaceComplaintsSchema.validateAsync(req.query);
+    const complaints = await ComplainCategoryDAO.getAllMarketplaceComplaintsWholesale(role);
 
     if (!complaints || complaints.length === 0) {
       return res.status(404).json({ message: "No complaints found" });
@@ -518,6 +524,7 @@ exports.getAllDistributionComplain = async (req, res) => {
       filterCompany,
       searchText,
       rpstatus,
+      role
     } = req.query;
 
     console.log("searchText", searchText);
@@ -531,7 +538,8 @@ exports.getAllDistributionComplain = async (req, res) => {
         comCategory,
         filterCompany,
         searchText,
-        rpstatus
+        rpstatus,
+        role
       );
 
     console.log("Successfully retrieved all collection centre");
