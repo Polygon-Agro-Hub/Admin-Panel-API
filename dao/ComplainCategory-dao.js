@@ -273,9 +273,9 @@ exports.EditComplainCategoryDao = (data, adminId) => {
   });
 };
 
-exports.getAllMarketplaceComplaints = () => {
+exports.getAllMarketplaceComplaints = (role) => {
   return new Promise((resolve, reject) => {
-    const sql = `
+    let sql = `
       SELECT 
         mc.id,
         mc.userId,
@@ -300,7 +300,14 @@ exports.getAllMarketplaceComplaints = () => {
       WHERE sa.id = 3
         AND mu.BuyerType = 'retail'
     `;
-    marketPlace.query(sql, (err, results) => {
+    const sqlParams = [];
+
+    if(role !== 1){
+      sql += " AND cc.roleId = ? ";
+      sqlParams.push(role);
+    }
+    
+    marketPlace.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.error('SQL error in getAllMarketplaceComplaints:', err);
         return reject({

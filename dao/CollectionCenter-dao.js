@@ -396,6 +396,8 @@ exports.GetAllCenterComplainDAO = (
       sql += " AND ar.role = ? ";
       Sqlparams.push(category);
       Counterparams.push(category);
+      console.log(category);
+      
     }
 
     if (comCategory) {
