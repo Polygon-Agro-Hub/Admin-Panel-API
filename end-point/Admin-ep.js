@@ -4024,3 +4024,129 @@ exports.getFiealdOfficerComplainById = async (req, res) => {
       .json({ error: "An error occurred while fetching center complains" });
   }
 };
+
+exports.getAllPensionRequests = async (req, res) => {
+  try {
+    const { status, search } = req.query;
+
+    console.log('Fetching all pension requests with filters:', { status, search });
+
+    const filters = {};
+
+    if (status) {
+      filters.status = status;
+    }
+
+    if (search) {
+      filters.search = search;
+    }
+
+    const results = await adminDao.GetAllPensionRequestsDAO(filters);
+
+    console.log(`Retrieved ${results.length} pension request records`);
+
+    res.json({
+      count: results.length,
+      data: results
+    });
+  } catch (err) {
+    console.error('Error fetching pension requests:', err);
+    res.status(500).json({
+      error: 'An error occurred while fetching pension requests'
+    });
+  }
+};
+
+// Get single pension request by ID
+exports.getPensionRequestById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log('Fetching pension request by ID:', id);
+
+    const result = await adminDao.GetPensionRequestByIdDAO(id);
+
+    if (!result) {
+      return res.status(404).json({
+        status: false,
+        message: 'Pension request not found'
+      });
+    }
+
+    console.log('Retrieved pension request:', result.Request_ID);
+
+    res.json({
+      status: true,
+      message: 'Pension request retrieved successfully',
+      data: result
+    });
+  } catch (err) {
+    console.error('Error fetching pension request:', err);
+    res.status(500).json({
+      status: false,
+      error: 'An error occurred while fetching pension request'
+    });
+  }
+};
+
+// Update pension request status
+exports.updatePensionRequestStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reqStatus, approvedBy } = req.body; // Get approvedBy from request body
+
+    console.log('Updating pension request status:', { id, reqStatus, approvedBy });
+
+    if (!reqStatus) {
+      return res.status(400).json({
+        status: false,
+        message: 'Status is required'
+      });
+    }
+
+    // Validate status
+    const validStatuses = ['To Review', 'Approved', 'Rejected'];
+    if (!validStatuses.includes(reqStatus)) {
+      return res.status(400).json({
+        status: false,
+        message: 'Invalid status value'
+      });
+    }
+
+    if (!approvedBy) {
+      return res.status(400).json({
+        status: false,
+        message: 'Approver ID is required'
+      });
+    }
+
+    const updateData = {
+      reqStatus,
+      approvedBy: approvedBy, // Use the approvedBy from request body
+      approveTime: new Date()
+    };
+
+    const result = await adminDao.UpdatePensionRequestStatusDAO(id, updateData);
+
+    if (!result) {
+      return res.status(404).json({
+        status: false,
+        message: 'Pension request not found or update failed'
+      });
+    }
+
+    console.log('Pension request status updated successfully:', id);
+
+    res.json({
+      status: true,
+      message: 'Pension request status updated successfully',
+      data: result
+    });
+  } catch (err) {
+    console.error('Error updating pension request status:', err);
+    res.status(500).json({
+      status: false,
+      error: 'An error occurred while updating pension request status'
+    });
+  }
+};
