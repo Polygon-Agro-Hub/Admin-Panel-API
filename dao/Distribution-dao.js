@@ -2081,6 +2081,7 @@ exports.getDistributionOutForDlvrOrderDao = (
   status
 ) => {
   return new Promise((resolve, reject) => {
+    console.log('filterDate', filterDate)
     const sqlParams = [id];
     let sql = `
         SELECT 
@@ -2089,6 +2090,7 @@ exports.getDistributionOutForDlvrOrderDao = (
             cof.firstNameEnglish,
             cof.lastNameEnglish,
             o.sheduleDate,
+            o.sheduleTime,
             po.outDlvrDate,
             CASE 
                 WHEN po.outDlvrDate IS NULL THEN 'Pending'
@@ -3728,7 +3730,7 @@ exports.getDistributedDriversAndVehiclesDao = (
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
-    let whereConditions = ` WHERE dcc.id = ? `;
+    let whereConditions = ` WHERE dcc.id = ? AND co.empId LIKE 'DRV%' `;
     let params = [distributedCompanyCenterId];
 
     if (status) {
@@ -3781,6 +3783,7 @@ exports.getDistributedDriversAndVehiclesDao = (
       INNER JOIN collectionofficer co ON co.distributedCenterId = dc.id
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       ${whereConditions}
+      ORDER BY co.empId
       LIMIT ? OFFSET ?
     `;
 
@@ -4458,6 +4461,60 @@ exports.getHomeDiliveryTrackingDriverDetailsDao = async (id) => {
     `;
 
     collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+
+exports.getRecivedPickUpCashDashbordDao = async (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+          COUNT(*) AS total_today,
+          COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() THEN 1 END) AS scheduled_today,
+          COUNT(CASE WHEN DATE(o.sheduleDate) != CURDATE() THEN 1 END) AS not_scheduled_today,
+          COUNT(DISTINCT por.orderId) AS all_pickup,
+          COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() THEN por.orderId END) AS today_pickup,
+          COALESCE(SUM(DISTINCT por.handOverPrice), 0) AS order_price
+      FROM market_place.processorders po
+      INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup'
+      LEFT JOIN collection_officer.pickuporders por ON po.id = por.orderId
+      LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
+      WHERE DATE(po.outDlvrDate) = CURDATE() AND cof1.companyId = ? AND cof1.distributedCenterId = ?
+    `;
+
+    marketPlace.query(sql, [data.companyId, data.centerId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.getRecivedDelivaryCashDashbordDao = async (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+          COUNT(*) AS total_today,
+          COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() THEN 1 END) AS scheduled_today,
+          COUNT(DISTINCT dro.orderId) AS all_delivary,
+          COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() THEN dro.orderId END) AS today_delivary,
+          COALESCE(SUM(DISTINCT dro.handOverPrice), 0) AS order_price
+      FROM market_place.processorders po
+      INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
+      LEFT JOIN collection_officer.driverorders dro ON po.id = dro.orderId AND dro.handOverTime IS NOT NULL
+      LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
+      WHERE DATE(po.outDlvrDate) = CURDATE() AND cof1.companyId = ? AND cof1.distributedCenterId = ?
+    `;
+
+    marketPlace.query(sql, [data.companyId, data.centerId], (err, results) => {
       if (err) {
         reject(err);
       } else {
