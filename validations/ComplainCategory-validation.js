@@ -49,3 +49,7 @@ exports.EditComplainCategorySchema = Joi.object({
 exports.getCategoriesByAppIdSchema = Joi.object({
   appId: Joi.number().integer().required(),
 });
+
+exports.getAllMarketplaceComplaintsSchema = Joi.object({
+    role: Joi.number().integer().optional(),
+});

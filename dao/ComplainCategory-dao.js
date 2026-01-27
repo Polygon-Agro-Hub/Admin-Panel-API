@@ -273,9 +273,9 @@ exports.EditComplainCategoryDao = (data, adminId) => {
   });
 };
 
-exports.getAllMarketplaceComplaints = () => {
+exports.getAllMarketplaceComplaints = (role) => {
   return new Promise((resolve, reject) => {
-    const sql = `
+    let sql = `
       SELECT 
         mc.id,
         mc.userId,
@@ -300,7 +300,14 @@ exports.getAllMarketplaceComplaints = () => {
       WHERE sa.id = 3
         AND mu.BuyerType = 'retail'
     `;
-    marketPlace.query(sql, (err, results) => {
+    const sqlParams = [];
+
+    if(role !== 1){
+      sql += " AND cc.roleId = ? ";
+      sqlParams.push(role);
+    }
+
+    marketPlace.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.error('SQL error in getAllMarketplaceComplaints:', err);
         return reject({
@@ -317,9 +324,9 @@ exports.getAllMarketplaceComplaints = () => {
   });
 };
 
-exports.getAllMarketplaceComplaintsWholesale = () => {
+exports.getAllMarketplaceComplaintsWholesale = (role) => {
   return new Promise((resolve, reject) => {
-    const sql = `
+    let sql = `
       SELECT 
         mc.id,
         mc.userId,
@@ -345,7 +352,13 @@ exports.getAllMarketplaceComplaintsWholesale = () => {
       WHERE sa.id = 3
         AND mu.BuyerType = 'wholesale'
     `;
-    marketPlace.query(sql, (err, results) => {
+
+    const sqlParams = [];
+    if(role !== 1){
+      sql += " AND cc.roleId = ? ";
+      sqlParams.push(role);
+    }
+    marketPlace.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.error('SQL error in getAllMarketplaceComplaints:', err);
         return reject({
@@ -477,7 +490,8 @@ exports.GetAllDistributedComplainDAO = (
   comCategory,
   filterCompany,
   searchText,
-  rpstatus
+  rpstatus,
+  role
 ) => {
   return new Promise((resolve, reject) => {
     const Sqlparams = [];
@@ -534,11 +548,11 @@ exports.GetAllDistributedComplainDAO = (
     }
 
     // Fixed category filter to use the correct alias
-    if (category) {
-      countSql += " AND ar.role = ? ";
-      sql += " AND ar.role = ? ";
-      Sqlparams.push(category);
-      Counterparams.push(category);
+    if (parseInt(role) !== 1) {
+      countSql += " AND cc.roleId = ? ";
+      sql += " AND cc.roleId = ? ";
+      Sqlparams.push(role);
+      Counterparams.push(role);
     }
 
     if (comCategory) {

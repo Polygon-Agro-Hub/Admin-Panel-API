@@ -440,4 +440,28 @@ router.get(
   AdminEp.getFiealdOfficerComplainById
 );
 
+router.get(
+  "/pension-requests",
+  authMiddleware,
+  AdminEp.getAllPensionRequests
+);
+
+router.get(
+  "/pension-request/:id",
+  authMiddleware,
+  AdminEp.getPensionRequestById
+);
+
+router.put(
+  "/update-pension-request/:id",
+  authMiddleware,
+  AdminEp.updatePensionRequestStatus
+);
+
+router.get(
+  "/farmer-pension-under-5-years-details",
+  authMiddleware,
+  AdminEp.getFarmerPensionUnder5YearsDetails
+);
+
 module.exports = router;

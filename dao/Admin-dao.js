@@ -5283,3 +5283,213 @@ exports.trackUserTaskUpdateDao = (id, adminId) => {
   });
 };
 
+exports.GetAllPensionRequestsDAO = (filters = {}) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        pr.id AS No,
+        pr.id AS Request_ID,
+        pr.fullName AS Farmer_Name,
+        pr.nic AS NIC,
+        pr.dob,
+        pr.sucFullName AS Successor_Name,
+        pr.sucType AS Successor_Type,
+        pr.sucNic AS Successor_NIC,
+        pr.sucdob AS Successor_DOB,
+        pr.defaultPension,
+        pr.reqStatus,
+        pr.isFirstTime,
+        pr.nicFront AS NIC_Front_Image,
+        pr.nicBack AS NIC_Back_Image,
+        pr.sucNicFront AS Successor_NIC_Front_Image,
+        pr.sucNicBack AS Successor_NIC_Back_Image,
+        CASE 
+            WHEN pr.approveBy IS NULL THEN 'Not Approved'
+            ELSE 'Approved'
+        END AS Status,
+        COALESCE(au.userName, '--') AS Approved_By_Name,
+        COALESCE(pr.approveBy, '--') AS Approver_ID,
+        DATE_FORMAT(pr.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
+        DATE_FORMAT(pr.createdAt, '%M %d, %Y') AS Requested_On,
+        COALESCE(DATE_FORMAT(pr.approveTime, 'At %h:%i%p on %M %d, %Y'), '--') AS Approved_Date_Time
+      FROM plant_care.pensionrequest pr
+      LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+    
+    // Filter by request status (To Review, Approved, Rejected)
+    if (filters.status) {
+      sql += ` AND pr.reqStatus = ?`;
+      params.push(filters.status);
+    }
+    
+    // Search only by farmer's NIC
+    if (filters.search) {
+      sql += ` AND pr.nic LIKE ?`;
+      const searchTerm = `%${filters.search}%`;
+      params.push(searchTerm);
+    }
+
+    // Order by most recent first
+    sql += ` ORDER BY pr.createdAt DESC`;
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.GetPensionRequestByIdDAO = (id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+     SELECT 
+    pr.id AS No,
+    pr.id AS Request_ID,
+    pr.fullName AS Farmer_Name,
+    pr.nic AS NIC,
+    pr.dob,
+    pr.sucFullName AS Successor_Name,
+    pr.sucType AS Successor_Type,
+    pr.sucNic AS Successor_NIC,
+    pr.sucdob AS Successor_DOB,
+    pr.defaultPension,
+    pr.reqStatus,
+    pr.isFirstTime,
+    pr.nicFront AS NIC_Front_Image,
+    pr.nicBack AS NIC_Back_Image,
+    pr.sucNicFront AS Successor_NIC_Front_Image,
+    pr.sucNicBack AS Successor_NIC_Back_Image,
+    CASE 
+        WHEN pr.approveBy IS NULL THEN 'Not Approved'
+        ELSE 'Approved'
+    END AS Status,
+    COALESCE(au.userName, '--') AS Approved_By_Name,
+    COALESCE(pr.approveBy, '--') AS Approver_ID,
+    COALESCE(u.phoneNumber, '--') AS Phone_Number,  -- Add phone number here
+    DATE_FORMAT(pr.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
+    DATE_FORMAT(pr.createdAt, '%M %d, %Y') AS Requested_On,
+    COALESCE(DATE_FORMAT(pr.approveTime, 'At %h:%i%p on %M %d, %Y'), '--') AS Approved_Date_Time
+FROM plant_care.pensionrequest pr
+LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
+LEFT JOIN users u ON pr.userId = u.id  -- Assuming userId is the foreign key column
+WHERE pr.id = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+// Update pension request status
+exports.UpdatePensionRequestStatusDAO = (id, updateData) => {
+  return new Promise((resolve, reject) => {
+    const { reqStatus, approvedBy, approveTime } = updateData;
+
+    let sql = `
+      UPDATE plant_care.pensionrequest 
+      SET 
+        reqStatus = ?,
+        approveBy = ?,
+        approveTime = ?
+      WHERE id = ?
+    `;
+
+    const params = [reqStatus, approvedBy, approveTime, id];
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.affectedRows === 0) {
+        return resolve(null);
+      }
+
+      // Return updated record
+      this.GetPensionRequestByIdDAO(id)
+        .then(updatedRecord => resolve(updatedRecord))
+        .catch(error => reject(error));
+    });
+  });
+};
+
+exports.getFarmerPensionUnder5YearsDetails = (
+  page,
+  limit,
+  searchText
+) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM pensionrequest
+      WHERE reqStatus = 'Approved'
+    `;
+
+    let dataSql = `
+      SELECT 
+        pr.id,
+        pr.fullName,
+        pr.nic,
+        CONCAT(u.firstName, ' ', u.lastName ) AS farmerFullName,
+        u.phoneNumber,
+        pr.dob,
+        pr.sucType,
+        pr.sucNic,
+        pr.sucdob,
+        pr.defaultPension,
+        pr.reqStatus,
+        au.userName AS approveBy,
+        pr.approveTime,
+        pr.createdAt
+      FROM pensionrequest pr
+      LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
+      LEFT JOIN users u ON pr.userId = u.id
+     WHERE reqStatus = 'Approved'
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    if (searchText && searchText.trim() !== "") {
+      const cond = ` AND nic LIKE ? `;
+      countSql += cond;
+      dataSql += cond;
+
+      const pattern = `%${searchText}%`;
+      countParams.push(pattern);
+      dataParams.push(pattern);
+    }
+
+    dataSql += ` ORDER BY createdAt DESC LIMIT ? OFFSET ?`;
+    dataParams.push(parseInt(limit), parseInt(offset));
+
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          return reject(dataErr);
+        }
+
+        resolve({
+          total: countResults[0].total,
+          items: dataResults,
+        });
+      });
+    });
+  });
+};
+
