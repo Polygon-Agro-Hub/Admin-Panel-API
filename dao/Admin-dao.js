@@ -5289,6 +5289,7 @@ exports.GetAllPensionRequestsDAO = (filters = {}) => {
       SELECT 
         pr.id AS No,
         pr.id AS Request_ID,
+        pr.userId AS User_ID,
         pr.fullName AS Farmer_Name,
         pr.nic AS NIC,
         pr.dob,
@@ -5489,6 +5490,34 @@ exports.getFarmerPensionUnder5YearsDetails = (
           items: dataResults,
         });
       });
+    });
+  });
+};
+
+exports.getCultivationForPensionDao = (id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+     SELECT
+        oc.id AS ongoingCultivationId,
+        cv.varietyNameEnglish,
+        cg.cropNameEnglish,
+        (occ.extentac + occ.extentha * 2.47105 +  occ.extentp / 160 )  AS extentac,
+        (SELECT COUNT(*) FROM slavecropcalendardays scd1 WHERE scd1.onCulscropID = occ.id) AS totalTasks,
+        (SELECT COUNT(*) FROM slavecropcalendardays scd2 WHERE scd2.onCulscropID = occ.id AND scd2.status = 'completed') AS completedTasks,
+        occ.createdAt
+      FROM ongoingcultivations oc
+      INNER JOIN ongoingcultivationscrops occ ON oc.id = occ.ongoingCultivationId
+      LEFT JOIN cropcalender cc ON occ.cropCalendar = cc.id
+      LEFT JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+      LEFT JOIN cropgroup cg ON cv.cropGroupId = cg.id
+      WHERE oc.userId = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
     });
   });
 };

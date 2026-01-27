@@ -4198,3 +4198,32 @@ exports.updatePensionRequestStatus = async (req, res) => {
     });
   }
 };
+
+
+exports.getCultivationForPension = async (req, res) => {
+  try {
+    const { id } = await ValidateSchema.IdParamShema.validateAsync(req.params);
+    console.log('Fetching pension request by ID:', id);
+
+    const result = await adminDao.getCultivationForPensionDao(id);
+
+    if (!result) {
+      return res.status(404).json({
+        status: false,
+        message: 'Pension cultivation not found'
+      });
+    }
+
+    res.json({
+      status: true,
+      message: 'Pension cultivation retrieved successfully',
+      data: result
+    });
+  } catch (err) {
+    console.error('Error fetching pension cultivation:', err);
+    res.status(500).json({
+      status: false,
+      error: 'An error occurred while fetching pension cultivation'
+    });
+  }
+};
