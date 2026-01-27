@@ -5310,9 +5310,9 @@ exports.GetAllPensionRequestsDAO = (filters = {}) => {
         END AS Status,
         COALESCE(au.userName, '--') AS Approved_By_Name,
         COALESCE(pr.approveBy, '--') AS Approver_ID,
-        DATE_FORMAT(pr.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
-        DATE_FORMAT(pr.createdAt, '%M %d, %Y') AS Requested_On,
-        COALESCE(DATE_FORMAT(pr.approveTime, 'At %h:%i%p on %M %d, %Y'), '--') AS Approved_Date_Time
+        pr.createdAt AS Request_Date_Time,
+        pr.createdAt AS Requested_On,
+        COALESCE(pr.approveTime) AS Approved_Date_Time
       FROM plant_care.pensionrequest pr
       LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
       WHERE 1=1
