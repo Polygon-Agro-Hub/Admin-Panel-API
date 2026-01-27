@@ -5422,11 +5422,7 @@ exports.UpdatePensionRequestStatusDAO = (id, updateData) => {
   });
 };
 
-exports.getFarmerPensionUnder5YearsDetails = (
-  page,
-  limit,
-  searchText
-) => {
+exports.getFarmerPensionUnder5YearsDetails = (page, limit, searchText) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
@@ -5441,7 +5437,7 @@ exports.getFarmerPensionUnder5YearsDetails = (
         pr.id,
         pr.fullName,
         pr.nic,
-        CONCAT(u.firstName, ' ', u.lastName ) AS farmerFullName,
+        CONCAT(u.firstName, ' ', u.lastName) AS farmerFullName,
         u.phoneNumber,
         pr.dob,
         pr.sucType,
@@ -5455,7 +5451,7 @@ exports.getFarmerPensionUnder5YearsDetails = (
       FROM pensionrequest pr
       LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
       LEFT JOIN users u ON pr.userId = u.id
-     WHERE reqStatus = 'Approved'
+      WHERE pr.reqStatus = 'Approved'
     `;
 
     const countParams = [];
@@ -5471,18 +5467,14 @@ exports.getFarmerPensionUnder5YearsDetails = (
       dataParams.push(pattern);
     }
 
-    dataSql += ` ORDER BY createdAt DESC LIMIT ? OFFSET ?`;
+    dataSql += ` ORDER BY pr.approveTime DESC LIMIT ? OFFSET ?`;
     dataParams.push(parseInt(limit), parseInt(offset));
 
     plantcare.query(countSql, countParams, (countErr, countResults) => {
-      if (countErr) {
-        return reject(countErr);
-      }
+      if (countErr) return reject(countErr);
 
       plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
-        if (dataErr) {
-          return reject(dataErr);
-        }
+        if (dataErr) return reject(dataErr);
 
         resolve({
           total: countResults[0].total,
@@ -5493,3 +5485,65 @@ exports.getFarmerPensionUnder5YearsDetails = (
   });
 };
 
+exports.getFarmerPension5YearsPlusDetails = (page, limit, searchText) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM pensionrequest pr
+      WHERE pr.reqStatus = 'Approved'
+    `;
+
+    let dataSql = `
+      SELECT 
+        pr.id,
+        pr.fullName,
+        pr.nic,
+        CONCAT(u.firstName, ' ', u.lastName) AS farmerFullName,
+        u.phoneNumber,
+        pr.dob,
+        pr.sucType,
+        pr.sucNic,
+        pr.sucdob,
+        pr.defaultPension,
+        pr.reqStatus,
+        au.userName AS approveBy,
+        pr.approveTime,
+        pr.createdAt
+      FROM pensionrequest pr
+      LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
+      LEFT JOIN users u ON pr.userId = u.id
+      WHERE pr.reqStatus = 'Approved'
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    if (searchText && searchText.trim() !== "") {
+      const cond = ` AND pr.nic LIKE ? `;
+      countSql += cond;
+      dataSql += cond;
+
+      const pattern = `%${searchText}%`;
+      countParams.push(pattern);
+      dataParams.push(pattern);
+    }
+
+    dataSql += ` ORDER BY pr.approveTime DESC LIMIT ? OFFSET ?`;
+    dataParams.push(parseInt(limit), parseInt(offset));
+
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+
+      plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) return reject(dataErr);
+
+        resolve({
+          total: countResults[0].total,
+          items: dataResults,
+        });
+      });
+    });
+  });
+};
