@@ -470,4 +470,10 @@ router.get(
   AdminEp.getCultivationForPension
 );
 
+router.get(
+  "/farmer-pension-5-years-plus-details",
+  authMiddleware,
+  AdminEp.getFarmerPension5YearsPlusDetails
+);
+
 module.exports = router;
