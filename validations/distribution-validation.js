@@ -142,6 +142,7 @@ exports.getCenterHomeDeliveryOrdersSchema = Joi.object({
   centerId: Joi.number(),
   status: Joi.string().allow(''),
   searchText: Joi.string().allow(''),
-  date: Joi.date().iso().allow(''),
+  date: Joi.string().allow(''),
+  timeSlot: Joi.string().allow(''),
 
 })
