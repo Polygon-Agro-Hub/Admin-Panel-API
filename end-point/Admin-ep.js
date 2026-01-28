@@ -4025,11 +4025,11 @@ exports.getFiealdOfficerComplainById = async (req, res) => {
   }
 };
 
-exports.getFarmerPensionUnder5YearsDetails = async (req, res) => {
+exports.getFarmerPensionDetails = async (req, res) => {
   try {
     const { page, limit, searchText } = req.query;
 
-    const result = await adminDao.getFarmerPensionUnder5YearsDetails(
+    const result = await adminDao.getFarmerPensionDetailsDao(
       page || 1,
       limit || 10,
       searchText
@@ -4200,30 +4200,6 @@ exports.getCultivationForPension = async (req, res) => {
     res.status(500).json({
       status: false,
       error: 'An error occurred while fetching pension cultivation'
-    });
-  }
-};
-
-exports.getFarmerPension5YearsPlusDetails = async (req, res) => {
-  try {
-    const { page, limit, searchText } = req.query;
-
-    const result = await adminDao.getFarmerPension5YearsPlusDetails(
-      page || 1,
-      limit || 10,
-      searchText
-    );
-
-    res.status(200).json({
-      items: result.items,
-      total: result.total,
-    });
-  } catch (error) {
-    console.error("Error getting farmer pension 5 years+ details:", error);
-    res.status(500).json({
-      status: false,
-      message: "Failed to get farmer pension details",
-      error: error.message,
     });
   }
 };
