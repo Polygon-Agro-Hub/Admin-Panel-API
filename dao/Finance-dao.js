@@ -2083,14 +2083,14 @@ exports.getDetailsForDivideShareDao = (id) => {
 };
 
 
-exports.devideSharesDao = (sharesData) => {
+exports.devideSharesDao = (sharesData,adminId) => {
   console.log('sharesData', sharesData);
 
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO investments.approvedinvestmentrequest
-      (reqId, totValue, defineShares, minShare, maxShare)
-      VALUES (?, ?, ?, ?, ?)
+      (reqId, totValue, defineShares, minShare, maxShare, defineBy)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
@@ -2098,7 +2098,8 @@ exports.devideSharesDao = (sharesData) => {
       sharesData.totalValue,    
       sharesData.numShares,     
       sharesData.minimumShare,  
-      sharesData.maximumShare         
+      sharesData.maximumShare,
+      adminId        
     ];
 
     investment.query(sql, values, (err, result) => {
@@ -2174,13 +2175,13 @@ exports.rejectRequestDao = (id) => {
   });
 };
 
-exports.editDevideSharesDao = (sharesData) => {
+exports.editDevideSharesDao = (sharesData, adminId) => {
   console.log('sharesData', sharesData);
 
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investments.approvedinvestmentrequest
-      SET totValue = ?, defineShares = ?, minShare = ?, maxShare = ?
+      SET totValue = ?, defineShares = ?, minShare = ?, maxShare = ?, defineBy = ?, createdAt = NOW()
       WHERE reqId = ?
     `;
 
@@ -2189,6 +2190,7 @@ exports.editDevideSharesDao = (sharesData) => {
       sharesData.numShares,     
       sharesData.minimumShare,  
       sharesData.maximumShare,
+      adminId,
       sharesData.id       
     ];
 
