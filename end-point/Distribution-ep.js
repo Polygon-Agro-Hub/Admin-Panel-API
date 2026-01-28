@@ -3127,13 +3127,13 @@ exports.getCenterHomeDeliveryOrders = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log('fullUrl', fullUrl);
   try {
-    const { activeTab, centerId, status, searchText, date } = await DistributionValidation.getCenterHomeDeliveryOrdersSchema.validateAsync(req.query);
+    const { activeTab, centerId, status, searchText, date, timeSlot } = await DistributionValidation.getCenterHomeDeliveryOrdersSchema.validateAsync(req.query);
     console.log('centerId', centerId, 'activeTab', activeTab, 'status', status, 'searchText', searchText, 'date', date)
 
     const deliveryLocationData = await DistributionDao.getDeliveryChargeCity(centerId);
     const userId = req.user.userId
 
-    const deliveries = await DistributionDao.getCenterHomeDeliveryOrdersDao(activeTab, status, searchText, date, deliveryLocationData, centerId);
+    const deliveries = await DistributionDao.getCenterHomeDeliveryOrdersDao(activeTab, status, searchText, date, deliveryLocationData, centerId, timeSlot);
     // console.log('deliveries', deliveries)
 
     res.status(200).json({
