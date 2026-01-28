@@ -3832,7 +3832,8 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
     o.fullName,
     o.orderApp,
     o.createdAt AS orderCreatedAt,
-    po.isPaid
+    po.isPaid,
+    paymentMethod
 FROM collection_officer.distributedtarget dt
 LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
 LEFT JOIN market_place.processorders po ON dti.orderId = po.id
