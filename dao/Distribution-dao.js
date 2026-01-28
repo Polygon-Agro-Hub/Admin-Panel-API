@@ -1717,7 +1717,7 @@ exports.GetDistributionCentersByCompanyIdDAO = (companyId) => {
 exports.GetAllDistributionManagerList = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, empId, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND distributedCenterId = ?";
+      "SELECT id, empId, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE jobRole = 'Distribution Centre Manager' AND companyId = ? AND distributedCenterId = ?";
     collectionofficer.query(sql, [companyId, centerId], (err, results) => {
       if (err) {
         return reject(err);
