@@ -3977,7 +3977,7 @@ exports.getPikupOderRecordsDetailsDao = async (id) => {
 };
 
 
-exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, deliveryLocationData, centerId) => {
+exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, deliveryLocationData, centerId, timeSlot) => {
   console.log('date', date)
   return new Promise((resolve, reject) => {
 
@@ -4013,11 +4013,20 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
         po.isPaid,
         po.paymentMethod,
         po.outDlvrDate as outDlvrTime,
+        dor.createdAt AS collectedTime,
+        dor.startTime,
+        dro.createdAt AS returnTime,
+        dor.receivedTime AS returnRecivedTime,
+        dor.handOverTime AS moneyHandoverTime,
+        po.deliveredTime AS completeTime,
+        dho.createdAt AS holdTime,
         dor.receivedTime
       FROM 
         market_place.processorders po
-      LEFT JOIN 
+        LEFT JOIN 
         collection_officer.driverorders dor ON po.id = dor.orderId
+      LEFT JOIN 
+        collection_officer.driverholdorders dho ON dor.id = dho.drvOrderId
       LEFT JOIN 
         market_place.orders o ON po.orderId = o.id
       LEFT JOIN 
@@ -4058,8 +4067,40 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
           sql += " AND DATE(po.outDlvrDate) = ? ";
           break;
         
-        case 'Recieved Date':
+        case 'Picked Up':
+          sql += " AND DATE(po.deliveredTime) = ? ";
+          break;
+      
+        case 'Ready to Pickup':
+          sql += " AND DATE(po.outDlvrDate) = ? ";
+          break;
+        
+        case 'Return Received':
           sql += " AND DATE(dor.receivedTime) = ? ";
+          break;
+
+        case 'on-the-way':
+          sql += "AND DATE(dor.startTime) = ? ";
+          break;
+    
+        case 'return':
+          sql += "AND DATE(dro.createdAt) = ? ";
+          break;
+        
+        case 'delivered':
+          sql += " AND DATE(po.deliveredTime) = ? ";
+          break;
+
+        case 'hold':
+          sql += " AND DATE(dho.createdAt) = ? ";
+          break;
+
+        case 'Return Received':
+          sql += " AND DATE(dor.receivedTime) = ? ";
+          break;
+
+        case 'Collected':
+          sql += " AND DATE(dor.createdAt) = ? ";
           break;
 
         default:
@@ -4069,17 +4110,24 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
       dataParams.push(date);
     }
 
+    if (timeSlot) {
+    sql += ` AND o.sheduleTime LIKE ?`;
+    dataParams.push(`%${timeSlot}%`);
+  }
+
       if (searchText) {
       const searchCondition = `
           AND (
               po.invNo LIKE ?
               OR po.status LIKE ?
+              OR CONCAT(mpu.phoneCode,' ',mpu.phoneNumber) LIKE ?
+              OR CONCAT(o.phoneCode1,' ',o.phone1) LIKE ?
           )
       `;
 
       sql += searchCondition;
       const searchValue = `%${searchText}%`;
-      dataParams.push(searchValue, searchValue);
+      dataParams.push(searchValue, searchValue, searchValue, searchValue);
   }
 
     if (activeTab) {

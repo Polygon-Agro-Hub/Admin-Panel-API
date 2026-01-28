@@ -5289,6 +5289,7 @@ exports.GetAllPensionRequestsDAO = (filters = {}) => {
       SELECT 
         pr.id AS No,
         pr.id AS Request_ID,
+        pr.userId AS User_ID,
         pr.fullName AS Farmer_Name,
         pr.nic AS NIC,
         pr.dob,
@@ -5309,9 +5310,9 @@ exports.GetAllPensionRequestsDAO = (filters = {}) => {
         END AS Status,
         COALESCE(au.userName, '--') AS Approved_By_Name,
         COALESCE(pr.approveBy, '--') AS Approver_ID,
-        DATE_FORMAT(pr.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
-        DATE_FORMAT(pr.createdAt, '%M %d, %Y') AS Requested_On,
-        COALESCE(DATE_FORMAT(pr.approveTime, 'At %h:%i%p on %M %d, %Y'), '--') AS Approved_Date_Time
+        pr.createdAt AS Request_Date_Time,
+        pr.createdAt AS Requested_On,
+        COALESCE(pr.approveTime) AS Approved_Date_Time
       FROM plant_care.pensionrequest pr
       LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
       WHERE 1=1
@@ -5422,11 +5423,7 @@ exports.UpdatePensionRequestStatusDAO = (id, updateData) => {
   });
 };
 
-exports.getFarmerPensionUnder5YearsDetails = (
-  page,
-  limit,
-  searchText
-) => {
+exports.getFarmerPensionUnder5YearsDetails = (page, limit, searchText) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
@@ -5441,7 +5438,7 @@ exports.getFarmerPensionUnder5YearsDetails = (
         pr.id,
         pr.fullName,
         pr.nic,
-        CONCAT(u.firstName, ' ', u.lastName ) AS farmerFullName,
+        CONCAT(u.firstName, ' ', u.lastName) AS farmerFullName,
         u.phoneNumber,
         pr.dob,
         pr.sucType,
@@ -5455,7 +5452,7 @@ exports.getFarmerPensionUnder5YearsDetails = (
       FROM pensionrequest pr
       LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
       LEFT JOIN users u ON pr.userId = u.id
-     WHERE reqStatus = 'Approved'
+      WHERE pr.reqStatus = 'Approved'
     `;
 
     const countParams = [];
@@ -5471,18 +5468,14 @@ exports.getFarmerPensionUnder5YearsDetails = (
       dataParams.push(pattern);
     }
 
-    dataSql += ` ORDER BY createdAt DESC LIMIT ? OFFSET ?`;
+    dataSql += ` ORDER BY pr.approveTime DESC LIMIT ? OFFSET ?`;
     dataParams.push(parseInt(limit), parseInt(offset));
 
     plantcare.query(countSql, countParams, (countErr, countResults) => {
-      if (countErr) {
-        return reject(countErr);
-      }
+      if (countErr) return reject(countErr);
 
       plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
-        if (dataErr) {
-          return reject(dataErr);
-        }
+        if (dataErr) return reject(dataErr);
 
         resolve({
           total: countResults[0].total,
@@ -5493,3 +5486,93 @@ exports.getFarmerPensionUnder5YearsDetails = (
   });
 };
 
+exports.getCultivationForPensionDao = (id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+     SELECT
+        oc.id AS ongoingCultivationId,
+        cv.varietyNameEnglish,
+        cg.cropNameEnglish,
+        (occ.extentac + occ.extentha * 2.47105 +  occ.extentp / 160 )  AS extentac,
+        (SELECT COUNT(*) FROM slavecropcalendardays scd1 WHERE scd1.onCulscropID = occ.id) AS totalTasks,
+        (SELECT COUNT(*) FROM slavecropcalendardays scd2 WHERE scd2.onCulscropID = occ.id AND scd2.status = 'completed') AS completedTasks,
+        occ.createdAt
+      FROM ongoingcultivations oc
+      INNER JOIN ongoingcultivationscrops occ ON oc.id = occ.ongoingCultivationId
+      LEFT JOIN cropcalender cc ON occ.cropCalendar = cc.id
+      LEFT JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+      LEFT JOIN cropgroup cg ON cv.cropGroupId = cg.id
+      WHERE oc.userId = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getFarmerPension5YearsPlusDetails = (page, limit, searchText) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM pensionrequest pr
+      WHERE pr.reqStatus = 'Approved'
+    `;
+
+    let dataSql = `
+      SELECT 
+        pr.id,
+        pr.fullName,
+        pr.nic,
+        CONCAT(u.firstName, ' ', u.lastName) AS farmerFullName,
+        u.phoneNumber,
+        pr.dob,
+        pr.sucType,
+        pr.sucNic,
+        pr.sucdob,
+        pr.defaultPension,
+        pr.reqStatus,
+        au.userName AS approveBy,
+        pr.approveTime,
+        pr.createdAt
+      FROM pensionrequest pr
+      LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
+      LEFT JOIN users u ON pr.userId = u.id
+      WHERE pr.reqStatus = 'Approved'
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    if (searchText && searchText.trim() !== "") {
+      const cond = ` AND pr.nic LIKE ? `;
+      countSql += cond;
+      dataSql += cond;
+
+      const pattern = `%${searchText}%`;
+      countParams.push(pattern);
+      dataParams.push(pattern);
+    }
+
+    dataSql += ` ORDER BY pr.approveTime DESC LIMIT ? OFFSET ?`;
+    dataParams.push(parseInt(limit), parseInt(offset));
+
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+
+      plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) return reject(dataErr);
+
+        resolve({
+          total: countResults[0].total,
+          items: dataResults,
+        });
+      });
+    });
+  });
+};
