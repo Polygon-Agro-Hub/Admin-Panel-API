@@ -1597,6 +1597,7 @@ exports.devideSharesRequestEp = async (req, res) => {
   console.log("Request URL:", fullUrl);
   try {
     const { sharesData } = req.body;
+    const adminId = req.user.userId;
 
     console.log('sharesData', sharesData)
 
@@ -1612,7 +1613,8 @@ exports.devideSharesRequestEp = async (req, res) => {
 
     if (sharesData.devideType === 'Edit') {
       result = await financeDao.editDevideSharesDao(
-        sharesData
+        sharesData,
+        adminId
       );
       return res.status(200).json({
         message: "Request Edited Successfully",
@@ -1621,7 +1623,8 @@ exports.devideSharesRequestEp = async (req, res) => {
       });
     } else if (sharesData.devideType === 'Create') {
       result = await financeDao.devideSharesDao(
-        sharesData
+        sharesData,
+        adminId
       );
       return res.status(200).json({
         message: "Request Created Successfully",
