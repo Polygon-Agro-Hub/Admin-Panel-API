@@ -2176,124 +2176,15 @@ exports.dcmGetSelectedOfficerTargets = async (req, res) => {
     let targetResult = await DistributionDao.getSelectTargetItems(
       targetId,
       searchText || "",
-      status || ""
+      status || "",
+      completingStatus|| ""
     );
 
-    // Calculate combinedStatus for each item
-    targetResult = targetResult.map((item) => {
-
-          let combinedStatus = "";
-          
-          // Priority 1: If either is Pending, combinedStatus is Pending
-          if (item.packageStatus === 'Pending' || item.additionalItemsStatus === 'Pending') {
-            combinedStatus = 'Pending';
-          }
-          // Priority 2: If either is Opened (and none are Pending), combinedStatus is Opened
-          else if (item.packageStatus === 'Opened' || item.additionalItemsStatus === 'Opened') {
-            combinedStatus = 'Opened';
-          }
-          // Priority 3: If both are Completed, combinedStatus is Completed
-          else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Completed') {
-            combinedStatus = 'Completed';
-          }
-          // Priority 4: If one is Completed and other is Unknown, use the non-Unknown status
-          else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Unknown') {
-            combinedStatus = 'Completed';
-          }
-          else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Completed') {
-            combinedStatus = 'Completed';
-          }
-          // Default: Both are Unknown
-          else {
-            combinedStatus = 'Unknown';
-          }
-        
-          return {
-            ...item,
-            combinedStatus,
-          };
-
-      // let combinedStatus = "";
-
-      // if (
-      //   item.packageStatus === "Pending" &&
-      //   (item.additionalItemsStatus === "Unknown" ||
-      //     item.additionalItemsStatus === "Pending")
-      // ) {
-      //   combinedStatus = "Pending";
-      // } else if (
-      //   item.packageStatus === "Pending" &&
-      //   (item.additionalItemsStatus === "Opened" ||
-      //     item.additionalItemsStatus === "Completed")
-      // ) {
-      //   combinedStatus = "Opened";
-      // } else if (item.packageStatus === "Opened") {
-      //   combinedStatus = "Opened";
-      // } else if (
-      //   item.packageStatus === "Completed" &&
-      //   item.additionalItemsStatus === "Unknown"
-      // ) {
-      //   combinedStatus = "Completed";
-      // } else if (
-      //   item.packageStatus === "Completed" &&
-      //   item.additionalItemsStatus === "Pending"
-      // ) {
-      //   combinedStatus = "Pending";
-      // } else if (
-      //   item.packageStatus === "Completed" &&
-      //   item.additionalItemsStatus === "Opened"
-      // ) {
-      //   combinedStatus = "Opened";
-      // } else if (
-      //   item.packageStatus === "Completed" &&
-      //   item.additionalItemsStatus === "Completed"
-      // ) {
-      //   combinedStatus = "Completed";
-      // } else if (
-      //   item.packageStatus === "Unknown" &&
-      //   item.additionalItemsStatus === "Pending"
-      // ) {
-      //   combinedStatus = "Pending";
-      // } else if (
-      //   item.packageStatus === "Unknown" &&
-      //   item.additionalItemsStatus === "Opened"
-      // ) {
-      //   combinedStatus = "Opened";
-      // } else if (
-      //   item.packageStatus === "Unknown" &&
-      //   item.additionalItemsStatus === "Completed"
-      // ) {
-      //   combinedStatus = "Completed";
-      // } else if (
-      //   item.packageStatus === "Unknown" &&
-      //   item.additionalItemsStatus === "Unknown"
-      // ) {
-      //   combinedStatus = "Unknown";
-      // }
-
-      // return {
-      //   ...item,
-      //   combinedStatus,
-      // };
-    });
-
-    // Filter by status if provided
-    if (status) {
-      targetResult = targetResult.filter(
-        (item) => item.combinedStatus === status
-      );
-    }
-
-    // Filter by completing status if provided
-    if (completingStatus) {
-      targetResult = targetResult.filter(
-        (item) => item.completeTimeStatus === completingStatus
-      );
-    }
+    console.log('targetResult', targetResult)
 
     // Return in expected format
     return res.status(200).json({
-      items: targetResult,
+      items: targetResult.items,
       total: targetResult.length,
     });
   } catch (error) {

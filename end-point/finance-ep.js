@@ -1285,11 +1285,16 @@ exports.getAllPublishedProjects = async (req, res) => {
 
 
 exports.GetAllApprovedInvestmentRequests = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
   try {
-    const { status, search } = req.query;
+    const { status, shares, search } = req.query;
+
+    console.log('shares', shares)
 
     const filters = {
       status: status || undefined,
+      shares: shares || undefined,
       search: search || undefined,
     };
 
