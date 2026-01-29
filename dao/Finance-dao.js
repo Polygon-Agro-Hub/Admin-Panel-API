@@ -1619,17 +1619,38 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole, Farme
 exports.getAllPublishedProjectsDAO = (searchText) => {
   return new Promise((resolve, reject) => {
     let sql = `
-      SELECT ir.id, u.firstName, u.lastName, u.phoneNumber, u.NICnumber AS farmerNic,
-       cg.cropNameEnglish, ir.assignDate, ir.assignedBy, 
-        ir.jobId, ir.publishStatus, ir.reqStatus, ir.nicFront, ir.nicBack,
-        ir.extentac, ir.expectedYield, ir.startDate, ir.investment, 
-        ir.publishDate, au.userName AS publishedBy
+      SELECT DISTINCT
+        ir.id, 
+        u.firstName, 
+        u.lastName, 
+        u.phoneNumber, 
+        u.NICnumber AS farmerNic,
+        cg.cropNameEnglish, 
+        ir.assignDate, 
+        ir.assignedBy, 
+        ir.jobId, 
+        ir.publishStatus, 
+        ir.reqStatus, 
+        ir.nicFront, 
+        ir.nicBack,
+        ir.extentha, 
+        ir.extentac, 
+        ir.extentp, 
+        ir.expectedYield, 
+        ir.startDate, 
+        ir.investment, 
+        air.defineShares, 
+        i.shares, 
+        ir.publishDate, 
+        au.userName AS publishedBy
       FROM investmentrequest ir
       LEFT JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
       LEFT JOIN agro_world_admin.adminusers au ON ir.publishBy = au.id
+      LEFT JOIN approvedinvestmentrequest air ON ir.id = air.reqId
+      LEFT JOIN investment i ON ir.id = i.reqId
       WHERE ir.reqStatus = 'Approved'
-      AND ir.publishStatus = 'Published'
+      AND ir.publishStatus = 'Published';
     `;
 
     const params = [];
@@ -2083,14 +2104,14 @@ exports.getDetailsForDivideShareDao = (id) => {
 };
 
 
-exports.devideSharesDao = (sharesData) => {
+exports.devideSharesDao = (sharesData,adminId) => {
   console.log('sharesData', sharesData);
 
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO investments.approvedinvestmentrequest
-      (reqId, totValue, defineShares, minShare, maxShare)
-      VALUES (?, ?, ?, ?, ?)
+      (reqId, totValue, defineShares, minShare, maxShare, defineBy)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
@@ -2098,7 +2119,8 @@ exports.devideSharesDao = (sharesData) => {
       sharesData.totalValue,    
       sharesData.numShares,     
       sharesData.minimumShare,  
-      sharesData.maximumShare         
+      sharesData.maximumShare,
+      adminId        
     ];
 
     investment.query(sql, values, (err, result) => {
@@ -2174,13 +2196,13 @@ exports.rejectRequestDao = (id) => {
   });
 };
 
-exports.editDevideSharesDao = (sharesData) => {
+exports.editDevideSharesDao = (sharesData, adminId) => {
   console.log('sharesData', sharesData);
 
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investments.approvedinvestmentrequest
-      SET totValue = ?, defineShares = ?, minShare = ?, maxShare = ?
+      SET totValue = ?, defineShares = ?, minShare = ?, maxShare = ?, defineBy = ?, createdAt = NOW()
       WHERE reqId = ?
     `;
 
@@ -2189,6 +2211,7 @@ exports.editDevideSharesDao = (sharesData) => {
       sharesData.numShares,     
       sharesData.minimumShare,  
       sharesData.maximumShare,
+      adminId,
       sharesData.id       
     ];
 

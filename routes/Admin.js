@@ -459,21 +459,15 @@ router.put(
 );
 
 router.get(
-  "/farmer-pension-under-5-years-details",
+  "/farmer-pension-details",
   authMiddleware,
-  AdminEp.getFarmerPensionUnder5YearsDetails
+  AdminEp.getFarmerPensionDetails
 );
 
 router.get(
   "/get-cultivation-for-pension/:id",
   authMiddleware,
   AdminEp.getCultivationForPension
-);
-
-router.get(
-  "/farmer-pension-5-years-plus-details",
-  authMiddleware,
-  AdminEp.getFarmerPension5YearsPlusDetails
 );
 
 module.exports = router;
