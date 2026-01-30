@@ -1737,6 +1737,7 @@ WHERE ir.reqStatus = 'Rejected'
 };
 
 exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
+  console.log('filters', filters)
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
@@ -1778,6 +1779,25 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
     if (filters.status) {
       sql += ` AND COALESCE(ir.publishStatus, 'Draft') = ?`;
       params.push(filters.status);
+    }
+
+    // Filter by shares division status
+    if (filters.shares) {
+
+      console.log('we have shares')
+      if (filters.shares === 'Divided') {
+        // Get records that have at least one row in approvedinvestmentrequest
+        sql += ` AND EXISTS (
+          SELECT 1 FROM approvedinvestmentrequest air 
+          WHERE air.reqId = ir.id
+        )`;
+      } else if (filters.shares === 'Not Divided') {
+        // Get records that have no rows in approvedinvestmentrequest
+        sql += ` AND NOT EXISTS (
+          SELECT 1 FROM approvedinvestmentrequest air 
+          WHERE air.reqId = ir.id
+        )`;
+      }
     }
 
     // Search filter (searches in Request ID, Phone Number, EMP ID)
