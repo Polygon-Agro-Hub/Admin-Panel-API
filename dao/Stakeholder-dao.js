@@ -294,7 +294,7 @@ exports.getAllFieldOfficers = (filters = {}) => {
     }
 
     if (filters.district && filters.district !== "") {
-      sql += ` AND f.distrct = ?`;
+      sql += ` AND FIND_IN_SET(?, f.assignDistrict) > 0`;
       params.push(filters.district);
     }
 
