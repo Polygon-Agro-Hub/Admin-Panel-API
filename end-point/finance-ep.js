@@ -9,7 +9,8 @@ const {
   updatePaymentHistorySchema,
   paymentHistoryIdSchema,
   getAllInvestmentSchema,
-  getInvestmentIdSchema
+  getInvestmentIdSchema,
+  getAgentCommitionsShema
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
@@ -1753,3 +1754,40 @@ exports.approveInvenstmentRequest = async (req, res) => {
     });
   }
 };
+
+
+exports.getSalesAgentForFilter = async (req, res) => {
+  try {
+
+    const results = await financeDao.getSalesAgentForFilterDao();
+
+    res.status(200).json({
+      data: results,
+    });
+  } catch (error) {
+    console.error('Error in GetAllApprovedInvestmentRequests:', error);
+    res.status(500).json({
+      count: 0,
+      data: [],
+      error: 'Internal server error',
+    });
+  }
+}
+
+
+exports.getAgentCommitions = async (req, res) => {
+  try {
+    const data = await getAgentCommitionsShema.validateAsync(req.body);
+    const results = await financeDao.getAgentCommitionsDao(data);
+
+    res.status(200).json({
+      data: results,
+    });
+  } catch (error) {
+    console.error('Error in GetAllApprovedInvestmentRequests:', error);
+    res.status(500).json({
+      data: [],
+      error: 'Internal server error',
+    });
+  }
+}

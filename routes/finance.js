@@ -194,4 +194,17 @@ router.patch(
   financeController.approveInvenstmentRequest
 );
 
+router.get(
+  "/get-sales-agent-for-filter",
+  authMiddleware,
+  financeController.getSalesAgentForFilter
+);
+
+router.post(
+  "/get-agent-commissions",
+  authMiddleware,
+  financeController.getAgentCommitions
+);
+
+
 module.exports = router;

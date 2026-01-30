@@ -2035,7 +2035,7 @@ exports.getInspectionDerailsDao = async (id) => {
         } else {
           result[query.key] = {};
         }
-        
+
         completedQueries++;
 
         if (completedQueries === queries.length) {
@@ -2124,7 +2124,7 @@ exports.getDetailsForDivideShareDao = (id) => {
 };
 
 
-exports.devideSharesDao = (sharesData,adminId) => {
+exports.devideSharesDao = (sharesData, adminId) => {
   console.log('sharesData', sharesData);
 
   return new Promise((resolve, reject) => {
@@ -2135,12 +2135,12 @@ exports.devideSharesDao = (sharesData,adminId) => {
     `;
 
     const values = [
-      sharesData.id,         
-      sharesData.totalValue,    
-      sharesData.numShares,     
-      sharesData.minimumShare,  
+      sharesData.id,
+      sharesData.totalValue,
+      sharesData.numShares,
+      sharesData.minimumShare,
       sharesData.maximumShare,
-      adminId        
+      adminId
     ];
 
     investment.query(sql, values, (err, result) => {
@@ -2226,13 +2226,13 @@ exports.editDevideSharesDao = (sharesData, adminId) => {
       WHERE reqId = ?
     `;
 
-    const values = [      
-      sharesData.totalValue,    
-      sharesData.numShares,     
-      sharesData.minimumShare,  
+    const values = [
+      sharesData.totalValue,
+      sharesData.numShares,
+      sharesData.minimumShare,
       sharesData.maximumShare,
       adminId,
-      sharesData.id       
+      sharesData.id
     ];
 
     investment.query(sql, values, (err, result) => {
@@ -2242,5 +2242,64 @@ exports.editDevideSharesDao = (sharesData, adminId) => {
       console.log('result', result);
       resolve(result);
     });
+  });
+};
+
+
+exports.getSalesAgentForFilterDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id,
+        empId
+      FROM salesagent
+    `;
+
+    marketPlace.query(sql, (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
+};
+
+
+exports.getAgentCommitionsDao = (data) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT
+        po.invNo,
+        o.sheduleDate,
+        po.deliveredTime,
+        po.isPaid
+    FROM processorders po
+    INNER JOIN orders o ON po.orderId = o.id
+    INNER JOIN marketplaceusers mu ON o.userId = mu.id 
+    WHERE mu.salesAgent = ? AND (DATE(o.sheduleDate) BETWEEN ? AND ?) AND DATE(po.deliveredTime) < ?
+    `;
+
+    if (data.paymentStatus) {
+      if (data.paymentStatus === 'Completed') {
+        sql += ` AND po.isPaid = 1 `;
+      } else if (data.paymentStatus === 'Pending') {
+        sql += ` AND po.isPaid = 0 `;
+      }
+    }
+
+    marketPlace.query(sql,
+      [
+        data.agentId,
+        data.fromDate,
+        data.toDate,
+        data.deliveredDate
+      ], (err, result) => {
+        if (err) {
+          return reject(err);
+        }
+        console.log(sql);
+        
+        resolve(result);
+      });
   });
 };

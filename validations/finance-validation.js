@@ -126,6 +126,14 @@ const paymentHistoryIdSchema = Joi.object({
   id: Joi.number().integer().positive().required()
 });
 
+const getAgentCommitionsShema = Joi.object({
+  agentId: Joi.number().integer().positive().required(),
+  paymentStatus: Joi.string().valid('Pending', 'Completed').required(),
+  fromDate: Joi.date().required(),
+  toDate: Joi.date().required(),
+  deliveredDate: Joi.date().required(),
+});
+
 
 module.exports = {
   createAgentCommissionSchema,
@@ -133,9 +141,10 @@ module.exports = {
   idSchema,
   getAllSchema,
   getAllFarmerPaymentsSchema,
-   createPaymentHistorySchema,
+  createPaymentHistorySchema,
   updatePaymentHistorySchema,
   paymentHistoryIdSchema,
   getAllInvestmentSchema,
-  getInvestmentIdSchema
+  getInvestmentIdSchema,
+  getAgentCommitionsShema
 };
