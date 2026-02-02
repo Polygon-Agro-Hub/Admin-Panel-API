@@ -987,6 +987,11 @@ exports.getAllCompanyDAO = (search) => {
         c.companyNameEnglish AS companyName,
         c.email AS companyEmail,
         c.status,
+        c.oicConCode1,
+        c.oicConCode2,
+        c.oicConNum1,
+        c.oicConNum2,
+        au.userName,
         SUM(CASE WHEN co.jobRole = 'Collection Centre Head' THEN 1 ELSE 0 END) AS numOfHead,
         SUM(CASE WHEN co.jobRole = 'Collection Centre Manager' THEN 1 ELSE 0 END) AS numOfManagers,
         SUM(CASE WHEN co.jobRole = 'Collection Officer' THEN 1 ELSE 0 END) AS numOfOfficers,
@@ -1005,6 +1010,8 @@ exports.getAllCompanyDAO = (search) => {
         collectionofficer co 
       ON 
         c.id = co.companyId
+      LEFT JOIN 
+      agro_world_admin.adminusers au ON c.modifyBy = au.id
       WHERE 
         c.isCollection = true
     `;
