@@ -1717,7 +1717,7 @@ exports.GetDistributionCentersByCompanyIdDAO = (companyId) => {
 exports.GetAllDistributionManagerList = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, empId, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE jobRole = 'Distribution Centre Manager' AND companyId = ? AND distributedCenterId = ?";
+      "SELECT id, empId, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE jobRole = 'Distribution Centre Manager' AND companyId = ? AND distributedCenterId = ? AND status = 'Approved'";
     collectionofficer.query(sql, [companyId, centerId], (err, results) => {
       if (err) {
         return reject(err);
@@ -4207,67 +4207,18 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
 
     dataParams.push(centerId);
 
-    // Base SQL query
-    let sql = `
-      SELECT 
-        po.id,
-        po.invNo,
-        dc.regCode,
-        o.sheduleTime,
-        o.sheduleDate,
-        o.phoneCode1,
-        o.phone1,
-        o.fullTotal AS total,
-        po.createdAt,
-        po.status,
-        mpu.title,
-        CONCAT(mpu.firstName,' ',mpu.lastName) AS customerName,
-        CONCAT(mpu.phoneCode,' ',mpu.phoneNumber) AS customerPhone,
-        o.fullName,
-        o.title AS recieverTitle,
-        o.phone2,
-        o.phoneCode2,
-        o.orderApp,
-        po.isPaid,
-        po.paymentMethod,
-        po.outDlvrDate as outDlvrTime,
-        dor.createdAt AS collectedTime,
-        dor.startTime,
-        dro.createdAt AS returnTime,
-        dor.receivedTime AS returnRecivedTime,
-        dor.handOverTime AS moneyHandoverTime,
-        po.deliveredTime AS completeTime,
-        dho.createdAt AS holdTime,
-        dor.receivedTime
-      FROM 
-        market_place.processorders po
-        LEFT JOIN 
-        collection_officer.driverorders dor ON po.id = dor.orderId
-      LEFT JOIN 
-        collection_officer.driverholdorders dho ON dor.id = dho.drvOrderId
-      LEFT JOIN 
-        market_place.orders o ON po.orderId = o.id
-      LEFT JOIN 
-        market_place.orderhouse oh ON oh.orderId = o.id
-      LEFT JOIN 
-        market_place.orderapartment oa ON oa.orderId = o.id
-      LEFT JOIN 
-        collection_officer.distributedcenter dc ON o.centerId = dc.id
-      LEFT JOIN 
-        market_place.marketplaceusers mpu ON o.userId = mpu.id
-      LEFT JOIN collection_officer.driverreturnorders dro ON dor.id = dro.drvOrderId
-      WHERE 
-        po.isTargetAssigned = 1 
-        AND (
-          ${deliveryLocationData && deliveryLocationData.length > 0
-            ? "(oh.city IN (?) OR oa.city IN (?)) OR"
-            : ""}
-          o.centerId = ?
-        )
-      `;
+    let sortSql = `ORDER BY o.sheduleDate DESC`;
+    let wheresql = ` WHERE 
+    po.isTargetAssigned = 1 
+    AND (
+      ${deliveryLocationData && deliveryLocationData.length > 0
+        ? "(oh.city IN (?) OR oa.city IN (?)) OR"
+        : ""}
+      o.centerId = ?
+    )`
 
       if (status) {
-        sql += " AND po.status LIKE ? ";
+        wheresql += " AND po.status LIKE ? ";
       dataParams.push(status);
     }
 
@@ -4277,48 +4228,48 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
       switch (activeTab) {
     
         case 'all':
-          sql += " AND DATE(o.sheduleDate) = ? ";
+          wheresql += " AND DATE(o.sheduleDate) = ? ";
           break;
     
         case 'out-for-delivery':
           console.log('out', 'date', date)
-          sql += " AND DATE(po.outDlvrDate) = ? ";
+          wheresql += " AND DATE(po.outDlvrDate) = ? ";
           break;
         
         case 'Picked Up':
-          sql += " AND DATE(po.deliveredTime) = ? ";
+          wheresql += " AND DATE(po.deliveredTime) = ? ";
           break;
       
         case 'Ready to Pickup':
-          sql += " AND DATE(po.outDlvrDate) = ? ";
+          wheresql += " AND DATE(po.outDlvrDate) = ? ";
           break;
         
         case 'Return Received':
-          sql += " AND DATE(dor.receivedTime) = ? ";
+          wheresql += " AND DATE(dor.receivedTime) = ? ";
           break;
 
         case 'on-the-way':
-          sql += "AND DATE(dor.startTime) = ? ";
+          wheresql += "AND DATE(dor.startTime) = ? ";
           break;
     
         case 'return':
-          sql += "AND DATE(dro.createdAt) = ? ";
+          wheresql += "AND DATE(dro.createdAt) = ? ";
           break;
         
         case 'delivered':
-          sql += " AND DATE(po.deliveredTime) = ? ";
+          wheresql += " AND DATE(po.deliveredTime) = ? ";
           break;
 
         case 'hold':
-          sql += " AND DATE(dho.createdAt) = ? ";
+          wheresql += " AND DATE(dho.createdAt) = ? ";
           break;
 
         case 'Return Received':
-          sql += " AND DATE(dor.receivedTime) = ? ";
+          wheresql += " AND DATE(dor.receivedTime) = ? ";
           break;
 
         case 'Collected':
-          sql += " AND DATE(dor.createdAt) = ? ";
+          wheresql += " AND DATE(dor.createdAt) = ? ";
           break;
 
         default:
@@ -4329,7 +4280,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
     }
 
     if (timeSlot) {
-    sql += ` AND o.sheduleTime LIKE ?`;
+      wheresql += ` AND o.sheduleTime LIKE ?`;
     dataParams.push(`%${timeSlot}%`);
   }
 
@@ -4343,7 +4294,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
           )
       `;
 
-      sql += searchCondition;
+      wheresql += searchCondition;
       const searchValue = `%${searchText}%`;
       dataParams.push(searchValue, searchValue, searchValue, searchValue);
   }
@@ -4352,40 +4303,44 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
       switch (activeTab) {
     
         case 'all':
-          sql += "AND po.status IN ('Out For Delivery', 'Collected', 'On the way', 'Return', 'Hold', 'Delivered', 'Return Received')";
+          wheresql += "AND po.status IN ('Out For Delivery', 'Collected', 'On the way', 'Return', 'Hold', 'Delivered', 'Return Received')";
+          sortSql = " ORDER BY o.sheduleDate DESC";
           break;
     
         case 'out-for-delivery':
-          sql += " AND po.status = 'Out For Delivery' ";
+          wheresql += " AND po.status = 'Out For Delivery' ";
+          sortSql = " ORDER BY po.outDlvrDate DESC"
           break;
 
         case 'delivered':
-          sql += " AND po.status = 'delivered' ";
+          wheresql += " AND po.status = 'Delivered' ";
+          sortSql = " ORDER BY po.deliveredTime DESC"
           break;
       
     
         case 'on-the-way':
-          sql += " AND po.status = 'On the way' ";
+          wheresql += " AND po.status = 'On the way' ";
+          sortSql = " ORDER BY dor.startTime DESC"
           break;
     
         case 'return':
-          sql += " AND po.status = 'Return' ";
-          break;
-        
-        case 'delivered':
-          sql += " AND po.status = 'Delivered' ";
+          wheresql += " AND po.status = 'Return' ";
+          sortSql = " ORDER BY dro.createdAt DESC"
           break;
 
         case 'hold':
-          sql += " AND po.status = 'Hold' ";
+          wheresql += " AND po.status = 'Hold' ";
+          sortSql = " ORDER BY dho.createdAt DESC"
           break;
 
         case 'Return Received':
-          sql += " AND po.status = 'Return Received' ";
+          wheresql += " AND po.status = 'Return Received' ";
+          sortSql = " ORDER BY dor.receivedTime DESC"
           break;
 
         case 'Collected':
-          sql += " AND po.status = 'Collected' ";
+          wheresql += " AND po.status = 'Collected' ";
+          sortSql = " ORDER BY dor.createdAt DESC"
           break;
     
         default:
@@ -4393,10 +4348,74 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
           break;
       }
     }
-    
 
-    // Add ORDER BY clause
-    sql += ` ORDER BY po.createdAt DESC`;
+    // Base SQL query
+    let sql = `
+    SELECT
+    po.id,
+    po.invNo,
+    dc.regCode,
+    o.sheduleTime,
+    o.sheduleDate,
+    o.phoneCode1,
+    o.phone1,
+    o.fullTotal AS total,
+    po.createdAt,
+    po.status,
+    mpu.title,
+    CONCAT(mpu.firstName,' ',mpu.lastName) AS customerName,
+    CONCAT(mpu.phoneCode,' ',mpu.phoneNumber) AS customerPhone,
+    o.fullName,
+    o.title AS recieverTitle,
+    o.phone2,
+    o.phoneCode2,
+    o.orderApp,
+    po.isPaid,
+    po.paymentMethod,
+    po.outDlvrDate AS outDlvrTime,
+
+    dor.createdAt AS collectedTime,
+    dor.startTime,
+
+    dro.createdAt AS returnTime,
+    dor.receivedTime AS returnRecivedTime,
+    dor.handOverTime AS moneyHandoverTime,
+
+    po.deliveredTime AS completeTime,
+    dho.createdAt AS holdTime
+
+FROM market_place.processorders po
+
+LEFT JOIN collection_officer.driverorders dor 
+       ON po.id = dor.orderId
+
+LEFT JOIN collection_officer.driverholdorders dho 
+       ON dho.id = (
+           SELECT dho2.id
+           FROM collection_officer.driverholdorders dho2
+           WHERE dho2.drvOrderId = dor.id
+           ORDER BY dho2.createdAt DESC
+           LIMIT 1
+       )
+
+LEFT JOIN collection_officer.driverreturnorders dro 
+       ON dro.id = (
+           SELECT dro2.id
+           FROM collection_officer.driverreturnorders dro2
+           WHERE dro2.drvOrderId = dor.id
+           ORDER BY dro2.createdAt DESC
+           LIMIT 1
+       )
+
+LEFT JOIN market_place.orders o ON po.orderId = o.id
+LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
+LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+LEFT JOIN collection_officer.distributedcenter dc ON o.centerId = dc.id
+LEFT JOIN market_place.marketplaceusers mpu ON o.userId = mpu.id
+
+      ${wheresql}
+      ${sortSql}
+      `;
 
     marketPlace.query(sql, dataParams, (err, results) => {
       if (err) {

@@ -1453,6 +1453,7 @@ exports.getOfficerByIdDAO = (id) => {
     const sql = `
           SELECT 
               COF.*,
+              COF.id AS officerId,
               COM.companyNameEnglish,
               CEN.centerName,
               CEN.regCode AS centerRegCode,
@@ -1490,7 +1491,7 @@ exports.getOfficerByIdDAO = (id) => {
 
       resolve({
         collectionOfficer: {
-          id: officer.id,
+          id: officer.officerId,
           firstNameEnglish: officer.firstNameEnglish,
           firstNameSinhala: officer.firstNameSinhala,
           firstNameTamil: officer.firstNameTamil,
