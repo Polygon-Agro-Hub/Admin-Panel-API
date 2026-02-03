@@ -2175,17 +2175,17 @@ exports.ApproveRequestDao = (id) => {
 };
 
 
-exports.updateRejectReasonDao = (id, reason) => {
+exports.updateRejectReasonDao = (id, reason, adminId) => {
   console.log('id, reason', id, reason);
 
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO investments.rejectinvestmentrequest
-      (reqId, reason)
-      VALUES (?, ?)
+      (reqId, reason, rejectedBy)
+      VALUES (?, ?, ?)
     `;
 
-    investment.query(sql, [id, reason], (err, result) => {
+    investment.query(sql, [id, reason, adminId], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -2202,7 +2202,7 @@ exports.rejectRequestDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investmentrequest ir
-      SET ir.reqStatus = 'Rejected'
+      SET ir.reqStatus = 'Rejected', ir.reqCahangeTime = NOW()
       WHERE ir.id = ?
     `;
 

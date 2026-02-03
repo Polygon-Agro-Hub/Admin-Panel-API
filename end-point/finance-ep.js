@@ -1677,6 +1677,7 @@ exports.rejectRequestEp = async (req, res) => {
   console.log("Request URL:", fullUrl);
   try {
     const { reqId, reason } = req.body;
+    const adminId = req.user.userId;
 
     console.log(' reqId, reason', reqId, reason)
 
@@ -1689,7 +1690,7 @@ exports.rejectRequestEp = async (req, res) => {
     }
 
     const result = await financeDao.updateRejectReasonDao(
-      reqId, reason
+      reqId, reason, adminId
     );
 
     if (result) {
