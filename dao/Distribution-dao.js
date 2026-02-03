@@ -4758,6 +4758,7 @@ exports.getHomeDiliveryTrackingDriverDetailsDao = async (id) => {
 
 exports.getRecivedPickUpCashDashbordDao = async (data) => {
   return new Promise((resolve, reject) => {
+    console.log('data', data)
     const sql = `
       SELECT 
           COUNT(CASE WHEN po.deliveredTime IS NULL THEN 1 END) AS total_today,
@@ -4769,13 +4770,25 @@ exports.getRecivedPickUpCashDashbordDao = async (data) => {
       FROM market_place.processorders po
       INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup' AND po.paymentMethod = 'Cash'
       LEFT JOIN collection_officer.pickuporders por ON po.id = por.orderId
-      LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
-      WHERE cof1.companyId = ? AND cof1.distributedCenterId = ?
+      WHERE o.centerId = ? AND po.status IN ('Ready to Pickup', 'Picked up')
     `;
     // DATE(po.outDlvrDate) = CURDATE()
     //COALESCE(SUM(DISTINCT por.handOverPrice), 0) AS order_price,
 
-    marketPlace.query(sql, [data.companyId, data.centerId], (err, results) => {
+    // SELECT 
+    //       COUNT(CASE WHEN po.deliveredTime IS NULL THEN 1 END) AS total_today,
+    //       COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
+    //       COUNT(CASE WHEN DATE(o.sheduleDate) != CURDATE() THEN 1 END) AS not_scheduled_today,
+    //       COUNT(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS all_pickup,
+    //       COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS today_pickup,
+    //       COALESCE(SUM(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.handOverPrice END), 0) AS order_price
+    //   FROM market_place.processorders po
+    //   INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup' AND po.paymentMethod = 'Cash'
+    //   LEFT JOIN collection_officer.pickuporders por ON po.id = por.orderId
+    //   LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
+    //   WHERE cof1.companyId = ? AND cof1.distributedCenterId = ?
+
+    marketPlace.query(sql, [data.centerId], (err, results) => {
       if (err) {
         reject(err);
       } else {
