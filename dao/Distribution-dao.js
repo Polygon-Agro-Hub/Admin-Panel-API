@@ -4802,8 +4802,8 @@ exports.getRecivedDelivaryCashDashbordDao = async (data) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-          COUNT(CASE WHEN po.deliveredTime IS NULL THEN 1 END) AS total_today,
-          COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
+          COUNT(CASE WHEN po.status = 'Out For Delivery' THEN 1 END) AS total_today,
+          COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.status = 'Out For Delivery' THEN 1 END) AS scheduled_today,
           COUNT(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS all_delivary,
           COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS today_delivary,
           COALESCE(SUM(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.handOverPrice END), 0) AS order_price
@@ -4813,6 +4813,17 @@ exports.getRecivedDelivaryCashDashbordDao = async (data) => {
       LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
       WHERE cof1.companyId = ? AND cof1.distributedCenterId = ?
     `;
+    // SELECT 
+    //       COUNT(CASE WHEN po.deliveredTime IS NULL THEN 1 END) AS total_today,
+    //       COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
+    //       COUNT(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS all_delivary,
+    //       COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS today_delivary,
+    //       COALESCE(SUM(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.handOverPrice END), 0) AS order_price
+    //   FROM market_place.processorders po
+    //   INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
+    //   LEFT JOIN collection_officer.driverorders dro ON po.id = dro.orderId AND dro.handOverTime IS NOT NULL
+    //   LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
+    //   WHERE cof1.companyId = ? AND cof1.distributedCenterId = ?
     // DATE(po.outDlvrDate) = CURDATE()
 
     marketPlace.query(sql, [data.companyId, data.centerId], (err, results) => {
