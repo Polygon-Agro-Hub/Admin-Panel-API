@@ -134,6 +134,10 @@ const getAgentCommitionsShema = Joi.object({
   deliveredDate: Joi.date().required(),
 });
 
+const IdParamSchema = Joi.object({
+  id: Joi.number().integer().required() 
+});
+
 
 module.exports = {
   createAgentCommissionSchema,
@@ -146,5 +150,6 @@ module.exports = {
   paymentHistoryIdSchema,
   getAllInvestmentSchema,
   getInvestmentIdSchema,
-  getAgentCommitionsShema
+  getAgentCommitionsShema,
+  IdParamSchema
 };

@@ -224,5 +224,11 @@ router.put(
   financeController.updatePensionRequestStatus
 );
 
+router.get(
+  "/get-cultivation-for-pension/:id",
+  authMiddleware,
+  financeController.getCultivationForPension
+);
+
 
 module.exports = router;

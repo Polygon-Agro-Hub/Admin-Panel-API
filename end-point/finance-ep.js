@@ -10,11 +10,12 @@ const {
   paymentHistoryIdSchema,
   getAllInvestmentSchema,
   getInvestmentIdSchema,
-  getAgentCommitionsShema
+  getAgentCommitionsShema,
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
 const deleteFromS3 = require("../middlewares/s3delete");
+const { IdParamShema } = require("../validations/Admin-validation");
 
 exports.getDashboardData = async (req, res) => {
   try {
@@ -1913,6 +1914,34 @@ exports.updatePensionRequestStatus = async (req, res) => {
     res.status(500).json({
       status: false,
       error: 'An error occurred while updating pension request status'
+    });
+  }
+};
+
+exports.getCultivationForPension = async (req, res) => {
+  try {
+    const { id } = await IdParamShema.validateAsync(req.params);
+    console.log('Fetching pension request by ID:', id);
+
+    const result = await financeDao.getCultivationForPensionDao(id);
+
+    if (!result) {
+      return res.status(404).json({
+        status: false,
+        message: 'Pension cultivation not found'
+      });
+    }
+
+    res.json({
+      status: true,
+      message: 'Pension cultivation retrieved successfully',
+      data: result
+    });
+  } catch (err) {
+    console.error('Error fetching pension cultivation:', err);
+    res.status(500).json({
+      status: false,
+      error: 'An error occurred while fetching pension cultivation'
     });
   }
 };
