@@ -5283,39 +5283,6 @@ exports.trackUserTaskUpdateDao = (id, adminId) => {
   });
 };
 
-// Update pension request status
-exports.UpdatePensionRequestStatusDAO = (id, updateData) => {
-  return new Promise((resolve, reject) => {
-    const { reqStatus, approvedBy, approveTime } = updateData;
-
-    let sql = `
-      UPDATE plant_care.pensionrequest 
-      SET 
-        reqStatus = ?,
-        approveBy = ?,
-        approveTime = ?
-      WHERE id = ?
-    `;
-
-    const params = [reqStatus, approvedBy, approveTime, id];
-
-    plantcare.query(sql, params, (err, results) => {
-      if (err) {
-        return reject(err);
-      }
-
-      if (results.affectedRows === 0) {
-        return resolve(null);
-      }
-
-      // Return updated record
-      this.GetPensionRequestByIdDAO(id)
-        .then(updatedRecord => resolve(updatedRecord))
-        .catch(error => reject(error));
-    });
-  });
-};
-
 exports.getFarmerPensionDetailsDao = (page, limit, searchText) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;

@@ -1855,3 +1855,64 @@ exports.getPensionRequestById = async (req, res) => {
     });
   }
 };
+
+exports.updatePensionRequestStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reqStatus, approvedBy } = req.body; // Get approvedBy from request body
+
+    console.log('Updating pension request status:', { id, reqStatus, approvedBy });
+
+    if (!reqStatus) {
+      return res.status(400).json({
+        status: false,
+        message: 'Status is required'
+      });
+    }
+
+    // Validate status
+    const validStatuses = ['To Review', 'Approved', 'Rejected'];
+    if (!validStatuses.includes(reqStatus)) {
+      return res.status(400).json({
+        status: false,
+        message: 'Invalid status value'
+      });
+    }
+
+    if (!approvedBy) {
+      return res.status(400).json({
+        status: false,
+        message: 'Approver ID is required'
+      });
+    }
+
+    const updateData = {
+      reqStatus,
+      approvedBy: approvedBy, // Use the approvedBy from request body
+      approveTime: new Date()
+    };
+
+    const result = await financeDao.UpdatePensionRequestStatusDAO(id, updateData);
+
+    if (!result) {
+      return res.status(404).json({
+        status: false,
+        message: 'Pension request not found or update failed'
+      });
+    }
+
+    console.log('Pension request status updated successfully:', id);
+
+    res.json({
+      status: true,
+      message: 'Pension request status updated successfully',
+      data: result
+    });
+  } catch (err) {
+    console.error('Error updating pension request status:', err);
+    res.status(500).json({
+      status: false,
+      error: 'An error occurred while updating pension request status'
+    });
+  }
+};
