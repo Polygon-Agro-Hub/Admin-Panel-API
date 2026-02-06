@@ -441,12 +441,6 @@ router.get(
 );
 
 router.get(
-  "/pension-requests",
-  authMiddleware,
-  AdminEp.getAllPensionRequests
-);
-
-router.get(
   "/pension-request/:id",
   authMiddleware,
   AdminEp.getPensionRequestById

@@ -4049,38 +4049,6 @@ exports.getFarmerPensionDetails = async (req, res) => {
   }
 };
 
-exports.getAllPensionRequests = async (req, res) => {
-  try {
-    const { status, search } = req.query;
-
-    console.log('Fetching all pension requests with filters:', { status, search });
-
-    const filters = {};
-
-    if (status) {
-      filters.status = status;
-    }
-
-    if (search) {
-      filters.search = search;
-    }
-
-    const results = await adminDao.GetAllPensionRequestsDAO(filters);
-
-    console.log(`Retrieved ${results.length} pension request records`);
-
-    res.json({
-      count: results.length,
-      data: results
-    });
-  } catch (err) {
-    console.error('Error fetching pension requests:', err);
-    res.status(500).json({
-      error: 'An error occurred while fetching pension requests'
-    });
-  }
-};
-
 // Get single pension request by ID
 exports.getPensionRequestById = async (req, res) => {
   try {

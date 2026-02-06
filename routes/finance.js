@@ -206,5 +206,11 @@ router.post(
   financeController.getAgentCommitions
 );
 
+router.get(
+  "/pension-requests",
+  authMiddleware,
+  financeController.getAllPensionRequests
+);
+
 
 module.exports = router;
