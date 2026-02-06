@@ -4049,38 +4049,6 @@ exports.getFarmerPensionDetails = async (req, res) => {
   }
 };
 
-// Get single pension request by ID
-exports.getPensionRequestById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    console.log('Fetching pension request by ID:', id);
-
-    const result = await adminDao.GetPensionRequestByIdDAO(id);
-
-    if (!result) {
-      return res.status(404).json({
-        status: false,
-        message: 'Pension request not found'
-      });
-    }
-
-    console.log('Retrieved pension request:', result.Request_ID);
-
-    res.json({
-      status: true,
-      message: 'Pension request retrieved successfully',
-      data: result
-    });
-  } catch (err) {
-    console.error('Error fetching pension request:', err);
-    res.status(500).json({
-      status: false,
-      error: 'An error occurred while fetching pension request'
-    });
-  }
-};
-
 // Update pension request status
 exports.updatePensionRequestStatus = async (req, res) => {
   try {

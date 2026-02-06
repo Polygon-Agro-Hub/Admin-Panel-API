@@ -212,5 +212,11 @@ router.get(
   financeController.getAllPensionRequests
 );
 
+router.get(
+  "/pension-request/:id",
+  authMiddleware,
+  financeController.getPensionRequestById
+);
+
 
 module.exports = router;

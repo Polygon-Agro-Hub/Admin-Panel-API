@@ -440,12 +440,6 @@ router.get(
   AdminEp.getFiealdOfficerComplainById
 );
 
-router.get(
-  "/pension-request/:id",
-  authMiddleware,
-  AdminEp.getPensionRequestById
-);
-
 router.put(
   "/update-pension-request/:id",
   authMiddleware,

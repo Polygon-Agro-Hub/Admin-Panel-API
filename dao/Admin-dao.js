@@ -5283,51 +5283,6 @@ exports.trackUserTaskUpdateDao = (id, adminId) => {
   });
 };
 
-exports.GetPensionRequestByIdDAO = (id) => {
-  return new Promise((resolve, reject) => {
-    let sql = `
-     SELECT 
-    pr.id AS No,
-    pr.id AS Request_ID,
-    pr.fullName AS Farmer_Name,
-    pr.nic AS NIC,
-    pr.dob,
-    pr.sucFullName AS Successor_Name,
-    pr.sucType AS Successor_Type,
-    pr.sucNic AS Successor_NIC,
-    pr.sucdob AS Successor_DOB,
-    pr.defaultPension,
-    pr.reqStatus,
-    pr.isFirstTime,
-    pr.nicFront AS NIC_Front_Image,
-    pr.nicBack AS NIC_Back_Image,
-    pr.sucNicFront AS Successor_NIC_Front_Image,
-    pr.sucNicBack AS Successor_NIC_Back_Image,
-    CASE 
-        WHEN pr.approveBy IS NULL THEN 'Not Approved'
-        ELSE 'Approved'
-    END AS Status,
-    COALESCE(au.userName, '--') AS Approved_By_Name,
-    COALESCE(pr.approveBy, '--') AS Approver_ID,
-    COALESCE(u.phoneNumber, '--') AS Phone_Number,  -- Add phone number here
-    DATE_FORMAT(pr.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
-    DATE_FORMAT(pr.createdAt, '%M %d, %Y') AS Requested_On,
-    COALESCE(DATE_FORMAT(pr.approveTime, 'At %h:%i%p on %M %d, %Y'), '--') AS Approved_Date_Time
-FROM plant_care.pensionrequest pr
-LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
-LEFT JOIN users u ON pr.userId = u.id  -- Assuming userId is the foreign key column
-WHERE pr.id = ?
-    `;
-
-    plantcare.query(sql, [id], (err, results) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve(results[0]);
-    });
-  });
-};
-
 // Update pension request status
 exports.UpdatePensionRequestStatusDAO = (id, updateData) => {
   return new Promise((resolve, reject) => {
