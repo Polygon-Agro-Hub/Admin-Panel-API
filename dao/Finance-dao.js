@@ -1639,8 +1639,8 @@ exports.getAllPublishedProjectsDAO = (searchText) => {
         ir.expectedYield, 
         ir.startDate, 
         ir.investment, 
-        air.defineShares, 
-        i.shares, 
+        COALESCE(air.defineShares, 0) AS defineShares, 
+        COALESCE(( SELECT SUM(i.shares) FROM investment i WHERE i.reqId = ir.id AND i.invtStatus = 'Approved' ), 0) AS shares, 
         ir.publishDate, 
         au.userName AS publishedBy
       FROM investmentrequest ir
@@ -1648,7 +1648,6 @@ exports.getAllPublishedProjectsDAO = (searchText) => {
       LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
       LEFT JOIN agro_world_admin.adminusers au ON ir.publishBy = au.id
       LEFT JOIN approvedinvestmentrequest air ON ir.id = air.reqId
-      LEFT JOIN investment i ON ir.id = i.reqId
       WHERE ir.reqStatus = 'Approved'
       AND ir.publishStatus = 'Published';
     `;
@@ -1880,7 +1879,10 @@ exports.GetProjectInvesmentDAO = (filters = {}) => {
       if (err) {
         return reject(err);
       }
+      console.log("Project Investment Results:", results);
+
       resolve(results);
+      
     });
   });
 };

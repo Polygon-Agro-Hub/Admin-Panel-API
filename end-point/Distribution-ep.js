@@ -3153,6 +3153,7 @@ exports.getDriverCashRevenue = async (req, res) => {
     const result = await DistributionDao.getDriverCashRevenueDao({
       companyId: companyId,
       centerId: centerId,
+      comCenId: id,
       search: search || null,
       filterDate: filterDate || null
     });
@@ -3206,7 +3207,7 @@ exports.getRecivedCashDashbord = async (req, res) => {
     const id = req.params.id;
     const companyCenter = await DistributionDao.getCenterAndCompanyIdDao(id);
     const pickupResult = await DistributionDao.getRecivedPickUpCashDashbordDao(companyCenter);
-    const delivaryResult = await DistributionDao.getRecivedDelivaryCashDashbordDao(companyCenter);
+    const delivaryResult = await DistributionDao.getRecivedDelivaryCashDashbordDao(companyCenter, id);
 
     res.status(200).json({
       pickupResult,

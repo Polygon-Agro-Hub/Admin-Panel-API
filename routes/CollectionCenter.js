@@ -132,7 +132,7 @@ router.post("/generate-regcode", CollectionCenterEp.generateRegCode);
 
 router.patch(
   "/update-company/:id",
-  // authMiddleware,
+  authMiddleware,
   CollectionCenterEp.updateCompany
 );
 

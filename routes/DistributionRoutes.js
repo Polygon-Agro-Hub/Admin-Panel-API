@@ -423,7 +423,7 @@ router.get(
 
 router.get(
   "/get-driver-cash-revenue/:id",
-  // authMiddleware,
+  authMiddleware,
   distributionEp.getDriverCashRevenue
 );
 
