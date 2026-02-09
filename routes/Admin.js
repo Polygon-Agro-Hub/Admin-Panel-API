@@ -440,10 +440,4 @@ router.get(
   AdminEp.getFiealdOfficerComplainById
 );
 
-router.get(
-  "/farmer-pension-details",
-  authMiddleware,
-  AdminEp.getFarmerPensionDetails
-);
-
 module.exports = router;

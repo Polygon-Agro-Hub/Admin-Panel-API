@@ -230,5 +230,10 @@ router.get(
   financeController.getCultivationForPension
 );
 
+router.get(
+  "/farmer-pension-details",
+  authMiddleware,
+  financeController.getFarmerPensionDetails
+);
 
 module.exports = router;
