@@ -4025,6 +4025,152 @@ exports.getDistributedDriversAndVehiclesDao = (
   });
 };
 
+// exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
+//   return new Promise((resolve, reject) => {
+//     // Base SQL query
+//     let sql = `
+//     SELECT
+//     po.id AS processOrderId,
+//     po.invNo,
+//     o.fullTotal,
+//     po.status,
+//     mu.title AS customerTitle,
+//     mu.firstName,
+//     mu.lastName,
+//     mu.phoneCode AS customerPhoneCode,
+//     mu.phoneNumber AS customerPhoneNumber,
+//     o.phonecode1 AS receiverPhoneCode1,
+//     o.phone1 AS receiverPhone1,
+//     o.phonecode2 AS receiverPhoneCode2,
+//     o.phone2 AS receiverPhone2,
+//     o.sheduleDate,
+//     o.sheduleTime,
+//     o.title,
+//     o.fullName,
+//     o.orderApp,
+//     o.createdAt AS orderCreatedAt,
+//     po.isPaid,
+//     paymentMethod
+// FROM collection_officer.distributedtarget dt
+// LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
+// LEFT JOIN market_place.processorders po ON dti.orderId = po.id
+// LEFT JOIN market_place.orders o ON po.orderId = o.id
+// LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+// WHERE 1=1
+//     `;
+
+//     const conditions = [];
+//     const values = [];
+
+//     // Required parameter: companycenterId
+//     if (searchParams.companycenterId) {
+//       conditions.push(`dt.companycenterId = ?`);
+//       values.push(searchParams.companycenterId);
+//     } else {
+//       return reject(new Error("companycenterId is required"));
+//     }
+
+//     // Filter by status based on activeTab
+//     if (searchParams.activeTab) {
+//       if (searchParams.activeTab === 'Ready to Pickup') {
+//         conditions.push(`po.status = ?`);
+//         values.push('Ready to Pickup');
+//       } else if (searchParams.activeTab === 'Picked Up') {
+//         conditions.push(`po.status = ?`);
+//         values.push('Picked up');
+//       } else if (searchParams.activeTab === 'All') {
+//         // For "All" tab, show both statuses
+//         conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
+//       }
+//     } else {
+//       // Default to both statuses
+//       conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
+//     }
+
+//     // Date filter - FIXED: Use proper date handling
+//     if (searchParams.date) {
+//       let dateValue;
+
+//       if (typeof searchParams.date === "string") {
+//         dateValue = searchParams.date.trim();
+//       } else if (searchParams.date instanceof Date) {
+//         dateValue = searchParams.date.toISOString().split("T")[0];
+//       }
+
+//       if (dateValue && dateValue !== "") {
+//         // Handle both date-only and datetime strings
+//         conditions.push(`DATE(o.sheduleDate) = DATE(?)`);
+//         values.push(dateValue);
+//       }
+//     }
+
+//     // Time filter - FIXED: Match time slot values
+//     if (searchParams.time && searchParams.time.trim() !== "") {
+//       const timeValue = searchParams.time.trim();
+//       // Try to match common time formats
+//       const timeMap = {
+//         "8AM-12PM": "8AM-12PM",
+//         "12PM-4PM": "12PM-4PM",
+//         "4PM-8PM": "4PM-8PM",
+//         "8AM - 12PM": "8AM-12PM",
+//         "12PM - 4PM": "12PM-4PM",
+//         "4PM - 8PM": "4PM-8PM",
+//       };
+
+//       const normalizedTime = timeMap[timeValue] || timeValue;
+//       conditions.push(`o.sheduleTime = ?`);
+//       values.push(normalizedTime);
+//     }
+
+//     // Search text filter - FIXED: Better phone number concatenation
+//     if (searchParams.searchText && searchParams.searchText.trim() !== "") {
+//       const searchPattern = `%${searchParams.searchText.trim()}%`;
+//       conditions.push(`(
+//         po.invNo LIKE ? OR 
+//         mu.phoneNumber LIKE ? OR
+//         o.phone1 LIKE ? OR
+//         CONCAT(mu.phoneCode, mu.phoneNumber) LIKE ? OR
+//         CONCAT(o.phonecode1, o.phone1) LIKE ?
+//       )`);
+//       values.push(
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern
+//       );
+//     }
+
+//     // Append all conditions to the WHERE clause
+//     if (conditions.length > 0) {
+//       sql += ` AND (${conditions.join(" AND ")})`;
+//     }
+
+//     // Add ORDER BY clause
+//     sql += `
+//     ORDER BY 
+//         o.sheduleDate ASC,
+//         o.sheduleTime ASC,
+//         po.invNo DESC
+//     `;
+
+//     // Debug logging
+//     console.log("SQL Query:", sql);
+//     console.log("SQL Parameters:", values);
+//     console.log("Search Params Received:", searchParams);
+
+//     collectionofficer.query(sql, values, (err, results) => {
+//       if (err) {
+//         console.error("Database query error:", err);
+//         reject(err);
+//       } else {
+//         console.log(`Query returned ${results.length} results`);
+//         resolve(results);
+//       }
+//     });
+//   });
+// };
+
 exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
   return new Promise((resolve, reject) => {
     // Base SQL query
@@ -4050,6 +4196,8 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
     o.orderApp,
     o.createdAt AS orderCreatedAt,
     po.isPaid,
+    po.outDlvrDate,
+    po.deliveredTime,
     paymentMethod
 FROM collection_officer.distributedtarget dt
 LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
@@ -4109,12 +4257,8 @@ WHERE 1=1
       const timeValue = searchParams.time.trim();
       // Try to match common time formats
       const timeMap = {
-        "8AM-12PM": "8AM-12PM",
-        "12PM-4PM": "12PM-4PM",
-        "4PM-8PM": "4PM-8PM",
-        "8AM - 12PM": "8AM-12PM",
-        "12PM - 4PM": "12PM-4PM",
-        "4PM - 8PM": "4PM-8PM",
+        "8AM-2PM": "8AM-2PM",
+        "2PM-8PM": "2PM-8PM",
       };
 
       const normalizedTime = timeMap[timeValue] || timeValue;
@@ -4146,12 +4290,18 @@ WHERE 1=1
       sql += ` AND (${conditions.join(" AND ")})`;
     }
 
-    // Add ORDER BY clause
+    // Add ORDER BY clause - FIXED: Sort Picked Up first (most recent), then Ready to Pickup (most recent)
     sql += `
-    ORDER BY 
-        o.sheduleDate ASC,
-        o.sheduleTime ASC,
-        po.invNo DESC
+   ORDER BY 
+    CASE 
+        WHEN po.status = 'Picked up' THEN 1
+        WHEN po.status = 'Ready to Pickup' THEN 2
+        ELSE 3
+    END,
+    CASE 
+        WHEN po.status = 'Picked up' THEN po.deliveredTime
+        WHEN po.status = 'Ready to Pickup' THEN po.outDlvrDate
+    END DESC
     `;
 
     // Debug logging
