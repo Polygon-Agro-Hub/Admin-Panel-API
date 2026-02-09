@@ -441,33 +441,9 @@ router.get(
 );
 
 router.get(
-  "/pension-requests",
-  authMiddleware,
-  AdminEp.getAllPensionRequests
-);
-
-router.get(
-  "/pension-request/:id",
-  authMiddleware,
-  AdminEp.getPensionRequestById
-);
-
-router.put(
-  "/update-pension-request/:id",
-  authMiddleware,
-  AdminEp.updatePensionRequestStatus
-);
-
-router.get(
   "/farmer-pension-details",
   authMiddleware,
   AdminEp.getFarmerPensionDetails
-);
-
-router.get(
-  "/get-cultivation-for-pension/:id",
-  authMiddleware,
-  AdminEp.getCultivationForPension
 );
 
 module.exports = router;
