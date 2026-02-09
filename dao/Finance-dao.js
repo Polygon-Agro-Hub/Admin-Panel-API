@@ -2470,3 +2470,66 @@ exports.getCultivationForPensionDao = (id) => {
     });
   });
 };
+
+exports.getFarmerPensionDetailsDao = (page, limit, searchText) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM pensionrequest
+      WHERE reqStatus = 'Approved'
+    `;
+
+    let dataSql = `
+      SELECT 
+        pr.id,
+        pr.fullName,
+        pr.nic,
+        CONCAT(u.firstName, ' ', u.lastName) AS farmerFullName,
+        u.phoneNumber,
+        pr.dob,
+        pr.sucType,
+        pr.sucNic,
+        pr.sucdob,
+        pr.defaultPension,
+        pr.reqStatus,
+        au.userName AS approveBy,
+        pr.approveTime,
+        pr.createdAt
+      FROM pensionrequest pr
+      LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
+      LEFT JOIN users u ON pr.userId = u.id
+      WHERE pr.reqStatus = 'Approved'
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    if (searchText && searchText.trim() !== "") {
+      const cond = ` AND nic LIKE ? `;
+      countSql += cond;
+      dataSql += cond;
+
+      const pattern = `%${searchText}%`;
+      countParams.push(pattern);
+      dataParams.push(pattern);
+    }
+
+    dataSql += ` ORDER BY pr.approveTime DESC LIMIT ? OFFSET ?`;
+    dataParams.push(parseInt(limit), parseInt(offset));
+
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+
+      plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) return reject(dataErr);
+
+        resolve({
+          total: countResults[0].total,
+          items: dataResults,
+        });
+      });
+    });
+  });
+};
