@@ -290,9 +290,12 @@ exports.getAllCompanyDAO = (searchTerm, centerId) => {
           WHERE co.companyId = c.id 
           AND co.companyId = c.id 
           AND co.jobRole = 'Distribution Officer'
-        ) AS officerCount
+        ) AS officerCount,
+         au.userName AS modifyBy
       FROM 
         collection_officer.company c
+      LEFT JOIN
+        agro_world_admin.adminusers au ON c.modifyBy = au.id
       WHERE 
         c.isDistributed = 1
     `;
@@ -309,6 +312,9 @@ exports.getAllCompanyDAO = (searchTerm, centerId) => {
       sql += " AND dcc.centerId = ?";
       params.push(centerId);
     }
+
+    sql += "ORDER BY CASE WHEN c.id = 2 THEN 0 ELSE 1 END, c.companyNameEnglish ASC";
+
 
     collectionofficer.query(sql, params, (err, results) => {
       if (err) {
@@ -4778,6 +4784,7 @@ exports.getDriverCashRevenueDao = (data) => {
     const {
       companyId,
       centerId,
+      comCenId,
       search,
       filterDate
     } = data;
@@ -4792,16 +4799,31 @@ exports.getDriverCashRevenueDao = (data) => {
           cof_handover.empId AS handOverOfficerEmpId
       FROM collection_officer.driverorders do 
       LEFT JOIN market_place.processorders po ON po.id = do.orderId
+      LEFT JOIN market_place.orders o ON po.orderId = o.id
       LEFT JOIN collection_officer.collectionofficer cof_dro ON do.driverId = cof_dro.id
-          AND cof_dro.companyId = ?
-          AND cof_dro.distributedCenterId = ?
       LEFT JOIN collection_officer.collectionofficer cof_handover ON do.handOverOfficer = cof_handover.id
-          AND cof_handover.companyId = ?
-          AND cof_handover.distributedCenterId = ?
-      WHERE do.id IS NOT NULL
+      WHERE o.assignCoMCenId = ? AND po.paymentMethod = 'Cash' AND do.id IS NOT NULL
     `;
 
-    const params = [companyId, centerId, companyId, centerId];
+    // SELECT
+    //       do.id,
+    //       po.invNo,
+    //       do.handOverPrice,
+    //       do.handOverTime,
+    //       cof_dro.empId AS driverEmpId,
+    //       cof_handover.empId AS handOverOfficerEmpId
+    //   FROM collection_officer.driverorders do 
+    //   LEFT JOIN market_place.processorders po ON po.id = do.orderId
+    //   LEFT JOIN collection_officer.collectionofficer cof_dro ON do.driverId = cof_dro.id
+    //       AND cof_dro.companyId = ?
+    //       AND cof_dro.distributedCenterId = ?
+    //   LEFT JOIN collection_officer.collectionofficer cof_handover ON do.handOverOfficer = cof_handover.id
+    //       AND cof_handover.companyId = ?
+    //       AND cof_handover.distributedCenterId = ?
+    //   WHERE do.id IS NOT NULL
+
+    // const params = [companyId, centerId, companyId, centerId];
+    const params = [comCenId];
     
     if (filterDate) {
       sql += ` AND DATE(do.handOverTime) = ?`;
@@ -4948,7 +4970,7 @@ exports.getRecivedPickUpCashDashbordDao = async (data) => {
   });
 };
 
-exports.getRecivedDelivaryCashDashbordDao = async (data) => {
+exports.getRecivedDelivaryCashDashbordDao = async (data, comcenId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -4961,7 +4983,7 @@ exports.getRecivedDelivaryCashDashbordDao = async (data) => {
       INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
       LEFT JOIN collection_officer.driverorders dro ON po.id = dro.orderId AND dro.handOverTime IS NOT NULL
       LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
-      WHERE cof1.companyId = ? AND cof1.distributedCenterId = ?
+      WHERE o.assignCoMCenId = ? AND po.status IN ('Out For Delivery', 'Delivered') AND po.paymentMethod = 'Cash'
     `;
     // SELECT 
     //       COUNT(CASE WHEN po.deliveredTime IS NULL THEN 1 END) AS total_today,
@@ -4976,7 +4998,7 @@ exports.getRecivedDelivaryCashDashbordDao = async (data) => {
     //   WHERE cof1.companyId = ? AND cof1.distributedCenterId = ?
     // DATE(po.outDlvrDate) = CURDATE()
 
-    marketPlace.query(sql, [data.companyId, data.centerId], (err, results) => {
+    marketPlace.query(sql, [comcenId], (err, results) => {
       if (err) {
         reject(err);
       } else {
