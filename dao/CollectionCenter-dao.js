@@ -1498,8 +1498,8 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
   return new Promise((resolve, reject) => {
     let countSql = `
       SELECT COUNT(*) AS total 
-      FROM collectionofficer
-      WHERE companyId = ? AND jobRole = 'Collection Centre Head'
+      FROM collectionofficer coff
+      WHERE coff.companyId = ? AND coff.jobRole = 'Collection Centre Head'
     `;
 
     let dataSql = `

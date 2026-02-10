@@ -149,7 +149,7 @@ router.get(
 router.get(
   "/collection-officer/get-all-collection-manager-names/:centerId",
   authMiddleware,
-  CollectionOfficerEp.getAllDistributionManagerNames
+  CollectionOfficerEp.getAllCollectionManagerNames
 );
 
 
@@ -340,6 +340,7 @@ router.get(
   CollectionOfficerEp.getAllDistributionCenterNames
 );
 
+//distribution manager list for claim
 router.get(
   "/driver/get-all-distribution-manager-names/:centerId",
   authMiddleware,
