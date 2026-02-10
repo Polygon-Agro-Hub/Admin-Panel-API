@@ -1460,7 +1460,8 @@ exports.getOfficerByIdDAO = (id) => {
               DC.centerName AS distributedCenterName,
               DC.regCode AS distributedCenterRegCode,
               VR.*,
-              VR.id AS vehicleRegId
+              VR.id AS vehicleRegId,
+              CONCAT(COF2.empId, ' - ',COF2.firstNameEnglish, ' ', COF2.lastNameEnglish) AS manageName
           FROM 
               collectionofficer COF
           JOIN 
@@ -1471,6 +1472,8 @@ exports.getOfficerByIdDAO = (id) => {
               distributedcenter DC ON COF.distributedCenterId = DC.id
           LEFT JOIN
                vehicleregistration VR ON COF.id = VR.coId
+          LEFT JOIN 
+              collectionofficer COF2 ON COF.irmId = COF2.id
           WHERE 
               COF.id = ?`;
 
@@ -1542,7 +1545,8 @@ exports.getOfficerByIdDAO = (id) => {
           vehFrontImg: officer.vehFrontImg,
           vehBackImg: officer.vehBackImg,
           vehSideImgA: officer.vehSideImgA,
-          vehSideImgB: officer.vehSideImgB
+          vehSideImgB: officer.vehSideImgB,
+          manageName:officer.manageName
         }
         
       });
