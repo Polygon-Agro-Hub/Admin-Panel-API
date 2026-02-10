@@ -899,6 +899,7 @@ exports.updateCompany = async (req, res) => {
 
     // Extract the company ID from request parameters
     const id = req.params.id;
+    const adminId = req.user.userId;
     if (!id) {
       return res
         .status(400)
@@ -963,7 +964,8 @@ exports.updateCompany = async (req, res) => {
       foEmail,
       status,
       logo,
-      favicon
+      favicon,
+      adminId
     );
 
     // Check if any rows were affected (successful update)

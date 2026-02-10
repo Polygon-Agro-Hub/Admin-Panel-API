@@ -1023,7 +1023,8 @@ exports.getAllCompanyDAO = (search) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    sql += " GROUP BY c.id ORDER BY companyName ASC";
+    // sql += " GROUP BY c.id ORDER BY companyName ASC";
+    sql += " GROUP BY c.id ORDER BY CASE WHEN c.id = 1 THEN 0 ELSE 1 END, companyName ASC";
 
     collectionofficer.query(sql, params, (err, results) => {
       if (err) {
@@ -1111,7 +1112,8 @@ exports.updateCompany = (
   foEmail,
   status,
   logo,
-  favicon
+  favicon,
+  adminId
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1137,7 +1139,8 @@ exports.updateCompany = (
         foEmail = ?,
         status = ?,
         logo = ?,
-      favicon = ?
+        favicon = ?,
+        modifyBy = ?
       WHERE id = ?
     `;
 
@@ -1164,6 +1167,7 @@ exports.updateCompany = (
       status,
       logo,
       favicon,
+      adminId,
       id,
     ];
 
