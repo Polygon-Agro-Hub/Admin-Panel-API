@@ -1148,6 +1148,7 @@ exports.getAllDistributionOfficers = (
                     OR coff.district LIKE ?
                     OR coff.empId LIKE ?
                     OR dc.centerName LIKE ?
+                    OR dc.regCode LIKE ?
                 )
             `;
       countSql += searchCondition;
@@ -1161,9 +1162,11 @@ exports.getAllDistributionOfficers = (
         searchValue,
         searchValue,
         searchValue,
+        searchValue,
         searchValue
       );
       dataParams.push(
+        searchValue,
         searchValue,
         searchValue,
         searchValue,
