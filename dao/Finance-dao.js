@@ -2388,19 +2388,22 @@ exports.GetPensionRequestByIdDAO = (id) => {
     pr.nicBack AS NIC_Back_Image,
     pr.sucNicFront AS Successor_NIC_Front_Image,
     pr.sucNicBack AS Successor_NIC_Back_Image,
+    co.empId,
     CASE 
         WHEN pr.approveBy IS NULL THEN 'Not Approved'
         ELSE 'Approved'
     END AS Status,
     COALESCE(au.userName, '--') AS Approved_By_Name,
     COALESCE(pr.approveBy, '--') AS Approver_ID,
-    COALESCE(u.phoneNumber, '--') AS Phone_Number,  -- Add phone number here
+    COALESCE(u.phoneNumber, '--') AS Phone_Number,
+    COALESCE(co.empId, 'Farmer') AS Collection_Officer_EmpID,
     DATE_FORMAT(pr.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
     DATE_FORMAT(pr.createdAt, '%M %d, %Y') AS Requested_On,
     COALESCE(DATE_FORMAT(pr.approveTime, 'At %h:%i%p on %M %d, %Y'), '--') AS Approved_Date_Time
 FROM plant_care.pensionrequest pr
 LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
-LEFT JOIN users u ON pr.userId = u.id  -- Assuming userId is the foreign key column
+LEFT JOIN users u ON pr.userId = u.id
+LEFT JOIN collection_officer.collectionofficer co ON pr.officerId = co.id
 WHERE pr.id = ?
     `;
 
