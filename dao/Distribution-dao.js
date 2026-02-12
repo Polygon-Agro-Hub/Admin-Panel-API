@@ -4936,7 +4936,7 @@ exports.getRecivedPickUpCashDashbordDao = async (data) => {
     console.log('data', data)
     const sql = `
       SELECT 
-          COUNT(CASE WHEN po.deliveredTime IS NULL THEN 1 END) AS total_today,
+          COUNT(CASE WHEN po.deliveredTime IS NULL AND DATE(o.sheduleDate) <= CURDATE() THEN 1 END) AS total_today,
           COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
           COUNT(CASE WHEN DATE(o.sheduleDate) != CURDATE() THEN 1 END) AS not_scheduled_today,
           COUNT(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS all_pickup,
@@ -4977,7 +4977,7 @@ exports.getRecivedDelivaryCashDashbordDao = async (data, comcenId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-          COUNT(CASE WHEN po.status = 'Out For Delivery' THEN 1 END) AS total_today,
+          COUNT(CASE WHEN po.status = 'Out For Delivery' AND DATE(o.sheduleDate) <= CURDATE() THEN 1 END) AS total_today,
           COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.status = 'Out For Delivery' THEN 1 END) AS scheduled_today,
           COUNT(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS all_delivary,
           COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS today_delivary,
