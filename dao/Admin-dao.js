@@ -1964,13 +1964,14 @@ exports.getCurrentAssetGroup = (userId, farmId) => {
 exports.getCurrentAssetRecordById = (currentAssetId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT id, currentAssetId, 
-                   COALESCE(numOfPlusUnit, 0) AS numOfPlusUnit, 
-                   COALESCE(numOfMinUnit, 0) AS numOfMinUnit, 
-                   totalPrice, createdAt  
-            FROM currentassetrecord 
-            WHERE currentAssetId = ?
-            ORDER BY createdAt DESC
+    SELECT ca.unitVolume, car.id, car.currentAssetId, 
+    COALESCE(car.numOfPlusUnit, 0) AS numOfPlusUnit, 
+    COALESCE(car.numOfMinUnit, 0) AS numOfMinUnit, 
+    car.totalPrice, car.createdAt  
+FROM plant_care.currentasset ca 
+LEFT JOIN plant_care.currentassetrecord car ON ca.id = car.currentAssetId
+WHERE ca.id = ?
+ORDER BY car.createdAt DESC
         `;
     const values = [currentAssetId];
 
