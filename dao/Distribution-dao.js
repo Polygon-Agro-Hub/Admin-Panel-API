@@ -2111,7 +2111,7 @@ exports.getDistributionOutForDlvrOrderDao = (
         JOIN market_place.processorders po ON dti.orderId = po.id
         JOIN market_place.orders o ON po.orderId = o.id
         JOIN collectionofficer cof ON po.outBy = cof.id
-        WHERE po.status = 'Out For Delivery' AND dt.companycenterId = ?    `;
+        WHERE (po.status = 'Out For Delivery' OR po.status = 'Out For Delivery') AND dt.companycenterId = ?    `;
 
     // Add search functionality for invNo
     if (searchText) {

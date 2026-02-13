@@ -1740,7 +1740,7 @@ exports.updateCenterHeadDetails = (
 exports.getAllCenterNamesDao = (district) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT CC.id, CC.regCode, CC.centerName
+            SELECT CC.id, CC.regCode, CC.centerName, CONCAT(CC.regCode, ' - ', CC.centerName) AS fullCenterName
 FROM collectioncenter CC, companycenter COMC, company COM
 WHERE CC.id = COMC.centerId 
   AND COMC.companyId = COM.id 
