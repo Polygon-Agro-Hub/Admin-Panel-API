@@ -1680,7 +1680,7 @@ exports.rejectRequestEp = async (req, res) => {
     const { reqId, reason } = req.body;
     const adminId = req.user.userId;
 
-    console.log(' reqId, reason', reqId, reason)
+    console.log(' reqId, reason', reqId, reason, adminId)
 
     // Validate required fields
     if (!reqId || !reason) {
@@ -1694,7 +1694,7 @@ exports.rejectRequestEp = async (req, res) => {
       reqId, reason, adminId
     );
 
-    if (result) {
+    if (result.affectedRows > 0) {
       rejectRequestResult = await financeDao.rejectRequestDao(
         reqId
       );
