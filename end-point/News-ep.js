@@ -36,7 +36,6 @@ exports.deleteNews = async (req, res) => {
         }
         
 
-        // Call DAO to delete the news
         const results = await newsDao.deleteNews(id);
 
         if (results.affectedRows === 0) {
@@ -49,7 +48,6 @@ exports.deleteNews = async (req, res) => {
               await deleteFromS3(s3Key);
             } catch (s3Error) {
               console.error("Failed to delete image from S3:", s3Error);
-              // Optionally handle the failure, e.g., log but not block user deletion
             }
           }
 
@@ -57,7 +55,6 @@ exports.deleteNews = async (req, res) => {
         return res.status(200).json({ message: 'News deleted successfully' });
     } catch (error) {
         if (error.isJoi) {
-            // Handle validation error
             return res.status(400).json({ error: error.details[0].message });
         }
 
@@ -77,8 +74,6 @@ exports.editNews = async (req, res) => {
     const { id } = req.params;
 
     try {
-        // Validate request body
-        // await newsValidate.editNewsSchema.validateAsync(req.body);
         console.log(req.body);
 
         const news = await newsDao.geNewsById(id);
@@ -100,9 +95,8 @@ exports.editNews = async (req, res) => {
         if (req.file) {
             const fileBuffer = req.file.buffer;
             const fileName = req.file.originalname;
-            imageData = await uploadFileToS3(fileBuffer, fileName, "content/image"); // Store the binary image data from req.file
+            imageData = await uploadFileToS3(fileBuffer, fileName, "content/image"); 
         }
-        // Call DAO to update the news
         const results = await newsDao.updateNews({ titleEnglish, titleSinhala, titleTamil, descriptionEnglish, descriptionSinhala, descriptionTamil, image: imageData, publishDate,expireDate }, id);
 
         if (results.affectedRows === 0) {

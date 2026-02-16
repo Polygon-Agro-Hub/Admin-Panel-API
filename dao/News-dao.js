@@ -41,7 +41,7 @@ exports.updateNews = (newsData, id) => {
         ];
 
         if (image) {
-            sql += `, image = ?`;  // Update the image field with binary data
+            sql += `, image = ?`;  
             values.push(image);
         }
 
@@ -68,16 +68,9 @@ exports.geNewsById = (id) => {
           return reject(err);
         }
         if (results.length === 0) {
-          return resolve(null); // No user found
+          return resolve(null); 
         }
-        // if (results[0].profileImage) {
-        //   const base64Image = Buffer.from(results[0].profileImage).toString(
-        //     "base64"
-        //   );
-        //   const mimeType = "image/png"; // Adjust MIME type if necessary, depending on the image type
-        //   results[0].profileImage = `data:${mimeType};base64,${base64Image}`;
-        // }
-        resolve(results[0]); // Return the first result
+        resolve(results[0]); 
       });
     });
   };
