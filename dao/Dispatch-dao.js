@@ -642,7 +642,7 @@ exports.updateIsPackedStatus = (packedItems) => {
       WHERE id = ?
     `;
 
-    // Get all unique orderIds related to the items we're updating
+    
     const itemIds = packedItems.map(item => item.id);
     const getOrderIdsSql = `
       SELECT DISTINCT orderId 
@@ -664,7 +664,7 @@ exports.updateIsPackedStatus = (packedItems) => {
       let totalUpdated = 0;
       let failedUpdates = [];
 
-      // First update all items in finalorderpackagelist
+      
       packedItems.forEach(({ id, isPacked }) => {
         marketPlace.query(updateSql, [isPacked, id], (err, result) => {
           completed++;
@@ -677,16 +677,16 @@ exports.updateIsPackedStatus = (packedItems) => {
             totalUpdated += result.affectedRows;
           }
 
-          // When all item updates are done
+          
           if (completed === packedItems.length) {
-            // Get all orders info and all items for those orders in a single step
+            
             const getOrdersInfoSql = `
               SELECT id, addItemStatus 
               FROM orders 
               WHERE id IN (?)
             `;
 
-            // Add query to get isAdditionalItems status for each order
+            
             const getAdditionalItemStatusSql = `
               SELECT orderId, isAdditionalItems 
               FROM orderpackageitems 
@@ -696,7 +696,7 @@ exports.updateIsPackedStatus = (packedItems) => {
             marketPlace.query(getOrdersInfoSql, [orderIds], (err, ordersInfoResults) => {
               if (err) {
                 console.error('Error fetching orders information:', err);
-                // Still resolve with the item update results
+                
                 return resolve({
                   success: true,
                   affectedRows: totalUpdated,
@@ -705,7 +705,7 @@ exports.updateIsPackedStatus = (packedItems) => {
                 });
               }
 
-              // Get the isAdditionalItems status for each order
+              
               marketPlace.query(getAdditionalItemStatusSql, [orderIds], (err, additionalItemsResults) => {
                 if (err) {
                   console.error('Error fetching additional items status:', err);
@@ -717,13 +717,13 @@ exports.updateIsPackedStatus = (packedItems) => {
                   });
                 }
 
-                // Create a map of orderId to isAdditionalItems value
+                
                 const additionalItemsMap = {};
                 additionalItemsResults.forEach(item => {
                   additionalItemsMap[item.orderId] = item.isAdditionalItems;
                 });
 
-                // Get the current status of all items for the affected orders
+                
                 const getItemsForOrdersSql = `
                   SELECT orderId, isPacking 
                   FROM finalorderpackagelist 
@@ -733,7 +733,7 @@ exports.updateIsPackedStatus = (packedItems) => {
                 marketPlace.query(getItemsForOrdersSql, [orderIds], (err, allItemsResults) => {
                   if (err) {
                     console.error('Error fetching items for orders:', err);
-                    // Still resolve with the item update results
+                    
                     return resolve({
                       success: true,
                       affectedRows: totalUpdated,
@@ -742,7 +742,7 @@ exports.updateIsPackedStatus = (packedItems) => {
                     });
                   }
 
-                  // Group items by orderId
+                  
                   const itemsByOrder = {};
                   allItemsResults.forEach(item => {
                     if (!itemsByOrder[item.orderId]) {
@@ -751,7 +751,7 @@ exports.updateIsPackedStatus = (packedItems) => {
                     itemsByOrder[item.orderId].push(item.isPacking);
                   });
 
-                  // Create a mapping of orders with their addItemStatus
+                  
                   const orderInfoMap = {};
                   ordersInfoResults.forEach(order => {
                     orderInfoMap[order.id] = {
@@ -759,7 +759,7 @@ exports.updateIsPackedStatus = (packedItems) => {
                     };
                   });
 
-                  // Process each order to determine both new packItemStatus and packageStatus
+                  
                   const orderUpdates = [];
 
                   for (const orderId in itemsByOrder) {
@@ -767,7 +767,7 @@ exports.updateIsPackedStatus = (packedItems) => {
                     const allPacked = itemStatuses.every(status => status === 1);
                     const nonePacked = itemStatuses.every(status => status === 0);
 
-                    // First calculate the new packItemStatus
+                    
                     let newPackItemStatus;
                     if (allPacked) {
                       newPackItemStatus = 'Completed';
@@ -777,23 +777,23 @@ exports.updateIsPackedStatus = (packedItems) => {
                       newPackItemStatus = 'Opened';
                     }
 
-                    // Get addItemStatus for this order
+                    
                     const orderInfo = orderInfoMap[orderId];
                     if (!orderInfo) continue;
 
                     const addItemStatus = orderInfo.addItemStatus;
 
-                    // Check if this order has isAdditionalItems set to 1
+                    
                     const hasAdditionalItems = additionalItemsMap[orderId] === 1;
 
-                    // Now determine packageStatus differently based on isAdditionalItems
+                    
                     let packageStatus;
 
                     if (!hasAdditionalItems) {
-                      // If isAdditionalItems is 0, only consider packItemStatus
+                      
                       packageStatus = newPackItemStatus;
                     } else {
-                      // If isAdditionalItems is 1, use the original logic
+                      
                       if (newPackItemStatus === 'Pending' && addItemStatus === 'Pending') {
                         packageStatus = 'Pending';
                       }
@@ -822,7 +822,7 @@ exports.updateIsPackedStatus = (packedItems) => {
                         packageStatus = 'Completed';
                       }
                       else {
-                        // Default case (should theoretically never happen if data is clean)
+                        
                         packageStatus = 'Pending';
                         console.warn(`Unexpected status combination: packItemStatus=${newPackItemStatus}, addItemStatus=${addItemStatus}`);
                       }
@@ -835,7 +835,7 @@ exports.updateIsPackedStatus = (packedItems) => {
                     });
                   }
 
-                  // Update orders table with both packItemStatus and packageStatus
+                  
                   const updateOrderSql = `
                     UPDATE orders 
                     SET packItemStatus = ?, packageStatus = ?
@@ -855,7 +855,7 @@ exports.updateIsPackedStatus = (packedItems) => {
                     });
                   }
 
-                  // Update all orders with both statuses
+                  
                   orderUpdates.forEach(({ orderId, packItemStatus, packageStatus }) => {
                     marketPlace.query(updateOrderSql, [packItemStatus, packageStatus, orderId], (err, result) => {
                       ordersCompleted++;
@@ -933,7 +933,7 @@ exports.updateCustomPackItems = (items) => {
       return resolve();
     }
 
-    // First, update all the items' isPacked status
+    
     const updates = items.map(item => {
       return new Promise((res, rej) => {
         const sql = `
@@ -952,10 +952,10 @@ exports.updateCustomPackItems = (items) => {
 
     Promise.all(updates)
       .then(() => {
-        // Get all item IDs
+        
         const itemIds = items.map(item => item.id);
 
-        // Fetch the orderIds for these items
+        
         const getOrderIdsSql = `
             SELECT id, orderId 
             FROM orderselecteditems 
@@ -972,14 +972,14 @@ exports.updateCustomPackItems = (items) => {
         });
       })
       .then(itemsWithOrderIds => {
-        // Extract the unique orderIds
+        
         const orderIds = [...new Set(itemsWithOrderIds.map(item => item.orderId))];
         console.log('Order IDs to process:', orderIds);
 
-        // For each affected order, check the packing status
+        
         const orderUpdates = orderIds.map(orderId => {
           return new Promise((res, rej) => {
-            // Query to count all items and packed items for this order
+            
             const countSql = `
                 SELECT 
                   COUNT(*) as totalItems,
@@ -998,18 +998,18 @@ exports.updateCustomPackItems = (items) => {
 
               console.log(`Order ${orderId}: Total items = ${totalItems}, Packed items = ${packedItems}`);
 
-              // Determine new packageStatus based on counts
+              
               let packageStatus = 'Pending';
 
               if (totalItems > 0) {
                 if (packedItems > 0) {
-                  // At least one item is packed
+                  
                   if (packedItems === totalItems) {
-                    // All items are packed
+                    
                     packageStatus = 'Completed';
                     console.log(`Order ${orderId}: Setting status to Completed`);
                   } else {
-                    // Some but not all items are packed
+                    
                     packageStatus = 'Opened';
                     console.log(`Order ${orderId}: Setting status to Opened`);
                   }
@@ -1020,7 +1020,7 @@ exports.updateCustomPackItems = (items) => {
                 console.log(`Order ${orderId}: No items found for this order`);
               }
 
-              // Update the order's packageStatus
+              
               const updateOrderSql = `
                   UPDATE orders
                   SET packageStatus = ?
@@ -1111,7 +1111,7 @@ exports.getOrderPackageId = (id) => {
 exports.updatePackItemsAdditional = (items) => {
   return new Promise((resolve, reject) => {
     if (!items || items.length === 0) {
-      return resolve(); // Nothing to update
+      return resolve(); 
     }
 
     const updates = items.map(item => {
@@ -1159,7 +1159,7 @@ exports.getAdditionalItemsStatus = (orderId) => {
   });
 };
 
-// New function to get packItemStatus
+
 exports.getPackItemStatus = (orderId) => {
   return new Promise((resolve, reject) => {
     const sql = `SELECT packItemStatus FROM orders WHERE id = ?`;
@@ -1174,13 +1174,13 @@ exports.getPackItemStatus = (orderId) => {
   });
 };
 
-// New function to update order statuses
+
 exports.updateOrderStatuses = (orderId, addItemStatus, packItemStatus) => {
   return new Promise((resolve, reject) => {
-    // Calculate packageStatus based on the rules provided
+    
     let packageStatus;
 
-    // Rule logic for packageStatus
+    
     if (addItemStatus === 'Completed' && packItemStatus === 'Completed') {
       packageStatus = 'Completed';
     } else if ((addItemStatus === 'Opened' || addItemStatus === 'Completed') &&
@@ -1211,184 +1211,184 @@ exports.updateOrderStatuses = (orderId, addItemStatus, packItemStatus) => {
 
 
 
-// exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, search) => {
-//   return new Promise((resolve, reject) => {
-//     const offset = (page - 1) * limit;
 
-//     let whereClause = ` 
-//     WHERE 
-//       o.orderApp = 'Marketplace' 
-//       AND op.packingStatus = 'Dispatch' 
-//       AND op.id IS NOT NULL
-//      `;
-//     const params = [];
-//     const countParams = [];
 
-//     if (packageStatus) {
-//       if (packageStatus === 'Pending') {
-//         whereClause += ` 
-//       AND (
-//         (pic.totalItems > 0 AND pic.packedItems = 0) 
-//         AND 
-//         (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = 0)
-//       )
-//     `;
-//       } else if (packageStatus === 'Completed') {
-//         whereClause += ` 
-//       AND (
-//         (pic.totalItems > 0 AND pic.packedItems = pic.totalItems) 
-//         OR 
-//         (COALESCE(aic.totalAdditionalItems, 0) > 0 AND COALESCE(aic.packedAdditionalItems, 0) = COALESCE(aic.totalAdditionalItems, 0))
-//       )
-//     `;
-//       } else if (packageStatus === 'Opened') {
-//         whereClause += ` 
-//       AND (
-//         (pic.packedItems > 0 AND pic.totalItems > pic.packedItems) 
-//         OR 
-//         (COALESCE(aic.packedAdditionalItems, 0) > 0 AND COALESCE(aic.totalAdditionalItems, 0) > COALESCE(aic.packedAdditionalItems, 0))
-//       )
-//     `;
-//       }
-//     }
 
-//     if (date) {
-//       whereClause += " AND DATE(o.sheduleDate) = ?";
-//       params.push(date);
-//       countParams.push(date);
-//     }
 
-//     if (search) {
-//       whereClause += ` AND (po.invNo LIKE ?)`;
-//       const searchPattern = `%${search}%`;
-//       params.push(searchPattern);
-//       countParams.push(searchPattern);
-//     }
 
-//     const countSql = `
-//     SELECT COUNT(DISTINCT po.id) as total
-//     FROM processorders po
-//     LEFT JOIN orders o ON po.orderId = o.id
-//     LEFT JOIN orderpackage op ON op.orderId = po.id 
-//     LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
-//     LEFT JOIN (
-//         SELECT 
-//             op.orderId,
-//             COUNT(*) AS totalItems,
-//             SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
-//         FROM orderpackageitems opi
-//         JOIN orderpackage op ON opi.orderPackageId = op.id
-//         GROUP BY op.orderId
-//     ) pic ON pic.orderId = po.id
-//     LEFT JOIN (
-//         SELECT 
-//             orderId,
-//             COUNT(*) AS totalAdditionalItems,
-//             SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
-//         FROM orderadditionalitems
-//         GROUP BY orderId
-//     ) aic ON aic.orderId = o.id
-//     ${whereClause}
-//     `;
 
-//     const dataSql = `
-//       WITH package_item_counts AS (
-//           SELECT 
-//               op.orderId,
-//               COUNT(*) AS totalItems,
-//               SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems,
-//               CASE
-//                   WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 AND COUNT(*) > 0 THEN 'Pending'
-//                   WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) > 0 
-//                        AND SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
-//                   WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
-//                   ELSE 'Unknown'
-//               END AS packageStatus
-//           FROM orderpackageitems opi
-//           JOIN orderpackage op ON opi.orderPackageId = op.id
-//           GROUP BY op.orderId
-//       ),
-//       additional_items_counts AS (
-//           SELECT 
-//               orderId,
-//               COUNT(*) AS totalAdditionalItems,
-//               SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
-//               CASE
-//                   WHEN COUNT(*) = 0 THEN 'Unknown'
-//                   WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
-//                   WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
-//                        AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
-//                   WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
-//                   ELSE 'Unknown'
-//               END AS additionalItemsStatus
-//           FROM orderadditionalitems
-//           GROUP BY orderId
-//       )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         
-//       SELECT 
-//           o.id,
-//           po.id AS processOrderId,
-//           po.invNo,
-//           o.sheduleDate,
-//           COUNT(DISTINCT op.id) AS packageCount,
-//           SUM(DISTINCT mpi.productPrice) AS packagePrice,
-//           COALESCE(pic.totalItems, 0) AS totPackageItems,
-//           COALESCE(pic.packedItems, 0) AS packPackageItems,
-//           COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
-//           COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
-//           pic.packageStatus,
-//           COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
-//           au.userName AS adminPackBy,
-//           CONCAT(cof.firstNameEnglish, ' ', cof.lastNameEnglish) AS packBy
-//       FROM processorders po
-//       LEFT JOIN orders o ON po.orderId = o.id
-//       LEFT JOIN orderpackage op ON op.orderId = po.id 
-//       LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
-//       LEFT JOIN package_item_counts pic ON pic.orderId = po.id
-//       LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
-//       LEFT JOIN agro_world_admin.adminusers au ON po.adminPackby = au.id
-//       LEFT JOIN collection_officer.collectionofficer cof ON po.packBy = cof.id
-//       ${whereClause}
-//       GROUP BY
-//           o.id,
-//           po.id,
-//           po.invNo,
-//           o.sheduleDate,
-//           pic.totalItems,
-//           pic.packedItems,
-//           pic.packageStatus,
-//           aic.totalAdditionalItems,
-//           aic.packedAdditionalItems,
-//           aic.additionalItemsStatus
-//       ORDER BY po.createdAt DESC
-//       LIMIT ? OFFSET ?
-//       `;
 
-//     params.push(parseInt(limit), parseInt(offset));
 
-//     console.log('Executing Count Query...');
-//     marketPlace.query(countSql, countParams, (countErr, countResults) => {
-//       if (countErr) {
-//         console.error("Error in count query:", countErr);
-//         return reject(countErr);
-//       }
 
-//       const total = countResults[0]?.total || 0;
 
-//       console.log('Executing Data Query...');
-//       marketPlace.query(dataSql, params, (dataErr, dataResults) => {
-//         if (dataErr) {
-//           console.error("Error in data query:", dataErr);
-//           return reject(dataErr);
-//         }
-//         resolve({
-//           items: dataResults,
-//           total,
-//         });
-//       });
-//     });
-//   });
-// };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, search) => {
   return new Promise((resolve, reject) => {
@@ -1410,7 +1410,7 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
     const dataParams = [];
     const countParams = [];
 
-    // Add filters for data query - use the actual logic instead of finalStatus column
+    
 
     if (packageStatus) {
       if (packageStatus === 'Pending') {
@@ -1446,15 +1446,15 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
     }
 
     
-    // if (packageStatus) {
-    //   if (packageStatus === 'Pending') {
-    //     dataWhereClause += ` AND (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending')`;
-    //   } else if (packageStatus === 'Completed') {
-    //     dataWhereClause += ` AND (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown'))`;
-    //   } else if (packageStatus === 'Opened') {
-    //     dataWhereClause += ` AND (NOT (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending') AND NOT (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown')))`;
-    //   }
-    // }
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     if (date) {
       dataWhereClause += " AND DATE(o.sheduleDate) = ?";
@@ -1466,7 +1466,7 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
       dataParams.push(`%${search}%`);
     }
 
-    // Add filters for count query
+    
 
     if (packageStatus) {
       if (packageStatus === 'Pending') {
@@ -1501,15 +1501,15 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
       }
     }
     
-    // if (packageStatus) {
-    //   if (packageStatus === 'Pending') {
-    //     countWhereClause += ` AND (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending')`;
-    //   } else if (packageStatus === 'Completed') {
-    //     countWhereClause += ` AND (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown'))`;
-    //   } else if (packageStatus === 'Opened') {
-    //     countWhereClause += ` AND (NOT (pfs.finalPackageStatus = 'Pending' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Pending') AND NOT (pfs.finalPackageStatus = 'Completed' AND (COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Completed' OR COALESCE(aic.additionalItemsStatus, 'Unknown') = 'Unknown')))`;
-    //   }
-    // }
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     if (date) {
       countWhereClause += " AND DATE(o.sheduleDate) = ?";
@@ -1703,7 +1703,7 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
       LIMIT ? OFFSET ?
       `;
 
-    // Add limit and offset to data params
+    
     dataParams.push(parseInt(limit), parseInt(offset));
 
     console.log('Executing Count Query...');
@@ -2070,7 +2070,7 @@ exports.getAllDispatchMarketplaceItems = (category, userId) => {
         return reject(err);
       }
 
-      // Structure the data
+      
       const items = results.map((row) => ({
         id: row.id,
         varietyId: row.varietyId,
@@ -2230,7 +2230,7 @@ exports.trackPackagePackDao = (userId, orderId, delivaryMethod) => {
 
 exports.createdashNotificationDao = (id) => {
   return new Promise((resolve, reject) => {
-    // First, select the orderApp value
+    
     const selectSql = `
       SELECT o1.orderApp, o1.delivaryMethod
       FROM processorders po1
@@ -2245,9 +2245,9 @@ exports.createdashNotificationDao = (id) => {
         return;
       }
 
-      // Check if we got results and if orderApp is 'Dash'
+      
       if (results.length > 0 && results[0].orderApp === 'Dash') {
-        // Execute INSERT only if condition is met
+        
         const insertSql = `
           INSERT INTO dashnotification (orderId, title)
           VALUES (?, 'Order is Out for Delivery')
@@ -2262,7 +2262,7 @@ exports.createdashNotificationDao = (id) => {
           }
         });
       } else {
-        // Resolve with empty result or appropriate message when condition not met
+        
         resolve({ message: 'No notification created - orderApp is not Dash', delivaryMethod: results[0].delivaryMethod });
       }
     });
@@ -2272,7 +2272,7 @@ exports.createdashNotificationDao = (id) => {
 
 exports.distributedOfficerTargetUpdateDao = (id) => {
   return new Promise((resolve, reject) => {
-    // First, select the orderApp value
+    
     const selectSql = `
       SELECT 
         dti.id AS itemId,
@@ -2320,7 +2320,7 @@ exports.distributedOfficerTargetUpdateDao = (id) => {
           }
         );
       } else {
-        // Resolve with empty result or appropriate message when condition not met
+        
         resolve({ message: 'No Target Available for update' });
       }
     });
