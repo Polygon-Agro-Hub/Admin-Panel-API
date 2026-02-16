@@ -21,7 +21,6 @@ exports.getAllFeatures = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-      // Validation error
       return res.status(400).json({ error: err.details[0].message });
     }
     console.error("Error executing query:", err);
@@ -42,7 +41,6 @@ exports.getAllRoleFeatures = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-      // Validation error
       return res.status(400).json({ error: err.details[0].message });
     }
     console.error("Error executing query:", err);
@@ -71,7 +69,6 @@ exports.createRoleFeature = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-      // Validation error
       return res.status(400).json({ error: err.details[0].message });
     }
 
@@ -114,12 +111,10 @@ exports.createAdminRole = async (req, res) => {
     console.log("Request URL:", fullUrl);
     console.log(req.body);
 
-    const { role, email } = req.body; // Extract role and email from the request body
+    const { role, email } = req.body;
 
-    // Call the DAO function to create a new admin role
     const adminRoleId = await PermissionsDao.createAdminRole(role, email);
 
-    // Return success response
     return res.status(201).json({
       message: "Admin role created successfully",
       id: adminRoleId,
@@ -127,11 +122,9 @@ exports.createAdminRole = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-      // Handle validation errors (if using Joi or similar validation library)
       return res.status(400).json({ error: err.details[0].message });
     }
 
-    // Handle other errors
     console.error("Error executing query:", err);
     return res.status(500).json({
       error: "An error occurred while creating the admin role",
@@ -249,7 +242,6 @@ exports.editFeatureName = async (req, res) => {
 
   } catch (err) {
     if (err.isJoi) {
-      // Validation error
       return res.status(400).json({ error: err.details[0].message });
     }
     console.error("Error executing query:", err);
@@ -278,7 +270,6 @@ exports.editCategoryName = async (req, res) => {
 
   } catch (err) {
     if (err.isJoi) {
-      // Validation error
       return res.status(400).json({ error: err.details[0].message });
     }
     console.error("Error executing query:", err);
