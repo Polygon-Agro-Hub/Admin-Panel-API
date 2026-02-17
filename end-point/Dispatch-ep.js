@@ -34,8 +34,6 @@ exports.getPreMadePackages = async (req, res) => {
       search
     );
 
-    // Add combinedStatus to each item in the response
-
     const finalResponse = {
       items: reportData.items,
       total: reportData.total
@@ -52,13 +50,13 @@ exports.getPreMadePackages = async (req, res) => {
 
 exports.getSelectedPackages = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  // console.log(fullUrl);
+
   try {
 
     const validatedQuery = await DispatchVali.getPreMadePackages.validateAsync(req.query);
     const { page, limit, selectedStatus, date, search } = validatedQuery;
 
-    // console.log({ selectedStatus, date, search })
+
 
     const reportData = await DispatchDao.getSelectedPackages(
       page,
@@ -67,7 +65,6 @@ exports.getSelectedPackages = async (req, res) => {
       date,
       search
     );
-    // console.log(reportData);
     res.json(reportData);
   } catch (err) {
     console.error("Error fetching daily report:", err);
@@ -239,12 +236,10 @@ exports.getCustomOrderDetailsById = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log(fullUrl);
 
-    // Validate the ID parameter
     const { id } = await DispatchVali.idValidate.validateAsync(
       req.params
     );
 
-    // Call the DAO to get the news item by ID
     const items = await DispatchDao.getCustomOrderDetailsById(id);
 
     if (items.length === 0) {
@@ -255,7 +250,6 @@ exports.getCustomOrderDetailsById = async (req, res) => {
     return res.status(200).json(items);
   } catch (err) {
     if (err.isJoi) {
-      // Validation error
       return res.status(400).json({ error: err.details[0].message });
     }
 
@@ -345,12 +339,10 @@ exports.getPackageOrderDetailsById = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log(fullUrl);
 
-    // Validate the ID parameter
     const { id } = await DispatchVali.idValidate.validateAsync(
       req.params
     );
 
-    // Call the DAO to get the news item by ID
     const items = await DispatchDao.getPackageOrderDetailsById(id);
 
     if (items.length === 0) {
@@ -361,7 +353,6 @@ exports.getPackageOrderDetailsById = async (req, res) => {
     return res.status(200).json(items);
   } catch (err) {
     if (err.isJoi) {
-      // Validation error
       return res.status(400).json({ error: err.details[0].message });
     }
 
@@ -384,17 +375,13 @@ exports.updatePackAdditionItems = async (req, res) => {
       return res.status(400).json({ message: 'Invalid request format.' });
     }
 
-    // Update the items first
     await DispatchDao.updatePackItemsAdditional(updatedItems);
     console.log('Items updated successfully');
 
-    // Get the orderPackageItemsId from the first item
     if (updatedItems.length > 0) {
-      // We need to determine which ID to use
       const itemId = updatedItems[0].id;
       console.log('Processing item ID:', itemId);
 
-      // Get associated order ID
       const orderResult = await DispatchDao.getOrderPackageId(itemId);
       console.log('Order result:', orderResult);
 
@@ -402,29 +389,25 @@ exports.updatePackAdditionItems = async (req, res) => {
         const orderId = orderResult[0].orderId;
         console.log('Found order ID:', orderId);
 
-        // Get status of additional items for this order
         const additionalItemsStatus = await DispatchDao.getAdditionalItemsStatus(orderId);
         console.log('Additional items status:', additionalItemsStatus);
 
         const totalItems = additionalItemsStatus.totalItems || 0;
         const packedItems = additionalItemsStatus.packedItems || 0;
 
-        // Determine addItemStatus based on packed items
         let addItemStatus;
         if (packedItems === 0) {
-          addItemStatus = 'Pending';  // No items packed
+          addItemStatus = 'Pending';  
         } else if (packedItems < totalItems) {
-          addItemStatus = 'Opened';   // Some items packed
+          addItemStatus = 'Opened';   
         } else {
-          addItemStatus = 'Completed'; // All items packed
+          addItemStatus = 'Completed';
         }
         console.log('Calculated addItemStatus:', addItemStatus);
 
-        // Get current packItemStatus
         const packItemStatus = await DispatchDao.getPackItemStatus(orderId);
         console.log('Current packItemStatus:', packItemStatus);
 
-        // Update the order statuses
         const updateResult = await DispatchDao.updateOrderStatuses(orderId, addItemStatus, packItemStatus);
         console.log('Update result:', updateResult);
       } else {
@@ -460,7 +443,6 @@ exports.getMarketPlacePremadePackages = async (req, res) => {
 
     console.log('items', packageData)
 
-    // Add combinedStatus to each item in the response
 
     const finalResponse = {
       items: packageData.items,
@@ -485,7 +467,6 @@ exports.getMarketPlacePremadePackagesItems = async (req, res) => {
     const packageData = await DispatchDao.getMarketPlacePremadePackagesItemsDao(id);
     const additionalData = await DispatchDao.getMarketPlacePremadePackagesAdditionalItemsDao(id);
 
-    // Add combinedStatus to each item in the response
 
 
 
@@ -514,7 +495,6 @@ exports.getMarketPlaceCustomePackages = async (req, res) => {
       search
     );
 
-    // Add combinedStatus to each item in the response
 
     const finalResponse = {
       items: packageData.items,
@@ -572,10 +552,6 @@ exports.dispatchPackage = async (req, res) => {
     console.log("All pack:", allPacked);
 
 
-    // if (true) {
-    //   return
-    // }
-
     for (let i = 0; i < packageArr.length; i++) {
       const packageData = await DispatchDao.dispatchPackageDao(packageArr[i]);
       if (packageData.affectedRows === 0) {
@@ -627,11 +603,6 @@ exports.getAdditionalItemsForDispatch = async (req, res) => {
     const packageData = await DispatchDao.getAdditionalItemsForDispatchDao(order.orderId);
     console.log(packageData);
 
-    // const btype = await DispatchDao.getDispatchOrderTypeDao(orderId);
-    // const marketplaceItems = await DispatchDao.getAllDispatchMarketplaceItems(
-    //   btype.buyerType,
-    //   btype.userId
-    // );
 
 
     res.json({
@@ -699,7 +670,6 @@ exports.replaceDispatchPackageItems = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    // const { id } = await DispatchVali.idValidate.validateAsync(req.params);
     const oldItem = req.body.oldItem;
     const newItem = req.body.newItem;
     console.log(req.body);

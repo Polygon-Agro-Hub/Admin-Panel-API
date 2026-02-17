@@ -20,10 +20,10 @@ exports.getAllFeatures = () => {
 
     admin.query(sql, (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err); 
       }
 
-      resolve(results); // No need to wrap in arrays, return results directly
+      resolve(results); 
     });
   });
 };
@@ -34,10 +34,10 @@ exports.getAllRoleFeatures = (roleId) => {
 
     admin.query(sql, roleId, (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err); 
       }
 
-      resolve(results); // No need to wrap in arrays, return results directly
+      resolve(results); 
     });
   });
 };
@@ -110,7 +110,7 @@ exports.createAdminRole = async (role, email) => {
       if (err) {
         reject(err);
       } else {
-        resolve(results.insertId); // Return the ID of the newly inserted row
+        resolve(results.insertId); 
       }
     });
   });
@@ -126,10 +126,10 @@ exports.getAllFeatureCategories = () => {
 
     admin.query(sql, (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err); 
       }
 
-      resolve(results); // No need to wrap in arrays, return results directly
+      resolve(results); 
     });
   });
 };
@@ -145,10 +145,10 @@ exports.editFeatureName = (data) => {
 
     admin.query(sql, [data.name, data.id], (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err); 
       }
 
-      resolve(results); // No need to wrap in arrays, return results directly
+      resolve(results); 
     });
   });
 };
@@ -164,10 +164,10 @@ exports.editCategoryName = (data) => {
 
     admin.query(sql, [data.name, data.id], (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err); 
       }
 
-      resolve(results); // No need to wrap in arrays, return results directly
+      resolve(results); 
     });
   });
 };
