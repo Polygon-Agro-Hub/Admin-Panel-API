@@ -143,8 +143,6 @@ exports.getAllPackagePayments = async (req, res) => {
       return res.status(400).json({ error: "Limit must be between 1 and 100" });
     }
 
-    console.log("Query params:", { page, limit, search, fromDate, toDate });
-
     // Call the DAO to get all package payments
     const result = await financeDao.getAllPackagePayments(
       page,
@@ -404,8 +402,6 @@ exports.getAllServicePayments = async (req, res) => {
       return res.status(400).json({ error: "Limit must be between 1 and 100" });
     }
 
-    console.log("Query params:", { page, limit, search, fromDate, toDate });
-
     // Call the DAO to get all service payments
     const result = await financeDao.getAllServicePayments(
       page,
@@ -446,7 +442,6 @@ exports.getAllCertificatePayments = async (req, res) => {
       return res.status(400).json({ error: "Limit must be between 1 and 100" });
     }
 
-    console.log("Query params:", { page, limit, search, fromDate, toDate });
 
     // Call the DAO to get all certificate payments
     const result = await financeDao.getAllCertificatePayments(
@@ -778,12 +773,6 @@ exports.createPaymentHistory = async (req, res) => {
     const { receivers, amount, paymentReference } = validatedBody;
     const issueBy = req.user.userId;
 
-    console.log("Creating payment history:", {
-      receivers,
-      amount,
-      paymentReference,
-    });
-
     // File validation
     if (!req.file) {
       return res.status(400).json({
@@ -860,8 +849,6 @@ exports.updatePaymentHistory = async (req, res) => {
     const { receivers, amount, paymentReference } = validatedBody;
     const modifyBy = req.user.userId; // From JWT token
 
-    console.log("Updating payment history:", id);
-
     // Get existing record
     const existingRecord = await financeDao.GetPaymentHistoryByIdDAO(id);
 
@@ -892,7 +879,6 @@ exports.updatePaymentHistory = async (req, res) => {
       if (existingRecord.xlLink) {
         try {
           await deleteFromS3(existingRecord.xlLink);
-          console.log("Old file deleted from R2");
         } catch (deleteError) {
           console.error("Error deleting old file:", deleteError);
           // Continue even if deletion fails
@@ -906,7 +892,6 @@ exports.updatePaymentHistory = async (req, res) => {
         "payment-history"
       );
 
-      console.log("New file uploaded to R2:", xlLink);
     }
 
     // Update database
@@ -949,8 +934,6 @@ exports.updatePaymentHistory = async (req, res) => {
 exports.getPaymentHistoryById = async (req, res) => {
   try {
     const { id } = req.params;
-
-    console.log("Fetching payment history by ID:", id);
 
     const result = await financeDao.GetPaymentHistoryByIdDAO(id);
 
@@ -1452,12 +1435,6 @@ exports.ApproveInvestmentRequestEp = async (req, res) => {
         message: "Action failed"
       });
     }
-    // return res.status(200).json({
-    //       success: true,
-    //       message: "Action completed successfully.",
-    //       data: result
-    //     });
-
   } catch (error) {
     if (error.isJoi) {
       // Handle validation error
@@ -1499,11 +1476,6 @@ exports.RejectInvestmentRequestEp = async (req, res) => {
         message: "Action failed"
       });
     }
-    // return res.status(200).json({
-    //       success: true,
-    //       message: "Action completed successfully.",
-    //       data: result
-    //     });
 
   } catch (error) {
     if (error.isJoi) {
@@ -1548,9 +1520,6 @@ exports.getInspectionDerailsEp = async (req, res) => {
         }
         : null
     };
-
-    // console.log({ page, limit });
-    // console.log('result', result);
 
     res.status(200).json({
       success: true,
@@ -1829,7 +1798,7 @@ exports.getAllPensionRequests = async (req, res) => {
 exports.getPensionRequestById = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     console.log('Fetching pension request by ID:', id);
 
     const result = await financeDao.GetPensionRequestByIdDAO(id);
