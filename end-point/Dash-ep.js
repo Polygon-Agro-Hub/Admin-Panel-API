@@ -170,7 +170,7 @@ exports.getForCreateId = async (req, res) => {
 //         const base64String = req.body.file.split(",")[1];
 //         const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
 //         const fileBuffer = Buffer.from(base64String, "base64");
-        
+
 //         const fileExtension = mimeType.split("/")[1];
 //         const fileName = `${officerData.firstName || 'user'}_${officerData.lastName || 'image'}.${fileExtension}`;
 
@@ -260,7 +260,7 @@ exports.createSalesAgent = async (req, res) => {
         const base64String = req.body.file.split(",")[1];
         const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
         const fileBuffer = Buffer.from(base64String, "base64");
-        
+
         const fileExtension = mimeType.split("/")[1];
         const fileName = `${officerData.firstName || 'user'}_${officerData.lastName || 'image'}.${fileExtension}`;
 
@@ -342,28 +342,28 @@ exports.updateSalesAgentDetails = async (req, res) => {
 
   let validationErrors = [];
 
-    // Check duplicates
-    const isExistingNIC = await DashDao.checkNICExistSaEdit(officerData.nic, id);
-    if (isExistingNIC) validationErrors.push('NIC');
+  // Check duplicates
+  const isExistingNIC = await DashDao.checkNICExistSaEdit(officerData.nic, id);
+  if (isExistingNIC) validationErrors.push('NIC');
 
-    const isExistingEmail = await DashDao.checkEmailExistSaEdit(officerData.email, id);
-    if (isExistingEmail) validationErrors.push('Email');
+  const isExistingEmail = await DashDao.checkEmailExistSaEdit(officerData.email, id);
+  if (isExistingEmail) validationErrors.push('Email');
 
-    const isExistingPhoneNumber01 = await DashDao.checkPhoneExistSaEdit(officerData.phoneNumber1, id);
-    if (isExistingPhoneNumber01) validationErrors.push('PhoneNumber01');
+  const isExistingPhoneNumber01 = await DashDao.checkPhoneExistSaEdit(officerData.phoneNumber1, id);
+  if (isExistingPhoneNumber01) validationErrors.push('PhoneNumber01');
 
-    if (officerData.phoneNumber02) {
-      const isExistingPhoneNumber02 = await DashDao.checkPhoneExistSaEdit(officerData.phoneNumber2, id);
-      if (isExistingPhoneNumber02) validationErrors.push('PhoneNumber02');
-    }
+  if (officerData.phoneNumber02) {
+    const isExistingPhoneNumber02 = await DashDao.checkPhoneExistSaEdit(officerData.phoneNumber2, id);
+    if (isExistingPhoneNumber02) validationErrors.push('PhoneNumber02');
+  }
 
-    // If any validation errors, send all at once
-    if (validationErrors.length > 0) {
-      return res.status(400).json({
-        errors: validationErrors,
-        status: false
-      });
-    }
+  // If any validation errors, send all at once
+  if (validationErrors.length > 0) {
+    return res.status(400).json({
+      errors: validationErrors,
+      status: false
+    });
+  }
 
 
   // let qrImageUrl;
@@ -479,19 +479,7 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
 
     // Update status and password in the database
-    const updateResult =
-      await DashDao.UpdateSalesAgentStatusAndPasswordDao({
-        id,
-        status,
-        password: hashedPassword,
-      });
 
-    if (updateResult.affectedRows === 0) {
-      return res.status(400).json({
-        message: "Failed to update status and password.",
-        status: false,
-      });
-    }
 
     // If status is 'Approved', send the password email
     if (status === "Approved") {
@@ -510,7 +498,21 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
       }
 
       const newTarget = await DashDao.createSalesTarget(id);
-      
+
+    }
+
+    const updateResult =
+      await DashDao.UpdateSalesAgentStatusAndPasswordDao({
+        id,
+        status,
+        password: hashedPassword,
+      });
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(400).json({
+        message: "Failed to update status and password.",
+        status: false,
+      });
     }
 
     // Return success response with empId and email

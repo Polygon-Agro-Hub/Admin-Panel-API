@@ -145,20 +145,7 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
     const generatedPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
 
-    // Update status and password
-    const updateResult =
-      await StakeholderDao.UpdateFieldOfficerStatusAndPasswordDao({
-        id,
-        status,
-        password: hashedPassword,
-      });
 
-    if (updateResult.affectedRows === 0) {
-      return res.status(400).json({
-        message: "Failed to update status and password.",
-        status: false,
-      });
-    }
 
     // Send password email if approved
     if (status === "Approved") {
@@ -175,6 +162,21 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
           error: emailResult.error,
         });
       }
+    }
+
+    // Update status and password
+    const updateResult =
+      await StakeholderDao.UpdateFieldOfficerStatusAndPasswordDao({
+        id,
+        status,
+        password: hashedPassword,
+      });
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(400).json({
+        message: "Failed to update status and password.",
+        status: false,
+      });
     }
 
     res.status(200).json({

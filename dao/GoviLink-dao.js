@@ -160,7 +160,8 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
         END AS assignStatus,
         jao.id AS assignmentId,
         CONCAT(fo.firstName, ' ', fo.lastName) AS assignedOfficerName,
-        fo.empId AS officerEmpId
+        fo.empId AS officerEmpId,
+        fo.jobRole AS assignedOfficerRole
       FROM 
         govilinkjobs gj
       LEFT JOIN users u ON gj.farmerId = u.id
