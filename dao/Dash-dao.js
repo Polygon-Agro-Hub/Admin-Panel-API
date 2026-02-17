@@ -15,88 +15,6 @@ const { resolve } = require("path");
 
 const Joi = require("joi");
 
-// const getHouseDetails = () => `
-//     CASE
-//         WHEN c.buildingType = 'House' THEN h.houseNo
-//         ELSE NULL
-//     END AS houseHouseNo,
-//     CASE
-//         WHEN c.buildingType = 'House' THEN h.streetName
-//         ELSE NULL
-//     END AS houseStreetName,
-//     CASE
-//         WHEN c.buildingType = 'House' THEN h.city
-//         ELSE NULL
-//     END AS houseCity
-// `;
-
-// // Function to get apartment details if the customer lives in an apartment
-// const getApartmentDetails = () => `
-//     CASE
-//         WHEN c.buildingType = 'Apartment' THEN a.buildingNo
-//         ELSE NULL
-//     END AS apartmentBuildingNo,
-//     CASE
-//         WHEN c.buildingType = 'Apartment' THEN a.buildingName
-//         ELSE NULL
-//     END AS apartmentBuildingName,
-//     CASE
-//         WHEN c.buildingType = 'Apartment' THEN a.unitNo
-//         ELSE NULL
-//     END AS apartmentUnitNo,
-//     CASE
-//         WHEN c.buildingType = 'Apartment' THEN a.floorNo
-//         ELSE NULL
-//     END AS apartmentFloorNo,
-//     CASE
-//         WHEN c.buildingType = 'Apartment' THEN a.houseNo
-//         ELSE NULL
-//     END AS apartmentHouseNo,
-//     CASE
-//         WHEN c.buildingType = 'Apartment' THEN a.streetName
-//         ELSE NULL
-//     END AS apartmentStreetName,
-//     CASE
-//         WHEN c.buildingType = 'Apartment' THEN a.city
-//         ELSE NULL
-//     END AS apartmentCity
-// `;
-
-// // Function to construct the SQL query
-// const getAllCustomersQuery = () => `
-//     SELECT
-//         c.id,
-//         c.cusId,
-//         c.title,
-//         c.firstName,
-//         c.lastName,
-//         c.phoneNumber,
-//         c.email,
-//         c.buildingType,
-//         s.empId AS salesAgentEmpId,
-//         s.firstName AS salesAgentFirstName,
-//         s.lastName AS salesAgentLastName,
-//         c.created_at,
-//         ${getHouseDetails()},
-//         ${getApartmentDetails()}
-//     FROM customer c
-//     LEFT JOIN salesagent s ON c.salesAgent = s.id
-//     LEFT JOIN house h ON c.id = h.customerId AND c.buildingType = 'House'
-//     LEFT JOIN apartment a ON c.id = a.customerId AND c.buildingType = 'Apartment'
-//     ORDER BY c.created_at DESC
-// `;
-
-// // Function to execute the query and fetch customer data
-// const getAllCustomers = () => {
-//     return new Promise((resolve, reject) => {
-//         marketPlace.query(getAllCustomersQuery(), (err, results) => {
-//             if (err) {
-//                 return reject(err);
-//             }
-//             resolve(results);
-//         });
-//     });
-// };
 
 const getAllSalesAgents = (page, limit, searchText, status) => {
   return new Promise((resolve, reject) => {
@@ -227,7 +145,6 @@ const getForCreateId = (role) => {
         const incrementedValue = numericPart + 1;
 
         results[0].empId = incrementedValue.toString().padStart(5, "0");
-        console.log(results[0].empId);
       }
 
       resolve(results);
@@ -498,7 +415,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     // Create a buffer to hold the PDF in memory
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    doc.on("end", () => {});
+    doc.on("end", () => { });
 
     const watermarkPath = "./assets/bg.png";
     doc.opacity(0.2).image(watermarkPath, 100, 300, { width: 400 }).opacity(1);
@@ -619,8 +536,6 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent:", info.response);
-
     return { success: true, message: "Email sent successfully!" };
   } catch (error) {
     console.error("Error sending email:", error);
@@ -794,8 +709,6 @@ const getAllOrders = (
     }
 
     if (orderStatus) {
-      console.log("Order Status:", orderStatus);
-
       whereConditions.push(`po.status = ?`);
       params.push(orderStatus);
     }
@@ -822,11 +735,9 @@ const getAllOrders = (
 
     if (date) {
       whereConditions.push(`DATE(o.sheduleDate) = DATE(?)`);
-      console.log(date);
       let formattedDate = "";
       const d = new Date(date);
       formattedDate = d.toISOString().split("T")[0];
-      console.log(formattedDate);
       params.push(formattedDate);
     }
 
@@ -838,7 +749,6 @@ const getAllOrders = (
     }
 
     dataSql += " ORDER BY po.createdAt DESC LIMIT ? OFFSET ?";
-    console.log(dataSql);
 
     // Execute count query first
     marketPlace.query(countSql, params, (countErr, countResults) => {
@@ -932,8 +842,6 @@ const GetAllSalesAgentComplainDAO = (
     }
 
     if (replyStatus) {
-      console.log(replyStatus);
-
       if (replyStatus === "No") {
         countSql += " AND dc.reply IS NULL ";
         sql += " AND dc.reply IS NULL ";
@@ -991,8 +899,6 @@ const GetAllSalesAgentComplainDAO = (
           console.log(dataErr);
           return reject(dataErr);
         }
-        console.log(results);
-
         resolve({ results, total });
       });
     });
@@ -1049,7 +955,6 @@ const sendComplainReply = (complainId, reply, adminId) => {
         return reject(new Error(`No record found with id: ${complainId}`));
       }
 
-      console.log("Update successful:", results);
       resolve({
         message: "Reply sent successfully",
         affectedRows: results.affectedRows,
@@ -1127,8 +1032,6 @@ const getUserOrdersDao = async (userId, status) => {
       WHERE O.userId = ? 
     `;
 
-    console.log(status, "-------");
-
     if (status === "Assigned") {
       sql += " AND P.status = 'Ordered'";
     } else if (status === "Processing") {
@@ -1137,7 +1040,7 @@ const getUserOrdersDao = async (userId, status) => {
       sql += " AND P.status = 'Out For Delivery'";
     } else if (status === "Ready to Pickup") {
       sql += " AND P.status = 'Ready to Pickup'";
-    } else if (status === "Picked up") { 
+    } else if (status === "Picked up") {
       sql += " AND P.status = 'Picked up'";
     } else if (status === "Collected") {
       sql += " AND P.status = 'Collected'";
@@ -1161,7 +1064,6 @@ const getUserOrdersDao = async (userId, status) => {
         reject(err);
       } else {
         resolve(results);
-        console.log("``````````result``````````", results);
       }
     });
   });

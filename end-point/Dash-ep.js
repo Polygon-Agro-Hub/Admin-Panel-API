@@ -1,13 +1,6 @@
 const DashDao = require("../dao/Dash-dao");
 const ValidateSchema = require("../validations/SalesAgentDash-validation");
-
-const fs = require("fs");
-const xlsx = require("xlsx");
-const collectionofficerDao = require("../dao/CollectionOfficer-dao");
-
 const bcrypt = require("bcryptjs");
-
-const { v4: uuidv4 } = require("uuid");
 const uploadFileToS3 = require("../middlewares/s3upload");
 const deleteFromS3 = require("../middlewares/s3delete");
 
@@ -18,7 +11,6 @@ exports.getAllCustomers = async (req, res) => {
 
     const { page, limit, searchText } = await ValidateSchema.getAllSalesAgentsSchema.validateAsync(req.query);
     console.log(page, limit, searchText);
-
 
     const { items, total } = await DashDao.getAllSalesCustomers(page, limit, searchText);
 
@@ -116,7 +108,6 @@ exports.getForCreateId = async (req, res) => {
     // );
 
     const role = 'SA';
-
     const results = await DashDao.getForCreateId(role);
 
     if (results.length === 0) {
@@ -133,87 +124,6 @@ exports.getForCreateId = async (req, res) => {
   }
 };
 
-// exports.createSalesAgent = async (req, res) => {
-//   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-//   console.log(fullUrl);
-
-//   try {
-//     const officerData = JSON.parse(req.body.officerData);
-//     console.log(officerData);
-
-//     // Check if phone numbers, NIC, or email already exist
-//     const isExistingPhone1 = await DashDao.checkPhoneExist(officerData.phoneNumber1);
-//     if (isExistingPhone1) {
-//       return res.status(400).json({ error: "Mobile number 01 already exists" });
-//     }
-
-//     const isExistingPhone2 = await DashDao.checkPhoneExist(officerData.phoneNumber2);
-//     if (isExistingPhone2) {
-//       return res.status(400).json({ error: "Mobile number 02 already exists" });
-//     }
-
-//     const isExistingNIC = await DashDao.checkNICExist(officerData.nic);
-//     if (isExistingNIC) {
-//       return res.status(400).json({ error: "NIC already exists" });
-//     }
-
-//     const isExistingEmail = await DashDao.checkEmailExist(officerData.email);
-//     if (isExistingEmail) {
-//       return res.status(400).json({ error: "Email already exists" });
-//     }
-
-//     let profileImageUrl = null;
-
-//     // Handle Base64 Image Upload (if provided)
-//     if (req.body.file) {
-//       try {
-//         const base64String = req.body.file.split(",")[1];
-//         const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
-//         const fileBuffer = Buffer.from(base64String, "base64");
-
-//         const fileExtension = mimeType.split("/")[1];
-//         const fileName = `${officerData.firstName || 'user'}_${officerData.lastName || 'image'}.${fileExtension}`;
-
-//         console.log('Uploading to S3...');
-//         profileImageUrl = await uploadFileToS3(
-//           fileBuffer,
-//           fileName,
-//           "salesagent/image"
-//         );
-//       } catch (err) {
-//         console.error("Error processing image file:", err);
-//         return res.status(400).json({ error: "Invalid file format or file upload error" });
-//       }
-//     }
-
-//     // Generate a new Sales Agent ID
-//     const newSalseAgentId = await DashDao.genarateNewSalesAgentIdDao();
-//     console.log("New Sales Agent ID:", newSalseAgentId);
-
-//     // Save sales agent data
-//     const resultsPersonal = await DashDao.createSalesAgent(
-//       officerData,
-//       profileImageUrl,
-//       newSalseAgentId
-//     );
-
-//     console.log("Sales Agent created successfully");
-//     return res.status(201).json({
-//       message: "Sales Agent created successfully",
-//       id: resultsPersonal.insertId,
-//       status: false,
-//     });
-//   } catch (error) {
-//     if (error.isJoi) {
-//       return res.status(400).json({ error: error.details[0].message });
-//     }
-
-//     console.error("Error creating Sales Agent:", error);
-//     return res.status(500).json({
-//       error: "An error occurred while creating the Sales Agent",
-//     });
-//   }
-// };
 
 exports.createSalesAgent = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -315,9 +225,6 @@ exports.getSalesAgentDataById = async (req, res) => {
       return res.status(404).json({ error: "Collection Officer not found" });
     }
 
-    console.log(
-      "Successfully fetched collection officer, company, and bank details"
-    );
     res.json({ officerData });
   } catch (err) {
     if (err.isJoi) {
@@ -471,8 +378,6 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
 
     // Destructure email, firstNameEnglish, and empId from fetched data
     const { email, firstName, empId } = officerData;
-    console.log(`Email: ${email}, Name: ${firstName}, Emp ID: ${empId}`);
-
     // Generate a new random password
     const generatedPassword = Math.random().toString(36).slice(-8); // Example: 8-character random password
 
