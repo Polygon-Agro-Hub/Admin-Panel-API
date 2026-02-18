@@ -477,20 +477,7 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
 
-    // Update status and password in the database
-    const updateResult =
-      await collectionofficerDao.UpdateCollectionOfficerStatusAndPasswordDao({
-        id,
-        status,
-        password: hashedPassword,
-      });
-
-    if (updateResult.affectedRows === 0) {
-      return res.status(400).json({
-        message: "Failed to update status and password.",
-        status: false,
-      });
-    }
+    
 
     // If status is 'Approved', send the password email
     if (status === "Approved") {
@@ -507,6 +494,21 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
           error: emailResult.error,
         });
       }
+    }
+
+    // Update status and password in the database
+    const updateResult =
+      await collectionofficerDao.UpdateCollectionOfficerStatusAndPasswordDao({
+        id,
+        status,
+        password: hashedPassword,
+      });
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(400).json({
+        message: "Failed to update status and password.",
+        status: false,
+      });
     }
 
     // Return success response with empId and email

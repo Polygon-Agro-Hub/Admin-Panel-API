@@ -12,9 +12,6 @@ const Joi = require("joi");
 exports.getAllDashboardData = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Get dashboard statistics
-      // Pro users: membership = 'Pro' AND expireDate > current date
-      // Free users: membership = 'Basic' OR (membership = 'Pro' AND expireDate <= current date)
       const statsQuery = `
         SELECT 
           COUNT(DISTINCT u.id) as totalUsers,
@@ -356,92 +353,6 @@ exports.getAllGovijobDashboardData = () => {
   });
 };
 
-// Function for govi job dashboard data
-// exports.getAllGovijobDashboardData = () => {
-//   return new Promise(async (resolve, reject) => {
-//     try {
-//       // ===== 1️ Basic stats =====
-//       const statsQuery = `
-//         SELECT 
-//           COUNT(CASE WHEN MONTH(gj.sheduleDate) = MONTH(CURRENT_DATE()) 
-//             AND YEAR(gj.sheduleDate) = YEAR(CURRENT_DATE()) THEN 1 END) AS requestsThisMonth,
-//           COUNT(CASE WHEN DATE(gj.sheduleDate) = CURDATE() THEN 1 END) AS requestsToday
-//         FROM govilinkjobs gj
-//       `;
-
-//       // ===== 2️ Income (current and previous month) =====
-//       const incomeQuery = `
-//         SELECT 
-//           COALESCE(SUM(CASE 
-//             WHEN MONTH(gjp.createdAt) = MONTH(CURRENT_DATE()) 
-//               AND YEAR(gjp.createdAt) = YEAR(CURRENT_DATE())
-//             THEN gjp.amount ELSE 0 END), 0) AS currentMonthIncome,
-//           COALESCE(SUM(CASE 
-//             WHEN MONTH(gjp.createdAt) = MONTH(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)) 
-//               AND YEAR(gjp.createdAt) = YEAR(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
-//             THEN gjp.amount ELSE 0 END), 0) AS previousMonthIncome
-//         FROM govijobpayment gjp
-//       `;
-
-//       // ===== 3️ Recent 6 service payments =====
-//       const recentPaymentsQuery = `
-//         SELECT 
-//           gjp.transactionId,
-//           CONCAT(u.firstName, ' ', u.lastName) AS farmerName,
-//           os.englishName AS serviceName,
-//           FORMAT(gjp.amount, 2) AS amount,
-//           DATE_FORMAT(gjp.createdAt, '%Y-%m-%d %H:%i') AS dateTime
-//         FROM govijobpayment gjp
-//         INNER JOIN govilinkjobs gj ON gj.id = gjp.jobId
-//         INNER JOIN users u ON gj.farmerId = u.id
-//         INNER JOIN officerservices os ON gj.serviceId = os.id
-//         ORDER BY gjp.createdAt DESC
-//         LIMIT 6
-//       `;
-
-//       // ===== 4️ Monthly statistics (for last 6 months) =====
-//       const monthlyStatsQuery = `
-//         SELECT 
-//           DATE_FORMAT(gjp.createdAt, '%Y-%m') AS month,
-//           DATE_FORMAT(gjp.createdAt, '%b') AS monthName,
-//           COUNT(gjp.id) AS payments,
-//           SUM(gjp.amount) AS revenue
-//         FROM govijobpayment gjp
-//         WHERE gjp.createdAt >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
-//         GROUP BY DATE_FORMAT(gjp.createdAt, '%Y-%m'), DATE_FORMAT(gjp.createdAt, '%b')
-//         ORDER BY month ASC
-//       `;
-
-//       // ===== Execute all queries =====
-//       plantcare.query(statsQuery, (err1, statsResults) => {
-//         if (err1) return reject("Error in stats query: " + err1);
-
-//         plantcare.query(incomeQuery, (err2, incomeResults) => {
-//           if (err2) return reject("Error in income query: " + err2);
-
-//           plantcare.query(recentPaymentsQuery, (err3, paymentsResults) => {
-//             if (err3) return reject("Error in recent payments query: " + err3);
-
-//             plantcare.query(monthlyStatsQuery, (err4, monthlyStatsResults) => {
-//               if (err4) return reject("Error in monthly stats query: " + err4);
-
-//               const dashboardData = {
-//                 stats: statsResults[0],
-//                 income: incomeResults[0],
-//                 recentPayments: paymentsResults,
-//                 monthlyStatistics: monthlyStatsResults,
-//               };
-
-//               resolve(dashboardData);
-//             });
-//           });
-//         });
-//       });
-//     } catch (error) {
-//       reject("Error executing Govijob dashboard queries: " + error);
-//     }
-//   });
-// };
 
 exports.getAllCertificateDashboardData = () => {
   return new Promise(async (resolve, reject) => {
@@ -698,10 +609,6 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
     dataSql += " LIMIT ? OFFSET ?";
     dataParams.push(limit, offset);
 
-    console.log("SQL Query:", dataSql); // Add logging for debugging
-    console.log("Search Term:", searchTerm); // Add logging for debugging
-    console.log("Search Params:", dataParams); // Add logging for debugging
-
     // Execute count query
     plantcare.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
@@ -717,9 +624,6 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
         }
-
-        console.log("Query Results:", dataResults); // Add logging for debugging
-
         // Remove the firstName and lastName from final response if you don't want them
         const formattedResults = dataResults.map(item => {
           const { firstName, lastName, ...rest } = item;
@@ -1526,13 +1430,6 @@ exports.assignOfficerToInvestmentRequestDAO = (
       `;
       const queryParams = [assignOfficerId];
 
-      console.log(
-        "Assigning Officer:",
-        assignByUserId,
-        "to Request:",
-        requestId
-      );
-
       // Add assignBy if provided
       if (assignByUserId) {
         updateQuery += `, assignedBy = ?`;
@@ -1541,9 +1438,6 @@ exports.assignOfficerToInvestmentRequestDAO = (
 
       updateQuery += ` WHERE id = ?`;
       queryParams.push(requestId);
-
-      console.log("Update Query:", updateQuery);
-      console.log("Query Params:", queryParams);
 
       // Update the investment request with the assigned officer
       const [result] = await connection.query(updateQuery, queryParams);
@@ -1782,8 +1676,6 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
 
     // Filter by shares division status
     if (filters.shares) {
-
-      console.log('we have shares')
       if (filters.shares === 'Divided') {
         // Get records that have at least one row in approvedinvestmentrequest
         sql += ` AND EXISTS (
@@ -1879,10 +1771,7 @@ exports.GetProjectInvesmentDAO = (filters = {}) => {
       if (err) {
         return reject(err);
       }
-      console.log("Project Investment Results:", results);
-
       resolve(results);
-      
     });
   });
 };
@@ -1930,14 +1819,11 @@ exports.getAllInvestmentsDao = (
     }
 
     if (status) {
-      console.log("Order Status:", status);
-
       dataSql += `AND i.invtStatus = ?`;
       params.push(status);
     }
 
     dataSql += " ORDER BY i.createdAt DESC";
-    console.log(dataSql);
 
     investment.query(dataSql, params, (dataErr, dataResults) => {
       if (dataErr) {
@@ -1953,7 +1839,6 @@ exports.getAllInvestmentsDao = (
 };
 
 exports.approveInvestmentRequestDao = (id) => {
-  console.log('id', id)
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investment
@@ -1965,14 +1850,12 @@ exports.approveInvestmentRequestDao = (id) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result)
       resolve(result);
     });
   });
 };
 
 exports.RejectInvestmentRequestDao = (id) => {
-  console.log('id', id)
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investment
@@ -1984,7 +1867,6 @@ exports.RejectInvestmentRequestDao = (id) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result)
       resolve(result);
     });
   });
@@ -1992,8 +1874,6 @@ exports.RejectInvestmentRequestDao = (id) => {
 
 
 exports.getInspectionDerailsDao = async (id) => {
-  console.log('id', id);
-
   return new Promise((resolve, reject) => {
     const queries = [
       { sql: `SELECT * FROM inspectionpersonal WHERE reqId = ?`, key: 'Personal' },
@@ -2041,7 +1921,6 @@ exports.getInspectionDerailsDao = async (id) => {
         completedQueries++;
 
         if (completedQueries === queries.length) {
-          console.log('formattedResult', result);
           resolve(result);
         }
       });
@@ -2119,7 +1998,6 @@ exports.getDetailsForDivideShareDao = (id) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result)
       resolve(result[0]);
     });
   });
@@ -2127,8 +2005,6 @@ exports.getDetailsForDivideShareDao = (id) => {
 
 
 exports.devideSharesDao = (sharesData, adminId) => {
-  console.log('sharesData', sharesData);
-
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO investments.approvedinvestmentrequest
@@ -2149,7 +2025,6 @@ exports.devideSharesDao = (sharesData, adminId) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result);
       resolve(result);
     });
   });
@@ -2157,8 +2032,6 @@ exports.devideSharesDao = (sharesData, adminId) => {
 
 
 exports.ApproveRequestDao = (id) => {
-  console.log('id', id);
-
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investmentrequest ir
@@ -2170,7 +2043,6 @@ exports.ApproveRequestDao = (id) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result);
       resolve(result);
     });
   });
@@ -2178,8 +2050,6 @@ exports.ApproveRequestDao = (id) => {
 
 
 exports.updateRejectReasonDao = (id, reason, adminId) => {
-  console.log('id, reason', id, reason);
-
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO investments.rejectinvestmentrequest
@@ -2191,7 +2061,6 @@ exports.updateRejectReasonDao = (id, reason, adminId) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result);
       resolve(result);
     });
   });
@@ -2199,8 +2068,6 @@ exports.updateRejectReasonDao = (id, reason, adminId) => {
 
 
 exports.rejectRequestDao = (id) => {
-  console.log('id', id);
-
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investmentrequest ir
@@ -2212,15 +2079,12 @@ exports.rejectRequestDao = (id) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result);
       resolve(result);
     });
   });
 };
 
 exports.editDevideSharesDao = (sharesData, adminId) => {
-  console.log('sharesData', sharesData);
-
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investments.approvedinvestmentrequest
@@ -2241,7 +2105,6 @@ exports.editDevideSharesDao = (sharesData, adminId) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result);
       resolve(result);
     });
   });
@@ -2299,8 +2162,6 @@ exports.getAgentCommitionsDao = (data) => {
         if (err) {
           return reject(err);
         }
-        console.log(sql);
-        
         resolve(result);
       });
   });
@@ -2342,13 +2203,13 @@ exports.GetAllPensionRequestsDAO = (filters = {}) => {
     `;
 
     const params = [];
-    
+
     // Filter by request status (To Review, Approved, Rejected)
     if (filters.status) {
       sql += ` AND pr.reqStatus = ?`;
       params.push(filters.status);
     }
-    
+
     // Search only by farmer's NIC
     if (filters.search) {
       sql += ` AND pr.nic LIKE ?`;
