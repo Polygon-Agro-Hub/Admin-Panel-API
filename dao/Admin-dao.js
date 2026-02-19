@@ -1104,8 +1104,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
 
 exports.getLandOwnershipDetails = (landAssetId) => {
   return new Promise((resolve, reject) => {
-    // First, get the land details including ownership type
-    const getLandQuery = `
+    const query = `
       SELECT 
         lf.id as landAssetId,
         lf.fixedAssetId,
@@ -1115,132 +1114,47 @@ exports.getLandOwnershipDetails = (landAssetId) => {
         lf.extentp,
         lf.district,
         lf.landFenced,
-        lf.perennialCrop
+        lf.perennialCrop,
+        opf.issuedDate,
+        opf.permitFeeAnnually
       FROM 
         landfixedasset lf
+      LEFT JOIN 
+        ownershippermitfixedasset opf ON lf.id = opf.landAssetId
       WHERE 
         lf.id = ?;
     `;
 
-    plantcare.query(getLandQuery, [landAssetId], (err, landResults) => {
+    plantcare.query(query, [landAssetId], (err, results) => {
       if (err) {
         reject("Error fetching land details: " + err);
         return;
       }
 
-      if (landResults.length === 0) {
+      if (results.length === 0) {
         reject("Land not found");
         return;
       }
 
-      const land = landResults[0];
-      const ownership = land.ownership;
-
-      // Get extent values without calculation
-      const extentha = land.extentha || 0;
-      const extentac = land.extentac || 0;
-      const extentp = land.extentp || 0;
-
-      // Define ownership-specific queries for land
-      const ownershipQueries = {
-        Own: `
-          SELECT 
-            oof.id,
-            oof.buildingAssetId,
-            oof.landAssetId,
-            oof.issuedDate,
-            oof.estimateValue
-          FROM 
-            ownershipownerfixedasset oof
-          WHERE 
-            oof.landAssetId = ?;
-        `,
-        Lease: `
-          SELECT 
-            olf.id,
-            olf.buildingAssetId,
-            olf.landAssetId,
-            olf.startDate,
-            olf.durationYears,
-            olf.durationMonths,
-            olf.leastAmountAnnually
-          FROM 
-            ownershipleastfixedasset olf
-          WHERE 
-            olf.landAssetId = ?;
-        `,
-        Permited: `
-          SELECT 
-            opf.id,
-            opf.buildingAssetId,
-            opf.landAssetId,
-            opf.issuedDate,
-            opf.permitFeeAnnually
-          FROM 
-            ownershippermitfixedasset opf
-          WHERE 
-            opf.landAssetId = ?;
-        `,
-        Shared: `
-          SELECT 
-            osf.id,
-            osf.buildingAssetId,
-            osf.landAssetId,
-            osf.paymentAnnually
-          FROM 
-            ownershipsharedfixedasset osf
-          WHERE 
-            osf.landAssetId = ?;
-        `,
-      };
-
-      const ownershipQuery = ownershipQueries[ownership];
-
-      if (!ownershipQuery) {
-        // If no specific ownership query, return just land details with separate extent values
-        resolve({
-          landDetails: {
-            landAssetId: land.landAssetId,
-            ownership: land.ownership,
-            extentha: extentha,
-            extentac: extentac,
-            extentp: extentp,
-            district: land.district,
-            landFenced: land.landFenced,
-            perennialCrop: land.perennialCrop,
-          },
-          ownershipDetails: null,
-          ownershipType: ownership,
-        });
-        return;
-      }
-
-      // Execute the ownership-specific query
-      plantcare.query(
-        ownershipQuery,
-        [landAssetId],
-        (err, ownershipResults) => {
-          if (err) {
-            reject("Error fetching ownership details: " + err);
-          } else {
-            resolve({
-              landDetails: {
-                landAssetId: land.landAssetId,
-                ownership: land.ownership,
-                extentha: extentha,
-                extentac: extentac,
-                extentp: extentp,
-                district: land.district,
-                landFenced: land.landFenced,
-                perennialCrop: land.perennialCrop,
-              },
-              ownershipDetails:
-                ownershipResults.length > 0 ? ownershipResults[0] : null,
-              ownershipType: ownership,
-            });
-          }
-        }
-      );
+      const row = results[0];
+      
+      resolve({
+        landDetails: {
+          landAssetId: row.landAssetId,
+          ownership: row.ownership,
+          extentha: row.extentha || 0,
+          extentac: row.extentac || 0,
+          extentp: row.extentp || 0,
+          district: row.district,
+          landFenced: row.landFenced,
+          perennialCrop: row.perennialCrop,
+        },
+        ownershipDetails: {
+          issuedDate: row.issuedDate,
+          permitFeeAnnually: row.permitFeeAnnually
+        },
+        ownershipType: row.ownership,
+      });
     });
   });
 };
