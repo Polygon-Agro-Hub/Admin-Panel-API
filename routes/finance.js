@@ -188,4 +188,52 @@ router.post(
   financeController.rejectRequestEp
 );
 
+router.patch(
+  "/approve-request",
+  authMiddleware,
+  financeController.approveInvenstmentRequest
+);
+
+router.get(
+  "/get-sales-agent-for-filter",
+  authMiddleware,
+  financeController.getSalesAgentForFilter
+);
+
+router.post(
+  "/get-agent-commissions",
+  authMiddleware,
+  financeController.getAgentCommitions
+);
+
+router.get(
+  "/pension-requests",
+  authMiddleware,
+  financeController.getAllPensionRequests
+);
+
+router.get(
+  "/pension-request/:id",
+  authMiddleware,
+  financeController.getPensionRequestById
+);
+
+router.put(
+  "/update-pension-request/:id",
+  authMiddleware,
+  financeController.updatePensionRequestStatus
+);
+
+router.get(
+  "/get-cultivation-for-pension/:id",
+  authMiddleware,
+  financeController.getCultivationForPension
+);
+
+router.get(
+  "/farmer-pension-details",
+  authMiddleware,
+  financeController.getFarmerPensionDetails
+);
+
 module.exports = router;

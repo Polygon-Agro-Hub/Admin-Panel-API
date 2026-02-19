@@ -9,11 +9,13 @@ const {
   updatePaymentHistorySchema,
   paymentHistoryIdSchema,
   getAllInvestmentSchema,
-  getInvestmentIdSchema
+  getInvestmentIdSchema,
+  getAgentCommitionsShema,
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
 const deleteFromS3 = require("../middlewares/s3delete");
+const { IdParamShema } = require("../validations/Admin-validation");
 
 exports.getDashboardData = async (req, res) => {
   try {
@@ -140,8 +142,6 @@ exports.getAllPackagePayments = async (req, res) => {
     if (limit < 1 || limit > 100) {
       return res.status(400).json({ error: "Limit must be between 1 and 100" });
     }
-
-    console.log("Query params:", { page, limit, search, fromDate, toDate });
 
     // Call the DAO to get all package payments
     const result = await financeDao.getAllPackagePayments(
@@ -402,8 +402,6 @@ exports.getAllServicePayments = async (req, res) => {
       return res.status(400).json({ error: "Limit must be between 1 and 100" });
     }
 
-    console.log("Query params:", { page, limit, search, fromDate, toDate });
-
     // Call the DAO to get all service payments
     const result = await financeDao.getAllServicePayments(
       page,
@@ -444,7 +442,6 @@ exports.getAllCertificatePayments = async (req, res) => {
       return res.status(400).json({ error: "Limit must be between 1 and 100" });
     }
 
-    console.log("Query params:", { page, limit, search, fromDate, toDate });
 
     // Call the DAO to get all certificate payments
     const result = await financeDao.getAllCertificatePayments(
@@ -776,12 +773,6 @@ exports.createPaymentHistory = async (req, res) => {
     const { receivers, amount, paymentReference } = validatedBody;
     const issueBy = req.user.userId;
 
-    console.log("Creating payment history:", {
-      receivers,
-      amount,
-      paymentReference,
-    });
-
     // File validation
     if (!req.file) {
       return res.status(400).json({
@@ -858,8 +849,6 @@ exports.updatePaymentHistory = async (req, res) => {
     const { receivers, amount, paymentReference } = validatedBody;
     const modifyBy = req.user.userId; // From JWT token
 
-    console.log("Updating payment history:", id);
-
     // Get existing record
     const existingRecord = await financeDao.GetPaymentHistoryByIdDAO(id);
 
@@ -890,7 +879,6 @@ exports.updatePaymentHistory = async (req, res) => {
       if (existingRecord.xlLink) {
         try {
           await deleteFromS3(existingRecord.xlLink);
-          console.log("Old file deleted from R2");
         } catch (deleteError) {
           console.error("Error deleting old file:", deleteError);
           // Continue even if deletion fails
@@ -904,7 +892,6 @@ exports.updatePaymentHistory = async (req, res) => {
         "payment-history"
       );
 
-      console.log("New file uploaded to R2:", xlLink);
     }
 
     // Update database
@@ -947,8 +934,6 @@ exports.updatePaymentHistory = async (req, res) => {
 exports.getPaymentHistoryById = async (req, res) => {
   try {
     const { id } = req.params;
-
-    console.log("Fetching payment history by ID:", id);
 
     const result = await financeDao.GetPaymentHistoryByIdDAO(id);
 
@@ -1120,7 +1105,9 @@ exports.getInvestmentRequestById = async (req, res) => {
 
 exports.getOfficersByDistrictAndRoleForInvestment = async (req, res) => {
   try {
-    const { district, jobRole } = req.query;
+    const { district, jobRole, Farmer_ID } = req.query;
+
+    console.log('Farmer_ID:', Farmer_ID);
 
     if (!district || !jobRole) {
       return res.status(400).json({
@@ -1131,7 +1118,8 @@ exports.getOfficersByDistrictAndRoleForInvestment = async (req, res) => {
 
     const officers = await financeDao.getOfficersByDistrictAndRoleForInvestmentDAO(
       district,
-      jobRole
+      jobRole,
+      Farmer_ID
     );
 
     res.status(200).json({
@@ -1282,11 +1270,16 @@ exports.getAllPublishedProjects = async (req, res) => {
 
 
 exports.GetAllApprovedInvestmentRequests = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
   try {
-    const { status, search } = req.query;
+    const { status, shares, search } = req.query;
+
+    console.log('shares', shares)
 
     const filters = {
       status: status || undefined,
+      shares: shares || undefined,
       search: search || undefined,
     };
 
@@ -1442,12 +1435,6 @@ exports.ApproveInvestmentRequestEp = async (req, res) => {
         message: "Action failed"
       });
     }
-    // return res.status(200).json({
-    //       success: true,
-    //       message: "Action completed successfully.",
-    //       data: result
-    //     });
-
   } catch (error) {
     if (error.isJoi) {
       // Handle validation error
@@ -1489,11 +1476,6 @@ exports.RejectInvestmentRequestEp = async (req, res) => {
         message: "Action failed"
       });
     }
-    // return res.status(200).json({
-    //       success: true,
-    //       message: "Action completed successfully.",
-    //       data: result
-    //     });
 
   } catch (error) {
     if (error.isJoi) {
@@ -1519,10 +1501,25 @@ exports.getInspectionDerailsEp = async (req, res) => {
     );
 
     const result = await financeDao.getInspectionDerailsDao(Number(id));
-    const shares = await financeDao.getDetailsForDivideShareDao(Number(id));
+    const sharesData = await financeDao.getDetailsForDivideShareDao(Number(id));
 
-    // console.log({ page, limit });
-    // console.log('result', result);
+    const hasDivideData =
+      sharesData.totValue != null ||
+      sharesData.defineShares != null ||
+      sharesData.maxShare != null ||
+      sharesData.minShare != null;
+
+    const shares = {
+      ...sharesData,
+      devideData: hasDivideData
+        ? {
+          totValue: sharesData.totValue,
+          defineShares: sharesData.defineShares,
+          maxShare: sharesData.maxShare,
+          minShare: sharesData.minShare
+        }
+        : null
+    };
 
     res.status(200).json({
       success: true,
@@ -1576,6 +1573,7 @@ exports.devideSharesRequestEp = async (req, res) => {
   console.log("Request URL:", fullUrl);
   try {
     const { sharesData } = req.body;
+    const adminId = req.user.userId;
 
     console.log('sharesData', sharesData)
 
@@ -1587,20 +1585,43 @@ exports.devideSharesRequestEp = async (req, res) => {
       });
     }
 
-    const result = await financeDao.devideSharesDao(
-      sharesData
-    );
+    let result = null;
 
-    if (result) {
-      approveRequestResult = await financeDao.ApproveRequestDao(
-        sharesData.id
+    if (sharesData.devideType === 'Edit') {
+      result = await financeDao.editDevideSharesDao(
+        sharesData,
+        adminId
       );
+      return res.status(200).json({
+        message: "Request Edited Successfully",
+        status: true,
+        data: result,
+      });
+    } else if (sharesData.devideType === 'Create') {
+      result = await financeDao.devideSharesDao(
+        sharesData,
+        adminId
+      );
+      return res.status(200).json({
+        message: "Request Created Successfully",
+        status: true,
+        data: result,
+      });
     }
+    // const result = await financeDao.devideSharesDao(
+    //   sharesData
+    // );
+
+    // if (result) {
+    //   approveRequestResult = await financeDao.ApproveRequestDao(
+    //     sharesData.id
+    //   );
+    // }
 
     res.status(200).json({
       message: "Request Approved Successfully",
       status: true,
-      data: approveRequestResult,
+      data: result,
     });
   } catch (err) {
     console.error("Error Approving the request:", err);
@@ -1626,11 +1647,12 @@ exports.rejectRequestEp = async (req, res) => {
   console.log("Request URL:", fullUrl);
   try {
     const { reqId, reason } = req.body;
+    const adminId = req.user.userId;
 
-    console.log(' reqId, reason',  reqId, reason)
+    console.log(' reqId, reason', reqId, reason, adminId)
 
     // Validate required fields
-    if (!reqId || !reason ) {
+    if (!reqId || !reason) {
       return res.status(400).json({
         message: "reqId, reason are required",
         status: false,
@@ -1638,10 +1660,10 @@ exports.rejectRequestEp = async (req, res) => {
     }
 
     const result = await financeDao.updateRejectReasonDao(
-      reqId, reason
+      reqId, reason, adminId
     );
 
-    if (result) {
+    if (result.affectedRows > 0) {
       rejectRequestResult = await financeDao.rejectRequestDao(
         reqId
       );
@@ -1666,6 +1688,253 @@ exports.rejectRequestEp = async (req, res) => {
       message: "Internal server error",
       status: false,
       error: err.message,
+    });
+  }
+};
+
+
+exports.approveInvenstmentRequest = async (req, res) => {
+  try {
+    const { reqId } = req.body;
+
+    if (!reqId) {
+      return res.status(400).json({
+        message: "reqId is required",
+        status: false,
+      });
+    }
+
+    const results = await financeDao.ApproveRequestDao(reqId);
+    if (results.affectedRows !== 0) {
+      res.status(200).json({
+        status: true,
+        message: 'Request approved',
+      });
+    } else {
+      res.status(400).json({
+        status: false,
+        message: 'Request approved faild',
+      })
+    }
+  } catch (error) {
+    console.error('Error in GetAllApprovedInvestmentRequests:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Request approved faild',
+      error: 'Internal server error',
+    });
+  }
+};
+
+
+exports.getSalesAgentForFilter = async (req, res) => {
+  try {
+
+    const results = await financeDao.getSalesAgentForFilterDao();
+
+    res.status(200).json({
+      data: results,
+    });
+  } catch (error) {
+    console.error('Error in GetAllApprovedInvestmentRequests:', error);
+    res.status(500).json({
+      count: 0,
+      data: [],
+      error: 'Internal server error',
+    });
+  }
+}
+
+
+exports.getAgentCommitions = async (req, res) => {
+  try {
+    const data = await getAgentCommitionsShema.validateAsync(req.body);
+    const results = await financeDao.getAgentCommitionsDao(data);
+
+    res.status(200).json({
+      data: results,
+    });
+  } catch (error) {
+    console.error('Error in GetAllApprovedInvestmentRequests:', error);
+    res.status(500).json({
+      data: [],
+      error: 'Internal server error',
+    });
+  }
+}
+
+exports.getAllPensionRequests = async (req, res) => {
+  try {
+    const { status, search } = req.query;
+
+    console.log('Fetching all pension requests with filters:', { status, search });
+
+    const filters = {};
+
+    if (status) {
+      filters.status = status;
+    }
+
+    if (search) {
+      filters.search = search;
+    }
+
+    const results = await financeDao.GetAllPensionRequestsDAO(filters);
+
+    console.log(`Retrieved ${results.length} pension request records`);
+
+    res.json({
+      count: results.length,
+      data: results
+    });
+  } catch (err) {
+    console.error('Error fetching pension requests:', err);
+    res.status(500).json({
+      error: 'An error occurred while fetching pension requests'
+    });
+  }
+};
+
+exports.getPensionRequestById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log('Fetching pension request by ID:', id);
+
+    const result = await financeDao.GetPensionRequestByIdDAO(id);
+
+    if (!result) {
+      return res.status(404).json({
+        status: false,
+        message: 'Pension request not found'
+      });
+    }
+
+    console.log('Retrieved pension request:', result.Request_ID);
+
+    res.json({
+      status: true,
+      message: 'Pension request retrieved successfully',
+      data: result
+    });
+  } catch (err) {
+    console.error('Error fetching pension request:', err);
+    res.status(500).json({
+      status: false,
+      error: 'An error occurred while fetching pension request'
+    });
+  }
+};
+
+exports.updatePensionRequestStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reqStatus, approvedBy } = req.body; // Get approvedBy from request body
+
+    console.log('Updating pension request status:', { id, reqStatus, approvedBy });
+
+    if (!reqStatus) {
+      return res.status(400).json({
+        status: false,
+        message: 'Status is required'
+      });
+    }
+
+    // Validate status
+    const validStatuses = ['To Review', 'Approved', 'Rejected'];
+    if (!validStatuses.includes(reqStatus)) {
+      return res.status(400).json({
+        status: false,
+        message: 'Invalid status value'
+      });
+    }
+
+    if (!approvedBy) {
+      return res.status(400).json({
+        status: false,
+        message: 'Approver ID is required'
+      });
+    }
+
+    const updateData = {
+      reqStatus,
+      approvedBy: approvedBy, // Use the approvedBy from request body
+      approveTime: new Date()
+    };
+
+    const result = await financeDao.UpdatePensionRequestStatusDAO(id, updateData);
+
+    if (!result) {
+      return res.status(404).json({
+        status: false,
+        message: 'Pension request not found or update failed'
+      });
+    }
+
+    console.log('Pension request status updated successfully:', id);
+
+    res.json({
+      status: true,
+      message: 'Pension request status updated successfully',
+      data: result
+    });
+  } catch (err) {
+    console.error('Error updating pension request status:', err);
+    res.status(500).json({
+      status: false,
+      error: 'An error occurred while updating pension request status'
+    });
+  }
+};
+
+exports.getCultivationForPension = async (req, res) => {
+  try {
+    const { id } = await IdParamShema.validateAsync(req.params);
+    console.log('Fetching pension request by ID:', id);
+
+    const result = await financeDao.getCultivationForPensionDao(id);
+
+    if (!result) {
+      return res.status(404).json({
+        status: false,
+        message: 'Pension cultivation not found'
+      });
+    }
+
+    res.json({
+      status: true,
+      message: 'Pension cultivation retrieved successfully',
+      data: result
+    });
+  } catch (err) {
+    console.error('Error fetching pension cultivation:', err);
+    res.status(500).json({
+      status: false,
+      error: 'An error occurred while fetching pension cultivation'
+    });
+  }
+};
+
+exports.getFarmerPensionDetails = async (req, res) => {
+  try {
+    const { page, limit, searchText } = req.query;
+
+    const result = await financeDao.getFarmerPensionDetailsDao(
+      page || 1,
+      limit || 10,
+      searchText
+    );
+
+    res.status(200).json({
+      items: result.items,
+      total: result.total,
+    });
+  } catch (error) {
+    console.error("Error getting farmer pension under 5 years details:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to get farmer pension details",
+      error: error.message,
     });
   }
 };

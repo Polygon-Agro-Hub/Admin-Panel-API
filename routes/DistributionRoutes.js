@@ -369,8 +369,75 @@ router.get(
 
 router.get(
   "/get-distributed-vehicles",
-  // authMiddleware,
+  authMiddleware,
   distributionEp.getDistributedVehicles
 );
+
+router.get(
+  "/get-today-delivery-tracking/:id",
+  authMiddleware,
+  distributionEp.getTodayDiliveryTracking
+);
+
+router.get(
+  "/get-return-recieved-data",
+  authMiddleware,
+  distributionEp.getReturnRecievedOrders
+);
+
+router.get(
+  "/get-distributed-drivers-and-vehicles/:id",
+  authMiddleware,
+  distributionEp.getDistributedDriversAndVehicles
+);
+
+router.get(
+  "/get-distributed-center-pickup-orders",
+  authMiddleware,
+  distributionEp.getDistributedCenterPikupOder
+);
+
+router.get(
+  "/get-pickup-order-records/:id",
+  authMiddleware,
+  distributionEp.getPickupOrderRecords
+);
+
+router.get(
+  "/get-center-home-delivery-orders",
+  authMiddleware,
+  distributionEp.getCenterHomeDeliveryOrders
+);
+
+router.get(
+  "/polygon-center-dashbord-details/:id",
+  // authMiddleware,
+  distributionEp.getPolygonCenterDashbordDetails
+);
+
+router.get(
+  "/get-pikup-cash-revenue/:id",
+  // authMiddleware,
+  distributionEp.getPickupCashRevenue
+);
+
+router.get(
+  "/get-driver-cash-revenue/:id",
+  authMiddleware,
+  distributionEp.getDriverCashRevenue
+);
+
+router.get(
+  "/get-home-delivery-tracking/:id",
+  // authMiddleware,
+  distributionEp.getHomeDiliveryTracking
+);
+
+router.get(
+  "/get-recived-cash-dashbord/:id",
+  authMiddleware,
+  distributionEp.getRecivedCashDashbord
+);
+
 
 module.exports = router;

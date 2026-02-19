@@ -273,9 +273,9 @@ exports.EditComplainCategoryDao = (data, adminId) => {
   });
 };
 
-exports.getAllMarketplaceComplaints = () => {
+exports.getAllMarketplaceComplaints = (role) => {
   return new Promise((resolve, reject) => {
-    const sql = `
+    let sql = `
       SELECT 
         mc.id,
         mc.userId,
@@ -300,7 +300,14 @@ exports.getAllMarketplaceComplaints = () => {
       WHERE sa.id = 3
         AND mu.BuyerType = 'retail'
     `;
-    marketPlace.query(sql, (err, results) => {
+    const sqlParams = [];
+
+    if(role !== 1){
+      sql += " AND cc.roleId = ? ";
+      sqlParams.push(role);
+    }
+
+    marketPlace.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.error('SQL error in getAllMarketplaceComplaints:', err);
         return reject({
@@ -317,9 +324,9 @@ exports.getAllMarketplaceComplaints = () => {
   });
 };
 
-exports.getAllMarketplaceComplaintsWholesale = () => {
+exports.getAllMarketplaceComplaintsWholesale = (role) => {
   return new Promise((resolve, reject) => {
-    const sql = `
+    let sql = `
       SELECT 
         mc.id,
         mc.userId,
@@ -345,7 +352,13 @@ exports.getAllMarketplaceComplaintsWholesale = () => {
       WHERE sa.id = 3
         AND mu.BuyerType = 'wholesale'
     `;
-    marketPlace.query(sql, (err, results) => {
+
+    const sqlParams = [];
+    if(role !== 1){
+      sql += " AND cc.roleId = ? ";
+      sqlParams.push(role);
+    }
+    marketPlace.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.error('SQL error in getAllMarketplaceComplaints:', err);
         return reject({
@@ -477,7 +490,8 @@ exports.GetAllDistributedComplainDAO = (
   comCategory,
   filterCompany,
   searchText,
-  rpstatus
+  rpstatus,
+  role
 ) => {
   return new Promise((resolve, reject) => {
     const Sqlparams = [];
@@ -534,11 +548,11 @@ exports.GetAllDistributedComplainDAO = (
     }
 
     // Fixed category filter to use the correct alias
-    if (category) {
-      countSql += " AND ar.role = ? ";
-      sql += " AND ar.role = ? ";
-      Sqlparams.push(category);
-      Counterparams.push(category);
+    if (parseInt(role) !== 1) {
+      countSql += " AND cc.roleId = ? ";
+      sql += " AND cc.roleId = ? ";
+      Sqlparams.push(role);
+      Counterparams.push(role);
     }
 
     if (comCategory) {
@@ -832,5 +846,39 @@ exports.GetAllDriverComplainDAO = (
         });
       }
     );
+  });
+};
+
+exports.getDriverComplainById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = ` 
+    SELECT 
+      oc.id, 
+      oc.refNo, 
+      oc.createdAt, 
+      oc.complain, 
+      oc.complainCategory, 
+      oc.reply, 
+      cof.firstNameEnglish AS firstName, 
+      cof.lastNameEnglish AS lastName, 
+      cof.phoneCode01, 
+      cof.phoneNumber01,  
+      cc.categoryEnglish AS complainCategory, 
+      cof.empId AS empId, 
+      cof.jobRole AS jobRole,
+      CONCAT (cof.firstNameEnglish, ' ', cof.lastNameEnglish) AS officerName,
+      CONCAT (cof.firstNameSinhala, ' ', cof.lastNameSinhala) AS officerNameSinhala,
+      CONCAT (cof.firstNameTamil, ' ', cof.lastNameTamil) AS officerNameTamil
+    FROM drivercomplains oc
+    LEFT JOIN collectionofficer cof ON oc.driverId = cof.id
+    LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
+    WHERE oc.id = ? 
+    `;
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
   });
 };

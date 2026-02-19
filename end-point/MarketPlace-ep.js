@@ -661,6 +661,7 @@ exports.getMarketplacePackageById = async (req, res) => {
     const packageItems = await MarketPlaceDao.getPackageEachItemsDao(id);
 
     const packageData = {
+      id: firstRow.id,
       displayName: firstRow.displayName,
       status: firstRow.status || "Enabled",
       description: firstRow.description,
@@ -1225,6 +1226,8 @@ exports.editPackage = async (req, res) => {
     const packageItems = package.packageItems;
     const id = req.params.id;
 
+    console.log('id', id)
+
 
     let profileImageUrl = null;
 
@@ -1240,6 +1243,8 @@ exports.editPackage = async (req, res) => {
         message: "A package with this display name already exists. Please choose a different name.",
       });
     }
+
+    console.log('so far good')
 
 
 
@@ -2380,3 +2385,37 @@ exports.getPostInvoiceDetails = async (req, res) => {
     });
   }
 };
+
+exports.manageSeo = async (req, res) => {
+  try {
+    
+    const { id, pageName, slug, discription, keywords } = req.body;
+
+    if (!pageName) {
+      return res.status(400).json({
+        message: "Page name is required",
+        status: false,
+      });
+    }
+
+    const result = await MarketPlaceDao.postManageSeoDao({
+      id,
+      pageName,
+      slug,
+      discription,
+      keywords
+    });
+
+    return res.status(201).json({
+      message: "SEO details saved successfully",
+      status: true,
+    });
+
+  } catch (error) {
+    console.error("Error saving SEO details:", error);
+    return res.status(500).json({
+      message: "An error occurred while saving SEO details",
+      status: false,
+    });
+  }
+}

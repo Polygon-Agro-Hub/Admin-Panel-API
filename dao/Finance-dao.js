@@ -12,9 +12,6 @@ const Joi = require("joi");
 exports.getAllDashboardData = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Get dashboard statistics
-      // Pro users: membership = 'Pro' AND expireDate > current date
-      // Free users: membership = 'Basic' OR (membership = 'Pro' AND expireDate <= current date)
       const statsQuery = `
         SELECT 
           COUNT(DISTINCT u.id) as totalUsers,
@@ -356,92 +353,6 @@ exports.getAllGovijobDashboardData = () => {
   });
 };
 
-// Function for govi job dashboard data
-// exports.getAllGovijobDashboardData = () => {
-//   return new Promise(async (resolve, reject) => {
-//     try {
-//       // ===== 1️ Basic stats =====
-//       const statsQuery = `
-//         SELECT 
-//           COUNT(CASE WHEN MONTH(gj.sheduleDate) = MONTH(CURRENT_DATE()) 
-//             AND YEAR(gj.sheduleDate) = YEAR(CURRENT_DATE()) THEN 1 END) AS requestsThisMonth,
-//           COUNT(CASE WHEN DATE(gj.sheduleDate) = CURDATE() THEN 1 END) AS requestsToday
-//         FROM govilinkjobs gj
-//       `;
-
-//       // ===== 2️ Income (current and previous month) =====
-//       const incomeQuery = `
-//         SELECT 
-//           COALESCE(SUM(CASE 
-//             WHEN MONTH(gjp.createdAt) = MONTH(CURRENT_DATE()) 
-//               AND YEAR(gjp.createdAt) = YEAR(CURRENT_DATE())
-//             THEN gjp.amount ELSE 0 END), 0) AS currentMonthIncome,
-//           COALESCE(SUM(CASE 
-//             WHEN MONTH(gjp.createdAt) = MONTH(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)) 
-//               AND YEAR(gjp.createdAt) = YEAR(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
-//             THEN gjp.amount ELSE 0 END), 0) AS previousMonthIncome
-//         FROM govijobpayment gjp
-//       `;
-
-//       // ===== 3️ Recent 6 service payments =====
-//       const recentPaymentsQuery = `
-//         SELECT 
-//           gjp.transactionId,
-//           CONCAT(u.firstName, ' ', u.lastName) AS farmerName,
-//           os.englishName AS serviceName,
-//           FORMAT(gjp.amount, 2) AS amount,
-//           DATE_FORMAT(gjp.createdAt, '%Y-%m-%d %H:%i') AS dateTime
-//         FROM govijobpayment gjp
-//         INNER JOIN govilinkjobs gj ON gj.id = gjp.jobId
-//         INNER JOIN users u ON gj.farmerId = u.id
-//         INNER JOIN officerservices os ON gj.serviceId = os.id
-//         ORDER BY gjp.createdAt DESC
-//         LIMIT 6
-//       `;
-
-//       // ===== 4️ Monthly statistics (for last 6 months) =====
-//       const monthlyStatsQuery = `
-//         SELECT 
-//           DATE_FORMAT(gjp.createdAt, '%Y-%m') AS month,
-//           DATE_FORMAT(gjp.createdAt, '%b') AS monthName,
-//           COUNT(gjp.id) AS payments,
-//           SUM(gjp.amount) AS revenue
-//         FROM govijobpayment gjp
-//         WHERE gjp.createdAt >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
-//         GROUP BY DATE_FORMAT(gjp.createdAt, '%Y-%m'), DATE_FORMAT(gjp.createdAt, '%b')
-//         ORDER BY month ASC
-//       `;
-
-//       // ===== Execute all queries =====
-//       plantcare.query(statsQuery, (err1, statsResults) => {
-//         if (err1) return reject("Error in stats query: " + err1);
-
-//         plantcare.query(incomeQuery, (err2, incomeResults) => {
-//           if (err2) return reject("Error in income query: " + err2);
-
-//           plantcare.query(recentPaymentsQuery, (err3, paymentsResults) => {
-//             if (err3) return reject("Error in recent payments query: " + err3);
-
-//             plantcare.query(monthlyStatsQuery, (err4, monthlyStatsResults) => {
-//               if (err4) return reject("Error in monthly stats query: " + err4);
-
-//               const dashboardData = {
-//                 stats: statsResults[0],
-//                 income: incomeResults[0],
-//                 recentPayments: paymentsResults,
-//                 monthlyStatistics: monthlyStatsResults,
-//               };
-
-//               resolve(dashboardData);
-//             });
-//           });
-//         });
-//       });
-//     } catch (error) {
-//       reject("Error executing Govijob dashboard queries: " + error);
-//     }
-//   });
-// };
 
 exports.getAllCertificateDashboardData = () => {
   return new Promise(async (resolve, reject) => {
@@ -698,10 +609,6 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
     dataSql += " LIMIT ? OFFSET ?";
     dataParams.push(limit, offset);
 
-    console.log("SQL Query:", dataSql); // Add logging for debugging
-    console.log("Search Term:", searchTerm); // Add logging for debugging
-    console.log("Search Params:", dataParams); // Add logging for debugging
-
     // Execute count query
     plantcare.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
@@ -717,9 +624,6 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
         }
-
-        console.log("Query Results:", dataResults); // Add logging for debugging
-
         // Remove the firstName and lastName from final response if you don't want them
         const formattedResults = dataResults.map(item => {
           const { firstName, lastName, ...rest } = item;
@@ -799,6 +703,7 @@ exports.getAllCertificatePayments = (
           cp.transactionId LIKE ?
           OR u.firstName LIKE ?
           OR u.lastName LIKE ?
+          OR CONCAT(u.firstName, ' ', u.lastName) LIKE ?
           OR fc.clsName LIKE ?
           OR cp.amount LIKE ?
         )
@@ -812,9 +717,11 @@ exports.getAllCertificatePayments = (
         searchValue,
         searchValue,
         searchValue,
+        searchValue,
         searchValue
       );
       dataParams.push(
+        searchValue,
         searchValue,
         searchValue,
         searchValue,
@@ -1361,6 +1268,7 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
         ir.jobId AS Request_ID,
         CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
         u.phoneNumber AS Phone_number,
+        u.id AS Farmer_ID,
         u.district,
         co.empId,
         ir.publishStatus,
@@ -1424,10 +1332,9 @@ exports.GetInvestmentRequestByIdDAO = (requestId) => {
         u.NICnumber AS NIC_Number,
         u.phoneNumber AS Phone_number,
         cg.cropNameEnglish AS Crop,
-        CONCAT(
-          COALESCE(ir.extentha, 0), ' Acres ',
-          COALESCE(ir.extentac, 0), ' Perches'
-        ) AS Extent,
+        ir.extentac AS Extent,
+        ir.extentha AS ExtentH,
+        ir.extentp AS ExtentP,
         ir.investment AS Expected_Investment,
         CONCAT(ir.expectedYield, 'kg') AS Expected_Yield,
         DATE_FORMAT(ir.startDate, '%M %d, %Y') AS Expected_Start_Date,
@@ -1523,13 +1430,6 @@ exports.assignOfficerToInvestmentRequestDAO = (
       `;
       const queryParams = [assignOfficerId];
 
-      console.log(
-        "Assigning Officer:",
-        assignByUserId,
-        "to Request:",
-        requestId
-      );
-
       // Add assignBy if provided
       if (assignByUserId) {
         updateQuery += `, assignedBy = ?`;
@@ -1538,9 +1438,6 @@ exports.assignOfficerToInvestmentRequestDAO = (
 
       updateQuery += ` WHERE id = ?`;
       queryParams.push(requestId);
-
-      console.log("Update Query:", updateQuery);
-      console.log("Query Params:", queryParams);
 
       // Update the investment request with the assigned officer
       const [result] = await connection.query(updateQuery, queryParams);
@@ -1576,7 +1473,7 @@ exports.assignOfficerToInvestmentRequestDAO = (
   });
 };
 
-exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
+exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole, Farmer_ID) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -1586,6 +1483,7 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
         fo.lastName,
         fo.JobRole,
         fo.distrct as district,
+        fo.assignDistrict,
         (
           SELECT COUNT(*)
           FROM investmentrequest ir 
@@ -1593,15 +1491,17 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
         ) AS jobCount
       FROM 
         plant_care.feildofficer fo
+      INNER JOIN 
+        plant_care.users u ON FIND_IN_SET(LOWER(u.district), LOWER(REPLACE(fo.assignDistrict, ' ', ''))) > 0
       WHERE 
-        fo.distrct LIKE ?
+        u.id = ?
         AND fo.JobRole = ?
         AND fo.status = 'Approved'
       ORDER BY 
         jobCount ASC, fo.firstName, fo.lastName
     `;
 
-    const params = [`%${district}%`, jobRole];
+    const params = [Farmer_ID, jobRole];
 
     investment.query(sql, params, (err, results) => {
       if (err) return reject(err);
@@ -1613,17 +1513,37 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole) => {
 exports.getAllPublishedProjectsDAO = (searchText) => {
   return new Promise((resolve, reject) => {
     let sql = `
-      SELECT ir.id, u.firstName, u.lastName, u.phoneNumber, u.NICnumber AS farmerNic,
-       cg.cropNameEnglish, ir.assignDate, ir.assignedBy, 
-        ir.jobId, ir.publishStatus, ir.reqStatus, ir.nicFront, ir.nicBack,
-        ir.extentac, ir.expectedYield, ir.startDate, ir.investment, 
-        ir.publishDate, au.userName AS publishedBy
+      SELECT DISTINCT
+        ir.id, 
+        u.firstName, 
+        u.lastName, 
+        u.phoneNumber, 
+        u.NICnumber AS farmerNic,
+        cg.cropNameEnglish, 
+        ir.assignDate, 
+        ir.assignedBy, 
+        ir.jobId, 
+        ir.publishStatus, 
+        ir.reqStatus, 
+        ir.nicFront, 
+        ir.nicBack,
+        ir.extentha, 
+        ir.extentac, 
+        ir.extentp, 
+        ir.expectedYield, 
+        ir.startDate, 
+        ir.investment, 
+        COALESCE(air.defineShares, 0) AS defineShares, 
+        COALESCE(( SELECT SUM(i.shares) FROM investment i WHERE i.reqId = ir.id AND i.invtStatus = 'Approved' ), 0) AS shares, 
+        ir.publishDate, 
+        au.userName AS publishedBy
       FROM investmentrequest ir
       LEFT JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
       LEFT JOIN agro_world_admin.adminusers au ON ir.publishBy = au.id
+      LEFT JOIN approvedinvestmentrequest air ON ir.id = air.reqId
       WHERE ir.reqStatus = 'Approved'
-      AND ir.publishStatus = 'Published'
+      AND ir.publishStatus = 'Published';
     `;
 
     const params = [];
@@ -1652,39 +1572,40 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-        ir.id,
-        ir.farmerId,
-        ir.officerId,
-        ir.jobId,
-        ir.extentha,
-        ir.extentac,
-        ir.extentp,
-        ir.investment,
-        ir.expectedYield,
-        ir.startDate,
-        ir.nicFront,
-        ir.nicBack,
-        ir.assignDate,
-        ir.publishDate,
-        ir.assignedBy,
-        ir.reqStatus,
-        ir.reqCahangeTime,
-        ir.publishStatus,
-        ir.createdAt,
-        rir.reason AS rejectionReason,
-        rir.createdAt AS rejectedAt,
-        u.firstName,
-        u.lastName,
-        u.phoneNumber,
-        u.NICnumber,
-        cg.cropNameEnglish,
-        au.userName AS rejectedBy
-      FROM investmentrequest ir
-      LEFT JOIN rejectinvestmentrequest rir ON ir.id = rir.reqId
-      LEFT JOIN plant_care.users u ON ir.farmerId = u.id
-      LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
-      LEFT JOIN agro_world_admin.adminusers au ON rir.rejectedBy = au.id
-      WHERE ir.reqStatus = 'Rejected'
+    ir.id,
+    ir.farmerId,
+    ir.officerId,
+    ir.jobId,
+    ir.extentha,
+    ir.extentac,
+    ir.extentp,
+    (ir.extentac + ir.extentha * 2.47105 + ir.extentp / 160) AS extentac,
+    ir.investment,
+    ir.expectedYield,
+    ir.startDate,
+    ir.nicFront,
+    ir.nicBack,
+    ir.assignDate,
+    ir.publishDate,
+    ir.assignedBy,
+    ir.reqStatus,
+    ir.reqCahangeTime,
+    ir.publishStatus,
+    ir.createdAt,
+    rir.reason AS rejectionReason,
+    rir.createdAt AS rejectedAt,
+    u.firstName,
+    u.lastName,
+    u.phoneNumber,
+    u.NICnumber,
+    cg.cropNameEnglish,
+    au.userName AS rejectedBy
+FROM investments.investmentrequest ir
+LEFT JOIN investments.rejectinvestmentrequest rir ON ir.id = rir.reqId
+LEFT JOIN plant_care.users u ON ir.farmerId = u.id
+LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
+LEFT JOIN agro_world_admin.adminusers au ON rir.rejectedBy = au.id
+WHERE ir.reqStatus = 'Rejected'
     `;
 
     const params = [];
@@ -1709,6 +1630,7 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
 };
 
 exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
+  console.log('filters', filters)
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
@@ -1752,6 +1674,23 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
       params.push(filters.status);
     }
 
+    // Filter by shares division status
+    if (filters.shares) {
+      if (filters.shares === 'Divided') {
+        // Get records that have at least one row in approvedinvestmentrequest
+        sql += ` AND EXISTS (
+          SELECT 1 FROM approvedinvestmentrequest air 
+          WHERE air.reqId = ir.id
+        )`;
+      } else if (filters.shares === 'Not Divided') {
+        // Get records that have no rows in approvedinvestmentrequest
+        sql += ` AND NOT EXISTS (
+          SELECT 1 FROM approvedinvestmentrequest air 
+          WHERE air.reqId = ir.id
+        )`;
+      }
+    }
+
     // Search filter (searches in Request ID, Phone Number, EMP ID)
     if (filters.search) {
       sql += ` AND (
@@ -1785,7 +1724,7 @@ exports.UpdateInvestmentRequestPublishStatusDAO = (requestId, publishBy) => {
       WHERE id = ?
     `;
 
-    plantcare.query(sql, [publishBy, requestId], (err, result) => {
+    investment.query(sql, [publishBy, requestId], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -1880,14 +1819,11 @@ exports.getAllInvestmentsDao = (
     }
 
     if (status) {
-      console.log("Order Status:", status);
-
       dataSql += `AND i.invtStatus = ?`;
       params.push(status);
     }
 
     dataSql += " ORDER BY i.createdAt DESC";
-    console.log(dataSql);
 
     investment.query(dataSql, params, (dataErr, dataResults) => {
       if (dataErr) {
@@ -1903,7 +1839,6 @@ exports.getAllInvestmentsDao = (
 };
 
 exports.approveInvestmentRequestDao = (id) => {
-  console.log('id', id)
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investment
@@ -1915,14 +1850,12 @@ exports.approveInvestmentRequestDao = (id) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result)
       resolve(result);
     });
   });
 };
 
 exports.RejectInvestmentRequestDao = (id) => {
-  console.log('id', id)
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investment
@@ -1934,7 +1867,6 @@ exports.RejectInvestmentRequestDao = (id) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result)
       resolve(result);
     });
   });
@@ -1942,8 +1874,6 @@ exports.RejectInvestmentRequestDao = (id) => {
 
 
 exports.getInspectionDerailsDao = async (id) => {
-  console.log('id', id);
-
   return new Promise((resolve, reject) => {
     const queries = [
       { sql: `SELECT * FROM inspectionpersonal WHERE reqId = ?`, key: 'Personal' },
@@ -1987,11 +1917,10 @@ exports.getInspectionDerailsDao = async (id) => {
         } else {
           result[query.key] = {};
         }
-        
+
         completedQueries++;
 
         if (completedQueries === queries.length) {
-          console.log('formattedResult', result);
           resolve(result);
         }
       });
@@ -2002,25 +1931,20 @@ exports.GetAllAuditedInvestmentRequestsDAO = (filters = {}) => {
   return new Promise((resolve, reject) => {
     let sql = `
     SELECT 
-    ir.id AS No,
-    ir.jobId AS Request_ID,
-    CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
-    u.phoneNumber AS Phone_number,
-    ir.nicFront AS NIC_Front_Image,
-    ir.nicBack AS NIC_Back_Image,
-    co.empId,
-    ir.reqCahangeTime
-FROM investments.investmentrequest ir
-INNER JOIN plant_care.users u 
-    ON ir.farmerId = u.id
-LEFT JOIN plant_care.feildofficer co 
-    ON ir.officerId = co.id
-WHERE ir.reqStatus = 'Pending' AND
-EXISTS (
-    SELECT 1
-    FROM investments.inspectionpersonal i
-    WHERE i.reqId = ir.id
-)
+        ir.id AS No,
+        ir.jobId AS Request_ID,
+        CONCAT(u.firstName, ' ', u.lastName) AS Farmer_Name,
+        u.phoneNumber AS Phone_number,
+        ir.nicFront AS NIC_Front_Image,
+        ir.nicBack AS NIC_Back_Image,
+        co.empId,
+        ir.auditedDate AS reqCahangeTime
+    FROM investments.investmentrequest ir
+    INNER JOIN plant_care.users u 
+        ON ir.farmerId = u.id
+    LEFT JOIN plant_care.feildofficer co 
+        ON ir.officerId = co.id
+    WHERE ir.reqStatus = 'Pending' AND ir.auditedDate IS NOT NULL
 
     `;
 
@@ -2053,18 +1977,20 @@ EXISTS (
 exports.getDetailsForDivideShareDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT
-        ir.id,
-        ir.reqCahangeTime,
-        ir.jobId,
-        u.phoneNumber AS farmerPhone,
-        fo.empId,
-        CONCAT(fo.phoneCode1, ' ',fo.phoneNumber1) AS officerPhone,
-        (COALESCE(cg.costFeild, 0)* ( ir.extentac + COALESCE(ir.extentha, 0)*2.47105 + COALESCE(extentp, 0)/160 )) AS totalValue
-      FROM investmentrequest ir
-      LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
-      LEFT JOIN plant_care.users u ON ir.farmerId = u.id
-      LEFT JOIN plant_care.feildofficer fo ON ir.officerId = fo.id
+    SELECT
+    ir.id,
+    ir.auditedDate AS reqCahangeTime,
+    ir.jobId,
+    u.phoneNumber AS farmerPhone,
+    fo.empId,
+    CONCAT(fo.phoneCode1, ' ',fo.phoneNumber1) AS officerPhone,
+    (COALESCE(cg.costFeild, 0)* ( ir.extentac + COALESCE(ir.extentha, 0)*2.47105 + COALESCE(extentp, 0)/160 )) AS totalValue,
+    air.totValue, air.defineShares, air.maxShare, air.minShare
+  FROM investments.investmentrequest ir
+  LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
+  LEFT JOIN plant_care.users u ON ir.farmerId = u.id
+  LEFT JOIN plant_care.feildofficer fo ON ir.officerId = fo.id
+  LEFT JOIN investments.approvedinvestmentrequest air ON air.reqId = ir.id
       WHERE ir.id = ?
     `;
 
@@ -2072,36 +1998,33 @@ exports.getDetailsForDivideShareDao = (id) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result)
       resolve(result[0]);
     });
   });
 };
 
 
-exports.devideSharesDao = (sharesData) => {
-  console.log('sharesData', sharesData);
-
+exports.devideSharesDao = (sharesData, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO investments.approvedinvestmentrequest
-      (reqId, totValue, defineShares, minShare, maxShare)
-      VALUES (?, ?, ?, ?, ?)
+      (reqId, totValue, defineShares, minShare, maxShare, defineBy)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
-      sharesData.id,         
-      sharesData.totalValue,    
-      sharesData.numShares,     
-      sharesData.minimumShare,  
-      sharesData.maximumShare         
+      sharesData.id,
+      sharesData.totalValue,
+      sharesData.numShares,
+      sharesData.minimumShare,
+      sharesData.maximumShare,
+      adminId
     ];
 
     investment.query(sql, values, (err, result) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result);
       resolve(result);
     });
   });
@@ -2109,12 +2032,10 @@ exports.devideSharesDao = (sharesData) => {
 
 
 exports.ApproveRequestDao = (id) => {
-  console.log('id', id);
-
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investmentrequest ir
-      SET ir.reqStatus = 'Approved'
+      SET ir.reqStatus = 'Approved', ir.reqCahangeTime = CURDATE()
       WHERE ir.id = ?
     `;
 
@@ -2122,28 +2043,24 @@ exports.ApproveRequestDao = (id) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result);
       resolve(result);
     });
   });
 };
 
 
-exports.updateRejectReasonDao = (id, reason) => {
-  console.log('id, reason', id, reason);
-
+exports.updateRejectReasonDao = (id, reason, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       INSERT INTO investments.rejectinvestmentrequest
-      (reqId, reason)
-      VALUES (?, ?)
+      (reqId, reason, rejectedBy)
+      VALUES (?, ?, ?)
     `;
 
-    investment.query(sql, [id, reason], (err, result) => {
+    investment.query(sql, [id, reason, adminId], (err, result) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result);
       resolve(result);
     });
   });
@@ -2151,12 +2068,10 @@ exports.updateRejectReasonDao = (id, reason) => {
 
 
 exports.rejectRequestDao = (id) => {
-  console.log('id', id);
-
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investmentrequest ir
-      SET ir.reqStatus = 'Rejected'
+      SET ir.reqStatus = 'Rejected', ir.reqCahangeTime = NOW()
       WHERE ir.id = ?
     `;
 
@@ -2164,8 +2079,323 @@ exports.rejectRequestDao = (id) => {
       if (err) {
         return reject(err);
       }
-      console.log('result', result);
       resolve(result);
+    });
+  });
+};
+
+exports.editDevideSharesDao = (sharesData, adminId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE investments.approvedinvestmentrequest
+      SET totValue = ?, defineShares = ?, minShare = ?, maxShare = ?, defineBy = ?, createdAt = NOW()
+      WHERE reqId = ?
+    `;
+
+    const values = [
+      sharesData.totalValue,
+      sharesData.numShares,
+      sharesData.minimumShare,
+      sharesData.maximumShare,
+      adminId,
+      sharesData.id
+    ];
+
+    investment.query(sql, values, (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
+};
+
+
+exports.getSalesAgentForFilterDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id,
+        empId
+      FROM salesagent
+    `;
+
+    marketPlace.query(sql, (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
+};
+
+
+exports.getAgentCommitionsDao = (data) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT
+        po.invNo,
+        o.sheduleDate,
+        po.deliveredTime,
+        po.isPaid
+    FROM processorders po
+    INNER JOIN orders o ON po.orderId = o.id
+    INNER JOIN marketplaceusers mu ON o.userId = mu.id 
+    WHERE mu.salesAgent = ? AND (DATE(o.sheduleDate) BETWEEN ? AND ?) AND DATE(po.deliveredTime) < ?
+    `;
+
+    if (data.paymentStatus) {
+      if (data.paymentStatus === 'Completed') {
+        sql += ` AND po.isPaid = 1 `;
+      } else if (data.paymentStatus === 'Pending') {
+        sql += ` AND po.isPaid = 0 `;
+      }
+    }
+
+    marketPlace.query(sql,
+      [
+        data.agentId,
+        data.fromDate,
+        data.toDate,
+        data.deliveredDate
+      ], (err, result) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(result);
+      });
+  });
+};
+
+exports.GetAllPensionRequestsDAO = (filters = {}) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        pr.id AS No,
+        pr.id AS Request_ID,
+        pr.userId AS User_ID,
+        pr.fullName AS Farmer_Name,
+        pr.nic AS NIC,
+        pr.dob,
+        pr.sucFullName AS Successor_Name,
+        pr.sucType AS Successor_Type,
+        pr.sucNic AS Successor_NIC,
+        pr.sucdob AS Successor_DOB,
+        pr.defaultPension,
+        pr.reqStatus,
+        pr.isFirstTime,
+        pr.nicFront AS NIC_Front_Image,
+        pr.nicBack AS NIC_Back_Image,
+        pr.sucNicFront AS Successor_NIC_Front_Image,
+        pr.sucNicBack AS Successor_NIC_Back_Image,
+        CASE 
+            WHEN pr.approveBy IS NULL THEN 'Not Approved'
+            ELSE 'Approved'
+        END AS Status,
+        COALESCE(au.userName, '--') AS Approved_By_Name,
+        COALESCE(pr.approveBy, '--') AS Approver_ID,
+        pr.createdAt AS Request_Date_Time,
+        pr.createdAt AS Requested_On,
+        COALESCE(pr.approveTime) AS Approved_Date_Time
+      FROM plant_care.pensionrequest pr
+      LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    // Filter by request status (To Review, Approved, Rejected)
+    if (filters.status) {
+      sql += ` AND pr.reqStatus = ?`;
+      params.push(filters.status);
+    }
+
+    // Search only by farmer's NIC
+    if (filters.search) {
+      sql += ` AND pr.nic LIKE ?`;
+      const searchTerm = `%${filters.search}%`;
+      params.push(searchTerm);
+    }
+
+    // Order by most recent first
+    sql += ` ORDER BY pr.createdAt DESC`;
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.GetPensionRequestByIdDAO = (id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+     SELECT 
+    pr.id AS No,
+    pr.id AS Request_ID,
+    pr.fullName AS Farmer_Name,
+    pr.nic AS NIC,
+    pr.dob,
+    pr.sucFullName AS Successor_Name,
+    pr.sucType AS Successor_Type,
+    pr.sucNic AS Successor_NIC,
+    pr.sucdob AS Successor_DOB,
+    pr.defaultPension,
+    pr.reqStatus,
+    pr.isFirstTime,
+    pr.nicFront AS NIC_Front_Image,
+    pr.nicBack AS NIC_Back_Image,
+    pr.sucNicFront AS Successor_NIC_Front_Image,
+    pr.sucNicBack AS Successor_NIC_Back_Image,
+    co.empId,
+    CASE 
+        WHEN pr.approveBy IS NULL THEN 'Not Approved'
+        ELSE 'Approved'
+    END AS Status,
+    COALESCE(au.userName, '--') AS Approved_By_Name,
+    COALESCE(pr.approveBy, '--') AS Approver_ID,
+    COALESCE(u.phoneNumber, '--') AS Phone_Number,
+    COALESCE(co.empId, 'Farmer') AS Collection_Officer_EmpID,
+    DATE_FORMAT(pr.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
+    DATE_FORMAT(pr.createdAt, '%M %d, %Y') AS Requested_On,
+    COALESCE(DATE_FORMAT(pr.approveTime, 'At %h:%i%p on %M %d, %Y'), '--') AS Approved_Date_Time
+FROM plant_care.pensionrequest pr
+LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
+LEFT JOIN users u ON pr.userId = u.id
+LEFT JOIN collection_officer.collectionofficer co ON pr.officerId = co.id
+WHERE pr.id = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.UpdatePensionRequestStatusDAO = (id, updateData) => {
+  return new Promise((resolve, reject) => {
+    const { reqStatus, approvedBy, approveTime } = updateData;
+
+    let sql = `
+      UPDATE plant_care.pensionrequest 
+      SET 
+        reqStatus = ?,
+        approveBy = ?,
+        approveTime = ?
+      WHERE id = ?
+    `;
+
+    const params = [reqStatus, approvedBy, approveTime, id];
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.affectedRows === 0) {
+        return resolve(null);
+      }
+
+      // Return updated record
+      this.GetPensionRequestByIdDAO(id)
+        .then(updatedRecord => resolve(updatedRecord))
+        .catch(error => reject(error));
+    });
+  });
+};
+
+exports.getCultivationForPensionDao = (id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+     SELECT
+        oc.id AS ongoingCultivationId,
+        cv.varietyNameEnglish,
+        cg.cropNameEnglish,
+        (occ.extentac + occ.extentha * 2.47105 +  occ.extentp / 160 )  AS extentac,
+        (SELECT COUNT(*) FROM slavecropcalendardays scd1 WHERE scd1.onCulscropID = occ.id) AS totalTasks,
+        (SELECT COUNT(*) FROM slavecropcalendardays scd2 WHERE scd2.onCulscropID = occ.id AND scd2.status = 'completed') AS completedTasks,
+        occ.createdAt
+      FROM ongoingcultivations oc
+      INNER JOIN ongoingcultivationscrops occ ON oc.id = occ.ongoingCultivationId
+      LEFT JOIN cropcalender cc ON occ.cropCalendar = cc.id
+      LEFT JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+      LEFT JOIN cropgroup cg ON cv.cropGroupId = cg.id
+      WHERE oc.userId = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getFarmerPensionDetailsDao = (page, limit, searchText) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM pensionrequest
+      WHERE reqStatus = 'Approved'
+    `;
+
+    let dataSql = `
+      SELECT 
+        pr.id,
+        pr.fullName,
+        pr.nic,
+        CONCAT(u.firstName, ' ', u.lastName) AS farmerFullName,
+        u.phoneNumber,
+        pr.dob,
+        pr.sucType,
+        pr.sucNic,
+        pr.sucdob,
+        pr.defaultPension,
+        pr.reqStatus,
+        au.userName AS approveBy,
+        pr.approveTime,
+        pr.createdAt
+      FROM pensionrequest pr
+      LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
+      LEFT JOIN users u ON pr.userId = u.id
+      WHERE pr.reqStatus = 'Approved'
+    `;
+
+    const countParams = [];
+    const dataParams = [];
+
+    if (searchText && searchText.trim() !== "") {
+      const cond = ` AND nic LIKE ? `;
+      countSql += cond;
+      dataSql += cond;
+
+      const pattern = `%${searchText}%`;
+      countParams.push(pattern);
+      dataParams.push(pattern);
+    }
+
+    dataSql += ` ORDER BY pr.approveTime DESC LIMIT ? OFFSET ?`;
+    dataParams.push(parseInt(limit), parseInt(offset));
+
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+
+      plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) return reject(dataErr);
+
+        resolve({
+          total: countResults[0].total,
+          items: dataResults,
+        });
+      });
     });
   });
 };

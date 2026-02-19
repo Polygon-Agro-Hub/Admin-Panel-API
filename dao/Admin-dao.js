@@ -560,31 +560,112 @@ exports.editMarketPrice = (id, data) => {
   });
 };
 
+// exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
+//   return new Promise((resolve, reject) => {
+//     // Count query
+//     let countSql = `
+//       SELECT 
+//         COUNT(*) as total
+//       FROM users U
+//       LEFT JOIN ongoingcultivations OC  ON OC.userId = U.id
+//       LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+//       INNER JOIN farms F ON F.userId = U.id
+//       WHERE 1=1
+//     `;
+
+//     // Data query with proper grouping
+//     let dataSql = `
+//       SELECT 
+//         OC.id AS cultivationId,
+//         U.id AS userId,
+//         U.firstName, 
+//         U.lastName, 
+//         U.NICnumber,
+//         U.phoneNumber,
+//         COUNT(DISTINCT F.id) AS FarmCount
+//       FROM users U
+//       LEFT JOIN ongoingcultivations OC  ON OC.userId = U.id
+//       LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
+//       INNER JOIN farms F ON F.userId = U.id
+//       WHERE 1=1
+//     `;
+
+//     const countParams = [];
+//     const dataParams = [];
+
+//     if (searchItem) {
+//       const searchQuery = `%${searchItem}%`;
+//       const searchCondition = `
+//         AND (
+//           U.NICnumber LIKE ? OR 
+//           U.firstName LIKE ? OR 
+//           U.lastName LIKE ? OR
+//           U.phoneNumber LIKE ?
+//         )
+//       `;
+//       countSql += searchCondition;
+//       dataSql += searchCondition;
+//       countParams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+//       dataParams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+//     }
+
+//     dataSql += `
+//       GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber
+//       ORDER BY OC.createdAt DESC 
+//       LIMIT ? OFFSET ?
+//     `;
+
+//     countSql += ` GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber `
+//     dataParams.push(limit, offset);
+
+//     // Fetch total count
+//     plantcare.query(countSql, countParams, (countErr, countResults) => {
+//       if (countErr) {
+//         return reject(countErr);
+//       }
+
+//       const total = countResults[0].total;
+
+//       // Fetch paginated data
+//       plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
+//         if (dataErr) {
+//           return reject(dataErr);
+//         }
+//         resolve({
+//           total,
+//           items: dataResults,
+//           totalCrops: dataResults.reduce(
+//             (sum, item) => sum + item.CropCount,
+//             0
+//           ),
+//         });
+//       });
+//     });
+//   });
+// };
+
+
 exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
   return new Promise((resolve, reject) => {
     // Count query
     let countSql = `
-      SELECT COUNT(DISTINCT OC.id) as total 
-      FROM ongoingcultivations OC
-      LEFT JOIN users U ON OC.userId = U.id
+      SELECT COUNT(DISTINCT U.id) AS total
+      FROM users U
+      INNER JOIN farms F ON U.id = F.userId
       WHERE 1=1
     `;
 
     // Data query with proper grouping
     let dataSql = `
       SELECT 
-        OC.id AS cultivationId,
-        U.id AS userId,
-        U.firstName, 
-        U.lastName, 
-        U.NICnumber,
-        U.phoneNumber,
-        COUNT(DISTINCT OCC.id) AS CropCount,
-        COUNT(DISTINCT F.id) AS FarmCount
-      FROM ongoingcultivations OC
-      LEFT JOIN users U ON OC.userId = U.id
-      LEFT JOIN ongoingcultivationscrops OCC ON OC.id = OCC.ongoingCultivationId
-      LEFT JOIN farms F ON F.userId = U.id
+      	 U.id AS userId,
+         U.firstName, 
+         U.lastName, 
+         U.NICnumber,
+         U.phoneNumber,
+         COUNT(DISTINCT F.id) AS FarmCount
+      FROM users U
+      INNER JOIN farms F ON U.id = F.userId
       WHERE 1=1
     `;
 
@@ -608,10 +689,16 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
     }
 
     dataSql += `
-      GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber
-      ORDER BY OC.createdAt DESC 
+      GROUP BY 
+      	U.id,
+        U.firstName, 
+        U.lastName, 
+        U.NICnumber,
+        U.phoneNumber
+      ORDER BY U.created_at DESC 
       LIMIT ? OFFSET ?
     `;
+
     dataParams.push(limit, offset);
 
     // Fetch total count
@@ -630,15 +717,12 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
         resolve({
           total,
           items: dataResults,
-          totalCrops: dataResults.reduce(
-            (sum, item) => sum + item.CropCount,
-            0
-          ),
         });
       });
     });
   });
 };
+
 
 exports.getOngoingCultivationsWithUserDetails = () => {
   const sql = `
@@ -724,7 +808,7 @@ exports.getOngoingCultivationsByFarmId = (farmId, userId) => {
         u.firstName AS userFirstName,
         u.lastName AS userLastName,
         (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id) AS totalTasks,
-        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasksm,
+        (SELECT COUNT(*) FROM slavecropcalendardays WHERE onCulscropID = occ.id AND status = 'completed') AS completedTasks,
         f.farmName,
         occ.planType
       FROM 
@@ -1880,13 +1964,14 @@ exports.getCurrentAssetGroup = (userId, farmId) => {
 exports.getCurrentAssetRecordById = (currentAssetId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT id, currentAssetId, 
-                   COALESCE(numOfPlusUnit, 0) AS numOfPlusUnit, 
-                   COALESCE(numOfMinUnit, 0) AS numOfMinUnit, 
-                   totalPrice, createdAt  
-            FROM currentassetrecord 
-            WHERE currentAssetId = ?
-            ORDER BY createdAt DESC
+    SELECT ca.unitVolume, car.id, car.currentAssetId, 
+    COALESCE(car.numOfPlusUnit, 0) AS numOfPlusUnit, 
+    COALESCE(car.numOfMinUnit, 0) AS numOfMinUnit, 
+    car.totalPrice, car.createdAt  
+FROM plant_care.currentasset ca 
+LEFT JOIN plant_care.currentassetrecord car ON ca.id = car.currentAssetId
+WHERE ca.id = ?
+ORDER BY car.createdAt DESC
         `;
     const values = [currentAssetId];
 
@@ -3037,11 +3122,21 @@ exports.insertUserXLSXData = (data) => {
       const schema = Joi.object({
         "First Name": Joi.string().trim().min(2).max(50),
         "Last Name": Joi.string().trim().min(2).max(50),
-        "Phone Number": Joi.alternatives()
-          .try(
-            Joi.string().pattern(/^\+94\d{9}$/),
-            Joi.number().integer().min(94000000000).max(94999999999)
-          ),
+        "Phone Number": Joi.any()
+          .required()
+          .custom((value, helpers) => {
+            const normalized = normalizeSLMobile(value);
+           
+            if (!normalized) {
+              return helpers.error('any.invalid');
+            }
+          
+            return normalized; // ✅ return normalized value
+          })
+          .messages({
+            'any.invalid': 'Requried a Valid Phone Number, ex: +94XXXXXXXXXX, 94XXXXXXXXXX, 07XXXXXXXX, 7XXXXXXXX',
+            'any.required': 'Phone Number is required'
+          }),
         "NIC Number": Joi.alternatives()
           .try(
             Joi.string(),
@@ -3162,12 +3257,21 @@ exports.insertUserXLSXData = (data) => {
           (firstName, lastName, phoneNumber, NICnumber, membership, district) 
           VALUES ?
         `;
+        // const values = newUsers.map((row) => [
+        //   row["First Name"],
+        //   row["Last Name"],
+        //   String(row["Phone Number"]).trim().startsWith("+")
+        //     ? String(row["Phone Number"]).trim()
+        //     : `+${String(row["Phone Number"]).trim()}`,
+        //   String(row["NIC Number"]).trim(),
+        //   row["Membership"],
+        //   row["District"],
+        // ]);
+
         const values = newUsers.map((row) => [
           row["First Name"],
           row["Last Name"],
-          String(row["Phone Number"]).trim().startsWith("+")
-            ? String(row["Phone Number"]).trim()
-            : `+${String(row["Phone Number"]).trim()}`,
+          normalizeSLMobile(row["Phone Number"]),
           String(row["NIC Number"]).trim(),
           row["Membership"],
           row["District"],
@@ -3203,6 +3307,18 @@ exports.insertUserXLSXData = (data) => {
   });
 };
 
+function normalizeSLMobile(number) {
+  if (!number) return null;
+
+  let mobile = String(number).trim().replace(/\s|-/g, '');
+
+  if (mobile.startsWith('+94') && mobile.length === 12) return mobile;
+  if (mobile.startsWith('94') && mobile.length === 11) return `+${mobile}`;
+  if (mobile.startsWith('0') && mobile.length === 10) return `+94${mobile.substring(1)}`;
+  if (/^\d{9}$/.test(mobile)) return `+94${mobile}`;
+
+  return null;
+}
 
 exports.getUserFeedbackDetails = (page, limit) => {
   return new Promise((resolve, reject) => {
@@ -4132,87 +4248,6 @@ exports.deleteFarmDao = (farmId) => {
   });
 };
 
-// exports.getAllFarmsWithCultivations = (userId, searchItem) => {
-//   return new Promise((resolve, reject) => {
-//     let params = [];
-//     let searchSql = "";
-
-//     if (searchItem) {
-//       searchSql = `
-//         AND (
-//           U.NICnumber LIKE ? OR
-//           U.firstName LIKE ? OR
-//           U.lastName LIKE ? OR
-//           F.farmName LIKE ?
-//         )
-//       `;
-//       const searchQuery = `%${searchItem}%`;
-//       params.push(searchQuery, searchQuery, searchQuery, searchQuery);
-//     }
-
-//     // Filter by specific user
-//     if (userId) {
-//       searchSql += " AND U.id = ? ";
-//       params.push(userId);
-//     }
-
-//     const sql = `
-//       SELECT
-//         F.id AS farmId,
-//         F.farmName,
-//         F.farmIndex,
-//         F.staffCount,
-//         F.district AS farmDistrict,
-//         F.createdAt AS farmCreatedAt,
-//         U.id AS userId,
-//         U.firstName,
-//         U.lastName,
-//         U.NICnumber,
-//         COUNT(DISTINCT OC.id) AS cultivationCount
-//       FROM farms F
-//       LEFT JOIN users U ON F.userId = U.id
-//       LEFT JOIN ongoingcultivations OC ON OC.userId = U.id
-//       WHERE 1=1 ${searchSql}
-//       GROUP BY F.id, U.id
-//       ORDER BY F.createdAt DESC
-//     `;
-
-//     plantcare.query(sql, params, (err, results) => {
-//       if (err) return reject(err);
-
-//       // Group farms by user
-//       const usersMap = {};
-//       results.forEach(row => {
-//         if (!usersMap[row.userId]) {
-//           usersMap[row.userId] = {
-//             userId: row.userId,
-//             firstName: row.firstName,
-//             lastName: row.lastName,
-//             NICnumber: row.NICnumber,
-//             farms: [],
-//           };
-//         }
-
-//         usersMap[row.userId].farms.push({
-//           farmId: row.farmId,
-//           farmName: row.farmName,
-//           farmIndex: row.farmIndex,
-//           staffCount: row.staffCount,
-//           farmDistrict: row.farmDistrict,
-//           farmCreatedAt: row.farmCreatedAt,
-//           cultivationCount: row.cultivationCount, // updated
-//         });
-//       });
-
-//       const items = Object.values(usersMap);
-
-//       resolve({
-//         totalUsers: items.length,
-//         items,
-//       });
-//     });
-//   });
-// };
 exports.getAllFarmsWithCultivations = (userId, searchItem) => {
   return new Promise((resolve, reject) => {
     let params = [];
@@ -4246,7 +4281,8 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
         U.firstName,
         U.lastName,
         U.NICnumber,
-        COUNT(DISTINCT OCC.id) AS cultivationCount
+        COUNT(DISTINCT OCC.id) AS cultivationCount,
+        (F.extentac + F.extentha * 2.47105 + F.extentp / 160) AS area
       FROM farms F
       LEFT JOIN users U ON F.userId = U.id
       LEFT JOIN ongoingcultivations OC ON OC.userId = U.id
@@ -4282,6 +4318,7 @@ exports.getAllFarmsWithCultivations = (userId, searchItem) => {
           farmDistrict: row.farmDistrict,
           farmCreatedAt: row.farmCreatedAt,
           cultivationCount: row.cultivationCount,
+          area: parseFloat(row.area).toFixed(2),
         });
       });
 
@@ -4571,7 +4608,7 @@ exports.GetCompaniesDAO = () => {
 exports.GetAllManagerList = () => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, firstName, lastName FROM feildofficer WHERE JobRole = 'Chief Field Officer' AND status = 'Approved'";
+      "SELECT id, empId, firstName, lastName FROM feildofficer WHERE JobRole = 'Chief Field Officer' AND status = 'Approved'";
 
     plantcare.query(sql, (err, results) => {
       if (err) {
@@ -5247,3 +5284,30 @@ exports.trackUserTaskUpdateDao = (id, adminId) => {
   });
 };
 
+exports.getCultivationForPensionDao = (id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+     SELECT
+        oc.id AS ongoingCultivationId,
+        cv.varietyNameEnglish,
+        cg.cropNameEnglish,
+        (occ.extentac + occ.extentha * 2.47105 +  occ.extentp / 160 )  AS extentac,
+        (SELECT COUNT(*) FROM slavecropcalendardays scd1 WHERE scd1.onCulscropID = occ.id) AS totalTasks,
+        (SELECT COUNT(*) FROM slavecropcalendardays scd2 WHERE scd2.onCulscropID = occ.id AND scd2.status = 'completed') AS completedTasks,
+        occ.createdAt
+      FROM ongoingcultivations oc
+      INNER JOIN ongoingcultivationscrops occ ON oc.id = occ.ongoingCultivationId
+      LEFT JOIN cropcalender cc ON occ.cropCalendar = cc.id
+      LEFT JOIN cropvariety cv ON cc.cropVarietyId = cv.id
+      LEFT JOIN cropgroup cg ON cv.cropGroupId = cg.id
+      WHERE oc.userId = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

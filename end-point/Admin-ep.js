@@ -2346,7 +2346,7 @@ exports.uploadUsersXLSX = async (req, res) => {
       duplicateEntries: result.duplicateData, // Sending duplicate entries
     });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(400).json({ error: error.message });
   }
 };
 

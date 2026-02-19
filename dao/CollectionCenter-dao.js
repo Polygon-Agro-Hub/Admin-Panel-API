@@ -396,6 +396,8 @@ exports.GetAllCenterComplainDAO = (
       sql += " AND ar.role = ? ";
       Sqlparams.push(category);
       Counterparams.push(category);
+      console.log(category);
+      
     }
 
     if (comCategory) {
@@ -934,7 +936,7 @@ exports.GetAllCompanyList = () => {
 exports.GetAllManagerList = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND centerId = ? AND jobRole = 'Collection Centre Manager'";
+      "SELECT id, empId, firstNameEnglish, lastNameEnglish FROM collectionofficer WHERE companyId = ? AND centerId = ? AND jobRole = 'Collection Centre Manager' AND status = 'Approved'";
     collectionofficer.query(sql, [companyId, centerId], (err, results) => {
       if (err) {
         return reject(err);
@@ -985,6 +987,11 @@ exports.getAllCompanyDAO = (search) => {
         c.companyNameEnglish AS companyName,
         c.email AS companyEmail,
         c.status,
+        c.oicConCode1,
+        c.oicConCode2,
+        c.oicConNum1,
+        c.oicConNum2,
+        au.userName,
         SUM(CASE WHEN co.jobRole = 'Collection Centre Head' THEN 1 ELSE 0 END) AS numOfHead,
         SUM(CASE WHEN co.jobRole = 'Collection Centre Manager' THEN 1 ELSE 0 END) AS numOfManagers,
         SUM(CASE WHEN co.jobRole = 'Collection Officer' THEN 1 ELSE 0 END) AS numOfOfficers,
@@ -1003,6 +1010,8 @@ exports.getAllCompanyDAO = (search) => {
         collectionofficer co 
       ON 
         c.id = co.companyId
+      LEFT JOIN 
+      agro_world_admin.adminusers au ON c.modifyBy = au.id
       WHERE 
         c.isCollection = true
     `;
@@ -1014,7 +1023,8 @@ exports.getAllCompanyDAO = (search) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    sql += " GROUP BY c.id ORDER BY companyName ASC";
+    // sql += " GROUP BY c.id ORDER BY companyName ASC";
+    sql += " GROUP BY c.id ORDER BY CASE WHEN c.id = 1 THEN 0 ELSE 1 END, companyName ASC";
 
     collectionofficer.query(sql, params, (err, results) => {
       if (err) {
@@ -1040,7 +1050,15 @@ exports.getCompanyDAO = (id) => {
 
 exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) => {
   return new Promise((resolve, reject) => {
-    let sql = "SELECT * FROM company WHERE (companyNameEnglish = ? OR regNumber = ?)";
+    let sql = `
+      SELECT *
+      FROM company
+      WHERE (
+        BINARY companyNameEnglish = ?
+        OR BINARY regNumber = ?
+      )
+    `;
+
     const sqlParams = [companyNameEnglish, regNumber];
 
     if (id) {
@@ -1052,9 +1070,13 @@ exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) =
       if (err) {
         reject(err);
       } else {
-        // Check if either companyNameEnglish or regNumber already exists
-        const nameExists = results.some(result => result.companyNameEnglish === companyNameEnglish);
-        const regNumberExists = results.some(result => result.regNumber === regNumber);
+        const nameExists = results.some(
+          r => r.companyNameEnglish === companyNameEnglish
+        );
+
+        const regNumberExists = results.some(
+          r => r.regNumber === regNumber
+        );
 
         resolve({
           exists: results.length > 0,
@@ -1065,6 +1087,7 @@ exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) =
     });
   });
 };
+
 
 exports.updateCompany = (
   id,
@@ -1089,7 +1112,8 @@ exports.updateCompany = (
   foEmail,
   status,
   logo,
-  favicon
+  favicon,
+  adminId
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1115,7 +1139,8 @@ exports.updateCompany = (
         foEmail = ?,
         status = ?,
         logo = ?,
-      favicon = ?
+        favicon = ?,
+        modifyBy = ?
       WHERE id = ?
     `;
 
@@ -1142,6 +1167,7 @@ exports.updateCompany = (
       status,
       logo,
       favicon,
+      adminId,
       id,
     ];
 
@@ -1472,8 +1498,8 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
   return new Promise((resolve, reject) => {
     let countSql = `
       SELECT COUNT(*) AS total 
-      FROM collectionofficer
-      WHERE companyId = ? AND jobRole = 'Collection Centre Head'
+      FROM collectionofficer coff
+      WHERE coff.companyId = ? AND coff.jobRole = 'Collection Centre Head'
     `;
 
     let dataSql = `
@@ -2251,33 +2277,31 @@ exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
 exports.checkCompanyRegNumberDao = (regNumber, id) => {
   return new Promise((resolve, reject) => {
     let sql = `
-         SELECT *
-         FROM company
-         WHERE regNumber = ?
-      `;
-    const sqlParams = [regNumber]
+      SELECT *
+      FROM company
+      WHERE BINARY regNumber = ?
+    `;
+
+    const sqlParams = [regNumber];
 
     if (id) {
-      sql += ` AND id != ? `
+      sql += ` AND id != ?`;
       sqlParams.push(id);
     }
-    collectionofficer.query(
-      sql,
-      sqlParams,
-      (err, results) => {
-        if (err) {
-          return reject(err);
-        }
-        resolve(results);
+
+    collectionofficer.query(sql, sqlParams, (err, results) => {
+      if (err) {
+        return reject(err);
       }
-    );
+      resolve(results);
+    });
   });
 };
 
 exports.GetAllCollectionCenterList = (companyId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT coc.id, coc.centerName FROM collection_officer.collectioncenter coc LEFT JOIN companycenter cc ON coc.id = cc.centerId WHERE cc.companyId = ?";
+      "SELECT coc.id, coc.regCode, coc.centerName FROM collection_officer.collectioncenter coc LEFT JOIN companycenter cc ON coc.id = cc.centerId WHERE cc.companyId = ?";
     collectionofficer.query(sql, [companyId], (err, results) => {
       if (err) {
         return reject(err);

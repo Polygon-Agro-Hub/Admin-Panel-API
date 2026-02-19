@@ -7,7 +7,7 @@ const deleteFromS3 = require("../middlewares/s3delete");
 exports.createDistributionCenter = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
-  console.log('request body', req.body);
+  console.log("request body", req.body);
   try {
     // Validate input with Joi
     const data =
@@ -25,7 +25,9 @@ exports.createDistributionCenter = async (req, res) => {
       validationErrors.push("email");
     }
 
-    const isCompanyName = await DistributionDao.checkCompanyNameExistDC(data.name);
+    const isCompanyName = await DistributionDao.checkCompanyNameExistDC(
+      data.name
+    );
     if (isCompanyName) {
       validationErrors.push("name");
     }
@@ -36,14 +38,16 @@ exports.createDistributionCenter = async (req, res) => {
     }
 
     // Phone number 1 validation
-    const isExistingPhoneNumber01 = await DistributionDao.checkPhoneNumberExistDC(data.contact1);
+    const isExistingPhoneNumber01 =
+      await DistributionDao.checkPhoneNumberExistDC(data.contact1);
     if (isExistingPhoneNumber01) {
       validationErrors.push("contact01");
     }
 
     // Phone number 2 validation (optional)
     if (data.contact2) {
-      const isExistingPhoneNumber02 = await DistributionDao.checkPhoneNumberExistDC(data.contact2);
+      const isExistingPhoneNumber02 =
+        await DistributionDao.checkPhoneNumberExistDC(data.contact2);
       if (isExistingPhoneNumber02) {
         validationErrors.push("contact02");
       }
@@ -51,10 +55,10 @@ exports.createDistributionCenter = async (req, res) => {
 
     // If any errors, return them all at once
     if (validationErrors.length > 0) {
-      console.log('validationErrors', validationErrors)
+      console.log("validationErrors", validationErrors);
       return res.status(400).json({
-        errors: validationErrors,   // e.g. ["Email", "PhoneNumber01"]
-        status: false
+        errors: validationErrors, // e.g. ["Email", "PhoneNumber01"]
+        status: false,
       });
     }
 
@@ -275,10 +279,13 @@ exports.createDistributionHead = async (req, res) => {
       DistributionDao.checkNICExist(officerData.nic),
       DistributionDao.checkEmailExist(officerData.email),
       DistributionDao.checkPhoneExist(officerData.phoneNumber01),
-      officerData.phoneNumber02 ? DistributionDao.checkPhoneExist(officerData.phoneNumber02) : Promise.resolve(false)
+      officerData.phoneNumber02
+        ? DistributionDao.checkPhoneExist(officerData.phoneNumber02)
+        : Promise.resolve(false),
     ]);
 
-    const [isExistingNIC, isExistingEmail, isExistingPhone1, isExistingPhone2] = duplicateChecks;
+    const [isExistingNIC, isExistingEmail, isExistingPhone1, isExistingPhone2] =
+      duplicateChecks;
 
     // Collect duplicate fields
     const duplicateFields = [];
@@ -298,12 +305,14 @@ exports.createDistributionHead = async (req, res) => {
         errorMessage = `${duplicateFields[0]} and ${duplicateFields[1]} already exist.`;
       } else {
         const lastField = duplicateFields.pop();
-        errorMessage = `${duplicateFields.join(", ")}, and ${lastField} already exist.`;
+        errorMessage = `${duplicateFields.join(
+          ", "
+        )}, and ${lastField} already exist.`;
       }
 
       return res.status(400).json({
         error: errorMessage,
-        duplicateFields: duplicateFields
+        duplicateFields: duplicateFields,
       });
     }
 
@@ -332,14 +341,17 @@ exports.createDistributionHead = async (req, res) => {
       }
     }
 
-    const newEmpId = await DistributionDao.getDistributedIdforCreateEmpIdDao(officerData.jobRole);
+    const newEmpId = await DistributionDao.getDistributedIdforCreateEmpIdDao(
+      officerData.jobRole
+    );
 
     // Save officer data
-    const resultsPersonal = await DistributionDao.createDistributionHeadPersonal(
-      officerData,
-      profileImageUrl,
-      newEmpId
-    );
+    const resultsPersonal =
+      await DistributionDao.createDistributionHeadPersonal(
+        officerData,
+        profileImageUrl,
+        newEmpId
+      );
 
     console.log("Distribution Head created successfully");
     return res.status(201).json({
@@ -510,12 +522,11 @@ exports.getDistributionHeadDetailsById = async (req, res) => {
   }
 };
 
-
 exports.updateCollectionOfficerDetails = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
-    const adminId = req.user.userId
+    const adminId = req.user.userId;
 
     if (!id) {
       return res.status(400).json({
@@ -533,7 +544,10 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
 
     // Check for NIC duplication in another record
     if (updateData.nic) {
-      const nicExists = await DistributionDao.checkNICExistExceptId(updateData.nic, id);
+      const nicExists = await DistributionDao.checkNICExistExceptId(
+        updateData.nic,
+        id
+      );
       if (nicExists) {
         return res.status(409).json({
           success: false,
@@ -544,7 +558,10 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
 
     // Check for email duplication in another record
     if (updateData.email) {
-      const emailExists = await DistributionDao.checkEmailExistExceptId(updateData.email, id);
+      const emailExists = await DistributionDao.checkEmailExistExceptId(
+        updateData.email,
+        id
+      );
       if (emailExists) {
         return res.status(409).json({
           success: false,
@@ -565,21 +582,25 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
     for (const [field, phone] of Object.entries(phoneNumberMap)) {
       if (!phone) continue;
 
-      const phoneExists = await DistributionDao.checkPhoneExistExceptId(phone, id);
+      const phoneExists = await DistributionDao.checkPhoneExistExceptId(
+        phone,
+        id
+      );
       if (phoneExists) {
         existingPhones.push(field);
       }
     }
 
     if (existingPhones.length > 0) {
-      let errorMessage = '';
+      let errorMessage = "";
 
       if (existingPhones.length === 2) {
-        errorMessage = 'Both Mobile Number - 1 and Mobile Number - 2 already exist for other users';
-      } else if (existingPhones[0] === 'phoneNumber01') {
-        errorMessage = 'Mobile Number - 1 already exists for another user';
+        errorMessage =
+          "Both Mobile Number - 1 and Mobile Number - 2 already exist for other users";
+      } else if (existingPhones[0] === "phoneNumber01") {
+        errorMessage = "Mobile Number - 1 already exists for another user";
       } else {
-        errorMessage = 'Mobile Number - 2 already exists for another user';
+        errorMessage = "Mobile Number - 2 already exists for another user";
       }
 
       return res.status(409).json({
@@ -588,8 +609,11 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
       });
     }
 
-
-    const result = await DistributionDao.UpdateDistributionHeadDao(id, updateData, adminId);
+    const result = await DistributionDao.UpdateDistributionHeadDao(
+      id,
+      updateData,
+      adminId
+    );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
@@ -615,7 +639,6 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
     });
   }
 };
-
 
 exports.getDistributionCentreById = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -720,47 +743,60 @@ exports.updateDistributionCentreDetails = async (req, res) => {
     console.log("Update data:", updateData);
 
     // Validate input with Joi
-    const data = await DistributionValidation.getDistributionCenterDetailsSchema.validateAsync(updateData);
+    const data =
+      await DistributionValidation.getDistributionCenterDetailsSchema.validateAsync(
+        updateData
+      );
 
     let validationErrors = [];
 
     // Check duplicates
 
-    const isExistingEmail = await DistributionDao.checkEmailExistDC(data.email, id);
+    const isExistingEmail = await DistributionDao.checkEmailExistDC(
+      data.email,
+      id
+    );
     if (isExistingEmail) {
-      console.log('isExistingEmail')
-      validationErrors.push('email');
-      console.log('validationErrors', validationErrors)
+      console.log("isExistingEmail");
+      validationErrors.push("email");
+      console.log("validationErrors", validationErrors);
     }
-    const isCompanyName = await DistributionDao.checkCompanyNameExistDC(data.name, id);
+    const isCompanyName = await DistributionDao.checkCompanyNameExistDC(
+      data.name,
+      id
+    );
     if (isCompanyName) {
-      console.log('isCompanyName')
-      validationErrors.push('name');
-      console.log('validationErrors', validationErrors)
+      console.log("isCompanyName");
+      validationErrors.push("name");
+      console.log("validationErrors", validationErrors);
     }
 
-    const isRegCode = await DistributionDao.checkRegCodeExistDC(data.regCode, id);
-    if (isRegCode) validationErrors.push('regCode');
+    const isRegCode = await DistributionDao.checkRegCodeExistDC(
+      data.regCode,
+      id
+    );
+    if (isRegCode) validationErrors.push("regCode");
 
-    const isExistingPhoneNumber01 = await DistributionDao.checkPhoneNumberExistDC(data.contact1, id);
-    if (isExistingPhoneNumber01) validationErrors.push('contact1');
+    const isExistingPhoneNumber01 =
+      await DistributionDao.checkPhoneNumberExistDC(data.contact1, id);
+    if (isExistingPhoneNumber01) validationErrors.push("contact1");
 
     if (data.contact2) {
-      const isExistingPhoneNumber02 = await DistributionDao.checkPhoneNumberExistDC(data.contact2, id);
-      if (isExistingPhoneNumber02) validationErrors.push('contact2');
+      const isExistingPhoneNumber02 =
+        await DistributionDao.checkPhoneNumberExistDC(data.contact2, id);
+      if (isExistingPhoneNumber02) validationErrors.push("contact2");
     }
 
     // If any validation errors, send all at once
     if (validationErrors.length > 0) {
-      console.log('validationErrors', validationErrors)
+      console.log("validationErrors", validationErrors);
       return res.status(400).json({
         errors: validationErrors,
-        status: false
+        status: false,
       });
     }
 
-    console.log('validationErrors', validationErrors)
-
+    console.log("validationErrors", validationErrors);
 
     // // Check for existing records excluding current center
     // const existingChecks = await DistributionDao.checkExistingDistributionCenter({
@@ -805,7 +841,11 @@ exports.updateDistributionCentreDetails = async (req, res) => {
       data
     );
 
-    const updateComCenter = await DistributionDao.updateDistributedCompaanyCenterDao(data.company, id)
+    const updateComCenter =
+      await DistributionDao.updateDistributedCompaanyCenterDao(
+        data.company,
+        id
+      );
 
     if (!updatedCentre) {
       console.log(
@@ -914,16 +954,15 @@ exports.getAllDistributionOfficers = async (req, res) => {
   console.log(fullUrl);
 
   try {
-
     const validatedQuery =
       await DistributionValidation.getAllDistributionOfficersSchema.validateAsync(
         req.query
       );
 
-    const { page, limit, centerStatus, status, nic, company, role, centerId } = validatedQuery;
+    const { page, limit, centerStatus, status, nic, company, role, centerId } =
+      validatedQuery;
 
-    console.log(centerStatus, status)
-
+    console.log(centerStatus, status);
 
     const result = await DistributionDao.getAllDistributionOfficers(
       page,
@@ -947,9 +986,9 @@ exports.getAllDistributionOfficers = async (req, res) => {
     }
 
     console.error("Error fetching distribution officers:", error);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while fetching distribution officers" });
+    return res.status(500).json({
+      error: "An error occurred while fetching distribution officers",
+    });
   }
 };
 
@@ -967,9 +1006,7 @@ exports.getAllDistributedCenterNames = async (req, res) => {
     }
 
     console.error("Error retrieving", error);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while fetching" });
+    return res.status(500).json({ error: "An error occurred while fetching" });
   }
 };
 
@@ -977,8 +1014,10 @@ exports.getAllDistributionManagerNames = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    const id = parseInt(req.params.id)
-    const results = await DistributionDao.getAllDistributionCenterManagerDao(id);
+    const id = parseInt(req.params.id);
+    const results = await DistributionDao.getAllDistributionCenterManagerDao(
+      id
+    );
 
     res.status(200).json(results);
   } catch (error) {
@@ -1076,20 +1115,7 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
 
-    // Update status and password in the database
-    const updateResult =
-      await DistributionDao.UpdateDistributionOfficerStatusAndPasswordDao({
-        id,
-        status,
-        password: hashedPassword,
-      });
-
-    if (updateResult.affectedRows === 0) {
-      return res.status(400).json({
-        message: "Failed to update status and password.",
-        status: false,
-      });
-    }
+    
 
     // If status is 'Approved', send the password email
     if (status === "Approved") {
@@ -1106,6 +1132,21 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
           error: emailResult.error,
         });
       }
+    }
+
+    // Update status and password in the database
+    const updateResult =
+      await DistributionDao.UpdateDistributionOfficerStatusAndPasswordDao({
+        id,
+        status,
+        password: hashedPassword,
+      });
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(400).json({
+        message: "Failed to update status and password.",
+        status: false,
+      });
     }
 
     // Return success response with empId and email
@@ -1146,19 +1187,19 @@ exports.getAllCompanyNames = async (req, res) => {
 // Helper function to sanitize data
 const sanitizeOfficerData = (data) => {
   const sanitized = { ...data };
-  const numericFields = ['irmId'];
-  
-  numericFields.forEach(field => {
-    if (sanitized[field] === '' || sanitized[field] === undefined) {
+  const numericFields = ["irmId"];
+
+  numericFields.forEach((field) => {
+    if (sanitized[field] === "" || sanitized[field] === undefined) {
       sanitized[field] = null;
     }
   });
-  
+
   // Also handle optional phone number
-  if (sanitized.phoneNumber02 === '' || sanitized.phoneNumber02 === undefined) {
+  if (sanitized.phoneNumber02 === "" || sanitized.phoneNumber02 === undefined) {
     sanitized.phoneNumber02 = null;
   }
-  
+
   return sanitized;
 };
 
@@ -1178,7 +1219,9 @@ const processBase64Image = async (base64Data, fileName, s3Path) => {
   const mimeType = match[1];
   const fileBuffer = Buffer.from(base64String, "base64");
   const fileExtension = mimeType.split("/")[1];
-  const fullFileName = fileName.includes('.') ? fileName : `${fileName}.${fileExtension}`;
+  const fullFileName = fileName.includes(".")
+    ? fileName
+    : `${fileName}.${fileExtension}`;
 
   return await uploadFileToS3(fileBuffer, fullFileName, s3Path);
 };
@@ -1186,17 +1229,49 @@ const processBase64Image = async (base64Data, fileName, s3Path) => {
 // Helper function to process all driver images in parallel
 const processDriverImages = async (req, driverData) => {
   const imageProcessingTasks = [
-    { key: 'licFront', name: driverData.licFrontName, path: 'vehicleregistration/licFrontImg' },
-    { key: 'licBack', name: driverData.licBackName, path: 'vehicleregistration/licBackImg' },
-    { key: 'insFront', name: driverData.insFrontName, path: 'vehicleregistration/insFrontImg' },
-    { key: 'insBack', name: driverData.insBackName, path: 'vehicleregistration/insBackImg' },
-    { key: 'vehiFront', name: driverData.vFrontName, path: 'vehicleregistration/vehFrontImg' },
-    { key: 'vehiBack', name: driverData.vBackName, path: 'vehicleregistration/vehBackImg' },
-    { key: 'vehiSideA', name: driverData.vSideAName, path: 'vehicleregistration/vehSideImgA' },
-    { key: 'vehiSideB', name: driverData.vSideBName, path: 'vehicleregistration/vehSideImgB' }
+    {
+      key: "licFront",
+      name: driverData.licFrontName,
+      path: "vehicleregistration/licFrontImg",
+    },
+    {
+      key: "licBack",
+      name: driverData.licBackName,
+      path: "vehicleregistration/licBackImg",
+    },
+    {
+      key: "insFront",
+      name: driverData.insFrontName,
+      path: "vehicleregistration/insFrontImg",
+    },
+    {
+      key: "insBack",
+      name: driverData.insBackName,
+      path: "vehicleregistration/insBackImg",
+    },
+    {
+      key: "vehiFront",
+      name: driverData.vFrontName,
+      path: "vehicleregistration/vehFrontImg",
+    },
+    {
+      key: "vehiBack",
+      name: driverData.vBackName,
+      path: "vehicleregistration/vehBackImg",
+    },
+    {
+      key: "vehiSideA",
+      name: driverData.vSideAName,
+      path: "vehicleregistration/vehSideImgA",
+    },
+    {
+      key: "vehiSideB",
+      name: driverData.vSideBName,
+      path: "vehicleregistration/vehSideImgB",
+    },
   ];
 
-  const uploadPromises = imageProcessingTasks.map(task =>
+  const uploadPromises = imageProcessingTasks.map((task) =>
     processBase64Image(req.body[task.key], task.name, task.path)
   );
 
@@ -1208,7 +1283,7 @@ const processDriverImages = async (req, driverData) => {
     vehicleFrontImageUrl,
     vehicleBackImageUrl,
     vehicleSideAImageUrl,
-    vehicleSideBImageUrl
+    vehicleSideBImageUrl,
   ] = await Promise.all(uploadPromises);
 
   return {
@@ -1219,55 +1294,61 @@ const processDriverImages = async (req, driverData) => {
     vehicleFrontImageUrl,
     vehicleBackImageUrl,
     vehicleSideAImageUrl,
-    vehicleSideBImageUrl
+    vehicleSideBImageUrl,
   };
 };
 
 exports.createDistributionOfficer = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log('Request URL:', fullUrl);
+  console.log("Request URL:", fullUrl);
 
   let officerId = null; // Track for rollback
 
   try {
     // Validate request body
     if (!req.body.officerData) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "Officer data is required",
-        status: false 
+        status: false,
       });
     }
 
     // Parse and sanitize officer data
     const officerData = sanitizeOfficerData(JSON.parse(req.body.officerData));
-    console.log('Processing officer:', officerData.firstNameEnglish, officerData.lastNameEnglish);
+    console.log(
+      "Processing officer:",
+      officerData.firstNameEnglish,
+      officerData.lastNameEnglish
+    );
 
     // Parallel validation checks for better performance
     const [
       isExistingNIC,
       isExistingEmail,
       isExistingPhoneNumber01,
-      isExistingPhoneNumber02
+      isExistingPhoneNumber02,
     ] = await Promise.all([
       DistributionDao.checkNICExist(officerData.nic),
       DistributionDao.checkEmailExist(officerData.email),
       DistributionDao.checkPhoneNumberExist(officerData.phoneNumber01),
-      officerData.phoneNumber02 
+      officerData.phoneNumber02
         ? DistributionDao.checkPhoneNumberExist(officerData.phoneNumber02)
-        : Promise.resolve(false)
+        : Promise.resolve(false),
     ]);
 
     // Collect all validation errors
     const validationErrors = [];
-    if (isExistingNIC) validationErrors.push({ field: 'nic', message: 'NIC already exists' });
-    if (isExistingEmail) validationErrors.push({ field: 'email', message: 'Email already exists' });
-    if (isExistingPhoneNumber01) validationErrors.push({ field: 'phoneNumber01', message: 'Primary phone number already exists' });
-    if (isExistingPhoneNumber02) validationErrors.push({ field: 'phoneNumber02', message: 'Secondary phone number already exists' });
+    if (isExistingNIC)
+      validationErrors.push('NIC');
+    if (isExistingEmail)
+      validationErrors.push('email');
+    if (isExistingPhoneNumber01)
+      validationErrors.push('phoneNumber01');
+    if (isExistingPhoneNumber02)
+      validationErrors.push('phoneNumber02');
 
-    // Return all validation errors at once
     if (validationErrors.length > 0) {
-      return res.status(409).json({ // 409 Conflict for duplicate resources
-        error: "Validation failed",
+      return res.status(400).json({
         errors: validationErrors,
         status: false
       });
@@ -1283,19 +1364,24 @@ exports.createDistributionOfficer = async (req, res) => {
       );
     } catch (err) {
       console.error("Error processing profile image:", err);
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "Invalid profile image format",
-        status: false 
+        status: false,
       });
     }
 
     // Get employee ID
-    const lastId = await DistributionDao.getDCIDforCreateEmpIdDao(officerData.jobRole);
+    const lastId = await DistributionDao.getDCIDforCreateEmpIdDao(
+      officerData.jobRole
+    );
     if (lastId === null || lastId === undefined) {
-      console.error('Failed to generate employee ID for role:', officerData.jobRole);
+      console.error(
+        "Failed to generate employee ID for role:",
+        officerData.jobRole
+      );
       return res.status(500).json({
         error: "Failed to generate employee ID",
-        status: false
+        status: false,
       });
     }
 
@@ -1307,15 +1393,17 @@ exports.createDistributionOfficer = async (req, res) => {
     );
 
     if (!result || result.affectedRows === 0 || !result.insertId) {
-      console.error('Officer creation failed - no rows affected or no ID returned');
+      console.error(
+        "Officer creation failed - no rows affected or no ID returned"
+      );
       return res.status(500).json({
         error: "Failed to create officer record",
-        status: false
+        status: false,
       });
     }
 
     officerId = result.insertId;
-    console.log('Officer created successfully with ID:', officerId);
+    console.log("Officer created successfully with ID:", officerId);
 
     // Handle driver-specific data
     if (officerData.jobRole === "Driver") {
@@ -1348,23 +1436,25 @@ exports.createDistributionOfficer = async (req, res) => {
           throw new Error("Failed to register driver vehicle data");
         }
 
-        console.log('Driver data registered successfully');
-
+        console.log("Driver data registered successfully");
       } catch (driverError) {
         console.error("Error processing driver data:", driverError);
-        
+
         // Rollback: Delete the officer
         try {
           await DistributionDao.DeleteOfficerDao(officerId);
-          console.log('Rolled back officer creation due to driver data error');
+          console.log("Rolled back officer creation due to driver data error");
         } catch (rollbackError) {
-          console.error('CRITICAL: Failed to rollback officer creation:', rollbackError);
+          console.error(
+            "CRITICAL: Failed to rollback officer creation:",
+            rollbackError
+          );
           // Log to monitoring system
         }
 
         return res.status(400).json({
           error: "Error processing driver information: " + driverError.message,
-          status: false
+          status: false,
         });
       }
     }
@@ -1373,23 +1463,22 @@ exports.createDistributionOfficer = async (req, res) => {
     return res.status(201).json({
       message: "Distribution Officer created successfully",
       status: true,
-      officerId: officerId
+      officerId: officerId,
     });
-
   } catch (error) {
     // Handle Joi validation errors
     if (error.isJoi) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: error.details[0].message,
-        status: false 
+        status: false,
       });
     }
 
     // Handle JSON parsing errors
-    if (error instanceof SyntaxError && error.message.includes('JSON')) {
+    if (error instanceof SyntaxError && error.message.includes("JSON")) {
       return res.status(400).json({
         error: "Invalid JSON format in request data",
-        status: false
+        status: false,
       });
     }
 
@@ -1401,17 +1490,21 @@ exports.createDistributionOfficer = async (req, res) => {
     if (officerId) {
       try {
         await DistributionDao.DeleteOfficerDao(officerId);
-        console.log('Rolled back officer creation due to unexpected error');
+        console.log("Rolled back officer creation due to unexpected error");
       } catch (rollbackError) {
-        console.error('CRITICAL: Failed to rollback officer creation:', rollbackError);
+        console.error(
+          "CRITICAL: Failed to rollback officer creation:",
+          rollbackError
+        );
         // This should trigger alerts in production
       }
     }
 
     // Generic error response
     return res.status(500).json({
-      error: "An unexpected error occurred while creating the distribution officer",
-      status: false
+      error:
+        "An unexpected error occurred while creating the distribution officer",
+      status: false,
     });
   }
 };
@@ -1460,7 +1553,7 @@ exports.getAllDistributionManagerList = async (req, res) => {
       centerId
     );
 
-    console.log('result', result)
+    console.log("result", result);
 
     // if (result.length === 0) {
     //   return res
@@ -1503,12 +1596,18 @@ exports.getForCreateId = async (req, res) => {
   }
 };
 
-
 exports.getAllAssigningCities = async (req, res) => {
   try {
-    const { provine, district } = await DistributionValidation.getAllAssigningCitiesShema.validateAsync(req.params);
-    const centers = await DistributionDao.getAssigningForDistributedCentersDao();
-    const cities = await DistributionDao.getAssigningForCityDao(provine, district);
+    const { provine, district } =
+      await DistributionValidation.getAllAssigningCitiesShema.validateAsync(
+        req.params
+      );
+    const centers =
+      await DistributionDao.getAssigningForDistributedCentersDao();
+    const cities = await DistributionDao.getAssigningForCityDao(
+      provine,
+      district
+    );
 
     res.status(200).json({ centers, cities, status: true });
   } catch (err) {
@@ -1520,13 +1619,18 @@ exports.getAllAssigningCities = async (req, res) => {
   }
 };
 
-
 exports.assignCityToDistributedCcenter = async (req, res) => {
   try {
-    const data = await DistributionValidation.assignCityToDistributedCcenterShema.validateAsync(req.body);
+    const data =
+      await DistributionValidation.assignCityToDistributedCcenterShema.validateAsync(
+        req.body
+      );
     const result = await DistributionDao.assignCityToDistributedCenterDao(data);
     if (result.affectedRows === 0) {
-      return res.json({ message: "Assig failed or no changes made", status: false });
+      return res.json({
+        message: "Assig failed or no changes made",
+        status: false,
+      });
     }
 
     res.status(200).json({ status: true });
@@ -1538,14 +1642,21 @@ exports.assignCityToDistributedCcenter = async (req, res) => {
     res.status(500).send("An error occurred while fetching data.");
   }
 };
-
 
 exports.removeAssignCityToDistributedCcenter = async (req, res) => {
   try {
-    const data = await DistributionValidation.assignCityToDistributedCcenterShema.validateAsync(req.body);
-    const result = await DistributionDao.removeAssignCityToDistributedCenterDao(data);
+    const data =
+      await DistributionValidation.assignCityToDistributedCcenterShema.validateAsync(
+        req.body
+      );
+    const result = await DistributionDao.removeAssignCityToDistributedCenterDao(
+      data
+    );
     if (result.affectedRows === 0) {
-      return res.json({ message: "Assig failed or no changes made", status: false });
+      return res.json({
+        message: "Assig failed or no changes made",
+        status: false,
+      });
     }
 
     res.status(200).json({ status: true });
@@ -1558,19 +1669,26 @@ exports.removeAssignCityToDistributedCcenter = async (req, res) => {
   }
 };
 
-
 exports.getDistributedCenterTarget = async (req, res) => {
   try {
-    const { id, status, date, searchText } = await DistributionValidation.getDistributedCenterTargetShema.validateAsync(req.query);
+    const { id, status, date, searchText } =
+      await DistributionValidation.getDistributedCenterTargetShema.validateAsync(
+        req.query
+      );
     console.log("Params:", req.query);
 
     // Convert date to proper format if it's a Date object
     let formattedDate = date;
     if (date instanceof Date) {
-      formattedDate = date.toISOString().split('T')[0];
+      formattedDate = date.toISOString().split("T")[0];
     }
 
-    const results = await DistributionDao.getDistributedCenterTargetDao(id, status, formattedDate, searchText);
+    const results = await DistributionDao.getDistributedCenterTargetDao(
+      id,
+      status,
+      formattedDate,
+      searchText
+    );
 
     console.log("Successfully retrieved all companies");
     res.json({ status: true, data: results });
@@ -1587,13 +1705,20 @@ exports.getDistributedCenterTarget = async (req, res) => {
   }
 };
 
-
 exports.getDistributedCenterOfficers = async (req, res) => {
   try {
-    const { id, status, role, searchText } = await DistributionValidation.getDistributedCenterOfficersShema.validateAsync(req.query);
+    const { id, status, role, searchText } =
+      await DistributionValidation.getDistributedCenterOfficersShema.validateAsync(
+        req.query
+      );
 
     const data = await DistributionDao.getCenterAndCompanyIdDao(parseInt(id));
-    const result = await DistributionDao.getEachDistributedCenterOfficersDao(data, status, role, searchText);
+    const result = await DistributionDao.getEachDistributedCenterOfficersDao(
+      data,
+      status,
+      role,
+      searchText
+    );
 
     console.log("Successfully retrieved all companies");
     res.json({ status: true, data: result });
@@ -1610,12 +1735,19 @@ exports.getDistributedCenterOfficers = async (req, res) => {
   }
 };
 
-
 exports.getDistributionOutForDlvrOrder = async (req, res) => {
   try {
-    const { id, status, date, searchText } = await DistributionValidation.getDistributionOutForDlvrOrderShema.validateAsync(req.query);
+    const { id, status, date, searchText } =
+      await DistributionValidation.getDistributionOutForDlvrOrderShema.validateAsync(
+        req.query
+      );
 
-    const result = await DistributionDao.getDistributionOutForDlvrOrderDao(id, searchText, date, status);
+    const result = await DistributionDao.getDistributionOutForDlvrOrderDao(
+      id,
+      searchText,
+      date,
+      status
+    );
 
     console.log("Successfully retrieved distribution out for delivery orders");
     res.json({ status: true, data: result });
@@ -1656,7 +1788,7 @@ exports.getOfficerByIdMonthly = async (req, res) => {
 
 exports.updateDistributionOfficerDetails = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log('Update Request URL:', fullUrl);
+  console.log("Update Request URL:", fullUrl);
   const { id } = req.params;
   const adminId = req.user.userId;
   let officerId = null;
@@ -1664,22 +1796,26 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
   try {
     // Parse officer data
     if (!req.body.officerData) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "Officer data is required",
-        status: false 
+        status: false,
       });
     }
 
     const officerData = JSON.parse(req.body.officerData);
-    console.log('Updating officer:', officerData.firstNameEnglish, officerData.lastNameEnglish);
+    console.log(
+      "Updating officer:",
+      officerData.firstNameEnglish,
+      officerData.lastNameEnglish
+    );
     officerId = id;
 
     // Get existing officer data
     const existingOfficer = await DistributionDao.getOfficerById(id);
     if (!existingOfficer) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: "Officer not found",
-        status: false 
+        status: false,
       });
     }
 
@@ -1688,34 +1824,41 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       isExistingNIC,
       isExistingEmail,
       isExistingPhoneNumber01,
-      isExistingPhoneNumber02
+      isExistingPhoneNumber02,
     ] = await Promise.all([
       DistributionDao.editCheckNICExist(officerData.nic, id),
       DistributionDao.EditCheckEmailExist(officerData.email, id),
       DistributionDao.editCheckPhoneNumberExist(officerData.phoneNumber01, id),
-      officerData.phoneNumber02 
-        ? DistributionDao.editCheckPhoneNumberExist(officerData.phoneNumber02, id)
-        : Promise.resolve(false)
+      officerData.phoneNumber02
+        ? DistributionDao.editCheckPhoneNumberExist(
+          officerData.phoneNumber02,
+          id
+        )
+        : Promise.resolve(false),
     ]);
 
     // Collect validation errors
     const validationErrors = [];
-    if (isExistingNIC) validationErrors.push({ field: 'nic', message: 'NIC already exists' });
-    if (isExistingEmail) validationErrors.push({ field: 'email', message: 'Email already exists' });
-    if (isExistingPhoneNumber01) validationErrors.push({ field: 'phoneNumber01', message: 'Primary phone number already exists' });
-    if (isExistingPhoneNumber02) validationErrors.push({ field: 'phoneNumber02', message: 'Secondary phone number already exists' });
+    if (isExistingNIC)
+      validationErrors.push('NIC');
+    if (isExistingEmail)
+      validationErrors.push('Email');
+    if (isExistingPhoneNumber01)
+      validationErrors.push('PhoneNumber01');
+    if (isExistingPhoneNumber02)
+      validationErrors.push('PhoneNumber02');
 
     if (validationErrors.length > 0) {
       return res.status(409).json({
         error: "Validation failed",
         errors: validationErrors,
-        status: false
+        status: false,
       });
     }
 
     // Process profile image
     let profileImageUrl = existingOfficer.image;
-    
+
     if (req.body.file) {
       try {
         // Delete old image if exists
@@ -1730,9 +1873,9 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
         );
       } catch (err) {
         console.error("Error processing profile image:", err);
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "Invalid profile image format",
-          status: false 
+          status: false,
         });
       }
     }
@@ -1773,7 +1916,7 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       adminId
     );
 
-    console.log('Officer details updated successfully');
+    console.log("Officer details updated successfully");
 
     // Handle driver data if job role is Driver
     if (officerData.jobRole === "Driver") {
@@ -1783,14 +1926,15 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
         }
 
         const driverData = JSON.parse(req.body.driverData);
-        
+
         // Check if driver record exists
-        const existingDriverData = await DistributionDao.getDriverDataByOfficerId(id);
-        
+        const existingDriverData =
+          await DistributionDao.getDriverDataByOfficerId(id);
+
         // Process driver images
         const imageUrls = await processDriverImagesForUpdate(
-          req, 
-          driverData, 
+          req,
+          driverData,
           existingDriverData
         );
 
@@ -1808,7 +1952,7 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
             imageUrls.vehicleSideAImageUrl,
             imageUrls.vehicleSideBImageUrl
           );
-          console.log('Driver data updated successfully');
+          console.log("Driver data updated successfully");
         } else {
           // Create new driver record
           await DistributionDao.vehicleRegisterDao(
@@ -1823,20 +1967,23 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
             imageUrls.vehicleSideAImageUrl,
             imageUrls.vehicleSideBImageUrl
           );
-          console.log('Driver data created successfully');
+          console.log("Driver data created successfully");
         }
-
       } catch (driverError) {
         console.error("Error processing driver data:", driverError);
         return res.status(400).json({
           error: "Error processing driver information: " + driverError.message,
-          status: false
+          status: false,
         });
       }
-    } else if (existingOfficer.jobRole === "Driver" && officerData.jobRole !== "Driver") {
+    } else if (
+      existingOfficer.jobRole === "Driver" &&
+      officerData.jobRole !== "Driver"
+    ) {
       // If changing from Driver to another role, delete driver data
       try {
-        const existingDriverData = await DistributionDao.getDriverDataByOfficerId(id);
+        const existingDriverData =
+          await DistributionDao.getDriverDataByOfficerId(id);
         if (existingDriverData) {
           // Delete images from S3
           const imagesToDelete = [
@@ -1847,14 +1994,14 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
             existingDriverData.vehFrontImg,
             existingDriverData.vehBackImg,
             existingDriverData.vehSideImgA,
-            existingDriverData.vehSideImgB
+            existingDriverData.vehSideImgB,
           ].filter(Boolean);
 
-          await Promise.all(imagesToDelete.map(url => deleteFromS3(url)));
-          
+          await Promise.all(imagesToDelete.map((url) => deleteFromS3(url)));
+
           // Delete driver record
           await DistributionDao.deleteDriverData(id);
-          console.log('Driver data deleted as job role changed');
+          console.log("Driver data deleted as job role changed");
         }
       } catch (deleteError) {
         console.error("Error deleting driver data:", deleteError);
@@ -1864,45 +2011,89 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
 
     return res.status(200).json({
       message: "Distribution Officer updated successfully",
-      status: true
+      status: true,
     });
-
   } catch (error) {
     console.error("Error updating distribution officer:", error);
     console.error("Stack trace:", error.stack);
 
     if (error.isJoi) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: error.details[0].message,
-        status: false 
+        status: false,
       });
     }
 
-    if (error instanceof SyntaxError && error.message.includes('JSON')) {
+    if (error instanceof SyntaxError && error.message.includes("JSON")) {
       return res.status(400).json({
         error: "Invalid JSON format in request data",
-        status: false
+        status: false,
       });
     }
 
     return res.status(500).json({
-      error: "An unexpected error occurred while updating the distribution officer",
-      status: false
+      error:
+        "An unexpected error occurred while updating the distribution officer",
+      status: false,
     });
   }
 };
 
 // Helper function to process driver images for update
-const processDriverImagesForUpdate = async (req, driverData, existingDriverData) => {
+const processDriverImagesForUpdate = async (
+  req,
+  driverData,
+  existingDriverData
+) => {
   const imageFields = [
-    { key: 'licFront', name: driverData.licFrontName, path: 'vehicleregistration/licFrontImg', existing: existingDriverData?.licFrontImg },
-    { key: 'licBack', name: driverData.licBackName, path: 'vehicleregistration/licBackImg', existing: existingDriverData?.licBackImg },
-    { key: 'insFront', name: driverData.insFrontName, path: 'vehicleregistration/insFrontImg', existing: existingDriverData?.insFrontImg },
-    { key: 'insBack', name: driverData.insBackName, path: 'vehicleregistration/insBackImg', existing: existingDriverData?.insBackImg },
-    { key: 'vehiFront', name: driverData.vFrontName, path: 'vehicleregistration/vehFrontImg', existing: existingDriverData?.vehFrontImg },
-    { key: 'vehiBack', name: driverData.vBackName, path: 'vehicleregistration/vehBackImg', existing: existingDriverData?.vehBackImg },
-    { key: 'vehiSideA', name: driverData.vSideAName, path: 'vehicleregistration/vehSideImgA', existing: existingDriverData?.vehSideImgA },
-    { key: 'vehiSideB', name: driverData.vSideBName, path: 'vehicleregistration/vehSideImgB', existing: existingDriverData?.vehSideImgB }
+    {
+      key: "licFront",
+      name: driverData.licFrontName,
+      path: "vehicleregistration/licFrontImg",
+      existing: existingDriverData?.licFrontImg,
+    },
+    {
+      key: "licBack",
+      name: driverData.licBackName,
+      path: "vehicleregistration/licBackImg",
+      existing: existingDriverData?.licBackImg,
+    },
+    {
+      key: "insFront",
+      name: driverData.insFrontName,
+      path: "vehicleregistration/insFrontImg",
+      existing: existingDriverData?.insFrontImg,
+    },
+    {
+      key: "insBack",
+      name: driverData.insBackName,
+      path: "vehicleregistration/insBackImg",
+      existing: existingDriverData?.insBackImg,
+    },
+    {
+      key: "vehiFront",
+      name: driverData.vFrontName,
+      path: "vehicleregistration/vehFrontImg",
+      existing: existingDriverData?.vehFrontImg,
+    },
+    {
+      key: "vehiBack",
+      name: driverData.vBackName,
+      path: "vehicleregistration/vehBackImg",
+      existing: existingDriverData?.vehBackImg,
+    },
+    {
+      key: "vehiSideA",
+      name: driverData.vSideAName,
+      path: "vehicleregistration/vehSideImgA",
+      existing: existingDriverData?.vehSideImgA,
+    },
+    {
+      key: "vehiSideB",
+      name: driverData.vSideBName,
+      path: "vehicleregistration/vehSideImgB",
+      existing: existingDriverData?.vehSideImgB,
+    },
   ];
 
   const uploadPromises = imageFields.map(async (field) => {
@@ -1911,7 +2102,11 @@ const processDriverImagesForUpdate = async (req, driverData, existingDriverData)
       if (field.existing) {
         await deleteFromS3(field.existing);
       }
-      return await processBase64Image(req.body[field.key], field.name, field.path);
+      return await processBase64Image(
+        req.body[field.key],
+        field.name,
+        field.path
+      );
     }
     // Otherwise keep existing image
     return field.existing || null;
@@ -1925,7 +2120,7 @@ const processDriverImagesForUpdate = async (req, driverData, existingDriverData)
     vehicleFrontImageUrl,
     vehicleBackImageUrl,
     vehicleSideAImageUrl,
-    vehicleSideBImageUrl
+    vehicleSideBImageUrl,
   ] = await Promise.all(uploadPromises);
 
   return {
@@ -1936,17 +2131,22 @@ const processDriverImagesForUpdate = async (req, driverData, existingDriverData)
     vehicleFrontImageUrl,
     vehicleBackImageUrl,
     vehicleSideAImageUrl,
-    vehicleSideBImageUrl
+    vehicleSideBImageUrl,
   };
 };
 
-
 exports.getOfficerDailyDistributionTarget = async (req, res) => {
   try {
-    const { id, date } = await DistributionValidation.getOfficerDailyDistributionTargetShema.validateAsync(req.params);
+    const { id, date } =
+      await DistributionValidation.getOfficerDailyDistributionTargetShema.validateAsync(
+        req.params
+      );
     console.log(date);
 
-    const result = await DistributionDao.getOfficerDailyDistributionTargetDao(id, date);
+    const result = await DistributionDao.getOfficerDailyDistributionTargetDao(
+      id,
+      date
+    );
 
     console.log("Successfully retrieved all companies");
     res.json({ status: true, data: result });
@@ -1965,85 +2165,41 @@ exports.getOfficerDailyDistributionTarget = async (req, res) => {
 
 exports.dcmGetSelectedOfficerTargets = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log('fullUrl', fullUrl);
+  console.log("fullUrl", fullUrl);
 
   try {
-    const { targetId, searchText, status, completingStatus } = await DistributionValidation.dcmGetparmasIdSchema.validateAsync(req.query);
-    console.log('targetId:', targetId);
-    console.log('completingStatus:', completingStatus);
+    const { targetId, searchText, status, completingStatus } =
+      await DistributionValidation.dcmGetparmasIdSchema.validateAsync(
+        req.query
+      );
+    console.log("targetId:", targetId);
+    console.log("completingStatus:", completingStatus);
 
-    let targetResult = await DistributionDao.getSelectTargetItems(targetId, searchText || '', status || '');
+    let targetResult = await DistributionDao.getSelectTargetItems(
+      targetId,
+      searchText || "",
+      status || "",
+      completingStatus|| ""
+    );
 
-    // Calculate combinedStatus for each item
-    targetResult = targetResult.map(item => {
-      let combinedStatus = '';
-
-      if (item.packageStatus === 'Pending' && (item.additionalItemsStatus === 'Unknown' || item.additionalItemsStatus === 'Pending')) {
-        combinedStatus = 'Pending';
-      }
-      else if (item.packageStatus === 'Pending' && (item.additionalItemsStatus === 'Opened' || item.additionalItemsStatus === 'Completed')) {
-        combinedStatus = 'Opened';
-      }
-      else if (item.packageStatus === 'Opened') {
-        combinedStatus = 'Opened';
-      }
-      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Unknown') {
-        combinedStatus = 'Completed';
-      }
-      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Pending') {
-        combinedStatus = 'Pending';
-      }
-      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Opened') {
-        combinedStatus = 'Opened';
-      }
-      else if (item.packageStatus === 'Completed' && item.additionalItemsStatus === 'Completed') {
-        combinedStatus = 'Completed';
-      }
-      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Pending') {
-        combinedStatus = 'Pending';
-      }
-      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Opened') {
-        combinedStatus = 'Opened';
-      }
-      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Completed') {
-        combinedStatus = 'Completed';
-      }
-      else if (item.packageStatus === 'Unknown' && item.additionalItemsStatus === 'Unknown') {
-        combinedStatus = 'Unknown';
-      }
-
-      return {
-        ...item,
-        combinedStatus
-      };
-    });
-
-    // Filter by status if provided
-    if (status) {
-      targetResult = targetResult.filter(item => item.combinedStatus === status);
-    }
-
-    // Filter by completing status if provided
-    if (completingStatus) {
-      targetResult = targetResult.filter(item => item.completeTimeStatus === completingStatus);
-    }
+    console.log('targetResult', targetResult)
 
     // Return in expected format
     return res.status(200).json({
-      items: targetResult,
-      total: targetResult.length
+      items: targetResult.items,
+      total: targetResult.length,
     });
-
   } catch (error) {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message });
     }
 
     console.error("Error fetching officer targets:", error);
-    return res.status(500).json({ error: "An error occurred while fetching officer targets" });
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching officer targets" });
   }
 };
-
 
 exports.claimDistributedOfficer = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -2052,7 +2208,10 @@ exports.claimDistributedOfficer = async (req, res) => {
     const data = req.body;
     const result = await DistributionDao.claimDistributedOfficersDao(data);
     if (result.affectedRows === 0) {
-      return res.json({ message: "Claim failed or no changes made", status: false })
+      return res.json({
+        message: "Claim failed or no changes made",
+        status: false,
+      });
     }
     console.log("Successfully retrieved reports");
     res.status(200).json({ status: true, message: "Claimed successfully" });
@@ -2070,61 +2229,58 @@ exports.claimDistributedOfficer = async (req, res) => {
 
 exports.getOfficerById = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log('Get Officer By ID URL:', fullUrl);
-  
+  console.log("Get Officer By ID URL:", fullUrl);
+
   try {
     const { id } = req.params;
-    
+
     // Get officer data
     const officerData = await DistributionDao.getOfficerById(id);
-    
+
     if (!officerData || officerData.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: "Distribution Officer not found",
-        status: false 
+        status: false,
       });
     }
 
-    console.log('Officer Data:', officerData[0]);
+    console.log("Officer Data:", officerData[0]);
 
     // Prepare response
     const response = {
       officerData: officerData,
-      status: true
+      status: true,
     };
 
     // If job role is Driver, fetch driver data with images
     if (officerData[0].jobRole === "Driver") {
       const driverData = await DistributionDao.getDriverDataByOfficerId(id);
-      
+
       if (driverData) {
-        console.log('Driver Data found for officer:', id);
+        console.log("Driver Data found for officer:", id);
         response.driverData = [driverData];
       } else {
-        console.log('No driver data found for officer:', id);
+        console.log("No driver data found for officer:", id);
         response.driverData = [];
       }
     }
 
     console.log("Successfully fetched distribution officer details");
     res.status(200).json(response);
-    
   } catch (err) {
     if (err.isJoi) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: err.details[0].message,
-        status: false 
+        status: false,
       });
     }
     console.error("Error executing query:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "An error occurred while fetching data.",
-      status: false 
+      status: false,
     });
   }
 };
-
-
 
 exports.getAllDistributionCenterList = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -2158,21 +2314,20 @@ exports.getAllDistributionCenterList = async (req, res) => {
   }
 };
 
-
 exports.getAllReasons = async (req, res) => {
   try {
     const reasons = await DistributionDao.getAllReasons();
     res.status(200).json({
       status: true,
-      message: 'Reasons retrieved successfully',
-      data: reasons
+      message: "Reasons retrieved successfully",
+      data: reasons,
     });
   } catch (error) {
-    console.error('Error fetching reasons:', error);
+    console.error("Error fetching reasons:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to retrieve reasons',
-      error: error.message
+      message: "Failed to retrieve reasons",
+      error: error.message,
     });
   }
 };
@@ -2182,25 +2337,25 @@ exports.getReasonById = async (req, res) => {
   try {
     const { id } = req.params;
     const reason = await DistributionDao.getReasonById(id);
-    
+
     if (!reason) {
       return res.status(404).json({
         status: false,
-        message: 'Reason not found'
+        message: "Reason not found",
       });
     }
 
     res.status(200).json({
       status: true,
-      message: 'Reason retrieved successfully',
-      data: reason
+      message: "Reason retrieved successfully",
+      data: reason,
     });
   } catch (error) {
-    console.error('Error fetching reason:', error);
+    console.error("Error fetching reason:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to retrieve reason',
-      error: error.message
+      message: "Failed to retrieve reason",
+      error: error.message,
     });
   }
 };
@@ -2214,7 +2369,7 @@ exports.createReason = async (req, res) => {
     if (!rsnEnglish || !rsnSinhala || !rsnTamil) {
       return res.status(400).json({
         status: false,
-        message: 'All language fields are required'
+        message: "All language fields are required",
       });
     }
 
@@ -2225,26 +2380,25 @@ exports.createReason = async (req, res) => {
       indexNo: nextIndex,
       rsnEnglish: rsnEnglish.trim(),
       rsnSinhala: rsnSinhala.trim(),
-      rsnTamil: rsnTamil.trim()
+      rsnTamil: rsnTamil.trim(),
     };
 
     const result = await DistributionDao.createReason(reasonData);
 
     res.status(201).json({
       status: true,
-      message: 'Reason created successfully',
-      data: result
+      message: "Reason created successfully",
+      data: result,
     });
   } catch (error) {
-    console.error('Error creating reason:', error);
+    console.error("Error creating reason:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to create reason',
-      error: error.message
+      message: "Failed to create reason",
+      error: error.message,
     });
   }
 };
-
 
 // Delete reason
 exports.deleteReason = async (req, res) => {
@@ -2252,10 +2406,10 @@ exports.deleteReason = async (req, res) => {
     const { id } = req.params;
 
     // Check if trying to delete ID 1
-    if (id === '1' || parseInt(id) === 1) {
+    if (id === "1" || parseInt(id) === 1) {
       return res.status(403).json({
         status: false,
-        message: 'Cannot delete the default reason (ID: 1)'
+        message: "Cannot delete the default reason (ID: 1)",
       });
     }
 
@@ -2264,7 +2418,7 @@ exports.deleteReason = async (req, res) => {
     if (affectedRows === 0) {
       return res.status(404).json({
         status: false,
-        message: 'Reason not found'
+        message: "Reason not found",
       });
     }
 
@@ -2272,21 +2426,21 @@ exports.deleteReason = async (req, res) => {
     const allReasons = await DistributionDao.getAllReasons();
     const reasonsWithNewIndexes = allReasons.map((reason, index) => ({
       id: reason.id,
-      indexNo: index + 1
+      indexNo: index + 1,
     }));
-    
+
     await DistributionDao.updateIndexes(reasonsWithNewIndexes);
 
     res.status(200).json({
       status: true,
-      message: 'Reason deleted successfully'
+      message: "Reason deleted successfully",
     });
   } catch (error) {
-    console.error('Error deleting reason:', error);
+    console.error("Error deleting reason:", error);
     res.status(500).json({
       status: false,
-      message: error.message || 'Failed to delete reason',
-      error: error.message
+      message: error.message || "Failed to delete reason",
+      error: error.message,
     });
   }
 };
@@ -2299,7 +2453,7 @@ exports.updateIndexes = async (req, res) => {
     if (!reasons || !Array.isArray(reasons)) {
       return res.status(400).json({
         status: false,
-        message: 'Invalid request format. Expected an array of reasons.'
+        message: "Invalid request format. Expected an array of reasons.",
       });
     }
 
@@ -2307,14 +2461,14 @@ exports.updateIndexes = async (req, res) => {
 
     res.status(200).json({
       status: true,
-      message: 'Indexes updated successfully'
+      message: "Indexes updated successfully",
     });
   } catch (error) {
-    console.error('Error updating indexes:', error);
+    console.error("Error updating indexes:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to update indexes',
-      error: error.message
+      message: "Failed to update indexes",
+      error: error.message,
     });
   }
 };
@@ -2325,33 +2479,32 @@ exports.getNextIndex = async (req, res) => {
     const nextIndex = await DistributionDao.getNextIndex();
     res.status(200).json({
       status: true,
-      data: { nextIndex }
+      data: { nextIndex },
     });
   } catch (error) {
-    console.error('Error getting next index:', error);
+    console.error("Error getting next index:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to get next index',
-      error: error.message
+      message: "Failed to get next index",
+      error: error.message,
     });
   }
 };
-
 
 exports.getAllHoldReasons = async (req, res) => {
   try {
     const reasons = await DistributionDao.getAllHoldReasons();
     res.status(200).json({
       status: true,
-      message: 'Hold reasons retrieved successfully',
-      data: reasons
+      message: "Hold reasons retrieved successfully",
+      data: reasons,
     });
   } catch (error) {
-    console.error('Error fetching hold reasons:', error);
+    console.error("Error fetching hold reasons:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to retrieve hold reasons',
-      error: error.message
+      message: "Failed to retrieve hold reasons",
+      error: error.message,
     });
   }
 };
@@ -2361,25 +2514,25 @@ exports.getHoldReasonById = async (req, res) => {
   try {
     const { id } = req.params;
     const reason = await DistributionDao.getHoldReasonById(id);
-    
+
     if (!reason) {
       return res.status(404).json({
         status: false,
-        message: 'Hold reason not found'
+        message: "Hold reason not found",
       });
     }
 
     res.status(200).json({
       status: true,
-      message: 'Hold reason retrieved successfully',
-      data: reason
+      message: "Hold reason retrieved successfully",
+      data: reason,
     });
   } catch (error) {
-    console.error('Error fetching hold reason:', error);
+    console.error("Error fetching hold reason:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to retrieve hold reason',
-      error: error.message
+      message: "Failed to retrieve hold reason",
+      error: error.message,
     });
   }
 };
@@ -2393,7 +2546,7 @@ exports.createHoldReason = async (req, res) => {
     if (!rsnEnglish || !rsnSinhala || !rsnTamil) {
       return res.status(400).json({
         status: false,
-        message: 'All language fields are required'
+        message: "All language fields are required",
       });
     }
 
@@ -2404,22 +2557,22 @@ exports.createHoldReason = async (req, res) => {
       indexNo: nextIndex,
       rsnEnglish: rsnEnglish.trim(),
       rsnSinhala: rsnSinhala.trim(),
-      rsnTamil: rsnTamil.trim()
+      rsnTamil: rsnTamil.trim(),
     };
 
     const result = await DistributionDao.createHoldReason(reasonData);
 
     res.status(201).json({
       status: true,
-      message: 'Hold reason created successfully',
-      data: result
+      message: "Hold reason created successfully",
+      data: result,
     });
   } catch (error) {
-    console.error('Error creating hold reason:', error);
+    console.error("Error creating hold reason:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to create hold reason',
-      error: error.message
+      message: "Failed to create hold reason",
+      error: error.message,
     });
   }
 };
@@ -2430,10 +2583,10 @@ exports.deleteHoldReason = async (req, res) => {
     const { id } = req.params;
 
     // Check if trying to delete ID 1
-    if (id === '1' || parseInt(id) === 1) {
+    if (id === "1" || parseInt(id) === 1) {
       return res.status(403).json({
         status: false,
-        message: 'Cannot delete the default reason (ID: 1)'
+        message: "Cannot delete the default reason (ID: 1)",
       });
     }
 
@@ -2442,7 +2595,7 @@ exports.deleteHoldReason = async (req, res) => {
     if (affectedRows === 0) {
       return res.status(404).json({
         status: false,
-        message: 'Hold reason not found'
+        message: "Hold reason not found",
       });
     }
 
@@ -2450,21 +2603,21 @@ exports.deleteHoldReason = async (req, res) => {
     const allReasons = await DistributionDao.getAllHoldReasons();
     const reasonsWithNewIndexes = allReasons.map((reason, index) => ({
       id: reason.id,
-      indexNo: index + 1
+      indexNo: index + 1,
     }));
-    
+
     await DistributionDao.updateHoldReasonIndexes(reasonsWithNewIndexes);
 
     res.status(200).json({
       status: true,
-      message: 'Hold reason deleted successfully'
+      message: "Hold reason deleted successfully",
     });
   } catch (error) {
-    console.error('Error deleting hold reason:', error);
+    console.error("Error deleting hold reason:", error);
     res.status(500).json({
       status: false,
-      message: error.message || 'Failed to delete hold reason',
-      error: error.message
+      message: error.message || "Failed to delete hold reason",
+      error: error.message,
     });
   }
 };
@@ -2477,7 +2630,7 @@ exports.updateHoldReasonIndexes = async (req, res) => {
     if (!reasons || !Array.isArray(reasons)) {
       return res.status(400).json({
         status: false,
-        message: 'Invalid request format. Expected an array of reasons.'
+        message: "Invalid request format. Expected an array of reasons.",
       });
     }
 
@@ -2485,14 +2638,14 @@ exports.updateHoldReasonIndexes = async (req, res) => {
 
     res.status(200).json({
       status: true,
-      message: 'Indexes updated successfully'
+      message: "Indexes updated successfully",
     });
   } catch (error) {
-    console.error('Error updating hold reason indexes:', error);
+    console.error("Error updating hold reason indexes:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to update indexes',
-      error: error.message
+      message: "Failed to update indexes",
+      error: error.message,
     });
   }
 };
@@ -2503,14 +2656,14 @@ exports.getNextHoldReasonIndex = async (req, res) => {
     const nextIndex = await DistributionDao.getNextHoldReasonIndex();
     res.status(200).json({
       status: true,
-      data: { nextIndex }
+      data: { nextIndex },
     });
   } catch (error) {
-    console.error('Error getting next hold reason index:', error);
+    console.error("Error getting next hold reason index:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to get next index',
-      error: error.message
+      message: "Failed to get next index",
+      error: error.message,
     });
   }
 };
@@ -2518,79 +2671,551 @@ exports.getNextHoldReasonIndex = async (req, res) => {
 exports.getTodaysDeliverieData = async (req, res) => {
   try {
     // Extract search parameters from query string
-    const { regCode, invNo, searchType = 'partial' } = req.query;
-    
-    // Build search parameters object
-    const searchParams = {};
-    
-    if (regCode && regCode.trim() !== '') {
-      searchParams.regCode = regCode.trim();
+    // const { regCode, invNo, activeTab } = req.query;
+    const searchParams = await DistributionValidation.getTodaysDeliverieDataSchema.validateAsync(req.query);
+
+    if (searchParams.activeTab && searchParams.activeTab.trim() !== "") {
+      searchParams.activeTab = searchParams.activeTab.trim();
     }
-    
-    if (invNo && invNo.trim() !== '') {
-      searchParams.invNo = invNo.trim();
-    }
-    
-    // Optional: Add exact match if specified
-    if (searchType === 'exact') {
-      searchParams.exactMatch = true;
-    }
-    
+
+    console.log("Search Parameters:", searchParams);
+
     // Get deliveries with optional search
-    const deliveries = await DistributionDao.getAllTodaysDeliveries(searchParams);
-    
+    const deliveries = await DistributionDao.getAllTodaysDeliveries(
+      searchParams
+    );
+
     res.status(200).json({
       status: true,
       data: deliveries,
       count: deliveries.length,
-      searchApplied: Object.keys(searchParams).length > 0,
-      searchParams: Object.keys(searchParams).length > 0 ? searchParams : null
     });
   } catch (error) {
-    console.error('Error fetching today\'s deliveries:', error);
+    console.error("Error fetching today's deliveries:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to fetch today\'s deliveries',
-      error: error.message
+      message: "Failed to fetch today's deliveries",
+      error: error.message,
     });
   }
 };
 
-
 exports.getTargetedCustomerOrders = async (req, res) => {
   try {
     // const offset = (page - 1) * limit;
-    const { page, limit, status, sheduleDate, centerId, searchText } = await DistributionValidation.getTargetedCustomerOrdersSchema.validateAsync(req.query);
+    const { page, limit, status, sheduleDate, centerId, searchText } =
+      await DistributionValidation.getTargetedCustomerOrdersSchema.validateAsync(
+        req.query
+      );
 
-    const result = await DistributionDao.getTargetedCustomerOrdersDao(page, limit, status, sheduleDate, centerId, searchText);
+    const result = await DistributionDao.getTargetedCustomerOrdersDao(
+      page,
+      limit,
+      status,
+      sheduleDate,
+      centerId,
+      searchText
+    );
     res.status(200).json({
       items: result.items,
-      total: result.total
+      total: result.total,
     });
 
     console.log(result.items);
     console.log(result.total);
-
   } catch (error) {
-    console.error('Error getting next hold reason index:', error);
+    console.error("Error getting next hold reason index:", error);
     res.status(500).json({
       status: false,
-      message: 'Failed to get next index',
-      error: error.message
+      message: "Failed to get next index",
+      error: error.message,
     });
   }
 };
 
 exports.getDistributedVehicles = async (req, res) => {
   try {
-    const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
+    const { page, limit, centerName, vehicleType, searchText } =
+      await DistributionValidation.getDistributedVehiclesSchema.validateAsync(
+        req.query
+      );
 
-    const result = await DistributionDao.getDistributedVehiclesDao( page, limit, centerName, vehicleType, searchText );
+    const result = await DistributionDao.getDistributedVehiclesDao(
+      page,
+      limit,
+      centerName,
+      vehicleType,
+      searchText
+    );
 
     res.status(200).json({
       total: result.total,
-      items: result.items
+      items: result.items,
     });
+  } catch (error) {
+    console.error("Get Distributed Vehicles Error:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to load vehicles",
+      error: error.message,
+    });
+  }
+};
+
+exports.getTodayDiliveryTracking = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    // const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
+
+    const id = req.params.id;
+
+    const centerDetails =
+      await DistributionDao.getTodayDiliveryTrackingCenterDetailsDao(id);
+    const driverDetails =
+      await DistributionDao.getTodayDiliveryTrackingDriverDetailsDao(id);
+
+    res.status(200).json({
+      centerDetails,
+      driverDetails,
+    });
+    // console.log(centerDetails);
+    console.log(driverDetails);
+  } catch (error) {
+    console.error("Get Distributed Vehicles Error:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to load vehicles",
+      error: error.message,
+    });
+  }
+};
+
+exports.getReturnRecievedOrders = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    // const offset = (page - 1) * limit;
+    const { receivedTime, centerId, searchText } =
+      await DistributionValidation.getReturnRecievedDataSchema.validateAsync(
+        req.query
+      );
+
+    console.log("centerId cehck", centerId);
+
+    const companyId = 2;
+
+    let companyCenterId;
+    let deliveryLocationData;
+    let cityToCenterMap = {};
+    let selectedCenterInfo = null;
+
+    if (centerId) {
+      console.log("centerId", centerId);
+      // Specific center selected
+      companyCenterId = await DistributionDao.getDistributedCompanyCenter(
+        companyId,
+        centerId
+      );
+
+      console.log("companyCenterId", companyCenterId);
+
+      if (companyCenterId?.[0]?.companyCenterId) {
+        deliveryLocationData = await DistributionDao.getDeliveryChargeCity(
+          companyCenterId[0].companyCenterId
+        );
+      }
+
+      console.log("deliveryLocationData", deliveryLocationData);
+
+      // Get the center name and regCode for the selected center
+      selectedCenterInfo = await DistributionDao.getCenterName(centerId);
+
+      console.log("selectedCenterInfo", selectedCenterInfo);
+    } else {
+      console.log("centerId", "no");
+      // No center selected - get all city-to-center mappings
+      cityToCenterMap = await DistributionDao.getAllCityCenterMapping(
+        companyId
+      );
+
+      console.log("cityToCenterMap", cityToCenterMap);
+    }
+
+    const result = await DistributionDao.getReturnRecievedDataDao(
+      receivedTime,
+      centerId,
+      deliveryLocationData,
+      searchText
+    );
+
+    const items = result.items;
+    const dataArray = [];
+
+    let grandTotal = 0;
+
+    for (const order of items) {
+      let effectiveCenterId = order.centerId;
+      let centerName = null;
+      let regCode = null;
+
+      if (!effectiveCenterId) {
+        const orderCity = (
+          order.houseCity ||
+          order.apartmentCity ||
+          ""
+        ).toLowerCase();
+
+        if (centerId && deliveryLocationData?.length > 0) {
+          if (
+            orderCity &&
+            deliveryLocationData.some(
+              (city) => city.toLowerCase() === orderCity
+            )
+          ) {
+            effectiveCenterId = centerId;
+            centerName = selectedCenterInfo?.centerName;
+            regCode = selectedCenterInfo?.regCode;
+          }
+        } else if (!centerId && orderCity && cityToCenterMap[orderCity]) {
+          effectiveCenterId = cityToCenterMap[orderCity].centerId;
+          centerName = cityToCenterMap[orderCity].centerName;
+          regCode = cityToCenterMap[orderCity].regCode;
+        }
+      } else if (centerId && effectiveCenterId === centerId) {
+        centerName = selectedCenterInfo?.centerName;
+        regCode = selectedCenterInfo?.regCode;
+      } else if (
+        (centerId === undefined || centerId === null) &&
+        effectiveCenterId
+      ) {
+        const tempCenterInfo = await DistributionDao.getCenterName(
+          effectiveCenterId
+        );
+        centerName = tempCenterInfo?.centerName;
+        regCode = tempCenterInfo?.regCode;
+      }
+
+      if (!effectiveCenterId) continue;
+
+      grandTotal += Number(order.total) || 0;
+
+      dataArray.push({
+        ...order,
+        effectiveCenterId,
+        centerName,
+        regCode,
+      });
+    }
+
+    res.status(200).json({
+      items: dataArray,
+      total: dataArray.length,
+      grandTotal: grandTotal,
+    });
+
+    console.log(dataArray);
+    console.log(dataArray.length);
+  } catch (error) {
+    console.error("Error getting next hold reason index:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to get next index",
+      error: error.message,
+    });
+  }
+};
+
+exports.getDistributedDriversAndVehicles = async (req, res) => {
+  try {
+
+    const { id } = req.params;
+
+    const { page, limit, status, vehicleType, searchText } = await DistributionValidation.getDistributedDriversSchema.validateAsync(req.query);
+
+    const result = await DistributionDao.getDistributedDriversAndVehiclesDao(
+      id,
+      parseInt(page),
+      parseInt(limit),
+      status,
+      vehicleType,
+      searchText
+    );
+
+    console.log("Distributed Drivers and Vehicles:", result);
+
+    res.status(200).json({
+      success: true,
+      total: result.total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      data: result.items,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+exports.getDistributedCenterPikupOder = async (req, res) => {
+  try {
+    const { companycenterId, time, date, searchText, activeTab } =
+      await DistributionValidation.getDistributedCenterPikupOderShema.validateAsync(
+        req.query
+      );
+
+    console.log("API Params received:", req.query);
+
+    let formattedDate = date;
+    if (date && typeof date === 'string') {
+      formattedDate = date.trim();
+    }
+
+    const searchParams = {
+      companycenterId: companycenterId,
+      time: time,  // Changed from sheduleTime to time
+      date: formattedDate,
+      searchText: searchText,
+      activeTab: activeTab  // Added activeTab parameter
+    };
+
+    const results = await DistributionDao.getDistributedCenterPikupOderDao(
+      searchParams
+    );
+
+    console.log(`Successfully retrieved ${results.length} pickup orders`);
+    res.json({
+      status: true,
+      message: "Pickup orders retrieved successfully",
+      count: results.length,
+      data: results
+    });
+  } catch (err) {
+    // Handle validation errors
+    if (err.isJoi) {
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({
+        status: false,
+        error: err.details[0].message
+      });
+    }
+
+    // Handle specific error from DAO
+    if (err.message === "companycenterId is required") {
+      return res.status(400).json({
+        status: false,
+        error: "Company center ID is required"
+      });
+    }
+
+    // Handle database or other errors
+    console.error("Error fetching pickup orders:", err);
+    res.status(500).json({
+      status: false,
+      error: "An error occurred while fetching pickup orders",
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+};
+
+
+exports.getPickupOrderRecords = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+
+  try {
+    const id = req.params.id;
+
+    const pickupOrderDetails =
+      await DistributionDao.getPikupOderRecordsDetailsDao(id);
+
+    res.status(200).json({
+      status: true,
+      data: pickupOrderDetails,
+      message: "Pickup order records retrieved successfully"
+    });
+  } catch (error) {
+    console.error("Get Pickup Order Records Error:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to load pickup order records",
+      error: error.message,
+    });
+  }
+};
+
+
+exports.getCenterHomeDeliveryOrders = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+  try {
+    const { activeTab, centerId, status, searchText, date, timeSlot } = await DistributionValidation.getCenterHomeDeliveryOrdersSchema.validateAsync(req.query);
+    console.log('centerId', centerId, 'activeTab', activeTab, 'status', status, 'searchText', searchText, 'date', date)
+
+    const deliveryLocationData = await DistributionDao.getDeliveryChargeCity(centerId);
+    const userId = req.user.userId
+
+    const deliveries = await DistributionDao.getCenterHomeDeliveryOrdersDao(activeTab, status, searchText, date, deliveryLocationData, centerId, timeSlot);
+    // console.log('deliveries', deliveries)
+
+    res.status(200).json({
+      status: true,
+      data: deliveries,
+      count: deliveries.length,
+    });
+  } catch (error) {
+    console.error("Error fetching today's deliveries:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to fetch today's deliveries",
+      error: error.message,
+    });
+  }
+};
+
+
+exports.getPolygonCenterDashbordDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+  try {
+    // const { activeTab, centerId, status, searchText, date  } =  await DistributionValidation.getCenterHomeDeliveryOrdersSchema.validateAsync(req.query);
+    const { id } = req.params;
+    const companyCenter = await DistributionDao.getCenterAndCompanyIdDao(id);
+    console.log(companyCenter);
+
+
+    const result = await DistributionDao.getPolygonCenterDashbordDetailsDao(companyCenter);
+
+    // console.log('deliveries', deliveries)
+
+    res.status(200).json({
+      status: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error fetching today's deliveries:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to fetch today's deliveries",
+      error: error.message,
+    });
+  }
+};
+
+exports.getPickupCashRevenue = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+  try {
+    const { search, filterDate } = req.query;
+    const { id } = req.params;
+
+    const companyCenter = await DistributionDao.getCenterAndCompanyIdDao(id);
+    console.log(companyCenter);
+
+    const companyId = companyCenter.companyId;
+    const centerId = companyCenter.centerId;
+
+    const result = await DistributionDao.getPickupCashRevenueDao({
+      companyId: companyId,
+      centerId: centerId,
+      search: search || null,
+      filterDate: filterDate || null
+    });
+
+    res.status(200).json({
+      status: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error fetching pickup cash revenue:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to fetch pickup cash revenue",
+      error: error.message,
+    });
+  }
+};
+
+exports.getDriverCashRevenue = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+  try {
+    const { search, filterDate } = req.query;
+    const { id } = req.params;
+
+    const companyCenter = await DistributionDao.getCenterAndCompanyIdDao(id);
+    console.log(companyCenter);
+
+    const companyId = companyCenter.companyId;
+    const centerId = companyCenter.centerId;
+
+    const result = await DistributionDao.getDriverCashRevenueDao({
+      companyId: companyId,
+      centerId: centerId,
+      comCenId: id,
+      search: search || null,
+      filterDate: filterDate || null
+    });
+
+    res.status(200).json({
+      status: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error fetching driver cash revenue:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to fetch driver cash revenue",
+      error: error.message,
+    });
+  }
+};
+
+exports.getHomeDiliveryTracking = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    // const { page, limit, centerName, vehicleType, searchText } = await DistributionValidation.getDistributedVehiclesSchema.validateAsync(req.query);
+
+    const id = req.params.id;
+
+    const centerDetails = await DistributionDao.getHomeDiliveryTrackingCenterDetailsDao(id);
+    const driverDetails = await DistributionDao.getHomeDiliveryTrackingDriverDetailsDao(id);
+
+    res.status(200).json({
+      centerDetails,
+      driverDetails
+    });
+    console.log(centerDetails);
+    console.log(driverDetails);
+  } catch (error) {
+    console.error('Get Distributed Vehicles Error:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to load vehicles',
+      error: error.message
+    });
+  }
+};
+
+
+exports.getRecivedCashDashbord = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    const id = req.params.id;
+    const companyCenter = await DistributionDao.getCenterAndCompanyIdDao(id);
+    const pickupResult = await DistributionDao.getRecivedPickUpCashDashbordDao(companyCenter);
+    const delivaryResult = await DistributionDao.getRecivedDelivaryCashDashbordDao(companyCenter, id);
+
+    res.status(200).json({
+      pickupResult,
+      delivaryResult
+    });
+
   } catch (error) {
     console.error('Get Distributed Vehicles Error:', error);
     res.status(500).json({

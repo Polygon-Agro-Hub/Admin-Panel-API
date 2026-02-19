@@ -327,6 +327,11 @@ router.get(
   marketPlaceEp.getPostInvoiceDetails
 );
 
+router.post(
+  "/manage-seo",
+  authMiddleware,
+  marketPlaceEp.manageSeo
+);
 
 
 

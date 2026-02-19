@@ -1453,13 +1453,15 @@ exports.getOfficerByIdDAO = (id) => {
     const sql = `
           SELECT 
               COF.*,
+              COF.id AS officerId,
               COM.companyNameEnglish,
               CEN.centerName,
               CEN.regCode AS centerRegCode,
               DC.centerName AS distributedCenterName,
               DC.regCode AS distributedCenterRegCode,
               VR.*,
-              VR.id AS vehicleRegId
+              VR.id AS vehicleRegId,
+              CONCAT(COF2.empId, ' - ',COF2.firstNameEnglish, ' ', COF2.lastNameEnglish) AS manageName
           FROM 
               collectionofficer COF
           JOIN 
@@ -1470,6 +1472,8 @@ exports.getOfficerByIdDAO = (id) => {
               distributedcenter DC ON COF.distributedCenterId = DC.id
           LEFT JOIN
                vehicleregistration VR ON COF.id = VR.coId
+          LEFT JOIN 
+              collectionofficer COF2 ON COF.irmId = COF2.id
           WHERE 
               COF.id = ?`;
 
@@ -1490,7 +1494,7 @@ exports.getOfficerByIdDAO = (id) => {
 
       resolve({
         collectionOfficer: {
-          id: officer.id,
+          id: officer.officerId,
           firstNameEnglish: officer.firstNameEnglish,
           firstNameSinhala: officer.firstNameSinhala,
           firstNameTamil: officer.firstNameTamil,
@@ -1541,7 +1545,8 @@ exports.getOfficerByIdDAO = (id) => {
           vehFrontImg: officer.vehFrontImg,
           vehBackImg: officer.vehBackImg,
           vehSideImgA: officer.vehSideImgA,
-          vehSideImgB: officer.vehSideImgB
+          vehSideImgB: officer.vehSideImgB,
+          manageName:officer.manageName
         }
         
       });
@@ -1735,7 +1740,7 @@ exports.updateCenterHeadDetails = (
 exports.getAllCenterNamesDao = (district) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT CC.id, CC.regCode, CC.centerName
+            SELECT CC.id, CC.regCode, CC.centerName, CONCAT(CC.regCode, ' - ', CC.centerName) AS fullCenterName
 FROM collectioncenter CC, companycenter COMC, company COM
 WHERE CC.id = COMC.centerId 
   AND COMC.companyId = COM.id 

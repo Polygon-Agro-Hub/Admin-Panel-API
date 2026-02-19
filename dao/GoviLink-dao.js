@@ -160,7 +160,8 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
         END AS assignStatus,
         jao.id AS assignmentId,
         CONCAT(fo.firstName, ' ', fo.lastName) AS assignedOfficerName,
-        fo.empId AS officerEmpId
+        fo.empId AS officerEmpId,
+        fo.jobRole AS assignedOfficerRole
       FROM 
         govilinkjobs gj
       LEFT JOIN users u ON gj.farmerId = u.id
@@ -472,8 +473,8 @@ exports.checkDuplicateServiceNames = (
 
 exports.getFieldAuditDetails = (filters = {}, search = {}) => {
   return new Promise((resolve, reject) => {
-    let where1 = " WHERE 1=1 AND DATE(gj.doneDate) = '2025-12-05'";
-    let where2 = " WHERE 1=1 AND DATE(fa.completeDate) = '2025-12-05'";
+    let where1 = " WHERE 1=1 ";
+    let where2 = " WHERE 1=1 ";
     let params1 = [];
     let params2 = [];
 
@@ -556,6 +557,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         gj.jobId AS jobId,
         fo.empId AS empId,
         f.id AS farmId,
+        f.regCode AS farmCode,
         u.NICnumber AS farmerNIC,
         f.district AS district,
         gj.sheduleDate AS scheduledDate,
@@ -584,8 +586,9 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         fa.id,
         fa.jobId AS jobId,
         fo.empId AS empId,
-        f.id AS farmId,
-        u.NICnumber AS farmerNIC,
+        COALESCE(f.id, f2.id, f3.id) AS farmId,
+        COALESCE(f.regCode, f2.regCode, f3.regCode) AS farmCode,
+        COALESCE(u.NICnumber, u2.NICnumber) AS farmerNIC,
         f.district AS district,
         fa.sheduleDate AS scheduledDate,
         fa.completeDate AS completedDate,
@@ -603,7 +606,14 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
       LEFT JOIN plant_care.users u ON cp.userId = u.id
       LEFT JOIN plant_care.feildauditcluster fac ON fac.feildAuditId = fa.id
       LEFT JOIN plant_care.farms f ON fac.farmId = f.id
+      LEFT JOIN plant_care.users u2 ON f.userId = u2.id
       LEFT JOIN plant_care.feildofficer fo1 ON fa.assignByCFO = fo1.id
+      LEFT JOIN plant_care.certificationpaymentfarm cpf ON cp.id = cpf.paymentId
+      LEFT JOIN plant_care.farms f2 ON cpf.farmId = f2.id
+      LEFT JOIN plant_care.certificationpaymentcrop cpc ON cp.id = cpc.paymentId
+      LEFT JOIN plant_care.ongoingcultivationscrops ongc ON cpc.cropId = ongc.id
+      LEFT JOIN plant_care.farms f3 ON ongc.farmId = f3.id
+
       ${where2}
     )
 
@@ -712,9 +722,9 @@ exports.GetDriverComplainByIdDAO = (id) => {
         dc.refNo,
         dc.driverId,
         co.empId AS empId,
-        CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS driverName,
-        CONCAT(co.firstNameSinhala, ' ', co.lastNameSinhala) AS driverNameSinhala,
-        CONCAT(co.firstNameTamil, ' ', co.lastNameTamil) AS driverNameTamil,
+        CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS officerName,
+        CONCAT(co.firstNameSinhala, ' ', co.lastNameSinhala) AS officerNameSinhala,
+        CONCAT(co.firstNameTamil, ' ', co.lastNameTamil) AS officerNameTamil,
         co.phoneNumber01,
         co.email,
         dc.complainCategory AS complainCategoryId,
@@ -778,5 +788,239 @@ exports.ReplyDriverComplainDAO = (complainId, reply, replyBy) => {
         resolve(results);
       }
     );
+  });
+};
+
+exports.getFieldAuditHistoryResponseByIdDAO = (jobId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        fa.jobId,
+        ct.id AS certificationId,
+        ct.applicable,
+        cpc.cropId,
+        f.regCode,
+        cg.cropNameEnglish,
+        ct.srtName,
+        cp.payType,
+        sqi.qEnglish,
+        sqi.type,
+        sqi.uploadImage,
+        sqi.officerTickResult,
+        js.problem,
+        js.solution
+      FROM feildaudits fa
+      LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
+      LEFT JOIN certificates ct ON ct.id = cp.certificateId
+      LEFT JOIN certificationpaymentcrop cpc ON cpc.paymentId = cp.id
+      LEFT JOIN ongoingcultivationscrops occ ON occ.id = cpc.cropId
+      LEFT JOIN farms f ON f.id = occ.farmId
+      LEFT JOIN cropcalender cc ON cc.id = occ.cropCalendar
+      LEFT JOIN cropvariety cv ON cv.id = cc.cropVarietyId
+      LEFT JOIN cropgroup cg ON cg.id = cv.cropGroupId
+      LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
+      LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
+      LEFT JOIN jobsuggestions js ON js.slaveId = sq.id
+      WHERE fa.jobId = ?
+    `;
+
+    plantcare.query(sql, [jobId], (err, results) => {
+      if (err) return reject(err);
+      if (results.length === 0) return resolve(null);
+
+      const header = {
+        jobId: results[0].jobId,
+        certificationId: results[0].certificationId,
+        srtName: results[0].srtName,
+        payType: results[0].payType,
+        regCode: results[0].regCode,
+        cropId: results[0].cropId,
+        cropNameEnglish: results[0].cropNameEnglish,
+        applicable: results[0].applicable
+      };
+
+      const data = results.map((row) => ({
+        qEnglish: row.qEnglish,
+        type: row.type,
+        uploadImage: row.uploadImage,
+        officerTickResult: row.officerTickResult,
+        problem: row.problem,
+        solution: row.solution,
+      }));
+
+      resolve({
+        ...header,
+        data,
+      });
+    });
+  });
+};
+
+
+exports.getServiceRequestResponseDao = (jobId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT 
+    gj.id,
+    gj.jobId AS jobId,
+    fo.empId AS empId,
+    f.id AS farmId,
+    f.regCode AS farmCode,
+    u.NICnumber AS farmerNIC,
+    f.district AS district,
+    gj.sheduleDate AS scheduledDate,
+    gj.doneDate AS completedDate,
+    gj.status AS status,
+    gj.assignBy AS assignBy,
+    au.userName AS assignedByName,
+    CONCAT(fo1.firstName, ' ', fo1.lastName) AS AssignedOfficer,
+    'Requested Service' AS visitPurpose,
+    jao.createdAt AS assignedOn,
+    ofs.englishName AS serviceName,
+    GROUP_CONCAT(cg.cropNameEnglish SEPARATOR ', ') AS cropNames,
+    GROUP_CONCAT(cg.id) AS cropIds,  -- Optional: if you need IDs too
+    'no' AS onScreenTime
+FROM plant_care.govilinkjobs gj
+JOIN plant_care.jobrequestcrops jrc ON gj.id = jrc.jobId
+JOIN plant_care.cropgroup cg ON jrc.cropId = cg.id
+LEFT JOIN plant_care.users u ON gj.farmerId = u.id
+LEFT JOIN plant_care.farms f ON gj.farmId = f.id
+LEFT JOIN plant_care.officerservices ofs ON gj.serviceId = ofs.id
+LEFT JOIN agro_world_admin.adminusers au ON gj.assignBy = au.id
+LEFT JOIN plant_care.jobassignofficer jao ON gj.id = jao.jobId AND jao.isActive = 1
+LEFT JOIN plant_care.feildofficer fo ON jao.officerId = fo.id
+LEFT JOIN plant_care.feildofficer fo1 ON gj.assignByCFO = fo1.id
+WHERE gj.jobId = ?
+GROUP BY 
+    gj.id,
+    gj.jobId,
+    fo.empId,
+    f.id,
+    f.regCode,
+    u.NICnumber,
+    f.district,
+    gj.sheduleDate,
+    gj.doneDate,
+    gj.status,
+    gj.assignBy,
+    au.userName,
+    fo1.firstName,
+    fo1.lastName,
+    jao.createdAt,
+    ofs.englishName,
+    'no'
+    `;
+
+    plantcare.query(sql, [jobId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.getAdvicesServiceRequestDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        gjs.id,
+        gjs.jobId,
+        gjs.farmerFeedback,
+        gjs.advice,
+        gjs.image
+      FROM plant_care.govijoblinksuggestions gjs
+      WHERE gjs.jobId = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+      console.log('results', results)
+    });
+  });
+};
+
+
+exports.getSuggestionsServiceRequestDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+      gjp.id,
+      gjp.jobId,
+      gjp.problem,
+      gjp.solution
+      FROM plant_care.govijoblinkproblems gjp
+      WHERE gjp.jobId = ?
+    `;
+
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        fa.jobId,
+        cp.certificateId,
+        ct.srtName,
+        cp.payType,
+        f.regCode,
+
+        JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'qEnglish', sqi.qEnglish,
+            'type', sqi.type,
+            'uploadImage', sqi.uploadImage,
+            'officerTickResult', sqi.officerTickResult,
+            'problem', js.problem,
+            'solution', js.solution
+          )
+        ) AS questions
+
+      FROM feildaudits fa
+      LEFT JOIN certificationpayment cp ON fa.paymentId  = cp.id 
+      LEFT JOIN certificates ct ON ct.id = cp.certificateId 
+      LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
+      LEFT JOIN certificationpaymentfarm cpf ON cpf.paymentId = cp.id
+      LEFT JOIN farmcluster fc ON fc.id = cp.clusterId 
+      LEFT JOIN farmclusterfarmers fcf ON fcf.clusterId = fc.id
+      LEFT JOIN farms f ON f.id = fcf.farmId 
+      LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
+      LEFT JOIN jobsuggestions js ON js.slaveId  = sq.id
+
+      WHERE fa.jobId = ?
+
+      GROUP BY 
+        fa.jobId,
+        cp.certificateId,
+        ct.srtName,
+        cp.payType,
+        f.regCode
+    `;
+
+    plantcare.query(sql, [jobId], (err, results) => {
+      if (err) return reject(err);
+      if (!results || results.length === 0) return resolve(null);
+
+      const header = {
+        jobId: results[0].jobId,
+        certificateId: results[0].certificateId,
+        srtName: results[0].srtName,
+        payType: results[0].payType,
+      };
+
+      const farms = results.map((row) => ({
+        regCode: row.regCode,
+        questions: row.questions || [],
+      }));
+
+      resolve({
+        header,
+        farms,
+      });
+    });
   });
 };

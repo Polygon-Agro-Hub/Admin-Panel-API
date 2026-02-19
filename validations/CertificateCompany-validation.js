@@ -174,11 +174,29 @@ exports.updateFarmerClusterSchema = Joi.object({
     "number.integer": "Certificate ID must be an integer",
     "number.min": "Certificate ID must be a positive number",
   }),
+  farmersToAdd: Joi.array()
+    .items(
+      Joi.object({
+        nic: Joi.string().trim().required().messages({
+          "string.empty": "NIC is required",
+          "any.required": "NIC is required",
+        }),
+        farmId: Joi.string().trim().required().messages({
+          "string.empty": "Farm ID is required",
+          "any.required": "Farm ID is required",
+        }),
+      })
+    )
+    .optional()
+    .default([])
+    .messages({
+      "array.base": "Farmers to add must be an array",
+    }),
 })
-  .or("clusterName", "district", "certificateId")
+  .or("clusterName", "district", "certificateId", "farmersToAdd")
   .messages({
     "object.missing":
-      "At least one field (clusterName, district, or certificateId) is required",
+      "At least one field (clusterName, district, certificateId, or farmersToAdd) is required",
   });
 
 // Validation for adding a single farmer to an existing cluster

@@ -837,6 +837,7 @@ exports.getMarketplacePackageByIdDAO = async (id) => {
         return reject(new Error("Package not found"));
       }
       resolve(results);
+      console.log('results', results)
     });
   });
 };
@@ -2199,6 +2200,14 @@ exports.getUserOrdersDao = async (userId, status) => {
       sql += " AND P.status = 'Ready to Pickup' ";
     } else if (status === "Picked up") {
       sql += " AND P.status = 'Picked up' ";
+    } else if (status === "Collected") {
+      sql += " AND P.status = 'Collected' ";
+    } else if (status === "Hold") {
+      sql += " AND P.status = 'Hold' ";
+    } else if (status === "Return") {
+      sql += " AND P.status = 'Return' ";
+    } else if (status === "Return Received") {
+      sql += " AND P.status = 'Return Received' ";
     }
 
     marketPlace.query(sql, [userId, status], (err, results) => {
@@ -3063,10 +3072,7 @@ exports.getCouponByCodeDao = async (code) => {
 exports.removeMarketplacePckages = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-          UPDATE marketplacepackages 
-          SET 
-            isValid = 0,
-            status = 'Enabled'
+          DELETE FROM marketplacepackages 
           WHERE id = ?`;
     marketPlace.query(sql, [id], (err, results) => {
       if (err) {
@@ -3168,3 +3174,30 @@ exports.getPosPackageDetailsDAO = (orderId) => {
     });
   });
 };
+
+exports.postManageSeoDao = async (payload) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO govimartseo
+        (pageName, slug, discription, keywords)
+      VALUES (?, ?, ?, ?)
+    `;
+
+    const params = [
+      payload.pageName,
+      payload.slug,
+      payload.discription,
+      JSON.stringify(payload.keywords || []),
+    ];
+
+    marketPlace.query(sql, params, (err, result) => {
+      if (err) return reject(err);
+
+      resolve({
+        id: result.insertId,
+        pageName: payload.pageName,
+      });
+    });
+  });
+};
+

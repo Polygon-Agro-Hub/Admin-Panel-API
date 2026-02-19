@@ -383,7 +383,12 @@ exports.getAllMarketplaceComplaints = async (req, res) => {
   console.log(fullUrl);
   try {
     // Fetch all complaints from the marketplacecomplain table
-    const complaints = await ComplainCategoryDAO.getAllMarketplaceComplaints();
+    const {role} =await ComplainCategoryValidate.getAllMarketplaceComplaintsSchema.validateAsync(req.query);
+    // const role = req.query.role;
+    console.log(role);
+    
+    
+    const complaints = await ComplainCategoryDAO.getAllMarketplaceComplaints(role);
 
     if (!complaints || complaints.length === 0) {
       return res.status(404).json({ message: "No complaints found" });
@@ -401,7 +406,8 @@ exports.getAllMarketplaceComplaintsWholesale = async (req, res) => {
   console.log(fullUrl);
   try {
     // Fetch all complaints from the marketplacecomplain table
-    const complaints = await ComplainCategoryDAO.getAllMarketplaceComplaintsWholesale();
+    const {role} =await ComplainCategoryValidate.getAllMarketplaceComplaintsSchema.validateAsync(req.query);
+    const complaints = await ComplainCategoryDAO.getAllMarketplaceComplaintsWholesale(role);
 
     if (!complaints || complaints.length === 0) {
       return res.status(404).json({ message: "No complaints found" });
@@ -518,6 +524,7 @@ exports.getAllDistributionComplain = async (req, res) => {
       filterCompany,
       searchText,
       rpstatus,
+      role
     } = req.query;
 
     console.log("searchText", searchText);
@@ -531,7 +538,8 @@ exports.getAllDistributionComplain = async (req, res) => {
         comCategory,
         filterCompany,
         searchText,
-        rpstatus
+        rpstatus,
+        role
       );
 
     console.log("Successfully retrieved all collection centre");
@@ -551,11 +559,13 @@ exports.getAllDistributionComplain = async (req, res) => {
 
 
 exports.getDistributedComplainById = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
   try {
     const id = req.params.id;
 
     const result = await ComplainCategoryDAO.getDistributedComplainById(id);
-    console.log(result[0]);
+    console.log('results', result);
 
     if (result.length === 0) {
       return res
@@ -685,5 +695,36 @@ exports.getAllDriverComplain = async (req, res) => {
 
     console.error("Error fetching news:", err);
     res.status(500).json({ error: "An error occurred while fetching news" });
+  }
+};
+
+exports.getDriverComplainById = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const id = req.params.id;
+
+    const result = await ComplainCategoryDAO.getDriverComplainById(id);
+    console.log('results', result);
+
+    if (result.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No Center Complain founded", data: result[0] });
+    }
+
+    console.log("Successfully retrieved collection centre Complains");
+    res.json(result[0]);
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching news:", err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching center complains" });
   }
 };
