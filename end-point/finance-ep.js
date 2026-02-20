@@ -11,6 +11,7 @@ const {
   getAllInvestmentSchema,
   getInvestmentIdSchema,
   getAgentCommitionsShema,
+  getAllInvestmentUsersSchema,
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
@@ -1936,5 +1937,37 @@ exports.getFarmerPensionDetails = async (req, res) => {
       message: "Failed to get farmer pension details",
       error: error.message,
     });
+  }
+};
+
+exports.getGocicareAllInvestmentUsers = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { search } = await getAllInvestmentUsersSchema.validateAsync(
+      req.query
+    );
+
+    // Pass null for id and status since they're not being used
+    const result = await financeDao.getGocicareAllInvestmentUsersDao(
+      null, // id
+      null, // status
+      search // search term
+    );
+
+    console.log('result', result);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    console.error("Error fetching investment users:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching investment users" });
   }
 };

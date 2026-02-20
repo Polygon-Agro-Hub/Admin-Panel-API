@@ -2399,3 +2399,63 @@ exports.getFarmerPensionDetailsDao = (page, limit, searchText) => {
     });
   });
 };
+
+exports.getGocicareAllInvestmentUsersDao = (
+  id, status, search
+) => {
+  return new Promise((resolve, reject) => {
+    let dataSql = `
+    SELECT
+        iu.id,
+        iu.regCode,
+        iu.title,
+        iu.userName,
+        iu.phoneCode,
+        iu.phoneNumber,
+        iu.nic,
+        iu.email,
+        iu.address,
+        iu.createdAt
+    FROM investmentusers iu
+    `;
+
+    const params = [];
+    const whereConditions = [];
+
+    if (id) {
+      whereConditions.push("iu.id = ?");
+      params.push(id);
+    }
+
+    if (status) {
+      whereConditions.push("iu.status = ?");
+      params.push(status);
+    }
+
+    if (search) {
+      whereConditions.push(`
+        (iu.nic LIKE ? 
+        OR CONCAT(iu.phoneCode, iu.phoneNumber) LIKE ?)
+      `);
+      const searchValue = `%${search}%`;
+      params.push(searchValue, searchValue);
+    }
+
+    // Add WHERE clause if there are conditions
+    if (whereConditions.length > 0) {
+      dataSql += " WHERE " + whereConditions.join(" AND ");
+    }
+
+    dataSql += " ORDER BY iu.createdAt DESC";
+
+    investment.query(dataSql, params, (dataErr, dataResults) => {
+      if (dataErr) {
+        console.error("Error in data query:", dataErr);
+        return reject(dataErr);
+      }
+      resolve({
+        items: dataResults
+      });
+    });
+  });
+};

@@ -236,4 +236,6 @@ router.get(
   financeController.getFarmerPensionDetails
 );
 
+router.get('/govicare-investment-users', authMiddleware, financeController.getGocicareAllInvestmentUsers);
+
 module.exports = router;
