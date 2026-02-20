@@ -138,6 +138,10 @@ const IdParamSchema = Joi.object({
   id: Joi.number().integer().required() 
 });
 
+const getAllInvestmentUsersSchema = Joi.object({
+  search: Joi.string().optional()
+});
+
 
 module.exports = {
   createAgentCommissionSchema,
@@ -151,5 +155,6 @@ module.exports = {
   getAllInvestmentSchema,
   getInvestmentIdSchema,
   getAgentCommitionsShema,
-  IdParamSchema
+  IdParamSchema,
+  getAllInvestmentUsersSchema
 };

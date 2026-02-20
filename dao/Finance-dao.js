@@ -1336,7 +1336,7 @@ exports.GetInvestmentRequestByIdDAO = (requestId) => {
         ir.extentha AS ExtentH,
         ir.extentp AS ExtentP,
         ir.investment AS Expected_Investment,
-        CONCAT(ir.expectedYield, 'kg') AS Expected_Yield,
+        ir.expectedYield AS Expected_Yield,
         DATE_FORMAT(ir.startDate, '%M %d, %Y') AS Expected_Start_Date,
         DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time
       FROM investmentrequest ir
@@ -1643,7 +1643,7 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
         COALESCE(ir.publishStatus, 'Draft') AS publishStatus,
         ir.nicFront AS NIC_Front_Image,
         ir.nicBack AS NIC_Back_Image,
-        DATE_FORMAT(ir.createdAt, '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
+        DATE_FORMAT(CONVERT_TZ(ir.reqCahangeTime, '+00:00', '+05:30'), '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
         COALESCE(ao.userName, '--') AS Assigned_By,
         ( 
           SELECT JSON_OBJECT(
@@ -1665,7 +1665,7 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
       LEFT JOIN agro_world_admin.adminusers ao ON ir.assignedBy = ao.id
       WHERE ir.reqStatus = 'Approved'
     `;
-
+    // DATE_FORMAT(ir.reqCahangeTime, '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
     const params = [];
 
     // Filter by publish status (Draft or Published)
@@ -1765,7 +1765,7 @@ exports.GetProjectInvesmentDAO = (filters = {}) => {
       params.push(searchTerm, searchTerm, searchTerm, searchTerm);
     }
 
-    sql += ` ORDER BY ir.createdAt DESC`;
+    sql += ` ORDER BY cg.cropNameEnglish, fillShares DESC`;
 
     investment.query(sql, params, (err, results) => {
       if (err) {
@@ -2395,6 +2395,66 @@ exports.getFarmerPensionDetailsDao = (page, limit, searchText) => {
           total: countResults[0].total,
           items: dataResults,
         });
+      });
+    });
+  });
+};
+
+exports.getGocicareAllInvestmentUsersDao = (
+  id, status, search
+) => {
+  return new Promise((resolve, reject) => {
+    let dataSql = `
+    SELECT
+        iu.id,
+        iu.regCode,
+        iu.title,
+        iu.userName,
+        iu.phoneCode,
+        iu.phoneNumber,
+        iu.nic,
+        iu.email,
+        iu.address,
+        iu.createdAt
+    FROM investmentusers iu
+    `;
+
+    const params = [];
+    const whereConditions = [];
+
+    if (id) {
+      whereConditions.push("iu.id = ?");
+      params.push(id);
+    }
+
+    if (status) {
+      whereConditions.push("iu.status = ?");
+      params.push(status);
+    }
+
+    if (search) {
+      whereConditions.push(`
+        (iu.nic LIKE ? 
+        OR CONCAT(iu.phoneCode, iu.phoneNumber) LIKE ?)
+      `);
+      const searchValue = `%${search}%`;
+      params.push(searchValue, searchValue);
+    }
+
+    // Add WHERE clause if there are conditions
+    if (whereConditions.length > 0) {
+      dataSql += " WHERE " + whereConditions.join(" AND ");
+    }
+
+    dataSql += " ORDER BY iu.createdAt DESC";
+
+    investment.query(dataSql, params, (dataErr, dataResults) => {
+      if (dataErr) {
+        console.error("Error in data query:", dataErr);
+        return reject(dataErr);
+      }
+      resolve({
+        items: dataResults
       });
     });
   });

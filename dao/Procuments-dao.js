@@ -630,7 +630,7 @@ exports.getAllOrdersWithProcessInfo = (
         po.status,
         po.createdAt,
         op.packingStatus,
-        op.createdAt AS packageCreatedAt
+        po.createdAt AS packageCreatedAt
       FROM processorders po
       INNER JOIN orders o ON po.orderId = o.id
       INNER JOIN (
@@ -653,7 +653,7 @@ exports.getAllOrdersWithProcessInfo = (
         ${dateFilter ? " AND DATE(o.sheduleDate) = ? " : ""}
         ${dateFilter1 ? " AND DATE(po.createdAt) = ? " : ""}
         ${searchText ? " AND po.invNo LIKE ? " : ""}
-      ORDER BY op.createdAt DESC
+      ORDER BY po.createdAt 
       LIMIT ? OFFSET ?
     `;
 
@@ -1454,7 +1454,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
           po.invNo,
           po.status,
           po.createdAt,
-          po.createdAt AS processCreatedAt,
+          (SELECT MAX(opi.createdAt) FROM orderpackageitems opi WHERE opi.orderPackageId = op.id) AS processCreatedAt,
           op.packingStatus,
           au.userName
         FROM processorders po
