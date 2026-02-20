@@ -40,46 +40,6 @@ exports.getRecievedOrdersQuantity = async (req, res) => {
   }
 };
 
-// exports.getAllOrdersWithProcessInfo = async (req, res) => {
-//   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-//   console.log(fullUrl);
-//   try {
-//     // If you have validation, uncomment and use this:
-//     // const validatedQuery = await ordersValidate.getAllOrdersWithProcessInfo.validateAsync(req.query);
-
-//     const { page = 1, limit = 10, filterType, date, search } = req.query;
-
-//     const ordersData = await procumentDao.getAllOrdersWithProcessInfo(
-//       page,
-//       limit,
-//       filterType,
-//       date,
-//       search
-//     );
-
-//     res.json({
-//       success: true,
-//       data: ordersData.items,
-//       total: ordersData.total,
-//       currentPage: parseInt(page),
-//       totalPages: Math.ceil(ordersData.total / limit),
-//     });
-//   } catch (err) {
-//     console.error("Error fetching orders with process info:", err);
-
-//     // More detailed error response
-//     const statusCode = err.isJoi ? 400 : 500;
-//     const message = err.isJoi
-//       ? err.details[0].message
-//       : "An error occurred while fetching orders data.";
-
-//     res.status(statusCode).json({
-//       success: false,
-//       message: message,
-//       error: process.env.NODE_ENV === "development" ? err.stack : undefined,
-//     });
-//   }
-// };
 
 exports.getAllOrdersWithProcessInfo = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
