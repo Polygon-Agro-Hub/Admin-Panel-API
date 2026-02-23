@@ -1604,11 +1604,13 @@ exports.deleteCompanyHeadData = async (id) => {
   });
 };
 
-exports.GetComplainCategoriesByRole = (roleId, appId) => {
+exports.GetComplainCategoriesByRole = (roleId, appName) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, categoryEnglish FROM complaincategory WHERE roleId=? AND appId=?";
-    admin.query(sql, [roleId, appId], (err, results) => {
+      `SELECT cc.id, cc.categoryEnglish FROM agro_world_admin.complaincategory cc 
+       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
+       WHERE cc.roleId=? AND sa.appName=?`;
+    admin.query(sql, [roleId, appName], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1617,11 +1619,13 @@ exports.GetComplainCategoriesByRole = (roleId, appId) => {
   });
 };
 
-exports.GetComplainCategoriesByRoleSuper = (appId) => {
+exports.GetComplainCategoriesByRoleSuper = (appName) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, categoryEnglish FROM complaincategory WHERE appId=?";
-    admin.query(sql, [appId], (err, results) => {
+      `SELECT cc.id, cc.categoryEnglish FROM agro_world_admin.complaincategory cc
+       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
+       WHERE sa.appName = ?`;
+    admin.query(sql, [appName], (err, results) => {
       if (err) {
         return reject(err);
       }
