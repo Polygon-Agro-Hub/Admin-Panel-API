@@ -1191,12 +1191,12 @@ exports.GetComplainCategoriesByRole = async (req, res) => {
 
   try {
     const roleId = req.params.roleId;
-    const appId = req.params.appId;
+    const appName = req.params.appName;
     console.log(roleId);
 
     const result = await CollectionCenterDao.GetComplainCategoriesByRole(
       roleId,
-      appId
+      appName
     );
 
     if (result.length === 0) {
@@ -1226,10 +1226,10 @@ exports.GetComplainCategoriesByRoleSuper = async (req, res) => {
   console.log("Request URL:", fullUrl);
 
   try {
-    const appId = req.params.appId;
+    const appName = req.params.appName;
 
     const result = await CollectionCenterDao.GetComplainCategoriesByRoleSuper(
-      appId
+      appName
     );
 
     if (result.length === 0) {
