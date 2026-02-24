@@ -21,6 +21,7 @@ exports.getRecievedOrdersQuantity = async (req, res) => {
     // const validatedQuery = await collectionofficerValidate.getPurchaseReport.validateAsync(req.query);
 
     const { page, limit, filterType, date, search } = req.query;
+    console.log('search', search)
 
     console.log(page, limit);
 
@@ -32,7 +33,7 @@ exports.getRecievedOrdersQuantity = async (req, res) => {
       search
     );
 
-    console.log(reportData);
+    // console.log(reportData);
     res.json(reportData);
   } catch (err) {
     console.error("Error fetching daily report:", err);
