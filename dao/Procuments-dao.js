@@ -75,13 +75,12 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
     `;
 
     // Add search filter for the grouped query
-    let havingSql = '';
+    let whereSql2 = '';
     const searchParams = [];
 
     if (search) {
-      havingSql = ` HAVING 
-        cg.cropNameEnglish LIKE ? OR 
-        cv.varietyNameEnglish LIKE ?
+      whereSql2 += ` WHERE (cg.cropNameEnglish LIKE ? OR 
+        cv.varietyNameEnglish LIKE ?) 
       `;
       const likeSearch = `%${search}%`;
       searchParams.push(likeSearch, likeSearch);
@@ -94,12 +93,12 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         FROM (${itemsSubquery}) items
         JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
         JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+        ${whereSql2}
         GROUP BY 
           cg.cropNameEnglish,
           cv.varietyNameEnglish,
           items.createdAt,
           items.sheduleDate
-        ${havingSql}
       ) AS grouped
     `;
 
@@ -116,12 +115,12 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
       FROM (${itemsSubquery}) items
       JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      ${whereSql2}
       GROUP BY 
         cg.cropNameEnglish,
         cv.varietyNameEnglish,
         items.createdAt,
         items.sheduleDate
-      ${havingSql}
       ORDER BY 
         items.createdAt DESC,
         cg.cropNameEnglish ASC,

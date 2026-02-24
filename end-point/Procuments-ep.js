@@ -33,7 +33,7 @@ exports.getRecievedOrdersQuantity = async (req, res) => {
       search
     );
 
-    // console.log(reportData);
+    console.log(reportData);
     res.json(reportData);
   } catch (err) {
     console.error("Error fetching daily report:", err);
