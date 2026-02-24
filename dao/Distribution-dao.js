@@ -3363,9 +3363,9 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       LEFT JOIN 
         collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
       LEFT JOIN 
-        collection_officer.collectionofficer cof2 ON po.outBy = cof2.id
-      LEFT JOIN
-        collection_officer.distributedcenter dc2 ON cof2.distributedCenterId = dc2.id
+        collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id
+      LEFT JOIN 
+        collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
       WHERE 
         DATE(o.sheduleDate) = CURDATE()
       `;
@@ -3404,7 +3404,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
     if (searchParams.regCode) {
       console.log("searchParams.regCode", searchParams.regCode);
 
-      conditions.push(`(dc.id = ? OR dc2.id = ?)`);
+      conditions.push(`(dc.id = ? OR dcc.centerId = ?)`);
       values.push(searchParams.regCode, searchParams.regCode);
     }
 

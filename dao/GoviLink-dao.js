@@ -807,8 +807,7 @@ exports.getFieldAuditHistoryResponseByIdDAO = (jobId) => {
         sqi.type,
         sqi.uploadImage,
         sqi.officerTickResult,
-        js.problem,
-        js.solution
+        sq.id AS slaveQId
       FROM feildaudits fa
       LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
       LEFT JOIN certificates ct ON ct.id = cp.certificateId
@@ -820,7 +819,6 @@ exports.getFieldAuditHistoryResponseByIdDAO = (jobId) => {
       LEFT JOIN cropgroup cg ON cg.id = cv.cropGroupId
       LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
       LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
-      LEFT JOIN jobsuggestions js ON js.slaveId = sq.id
       WHERE fa.jobId = ?
     `;
 
@@ -839,23 +837,77 @@ exports.getFieldAuditHistoryResponseByIdDAO = (jobId) => {
         applicable: results[0].applicable
       };
 
-      const data = results.map((row) => ({
-        qEnglish: row.qEnglish,
-        type: row.type,
-        uploadImage: row.uploadImage,
-        officerTickResult: row.officerTickResult,
-        problem: row.problem,
-        solution: row.solution,
-      }));
+      const slaveQIds = [...new Set(results.map(row => row.slaveQId).filter(id => id))];
 
-      resolve({
-        ...header,
-        data,
-      });
+      if (slaveQIds.length === 0) {
+        const data = results.map((row) => ({
+          qEnglish: row.qEnglish,
+          type: row.type,
+          uploadImage: row.uploadImage,
+          officerTickResult: row.officerTickResult,
+          slaveQId: row.slaveQId,
+          problem: null,
+          solution: null,
+          suggestions: []
+        }));
+        return resolve({ ...header, data });
+      }
+
+      exports.getJobSuggestionsBySlaveIdsDAO(slaveQIds)
+        .then(suggestionMap => {
+          const data = results.map((row) => {
+            const rowSuggestions = suggestionMap[row.slaveQId] || [];
+            return {
+              qEnglish: row.qEnglish,
+              type: row.type,
+              uploadImage: row.uploadImage,
+              officerTickResult: row.officerTickResult,
+              slaveQId: row.slaveQId,
+              problem: rowSuggestions[0]?.problem ?? null,
+              solution: rowSuggestions[0]?.solution ?? null,
+              suggestions: rowSuggestions
+            };
+          });
+          resolve({ ...header, data });
+        })
+        .catch(err => reject(err));
     });
   });
 };
 
+exports.getJobSuggestionsBySlaveIdsDAO = (slaveIds) => {
+  return new Promise((resolve, reject) => {
+    if (!slaveIds || slaveIds.length === 0) return resolve({});
+
+    const placeholders = slaveIds.map(() => '?').join(', ');
+    const sql = `
+      SELECT 
+        slaveId,
+        problem,
+        solution
+      FROM jobsuggestions
+      WHERE slaveId IN (${placeholders})
+    `;
+
+    plantcare.query(sql, slaveIds, (err, results) => {
+      if (err) {
+        console.error('Error fetching job suggestions:', err);
+        return reject(err);
+      }
+
+      const grouped = {};
+      results.forEach(row => {
+        if (!grouped[row.slaveId]) grouped[row.slaveId] = [];
+        grouped[row.slaveId].push({
+          problem: row.problem,
+          solution: row.solution
+        });
+      });
+
+      resolve(grouped);
+    });
+  });
+};
 
 exports.getServiceRequestResponseDao = (jobId) => {
   return new Promise((resolve, reject) => {
@@ -934,11 +986,10 @@ exports.getAdvicesServiceRequestDao = (id) => {
     plantcare.query(sql, [id], (err, results) => {
       if (err) return reject(err);
       resolve(results);
-      console.log('results', results)
+      console.log("results", results);
     });
   });
 };
-
 
 exports.getSuggestionsServiceRequestDao = (id) => {
   return new Promise((resolve, reject) => {
