@@ -6,259 +6,10 @@ const {
   marketPlace
 } = require("../startup/database");
 
-// exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
-//   return new Promise((resolve, reject) => {
-//     const offset = (page - 1) * limit;
-
-//     // Base query
-//     let baseJoinSql = `
-//       FROM market_place.processorders po
-//       JOIN market_place.orders o ON po.orderId = o.id
-//       JOIN market_place.orderpackage op ON op.orderId = po.id
-//       JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-//       JOIN market_place.marketplaceitems mpi ON oai.productId = mpi.id
-//       JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
-//       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
-//     `;
-
-//     let whereSql = ` WHERE 1=1 `;
-//     const queryParams = [];
-
-//     // Apply filterType + date
-//     if (filterType && date) {
-//       switch (filterType) {
-//         case "OrderDate":
-//           whereSql += ` AND DATE(o.createdAt) = ?`;
-//           queryParams.push(date);
-//           break;
-//         case "scheduleDate":
-//           whereSql += ` AND DATE(o.sheduleDate) = ?`;
-//           queryParams.push(date);
-//           break;
-//         case "toCollectionCenter":
-//           whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 2 DAY)) = ?`;
-//           queryParams.push(date);
-//           break;
-//         case "toDispatchCenter":
-//           whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
-//           queryParams.push(date);
-//           break;
-//       }
-//     }
-
-//     // Apply search on crop and variety name
-//     if (search) {
-//       whereSql += ` AND (cv.varietyNameEnglish LIKE ? OR cg.cropNameEnglish LIKE ?)`;
-//       const likeSearch = `%${search}%`;
-//       queryParams.push(likeSearch, likeSearch);
-//     }
-
-//     // Count Query
-//     const countSql = `SELECT COUNT(DISTINCT CONCAT(cg.cropNameEnglish, cv.varietyNameEnglish)) AS total ${baseJoinSql} ${whereSql}`;
-
-//     // Data Query - Modified to properly handle GROUP BY
-//     let dataSql = `
-//       SELECT 
-//         po.createdAt,
-//         o.sheduleDate,
-//         ROUND(
-//           SUM(
-//             CASE 
-//               WHEN oai.unit = 'g' THEN oai.qty / 1000
-//               ELSE oai.qty 
-//             END
-//           ), 3
-//         ) AS quantity,
-//         cg.cropNameEnglish, 
-//         cv.varietyNameEnglish,
-//         MAX(DATE_SUB(o.sheduleDate, INTERVAL 2 DAY)) AS toCollectionCentre,
-//         MAX(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) AS toDispatchCenter
-//       ${baseJoinSql}
-//       ${whereSql}
-//       GROUP BY cg.cropNameEnglish, cv.varietyNameEnglish, po.createdAt, o.sheduleDate
-//       ORDER BY MAX(o.createdAt) DESC, cg.cropNameEnglish ASC, cv.varietyNameEnglish ASC
-//       LIMIT ? OFFSET ?
-//     `;
-
-//     const dataParams = [...queryParams, Number(limit), Number(offset)];
-
-//     // Execute count query
-//     marketPlace.query(countSql, queryParams, (countErr, countResults) => {
-//       if (countErr) {
-//         console.error("Error in count query:", countErr);
-//         return reject(countErr);
-//       }
-
-//       const total = countResults[0].total;
-
-//       // Execute data query
-//       marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
-//         if (dataErr) {
-//           console.error("Error in data query:", dataErr);
-//           return reject(dataErr);
-//         }
-
-//         // Process results
-//         const processedResults = dataResults.map(item => ({
-//           ...item,
-//           quantity: parseFloat(item.quantity),
-//           orderIds: item.orderIds ? item.orderIds.split(',') : [],
-//           productIds: item.productIds ? item.productIds.split(',') : []
-//         }));
-
-//         resolve({ items: processedResults, total });
-//       });
-//     });
-//   });
-// };
-
-// exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
-//   return new Promise((resolve, reject) => {
-//     const offset = (page - 1) * limit;
-
-//     let baseJoinSql = `
-//       FROM market_place.processorders po
-//       JOIN market_place.orders o ON po.orderId = o.id
-//       LEFT JOIN market_place.orderpackage op ON op.orderId = po.id
-//       LEFT JOIN market_place.orderpackageitems opi ON opi.orderPackageId = op.id
-//       LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-//     `;
-
-//     let whereSql = ` WHERE po.status = 'processing' `;
-//     const queryParams = [];
-
-//     if (filterType && date) {
-//       switch (filterType) {
-//         case "OrderDate":
-//           whereSql += ` AND DATE(o.createdAt) = ?`;
-//           queryParams.push(date);
-//           break;
-//         case "scheduleDate":
-//           whereSql += ` AND DATE(o.sheduleDate) = ?`;
-//           queryParams.push(date);
-//           break;
-//         case "toCollectionCenter":
-//           whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 2 DAY)) = ?`;
-//           queryParams.push(date);
-//           break;
-//         case "toDispatchCenter":
-//           whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
-//           queryParams.push(date);
-//           break;
-//       }
-//     }
-
-//     // Subquery to get all items with their product details
-//     const itemsSubquery = `
-//       SELECT 
-//         po.id AS processOrderId,
-//         o.id AS orderId,
-//         DATE(po.createdAt) AS createdAt,
-//         DATE(o.sheduleDate) AS sheduleDate,
-//         mpi.varietyId,
-//         CASE 
-//           WHEN opi.id IS NOT NULL THEN 
-//             CASE 
-//               WHEN opi.qty < 1 THEN opi.qty * 1000
-//               ELSE opi.qty 
-//             END
-//           WHEN oai.id IS NOT NULL THEN 
-//             CASE 
-//               WHEN oai.unit = 'g' THEN oai.qty / 1000
-//               ELSE oai.qty 
-//             END
-//         END AS quantity
-//       ${baseJoinSql}
-//       LEFT JOIN market_place.marketplaceitems mpi ON (opi.productId = mpi.id OR oai.productId = mpi.id)
-//       ${whereSql}
-//         AND (opi.id IS NOT NULL OR oai.id IS NOT NULL)
-//         AND mpi.varietyId IS NOT NULL
-//     `;
-
-//     // Add search filter for the grouped query
-//     let havingSql = '';
-//     const searchParams = [];
-
-//     if (search) {
-//       havingSql = ` HAVING 
-//         cg.cropNameEnglish LIKE ? OR 
-//         cv.varietyNameEnglish LIKE ?
-//       `;
-//       const likeSearch = `%${search}%`;
-//       searchParams.push(likeSearch, likeSearch);
-//     }
-
-//     // Count Query
-//     const countSql = `
-//       SELECT COUNT(*) AS total FROM (
-//         SELECT 1
-//         FROM (${itemsSubquery}) items
-//         JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
-//         JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
-//         GROUP BY 
-//           cg.cropNameEnglish,
-//           cv.varietyNameEnglish,
-//           items.createdAt,
-//           items.sheduleDate
-//         ${havingSql}
-//       ) AS grouped
-//     `;
-
-//     // Data Query
-//     const dataSql = `
-//       SELECT 
-//         items.createdAt,
-//         items.sheduleDate,
-//         ROUND(SUM(items.quantity), 3) AS quantity,
-//         cg.cropNameEnglish,
-//         cv.varietyNameEnglish,
-//         MAX(DATE_SUB(items.sheduleDate, INTERVAL 2 DAY)) AS toCollectionCentre,
-//         MAX(DATE_SUB(items.sheduleDate, INTERVAL 1 DAY)) AS toDispatchCenter
-//       FROM (${itemsSubquery}) items
-//       JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
-//       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
-//       GROUP BY 
-//         cg.cropNameEnglish,
-//         cv.varietyNameEnglish,
-//         items.createdAt,
-//         items.sheduleDate
-//       ${havingSql}
-//       ORDER BY 
-//         items.createdAt DESC,
-//         cg.cropNameEnglish ASC,
-//         cv.varietyNameEnglish ASC
-//       LIMIT ? OFFSET ?
-//     `;
-
-//     const countParams = [...queryParams, ...searchParams];
-//     const dataParams = [...queryParams, ...searchParams, Number(limit), Number(offset)];
-
-//     marketPlace.query(countSql, countParams, (countErr, countResults) => {
-//       if (countErr) {
-//         console.error("Error in count query:", countErr);
-//         return reject(countErr);
-//       }
-
-//       const total = countResults[0].total;
-
-//       marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
-//         if (dataErr) {
-//           console.error("Error in data query:", dataErr);
-//           return reject(dataErr);
-//         }
-
-//         const processedResults = dataResults.map(item => ({
-//           ...item,
-//           quantity: parseFloat(item.quantity),
-//         }));
-
-//         resolve({ items: processedResults, total });
-//       });
-//     });
-//   });
-// };
-
 exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
+  console.log('filterType', filterType)
+  console.log('date', date)
+  console.log('search', search)
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
@@ -324,13 +75,12 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
     `;
 
     // Add search filter for the grouped query
-    let havingSql = '';
+    let whereSql2 = '';
     const searchParams = [];
 
     if (search) {
-      havingSql = ` HAVING 
-        cg.cropNameEnglish LIKE ? OR 
-        cv.varietyNameEnglish LIKE ?
+      whereSql2 += ` WHERE (cg.cropNameEnglish LIKE ? OR 
+        cv.varietyNameEnglish LIKE ?) 
       `;
       const likeSearch = `%${search}%`;
       searchParams.push(likeSearch, likeSearch);
@@ -343,12 +93,12 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         FROM (${itemsSubquery}) items
         JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
         JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+        ${whereSql2}
         GROUP BY 
           cg.cropNameEnglish,
           cv.varietyNameEnglish,
           items.createdAt,
           items.sheduleDate
-        ${havingSql}
       ) AS grouped
     `;
 
@@ -365,12 +115,12 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
       FROM (${itemsSubquery}) items
       JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      ${whereSql2}
       GROUP BY 
         cg.cropNameEnglish,
         cv.varietyNameEnglish,
         items.createdAt,
         items.sheduleDate
-      ${havingSql}
       ORDER BY 
         items.createdAt DESC,
         cg.cropNameEnglish ASC,
@@ -382,6 +132,8 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
     const unionParams = [...queryParams, ...queryParams];
     const countParams = [...unionParams, ...searchParams];
     const dataParams = [...unionParams, ...searchParams, Number(limit), Number(offset)];
+
+    console.log('dataSql', dataSql)
 
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
@@ -1667,6 +1419,255 @@ exports.testFuncDao = async () => {
   });
 };
 
+// exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit) => {
+//   return new Promise((resolve, reject) => {
+//     const queryParams = [];
+//     const offset = (page - 1) * limit;
+
+//     // Build WHERE clause for package items
+//     let whereClausePackage = ` 
+//     WHERE po.status = 'Processing' 
+//     AND op.id IS NOT NULL
+//     `;
+
+//     // Build WHERE clause for additional items
+//     let whereClauseAdditional = ` 
+//     WHERE po.status = 'Processing' 
+//     AND oai.id IS NOT NULL
+//     `;
+
+//     // Add date filter if provided
+//     if (deliveryDate) {
+//       whereClausePackage += ` AND DATE(o.sheduleDate) = ?`;
+//       whereClauseAdditional += ` AND DATE(o.sheduleDate) = ?`;
+//       queryParams.push(deliveryDate);
+//     }
+
+//     // Duplicate params for the second query in UNION
+//     const allQueryParams = [...queryParams, ...queryParams];
+
+//     // Query to get aggregated data with delivery addresses
+//     let dataSql = `
+//       SELECT
+//         o.id as orderId,
+//         o.centerId,
+//         o.delivaryMethod,
+//         o.buildingType,
+//         o.sheduleDate,
+//         oh.city as houseCity,
+//         oa.city as apartmentCity,
+//         opi.productId,
+//         mpi.displayName AS productName,
+//         SUM(opi.qty * op.qty) AS totalQty
+//       FROM market_place.processorders po
+//       INNER JOIN market_place.orders o ON po.orderId = o.id
+//       INNER JOIN market_place.orderpackage op ON op.orderId = po.id AND op.packingStatus = 'Dispatch'
+//       INNER JOIN market_place.orderpackageitems opi ON opi.orderPackageId = op.id
+//       INNER JOIN market_place.marketplaceitems mpi ON opi.productId = mpi.id
+//       LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
+//       LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+//       ${whereClausePackage}
+//       GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, opi.productId, mpi.displayName
+
+//       UNION ALL
+
+//       SELECT
+//         o.id as orderId,
+//         o.centerId,
+//         o.delivaryMethod,
+//         o.buildingType,
+//         o.sheduleDate,
+//         oh.city as houseCity,
+//         oa.city as apartmentCity,
+//         oai.productId,
+//         mpi.displayName AS productName,
+//         SUM(oai.qty) AS totalQty
+//       FROM market_place.processorders po
+//       INNER JOIN market_place.orders o ON po.orderId = o.id
+//       INNER JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
+//       INNER JOIN market_place.marketplaceitems mpi ON oai.productId = mpi.id
+//       LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
+//       LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+//       ${whereClauseAdditional}
+//       GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, oai.productId, mpi.displayName
+//     `;
+
+//     console.log('=== DEBUG SQL ===');
+//     console.log('Query:', dataSql);
+//     console.log('Params:', allQueryParams);
+//     console.log('Center Filter (will apply after):', centerId);
+//     console.log('=================');
+
+//     marketPlace.query(dataSql, allQueryParams, async (dataErr, dataResults) => {
+//       if (dataErr) {
+//         console.error('Error in data query:', dataErr);
+//         return reject(dataErr);
+//       }
+
+//       console.log('=== DEBUG RESULTS ===');
+//       console.log('Raw results count:', dataResults.length);
+//       console.log('First rows:', dataResults);
+//       console.log('=====================');
+
+//       try {
+//         // Process results to aggregate quantities by center and product
+//         const productMap = {};
+
+//         for (const row of dataResults) {
+//           console.log('---');
+//           console.log('Processing row:', {
+//             orderId: row.orderId,
+//             deliveryMethod: row.delivaryMethod,
+//             buildingType: row.buildingType,
+//             orderCenterId: row.centerId,
+//             houseCity: row.houseCity,
+//             apartmentCity: row.apartmentCity,
+//             productId: row.productId
+//           });
+
+//           let finalCenterId = null;
+//           let centerInfo = null;
+
+//           // Determine centerId based on delivery method
+//           if (row.delivaryMethod === 'pickup' || row.delivaryMethod === 'Pickup') {
+//             // For pickup, use centerId from orders table
+//             finalCenterId = row.centerId;
+//             if (finalCenterId) {
+//               centerInfo = await exports.getCenterName(finalCenterId);
+//               console.log('✓ Pickup - Center info for centerId', finalCenterId, ':', centerInfo);
+//             } else {
+//               console.log('✗ Pickup - No centerId in orders table');
+//             }
+//           } else if (row.delivaryMethod === 'Delivery' || row.delivaryMethod === 'delivery') {
+//             // For delivery, get city based on building type
+//             let city = null;
+//             if (row.buildingType === 'House' && row.houseCity) {
+//               city = row.houseCity;
+//             } else if (row.buildingType === 'Apartment' && row.apartmentCity) {
+//               city = row.apartmentCity;
+//             }
+
+//             console.log('→ Delivery - Building type:', row.buildingType, ', City:', city);
+
+//             // Find centerId through the chain: city -> deliverycharge -> centerowncity -> distributedcompanycenter -> distributedcenter
+//             if (city) {
+//               centerInfo = await exports.getCenterByCityChain(city);
+//               if (centerInfo) {
+//                 finalCenterId = centerInfo.id;
+//                 console.log('✓ Delivery - Found center for city "' + city + '":', centerInfo);
+//               } else {
+//                 console.log('✗ Delivery - No center found for city "' + city + '"');
+//               }
+//             } else {
+//               console.log('✗ Delivery - No city found for this order');
+//             }
+//           }
+
+//           // Skip this row if centerId filter is applied and doesn't match
+//           if (centerId) {
+//             const filterCenterId = parseInt(centerId);
+//             if (finalCenterId != filterCenterId) {
+//               console.log('⊗ Skipping - Filter centerId:', filterCenterId, 'vs finalCenterId:', finalCenterId);
+//               continue;
+//             } else {
+//               console.log('✓ Match - Filter centerId:', filterCenterId, 'matches finalCenterId:', finalCenterId);
+//             }
+//           }
+
+//           // Create unique key for grouping
+//           const key = `${finalCenterId}-${row.productId}`;
+
+//           if (!productMap[key]) {
+//             productMap[key] = {
+//               centerId: finalCenterId,
+//               centerName: centerInfo?.centerName || 'N/A',
+//               regCode: centerInfo?.regCode || 'N/A',
+//               productId: row.productId,
+//               productName: row.productName,
+//               sheduleDate: row.sheduleDate,
+//               quantity: 0
+//             };
+//             console.log('Created new product map entry with key:', key);
+//           }
+
+//           // Add quantity (convert to number)
+//           const qtyToAdd = parseFloat(row.totalQty) || 0;
+//           productMap[key].quantity += qtyToAdd;
+//           console.log('Added quantity:', qtyToAdd, ', New total:', productMap[key].quantity);
+//         }
+
+//         console.log('===================');
+//         console.log('Product map keys after center filter:', Object.keys(productMap));
+
+//         // Convert to array
+//         let distributionOrders = Object.values(productMap);
+//         console.log('Distribution orders count after mapping:', distributionOrders.length);
+
+//         // Apply search filter
+//         if (search && search.trim() !== '') {
+//           const searchLower = search.trim().toLowerCase();
+//           distributionOrders = distributionOrders.filter(product =>
+//             product.productName && product.productName.toLowerCase().includes(searchLower)
+//           );
+//           console.log('After search filter:', distributionOrders.length);
+//         }
+
+//         // Get total count
+//         const totalItems = distributionOrders.length;
+
+//         // Get crop and variety information for each product and sort by cropNameEnglish and varietyNameEnglish A-Z
+//         const enrichedOrders = await Promise.all(
+//           distributionOrders.map(async (order) => {
+//             const productInfo = await exports.getProductCropVarietyInfo(order.productId);
+//             return {
+//               ...order,
+//               quantity: parseFloat(order.quantity).toFixed(2), // Format to 2 decimal places
+//               cropNameEnglish: productInfo?.cropNameEnglish || 'N/A',
+//               varietyNameEnglish: productInfo?.varietyNameEnglish || 'N/A'
+//             };
+//           })
+//         );
+
+//         // Sort enriched orders by cropNameEnglish and varietyNameEnglish A to Z
+//         enrichedOrders.sort((a, b) => {
+//           // First sort by cropNameEnglish
+//           const cropCompare = (a.cropNameEnglish || 'N/A').localeCompare(b.cropNameEnglish || 'N/A');
+//           if (cropCompare !== 0) {
+//             return cropCompare;
+//           }
+//           // If cropNameEnglish is the same, sort by varietyNameEnglish
+//           return (a.varietyNameEnglish || 'N/A').localeCompare(b.varietyNameEnglish || 'N/A');
+//         });
+
+//         console.log('After A-Z sorting - First 3 items:', enrichedOrders.slice(0, 3).map(item => ({
+//           crop: item.cropNameEnglish,
+//           variety: item.varietyNameEnglish
+//         })));
+
+//         // Apply pagination after sorting
+//         const paginatedOrders = enrichedOrders.slice(offset, offset + limit);
+//         console.log('After pagination:', paginatedOrders.length);
+
+//         console.log('Final enriched orders:', paginatedOrders.length);
+//         console.log('===================');
+
+//         resolve({
+//           items: paginatedOrders,
+//           total: totalItems,
+//           page: page,
+//           limit: limit
+//         });
+
+//       } catch (error) {
+//         console.error('Error processing distribution orders:', error);
+//         reject(error);
+//       }
+//     });
+//   });
+// };
+
+
+
 exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit) => {
   return new Promise((resolve, reject) => {
     const queryParams = [];
@@ -1754,7 +1755,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
 
       console.log('=== DEBUG RESULTS ===');
       console.log('Raw results count:', dataResults.length);
-      console.log('First 3 rows:', dataResults.slice(0, 3));
+      console.log('First rows:', dataResults.slice(0, 3));
       console.log('=====================');
 
       try {
@@ -1772,7 +1773,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
             apartmentCity: row.apartmentCity,
             productId: row.productId
           });
-          
+
           let finalCenterId = null;
           let centerInfo = null;
 
@@ -1822,7 +1823,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
             }
           }
 
-          // Create unique key for grouping
+          // Create unique key for grouping by centerId and productId
           const key = `${finalCenterId}-${row.productId}`;
 
           if (!productMap[key]) {
@@ -1830,7 +1831,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
               centerId: finalCenterId,
               centerName: centerInfo?.centerName || 'N/A',
               regCode: centerInfo?.regCode || 'N/A',
-              productId: row.productId,
+              productId: row.productId, // Keep for internal grouping but will be removed later
               productName: row.productName,
               sheduleDate: row.sheduleDate,
               quantity: 0
@@ -1860,21 +1861,55 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
           console.log('After search filter:', distributionOrders.length);
         }
 
-        // Get total count
+        // Get total count before enrichment
         const totalItems = distributionOrders.length;
 
-        // Get crop and variety information for each product and sort by cropNameEnglish and varietyNameEnglish A-Z
-        const enrichedOrders = await Promise.all(
-          distributionOrders.map(async (order) => {
-            const productInfo = await exports.getProductCropVarietyInfo(order.productId);
-            return {
-              ...order,
-              quantity: parseFloat(order.quantity).toFixed(2), // Format to 2 decimal places
-              cropNameEnglish: productInfo?.cropNameEnglish || 'N/A',
-              varietyNameEnglish: productInfo?.varietyNameEnglish || 'N/A'
-            };
+        // First get product info for all unique productIds
+        const uniqueProductIds = [...new Set(distributionOrders.map(order => order.productId))];
+        const productInfoMap = new Map();
+
+        await Promise.all(
+          uniqueProductIds.map(async (productId) => {
+            const productInfo = await exports.getProductCropVarietyInfo(productId);
+            productInfoMap.set(productId, productInfo);
           })
         );
+
+        // Now enrich orders and aggregate by productId
+        const enrichedProductMap = new Map();
+
+        distributionOrders.forEach(order => {
+          const productInfo = productInfoMap.get(order.productId) || {};
+
+          // Create unique key by centerId and productId
+          const key = `${order.centerId}-${order.productId}`;
+
+          if (enrichedProductMap.has(key)) {
+            // Update existing entry - sum quantities
+            const existingOrder = enrichedProductMap.get(key);
+            const newQuantity = parseFloat(existingOrder.quantity) + parseFloat(order.quantity);
+            existingOrder.quantity = newQuantity.toFixed(2);
+            console.log(`Updated existing product for center ${order.centerId}, product ${order.productId}: New quantity = ${existingOrder.quantity}`);
+          } else {
+            // Create new entry WITHOUT productId
+            enrichedProductMap.set(key, {
+              centerId: order.centerId,
+              centerName: order.centerName,
+              regCode: order.regCode,
+              // productId is NOT included in final output
+              productName: order.productName,
+              sheduleDate: order.sheduleDate,
+              quantity: parseFloat(order.quantity).toFixed(2),
+              cropNameEnglish: productInfo?.cropNameEnglish || 'N/A',
+              varietyNameEnglish: productInfo?.varietyNameEnglish || 'N/A'
+            });
+            console.log(`Created new enriched product entry for center ${order.centerId}, product ${order.productId}`);
+          }
+        });
+
+        // Convert map to array
+        let enrichedOrders = Array.from(enrichedProductMap.values());
+        console.log('After enrichment and aggregation - Unique items count:', enrichedOrders.length);
 
         // Sort enriched orders by cropNameEnglish and varietyNameEnglish A to Z
         enrichedOrders.sort((a, b) => {
@@ -1887,21 +1922,48 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
           return (a.varietyNameEnglish || 'N/A').localeCompare(b.varietyNameEnglish || 'N/A');
         });
 
-        console.log('After A-Z sorting - First 3 items:', enrichedOrders.slice(0, 3).map(item => ({
+
+        const groupedEnrichedOrders = Object.values(enrichedOrders.reduce((acc, curr) => {
+          const key = `${curr.centerId}-${curr.centerName}-${curr.productName}-${curr.crop}-${curr.variety}`;
+
+          if (!acc[key]) {
+            // Initialize with quantity as number
+            acc[key] = {
+              ...curr,
+              quantity: parseFloat(curr.quantity) || 0
+            };
+          } else {
+            // Add quantities as numbers
+            acc[key].quantity += parseFloat(curr.quantity) || 0;
+          }
+
+          return acc;
+        }, {}));
+
+        console.log(groupedEnrichedOrders);
+
+
+        console.log('After A-Z sorting - Sample items:', groupedEnrichedOrders.slice(0, 5).map(item => ({
+          centerId: item.centerId,
+          centerName: item.centerName,
+          productName: item.productName,
           crop: item.cropNameEnglish,
-          variety: item.varietyNameEnglish
+          variety: item.varietyNameEnglish,
+          quantity: item.quantity
+          // productId is not included
         })));
 
-        // Apply pagination after sorting
-        const paginatedOrders = enrichedOrders.slice(offset, offset + limit);
+        // Apply pagination after sorting and aggregation
+        const paginatedOrders = groupedEnrichedOrders.slice(offset, offset + limit);
         console.log('After pagination:', paginatedOrders.length);
 
         console.log('Final enriched orders:', paginatedOrders.length);
+        console.log('Total unique items:', groupedEnrichedOrders.length);
         console.log('===================');
 
         resolve({
           items: paginatedOrders,
-          total: totalItems,
+          total: groupedEnrichedOrders.length,
           page: page,
           limit: limit
         });
@@ -1915,6 +1977,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
 };
 
 
+
 // Helper function: Get center information by centerId (for pickup orders)
 exports.getCenterName = (centerId) => {
   return new Promise((resolve, reject) => {
@@ -1924,7 +1987,7 @@ exports.getCenterName = (centerId) => {
       WHERE id = ? 
       LIMIT 1
     `;
-    
+
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
         console.error('Error fetching center name:', err);
@@ -1949,18 +2012,18 @@ exports.getCenterByCityChain = (city) => {
       WHERE LOWER(TRIM(dlc.city)) = LOWER(TRIM(?))
       LIMIT 1
     `;
-    
+
     collectionofficer.query(sql, [city], (err, results) => {
       if (err) {
         console.error('Error fetching center by city chain:', err);
         return reject(err);
       }
-      
+
       if (results.length > 0) {
         console.log('Found center through chain for city "' + city + '":', results[0]);
         return resolve(results[0]);
       }
-      
+
       // If no exact match, try partial match
       const sqlPartial = `
         SELECT 
@@ -1974,18 +2037,18 @@ exports.getCenterByCityChain = (city) => {
         WHERE LOWER(dlc.city) LIKE LOWER(?)
         LIMIT 1
       `;
-      
+
       collectionofficer.query(sqlPartial, [`%${city}%`], (err2, results2) => {
         if (err2) {
           console.error('Error in partial city match:', err2);
           return reject(err2);
         }
-        
+
         if (results2.length > 0) {
           console.log('Found center through partial match for city "' + city + '":', results2[0]);
           return resolve(results2[0]);
         }
-        
+
         console.log('No center found through chain for city:', city);
         resolve(null);
       });
@@ -2023,7 +2086,7 @@ exports.getCenterByCity = (city) => {
       WHERE city = ? 
       LIMIT 1
     `;
-    
+
     collectionofficer.query(sql, [city], (err, results) => {
       if (err) {
         console.error('Error fetching center by city:', err);
