@@ -1019,6 +1019,9 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
         ct.srtName,
         cp.payType,
         f.regCode,
+        (SELECT COUNT(*) FROM feildauditcluster fac1 WHERE fac1.feildAuditId = fa.id) AS totalFarms,
+        (SELECT COUNT(*) FROM feildauditcluster fac2 WHERE fac2.feildAuditId = fa.id AND fac2.isCompleted = 1) AS completedFarms,
+
 
         JSON_ARRAYAGG(
           JSON_OBJECT(
@@ -1049,7 +1052,9 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
         cp.certificateId,
         ct.srtName,
         cp.payType,
-        f.regCode
+        f.regCode,
+        totalFarms,
+        completedFarms
     `;
 
     plantcare.query(sql, [jobId], (err, results) => {
@@ -1061,6 +1066,8 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
         certificateId: results[0].certificateId,
         srtName: results[0].srtName,
         payType: results[0].payType,
+        totalFarms: results[0].totalFarms,
+        completedFarms: results[0].completedFarms
       };
 
       const farms = results.map((row) => ({
