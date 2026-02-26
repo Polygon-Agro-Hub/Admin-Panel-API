@@ -1697,6 +1697,7 @@ exports.rejectRequestEp = async (req, res) => {
 exports.approveInvenstmentRequest = async (req, res) => {
   try {
     const { reqId } = req.body;
+    const adminId = req.user.userId;
 
     if (!reqId) {
       return res.status(400).json({
@@ -1705,7 +1706,7 @@ exports.approveInvenstmentRequest = async (req, res) => {
       });
     }
 
-    const results = await financeDao.ApproveRequestDao(reqId);
+    const results = await financeDao.ApproveRequestDao(reqId, adminId);
     if (results.affectedRows !== 0) {
       res.status(200).json({
         status: true,
