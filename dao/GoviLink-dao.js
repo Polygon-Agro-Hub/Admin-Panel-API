@@ -1010,6 +1010,79 @@ exports.getSuggestionsServiceRequestDao = (id) => {
   });
 };
 
+// exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
+//   return new Promise((resolve, reject) => {
+//     const sql = `
+//       SELECT 
+//         fa.jobId,
+//         cp.certificateId,
+//         ct.srtName,
+//         cp.payType,
+//         f.regCode,
+//         (SELECT COUNT(*) FROM feildauditcluster fac1 WHERE fac1.feildAuditId = fa.id) AS totalFarms,
+//         (SELECT COUNT(*) FROM feildauditcluster fac2 WHERE fac2.feildAuditId = fa.id AND fac2.isCompleted = 1) AS completedFarms,
+
+
+//         JSON_ARRAYAGG(
+//           JSON_OBJECT(
+//             'qEnglish', sqi.qEnglish,
+//             'type', sqi.type,
+//             'uploadImage', sqi.uploadImage,
+//             'officerTickResult', sqi.officerTickResult,
+//             'problem', js.problem,
+//             'solution', js.solution
+//           )
+//         ) AS questions
+
+//       FROM feildaudits fa
+//       LEFT JOIN certificationpayment cp ON fa.paymentId  = cp.id 
+//       LEFT JOIN certificates ct ON ct.id = cp.certificateId 
+//       LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
+//       LEFT JOIN certificationpaymentfarm cpf ON cpf.paymentId = cp.id
+//       LEFT JOIN farmcluster fc ON fc.id = cp.clusterId 
+//       LEFT JOIN farmclusterfarmers fcf ON fcf.clusterId = fc.id
+//       LEFT JOIN farms f ON f.id = fcf.farmId 
+//       LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
+//       LEFT JOIN jobsuggestions js ON js.slaveId  = sq.id
+
+//       WHERE fa.jobId = ?
+
+//       GROUP BY 
+//         fa.jobId,
+//         cp.certificateId,
+//         ct.srtName,
+//         cp.payType,
+//         f.regCode,
+//         totalFarms,
+//         completedFarms
+//     `;
+
+//     plantcare.query(sql, [jobId], (err, results) => {
+//       if (err) return reject(err);
+//       if (!results || results.length === 0) return resolve(null);
+
+//       const header = {
+//         jobId: results[0].jobId,
+//         certificateId: results[0].certificateId,
+//         srtName: results[0].srtName,
+//         payType: results[0].payType,
+//         totalFarms: results[0].totalFarms,
+//         completedFarms: results[0].completedFarms
+//       };
+
+//       const farms = results.map((row) => ({
+//         regCode: row.regCode,
+//         questions: row.questions || [],
+//       }));
+
+//       resolve({
+//         header,
+//         farms,
+//       });
+//     });
+//   });
+// };
+
 exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1019,20 +1092,16 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
         ct.srtName,
         cp.payType,
         f.regCode,
-
-        JSON_ARRAYAGG(
-          JSON_OBJECT(
-            'qEnglish', sqi.qEnglish,
-            'type', sqi.type,
-            'uploadImage', sqi.uploadImage,
-            'officerTickResult', sqi.officerTickResult,
-            'problem', js.problem,
-            'solution', js.solution
-          )
-        ) AS questions
+        sqi.qEnglish,
+        sqi.type,
+        sqi.uploadImage,
+        sqi.officerTickResult,
+        sq.id AS slaveQId,
+        (SELECT COUNT(*) FROM feildauditcluster fac1 WHERE fac1.feildAuditId = fa.id) AS totalFarms,
+        (SELECT COUNT(*) FROM feildauditcluster fac2 WHERE fac2.feildAuditId = fa.id AND fac2.isCompleted = 1) AS completedFarms
 
       FROM feildaudits fa
-      LEFT JOIN certificationpayment cp ON fa.paymentId  = cp.id 
+      LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id 
       LEFT JOIN certificates ct ON ct.id = cp.certificateId 
       LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
       LEFT JOIN certificationpaymentfarm cpf ON cpf.paymentId = cp.id
@@ -1040,16 +1109,8 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
       LEFT JOIN farmclusterfarmers fcf ON fcf.clusterId = fc.id
       LEFT JOIN farms f ON f.id = fcf.farmId 
       LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
-      LEFT JOIN jobsuggestions js ON js.slaveId  = sq.id
 
       WHERE fa.jobId = ?
-
-      GROUP BY 
-        fa.jobId,
-        cp.certificateId,
-        ct.srtName,
-        cp.payType,
-        f.regCode
     `;
 
     plantcare.query(sql, [jobId], (err, results) => {
@@ -1061,17 +1122,56 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
         certificateId: results[0].certificateId,
         srtName: results[0].srtName,
         payType: results[0].payType,
+        totalFarms: results[0].totalFarms,
+        completedFarms: results[0].completedFarms
       };
 
-      const farms = results.map((row) => ({
-        regCode: row.regCode,
-        questions: row.questions || [],
-      }));
+      const slaveQIds = [...new Set(results.map(row => row.slaveQId).filter(id => id))];
 
-      resolve({
-        header,
-        farms,
+      // Group by regCode first
+      const farmsMap = new Map();
+      
+      results.forEach(row => {
+        if (!farmsMap.has(row.regCode)) {
+          farmsMap.set(row.regCode, {
+            regCode: row.regCode,
+            questions: []
+          });
+        }
+        farmsMap.get(row.regCode).questions.push({
+          qEnglish: row.qEnglish,
+          type: row.type,
+          uploadImage: row.uploadImage,
+          officerTickResult: row.officerTickResult,
+          slaveQId: row.slaveQId
+        });
       });
+
+      if (slaveQIds.length === 0) {
+        return resolve({
+          header,
+          farms: Array.from(farmsMap.values())
+        });
+      }
+
+      exports.getJobSuggestionsBySlaveIdsDAO(slaveQIds)
+        .then(suggestionMap => {
+          const farms = Array.from(farmsMap.values()).map(farm => ({
+            ...farm,
+            questions: farm.questions.map(q => ({
+              ...q,
+              problem: suggestionMap[q.slaveQId]?.[0]?.problem ?? null,
+              solution: suggestionMap[q.slaveQId]?.[0]?.solution ?? null,
+              suggestions: suggestionMap[q.slaveQId] || []
+            }))
+          }));
+          
+          resolve({
+            header,
+            farms
+          });
+        })
+        .catch(err => reject(err));
     });
   });
 };

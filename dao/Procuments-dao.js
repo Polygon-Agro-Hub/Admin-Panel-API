@@ -1673,6 +1673,9 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
     const queryParams = [];
     const offset = (page - 1) * limit;
 
+    console.log(centerId, deliveryDate, search, page, limit);
+    
+
     // Build WHERE clause for package items
     let whereClausePackage = ` 
     WHERE po.status = 'Processing' 
@@ -1690,6 +1693,12 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
       whereClausePackage += ` AND DATE(o.sheduleDate) = ?`;
       whereClauseAdditional += ` AND DATE(o.sheduleDate) = ?`;
       queryParams.push(deliveryDate);
+    }
+
+    if (search) {
+      whereClausePackage += ` AND (c.cropNameEnglish LIKE ? OR v.varietyNameEnglish LIKE ?)`;
+      whereClauseAdditional += ` AND (c.cropNameEnglish LIKE ? OR v.varietyNameEnglish LIKE ?)`;
+      queryParams.push(`%${search}%`, `%${search}%`);
     }
 
     // Duplicate params for the second query in UNION
@@ -1715,6 +1724,8 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
       INNER JOIN market_place.marketplaceitems mpi ON opi.productId = mpi.id
       LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
       LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+      LEFT JOIN plant_care.cropvariety v ON mpi.varietyId = v.id
+      LEFT JOIN plant_care.cropgroup c ON v.cropGroupId = c.id
       ${whereClausePackage}
       GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, opi.productId, mpi.displayName
       
@@ -1737,6 +1748,8 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
       INNER JOIN market_place.marketplaceitems mpi ON oai.productId = mpi.id
       LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
       LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+      LEFT JOIN plant_care.cropvariety v ON mpi.varietyId = v.id
+      LEFT JOIN plant_care.cropgroup c ON v.cropGroupId = c.id
       ${whereClauseAdditional}
       GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, oai.productId, mpi.displayName
     `;
@@ -1853,13 +1866,13 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         console.log('Distribution orders count after mapping:', distributionOrders.length);
 
         // Apply search filter
-        if (search && search.trim() !== '') {
-          const searchLower = search.trim().toLowerCase();
-          distributionOrders = distributionOrders.filter(product =>
-            product.productName && product.productName.toLowerCase().includes(searchLower)
-          );
-          console.log('After search filter:', distributionOrders.length);
-        }
+        // if (search && search.trim() !== '') {
+        //   const searchLower = search.trim().toLowerCase();
+        //   distributionOrders = distributionOrders.filter(product =>
+        //     product.productName && product.productName.toLowerCase().includes(searchLower)
+        //   );
+        //   console.log('After search filter:', distributionOrders.length);
+        // }
 
         // Get total count before enrichment
         const totalItems = distributionOrders.length;
