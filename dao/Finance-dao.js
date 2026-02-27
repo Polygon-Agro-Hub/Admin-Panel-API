@@ -1645,6 +1645,7 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
         ir.nicBack AS NIC_Back_Image,
         DATE_FORMAT(CONVERT_TZ(ir.reqCahangeTime, '+00:00', '+05:30'), '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
         COALESCE(ao.userName, '--') AS Assigned_By,
+        COALESCE(ao2.userName, '--') AS Approved_By,
         ( 
           SELECT JSON_OBJECT(
             'approveId',air.id,
@@ -1663,6 +1664,7 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
       INNER JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.feildofficer co ON ir.officerId = co.id
       LEFT JOIN agro_world_admin.adminusers ao ON ir.assignedBy = ao.id
+      LEFT JOIN agro_world_admin.adminusers ao2 ON ir.approvedBy = ao2.id
       WHERE ir.reqStatus = 'Approved'
     `;
     // DATE_FORMAT(ir.reqCahangeTime, '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
@@ -2031,15 +2033,15 @@ exports.devideSharesDao = (sharesData, adminId) => {
 };
 
 
-exports.ApproveRequestDao = (id) => {
+exports.ApproveRequestDao = (id, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investmentrequest ir
-      SET ir.reqStatus = 'Approved', ir.reqCahangeTime = CURDATE()
+      SET ir.reqStatus = 'Approved', ir.reqCahangeTime = NOW(), ir.approvedBy = ?
       WHERE ir.id = ?
     `;
 
-    investment.query(sql, [id], (err, result) => {
+    investment.query(sql, [adminId, id], (err, result) => {
       if (err) {
         return reject(err);
       }
