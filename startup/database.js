@@ -81,5 +81,20 @@ const investment = mysql.createPool({
   keepAliveInitialDelay : 0,
 });
 
+const goviShop = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME_GS,
+  port: process.env.DB_PORT,
+  charset: 'utf8mb4',
+  waitForConnections: true,
+  connectionLimit: 5,
+  maxIdle: 6, 
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay : 0,
+});
 
-module.exports = {admin, plantcare, collectionofficer, marketPlace, investment};
+
+module.exports = {admin, plantcare, collectionofficer, marketPlace, investment, goviShop};
