@@ -21,4 +21,11 @@ router.get(
   GoviShopEp.viewGoviShopSupplierById,
 );
 
+
+router.get(
+    "/get-all-shop-view-action",
+    authMiddleware,
+    GoviShopEp.getAllShowViewActionEp
+  )
+
 module.exports = router;
