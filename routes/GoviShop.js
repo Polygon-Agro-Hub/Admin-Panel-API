@@ -9,4 +9,10 @@ const router = express.Router();
 //   GoviShopEp.example
 // );
 
+router.get(
+  "/view-govi-shop-supplier/:id",
+  authMiddleware,
+  GoviShopEp.viewGoviShopSupplierById,
+);
+
 module.exports = router;
