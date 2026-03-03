@@ -6,14 +6,6 @@ const {
   investment,
   goviShop,
 } = require("../startup/database");
-const {
-  admin,
-  plantcare,
-  collectionofficer,
-  marketPlace,
-  investment,
-  goviShop,
-} = require("../startup/database");
 
 // -----------------------------------------------------------------------------------
 //example dao check line 19 instance (goviShop.query) carefully before copy pasting
