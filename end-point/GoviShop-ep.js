@@ -125,9 +125,8 @@ exports.getAllShowViewActionEp = async (req, res) => {
   
   
     try {
-      const { status, searchText, page } = req.query;
-  
-  
+        const { status, searchText, page } = await GoviShopValidation.getAllShopViewActionSchema.validateAsync(req.query);
+
       // Call the DAO to get all collection officers
       const result = await GoviShopDAO.getAllShowViewActionDAO(
         status,
@@ -138,10 +137,9 @@ exports.getAllShowViewActionEp = async (req, res) => {
   
       return res.status(200).json(result);
     } catch (error) {
-      // if (error.isJoi) {
-      //   // Handle validation error
-      //   return res.status(400).json({ error: error.details[0].message });
-      // }
+      if (error.isJoi) {
+        return res.status(400).json({ error: error.details[0].message });
+      }
   
       console.error("Error fetching collection officers:", error);
       return res
