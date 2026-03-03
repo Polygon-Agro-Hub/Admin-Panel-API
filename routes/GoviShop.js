@@ -15,4 +15,10 @@ router.delete(
   GoviShopEp.deleteGoviShopUser
 );
 
+router.get(
+  "/view-govi-shop-supplier/:id",
+  authMiddleware,
+  GoviShopEp.viewGoviShopSupplierById,
+);
+
 module.exports = router;
