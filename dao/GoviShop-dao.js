@@ -52,9 +52,31 @@ exports.getAllGoviShopUsers = (search, currentPlanFilter) => {
         su.acticatedBy,
         su.acticatedAt,
         su.createdAt,
-        au.userName AS activatedByUser
+        au.userName AS activatedByUser,
+        pp.planPrice,
+        pp.expireDate AS currentPlanExpireDate,
+        pp.createdAt AS paymentCreatedAt,
+        CASE 
+          WHEN pp.expireDate < NOW() THEN 'expired'
+          WHEN pp.expireDate >= NOW() THEN 'active'
+          ELSE 'no_payment'
+        END AS planStatus,
+        DATEDIFF(pp.expireDate, NOW()) AS daysRemaining
       FROM shopusers su
       LEFT JOIN agro_world_admin.adminusers au ON su.acticatedBy = au.id
+      LEFT JOIN (
+        SELECT 
+          userId,
+          planPrice,
+          expireDate,
+          createdAt
+        FROM paymentplan pp1
+        WHERE createdAt = (
+          SELECT MAX(createdAt)
+          FROM paymentplan pp2
+          WHERE pp2.userId = pp1.userId
+        )
+      ) pp ON su.id = pp.userId
     `;
 
     const values = [];
@@ -83,9 +105,21 @@ exports.getAllGoviShopUsers = (search, currentPlanFilter) => {
 
     goviShop.query(sql, values, (err, results) => {
       if (err) return reject(err);
+
+      // Add additional processing to mark expired plans if needed
+      const processedResults = results.map((user) => ({
+        ...user,
+        isPlanExpired: user.planStatus === "expired",
+        planExpiryStatus: user.planStatus,
+        daysUntilExpiry: user.daysRemaining || 0,
+      }));
+
       resolve({
         total: results.length,
-        shopUsers: results,
+        shopUsers: processedResults,
+        expiredCount: processedResults.filter((u) => u.isPlanExpired).length,
+        activeCount: processedResults.filter((u) => u.planStatus === "active")
+          .length,
       });
     });
   });
@@ -134,7 +168,6 @@ exports.deleteGoviShopUser = (id) => {
   });
 };
 
-
 exports.viewGoviShopSupplierByIdDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -165,82 +198,72 @@ exports.viewGoviShopSupplierByIdDao = (id) => {
   });
 };
 
-
-
-
-
-
-
-exports.getAllShowViewActionDAO = (
-    status,
-    searchText,
-  ) => {
-    return new Promise((resolve, reject) => {
-  
-      let countSql = `
+exports.getAllShowViewActionDAO = (status, searchText) => {
+  return new Promise((resolve, reject) => {
+    let countSql = `
       SELECT COUNT(*) as total 
        FROM govi_shop.shopusers su
        LEFT JOIN agro_world_admin.adminusers a ON su.acticatedBy = a.id
        `;
 
-      let dataSql = `
+    let dataSql = `
       SELECT
     su.shopName, su.ownername, su.shopPhone, su.nic, su.userStatus, su.acticatedAt, a.userName 
       FROM govi_shop.shopusers su 
       LEFT JOIN agro_world_admin.adminusers a ON su.acticatedBy = a.id
       `;
-  
-      const params = [];
-  
-      let whereConditions = [];
-  
-      if (searchText) {
-        whereConditions.push(`
+
+    const params = [];
+
+    let whereConditions = [];
+
+    if (searchText) {
+      whereConditions.push(`
           (
             su.shopName LIKE ?
             OR su.nic LIKE ?
             OR su.shopPhone LIKE ?
           )
         `);
-  
-        const searchValue = `%${searchText}%`;
-        params.push(...Array(3).fill(searchValue));
+
+      const searchValue = `%${searchText}%`;
+      params.push(...Array(3).fill(searchValue));
+    }
+
+    if (status) {
+      whereConditions.push(`su.userStatus = ?`);
+      params.push(status);
+    }
+
+    // Append WHERE conditions if any exist
+    if (whereConditions.length > 0) {
+      const whereClause = " WHERE " + whereConditions.join(" AND ");
+      countSql += whereClause;
+      dataSql += whereClause;
+    }
+
+    dataSql += " ORDER BY su.createdAt DESC";
+
+    // Execute count query first
+    goviShop.query(countSql, params, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
       }
-  
-      if (status) {
-        whereConditions.push(`su.userStatus = ?`);
-        params.push(status);
-      }
-  
-      // Append WHERE conditions if any exist
-      if (whereConditions.length > 0) {
-        const whereClause = " WHERE " + whereConditions.join(" AND ");
-        countSql += whereClause;
-        dataSql += whereClause;
-      }
-  
-      dataSql += " ORDER BY su.createdAt DESC";
-  
-      // Execute count query first
-      goviShop.query(countSql, params, (countErr, countResults) => {
-        if (countErr) {
-          console.error("Error in count query:", countErr);
-          return reject(countErr);
+
+      const total = countResults[0].total;
+
+      goviShop.query(dataSql, params, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
         }
-  
-        const total = countResults[0].total;
-  
-        goviShop.query(dataSql, params, (dataErr, dataResults) => {
-          if (dataErr) {
-            console.error("Error in data query:", dataErr);
-            return reject(dataErr);
-          }
-  
-          resolve({
-            items: dataResults,
-            total
-          });
+
+        resolve({
+          items: dataResults,
+          total,
         });
       });
     });
-  };
+  });
+};
