@@ -17,18 +17,22 @@ exports.getAllGoviShopUsers = async (req, res) => {
   try {
     const { search, currentPlan } = req.query;
 
-    const { total, shopUsers } = await GoviShopDAO.getAllGoviShopUsers(
-      search,
-      currentPlan,
-    );
+    const { total, shopUsers, expiredCount, activeCount } =
+      await GoviShopDAO.getAllGoviShopUsers(search, currentPlan);
 
     res.json({
-      shopUsers,
-      total,
+      success: true,
+      data: {
+        shopUsers,
+        total,
+        expiredCount,
+        activeCount,
+      },
     });
   } catch (err) {
     console.error("Error fetching shop users:", err);
     res.status(500).json({
+      success: false,
       message: "An error occurred while fetching shop users",
       error: err.message,
     });

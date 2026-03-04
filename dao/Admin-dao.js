@@ -2706,6 +2706,7 @@ exports.getPaymentSlipReport = (
       JOIN plant_care.users u ON rp.userId = u.id 
       WHERE rp.collectionOfficerId = ? 
     `;
+    
     let dataSql = `
       SELECT 
           rp.id,
@@ -2716,10 +2717,13 @@ exports.getPaymentSlipReport = (
           co.firstNameEnglish AS officerFirstName,
           co.lastNameEnglish AS officerLastName,
           rp.invNo,
+          SUM(fpc.gradeAprice * fpc.gradeAquan + fpc.gradeBprice * fpc.gradeBquan + fpc.gradeCprice * fpc.gradeCquan) AS totalAmount,
           rp.createdAt
       FROM 
           registeredfarmerpayments rp
       JOIN 
+          farmerpaymentscrops fpc ON rp.id = fpc.registerFarmerId
+      JOIN
           plant_care.users u ON rp.userId = u.id
       JOIN 
           collectionofficer co ON rp.collectionOfficerId = co.id
@@ -2739,15 +2743,27 @@ exports.getPaymentSlipReport = (
     // Add search filter if provided
     if (search) {
       const searchQuery = `%${search}%`;
-      countSql +=
-        " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
-      dataSql +=
-        " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
+      countSql += " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
+      dataSql += " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
       params.push(searchQuery, searchQuery, searchQuery);
     }
 
     // Add pagination parameters
-    dataSql += " ORDER BY rp.createdAt DESC LIMIT ? OFFSET ?";
+    dataSql += `
+      GROUP BY
+        rp.id,
+        u.id,
+        u.firstName,
+        u.lastName,
+        u.NICnumber,
+        co.firstNameEnglish,
+        co.lastNameEnglish,
+        rp.invNo,
+        rp.createdAt
+      ORDER BY rp.createdAt DESC 
+      LIMIT ? OFFSET ?
+    `;
+    
     params.push(limit, offset);
 
     // Execute the count query

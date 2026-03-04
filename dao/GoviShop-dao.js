@@ -52,9 +52,31 @@ exports.getAllGoviShopUsers = (search, currentPlanFilter) => {
         su.acticatedBy,
         su.acticatedAt,
         su.createdAt,
-        au.userName AS activatedByUser
+        au.userName AS activatedByUser,
+        pp.planPrice,
+        pp.expireDate AS currentPlanExpireDate,
+        pp.createdAt AS paymentCreatedAt,
+        CASE 
+          WHEN pp.expireDate < NOW() THEN 'expired'
+          WHEN pp.expireDate >= NOW() THEN 'active'
+          ELSE 'no_payment'
+        END AS planStatus,
+        DATEDIFF(pp.expireDate, NOW()) AS daysRemaining
       FROM shopusers su
       LEFT JOIN agro_world_admin.adminusers au ON su.acticatedBy = au.id
+      LEFT JOIN (
+        SELECT 
+          userId,
+          planPrice,
+          expireDate,
+          createdAt
+        FROM paymentplan pp1
+        WHERE createdAt = (
+          SELECT MAX(createdAt)
+          FROM paymentplan pp2
+          WHERE pp2.userId = pp1.userId
+        )
+      ) pp ON su.id = pp.userId
     `;
 
     const values = [];
@@ -83,9 +105,21 @@ exports.getAllGoviShopUsers = (search, currentPlanFilter) => {
 
     goviShop.query(sql, values, (err, results) => {
       if (err) return reject(err);
+
+      // Add additional processing to mark expired plans if needed
+      const processedResults = results.map((user) => ({
+        ...user,
+        isPlanExpired: user.planStatus === "expired",
+        planExpiryStatus: user.planStatus,
+        daysUntilExpiry: user.daysRemaining || 0,
+      }));
+
       resolve({
         total: results.length,
-        shopUsers: results,
+        shopUsers: processedResults,
+        expiredCount: processedResults.filter((u) => u.isPlanExpired).length,
+        activeCount: processedResults.filter((u) => u.planStatus === "active")
+          .length,
       });
     });
   });
@@ -261,47 +295,6 @@ exports.getAllShowViewActionDAO = (status, searchText) => {
           total,
         });
       });
-    });
-  });
-};
-
-exports.goviShopViewDocumentDAO = (id) => {
-  return new Promise((resolve, reject) => {
-    let sql = `
-      SELECT
-        id,
-        shopName,
-        ownername,
-        shopPhone,
-        nic,
-        userStatus,
-        brImg,
-        paySlip
-      FROM shopusers
-      WHERE id = ?
-    `;
-
-    goviShop.query(sql, [id], (err, results) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(results[0]);
-      }
-    });
-  });
-};
-
-exports.updateGoviShopUserStatusDAO = (id, status) => {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      UPDATE shopusers
-      SET userStatus = ?
-      WHERE id = ?
-    `;
-
-    goviShop.query(sql, [status, id], (err, results) => {
-      if (err) return reject(err);
-      resolve(results.affectedRows > 0);
     });
   });
 };
