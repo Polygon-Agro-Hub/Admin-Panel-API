@@ -83,7 +83,7 @@ exports.deleteGoviShopUser = async (req, res) => {
 
 exports.viewGoviShopSupplierById = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = await GoviShopValidation.viewGoviShopSupplierByIdSchema.validateAsync(req.params);
 
     if (!id) {
       return res.status(400).json({
@@ -147,7 +147,9 @@ exports.getAllShowViewActionEp = async (req, res) => {
 
 exports.goviShopViewDocumentById = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = await GoviShopValidation.goviShopViewDocumentByIdSchema.validateAsync(
+      req.params,
+    );
 
     if (!id) {
       return res.status(400).json({
@@ -180,8 +182,8 @@ exports.goviShopViewDocumentById = async (req, res) => {
 
 exports.updateGoviShopUserStatus = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status } = req.body;
+    const { id } = await GoviShopValidation.updateGoviShopUserParamsSchema.validateAsync(req.params);
+    const { status } = await GoviShopValidation.updateGoviShopUserBodySchema.validateAsync(req.body);
 
     if (!id || !status) {
       return res.status(400).json({
