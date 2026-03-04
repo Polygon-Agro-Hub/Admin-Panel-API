@@ -134,23 +134,149 @@ exports.deleteGoviShopUser = (id) => {
   });
 };
 
-
 exports.viewGoviShopSupplierByIdDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
+        su.id,
+        su.shopName,
+        su.email,
+        su.createdAt,
+        su.shopPhone,
+        su.adress,
+        su.brImg,
+        su.latitude,
+        su.longitude,
+        su.ownername,
+        su.nic,
+        su.currentPlan,
+        pp.planPrice,
+        pp.expireDate,
+        CASE
+          WHEN pp.expireDate IS NULL THEN 'NO_PLAN'
+          WHEN pp.expireDate < CURDATE() THEN 'EXPIRED'
+          ELSE 'ACTIVE'
+        END AS planStatus
+      FROM shopusers su
+      LEFT JOIN (
+        SELECT 
+          pp1.userId,
+          pp1.planPrice,
+          pp1.expireDate,
+          pp1.createdAt
+        FROM paymentplan pp1
+        INNER JOIN (
+          SELECT 
+            userId,
+            MAX(createdAt) AS maxCreatedAt
+          FROM paymentplan
+          GROUP BY userId
+        ) latest
+        ON pp1.userId = latest.userId
+        AND pp1.createdAt = latest.maxCreatedAt
+      ) pp ON su.id = pp.userId
+      WHERE su.id = ?
+    `;
+
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.getAllShowViewActionDAO = (status, searchText) => {
+  return new Promise((resolve, reject) => {
+    let countSql = `
+      SELECT COUNT(*) as total 
+       FROM govi_shop.shopusers su
+       LEFT JOIN agro_world_admin.adminusers a ON su.acticatedBy = a.id
+    `;
+
+    let dataSql = `
+      SELECT
+        su.id,
+        su.shopName, 
+        su.ownername, 
+        su.shopPhone, 
+        su.nic, 
+        su.userStatus, 
+        su.acticatedAt, 
+        a.userName 
+      FROM govi_shop.shopusers su 
+      LEFT JOIN agro_world_admin.adminusers a ON su.acticatedBy = a.id
+    `;
+
+    const params = [];
+
+    let whereConditions = [];
+
+    if (searchText) {
+      whereConditions.push(`
+          (
+            su.shopName LIKE ?
+            OR su.nic LIKE ?
+            OR su.shopPhone LIKE ?
+          )
+        `);
+
+      const searchValue = `%${searchText}%`;
+      params.push(...Array(3).fill(searchValue));
+    }
+
+    if (status) {
+      whereConditions.push(`su.userStatus = ?`);
+      params.push(status);
+    }
+
+    // Append WHERE conditions if any exist
+    if (whereConditions.length > 0) {
+      const whereClause = " WHERE " + whereConditions.join(" AND ");
+      countSql += whereClause;
+      dataSql += whereClause;
+    }
+
+    dataSql += " ORDER BY su.createdAt DESC";
+
+    // Execute count query first
+    goviShop.query(countSql, params, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
+      }
+
+      const total = countResults[0].total;
+
+      goviShop.query(dataSql, params, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+
+        resolve({
+          items: dataResults,
+          total,
+        });
+      });
+    });
+  });
+};
+
+exports.goviShopViewDocumentDAO = (id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT
         id,
         shopName,
-        email,
-        createdAt,
-        shopPhone,
-        adress,
-        brImg,
-        latitude,
-        longitude,
         ownername,
+        shopPhone,
         nic,
-        currentPlan
+        userStatus,
+        brImg,
+        paySlip
       FROM shopusers
       WHERE id = ?
     `;
@@ -165,82 +291,17 @@ exports.viewGoviShopSupplierByIdDao = (id) => {
   });
 };
 
+exports.updateGoviShopUserStatusDAO = (id, status) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE shopusers
+      SET userStatus = ?
+      WHERE id = ?
+    `;
 
-
-
-
-
-
-exports.getAllShowViewActionDAO = (
-    status,
-    searchText,
-  ) => {
-    return new Promise((resolve, reject) => {
-  
-      let countSql = `
-      SELECT COUNT(*) as total 
-       FROM govi_shop.shopusers su
-       LEFT JOIN agro_world_admin.adminusers a ON su.acticatedBy = a.id
-       `;
-
-      let dataSql = `
-      SELECT
-    su.shopName, su.ownername, su.shopPhone, su.nic, su.userStatus, su.acticatedAt, a.userName 
-      FROM govi_shop.shopusers su 
-      LEFT JOIN agro_world_admin.adminusers a ON su.acticatedBy = a.id
-      `;
-  
-      const params = [];
-  
-      let whereConditions = [];
-  
-      if (searchText) {
-        whereConditions.push(`
-          (
-            su.shopName LIKE ?
-            OR su.nic LIKE ?
-            OR su.shopPhone LIKE ?
-          )
-        `);
-  
-        const searchValue = `%${searchText}%`;
-        params.push(...Array(3).fill(searchValue));
-      }
-  
-      if (status) {
-        whereConditions.push(`su.userStatus = ?`);
-        params.push(status);
-      }
-  
-      // Append WHERE conditions if any exist
-      if (whereConditions.length > 0) {
-        const whereClause = " WHERE " + whereConditions.join(" AND ");
-        countSql += whereClause;
-        dataSql += whereClause;
-      }
-  
-      dataSql += " ORDER BY su.createdAt DESC";
-  
-      // Execute count query first
-      goviShop.query(countSql, params, (countErr, countResults) => {
-        if (countErr) {
-          console.error("Error in count query:", countErr);
-          return reject(countErr);
-        }
-  
-        const total = countResults[0].total;
-  
-        goviShop.query(dataSql, params, (dataErr, dataResults) => {
-          if (dataErr) {
-            console.error("Error in data query:", dataErr);
-            return reject(dataErr);
-          }
-  
-          resolve({
-            items: dataResults,
-            total
-          });
-        });
-      });
+    goviShop.query(sql, [status, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.affectedRows > 0);
     });
-  };
+  });
+};
