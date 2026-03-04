@@ -1685,7 +1685,7 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
           po.invNo,
           o.sheduleDate,
           COUNT(DISTINCT op.id) AS packageCount,
-          SUM(DISTINCT mpi.productPrice) AS packagePrice,
+          SUM(DISTINCT mpi.productPrice * op.qty) AS packagePrice,
           COALESCE(pic.totalItems, 0) AS totPackageItems,
           COALESCE(pic.packedItems, 0) AS packPackageItems,
           COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
