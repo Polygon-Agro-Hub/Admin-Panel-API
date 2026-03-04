@@ -23,7 +23,7 @@ console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
 console.log("----------------------");
 
 const express = require('express');
-const {  admin, plantcare, collectionofficer, marketPlace, investment } = require('./startup/database');
+const { admin, plantcare, collectionofficer, marketPlace, investment, goviShop } = require('./startup/database');
 const routes = require('./routes/Admin');
 const collectionOfficerRoutes = require('./routes/CollectionOfficer');
 const routesNewws = require('./routes/News');
@@ -35,13 +35,14 @@ const Permission = require('./routes/Permission');
 const ComplainCategory = require('./routes/ComplainCategory');
 const Stakeholder = require('./routes/stakeholder');
 const SalesAgentDash = require('./routes/SalesAgentDash');
-const TargetRoutes  =require('./routes/Target');
-const ProcumentRoutes  =require('./routes/Procuments');
-const DispatchRoutes  =require('./routes/Dispatch');
-const DistributionRoutes =require('./routes/DistributionRoutes')
-const GoviLinkRoutes =require('./routes/GoviLink')
-const CertificateCompanyRoutes =require('./routes/CertificateCompany')
+const TargetRoutes = require('./routes/Target');
+const ProcumentRoutes = require('./routes/Procuments');
+const DispatchRoutes = require('./routes/Dispatch');
+const DistributionRoutes = require('./routes/DistributionRoutes')
+const GoviLinkRoutes = require('./routes/GoviLink')
+const CertificateCompanyRoutes = require('./routes/CertificateCompany')
 const financeRoutes = require("./routes/finance");
+const GoviShopRoutes = require("./routes/GoviShop");
 
 const heathRoutes = require("./routes/heathRoutes");
 const DashRoutes = require("./routes/Dash");
@@ -123,6 +124,15 @@ investment.getConnection((err, connection) => {
   connection.release();
 });
 
+goviShop.getConnection((err, connection) => {
+  if (err) {
+    console.error("Error connecting to the database in index.js (goviShop):", err);
+    return;
+  }
+  console.log("Connected to the MySQL database in server.js.(goviShop)  ✅  ");
+  connection.release();
+});
+
 // Add base path for all routes
 const BASE_PATH = "/agro-api/admin-api";
 
@@ -148,6 +158,7 @@ app.use(BASE_PATH + '/api/distribution', DistributionRoutes)
 app.use(BASE_PATH + '/api/govi-link', GoviLinkRoutes)
 app.use(BASE_PATH + '/api/certificate-company', CertificateCompanyRoutes)
 app.use(BASE_PATH + '/api/finance', financeRoutes)
+app.use(BASE_PATH + '/api/shop', GoviShopRoutes)
 
 
 app.use("/uploads", express.static("uploads"));
