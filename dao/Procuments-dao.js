@@ -1206,7 +1206,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
           po.invNo,
           po.status,
           po.createdAt,
-          (SELECT MAX(opi.createdAt) FROM orderpackageitems opi WHERE opi.orderPackageId = op.id) AS processCreatedAt,
+          (SELECT ADDTIME(MAX(opi.createdAt), '05:30:00') FROM orderpackageitems opi WHERE opi.orderPackageId = op.id) AS processCreatedAt,
           op.packingStatus,
           au.userName
         FROM processorders po
