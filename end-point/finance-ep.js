@@ -1946,29 +1946,47 @@ exports.getGocicareAllInvestmentUsers = async (req, res) => {
   console.log(fullUrl);
 
   try {
-    const { search } = await getAllInvestmentUsersSchema.validateAsync(
-      req.query
-    );
+    // Validate query parameters including pagination
+    const { page, limit, id, status, search } =
+      await getAllInvestmentUsersSchema.validateAsync(req.query);
 
-    // Pass null for id and status since they're not being used
+    // Calculate offset for pagination
+    const offset = (page - 1) * limit;
+
+    // Pass all parameters to the DAO function including pagination
     const result = await financeDao.getGocicareAllInvestmentUsersDao(
-      null, // id
-      null, // status
-      search // search term
+      id || null,      // id (optional)
+      status || null,  // status (optional)
+      search || null,  // search term (optional)
+      limit,           // pagination limit
+      offset           // pagination offset
     );
 
-    console.log('result', result);
+    console.log('Investment users result:', result);
+    console.log('Current page:', page);
+    console.log('Items per page:', limit);
+    console.log('Search term:', search);
 
-    return res.status(200).json(result);
+    // Return paginated response
+    return res.status(200).json({
+      items: result.items,
+      total: result.total,
+      currentPage: page,
+      totalPages: Math.ceil(result.total / limit),
+      limit: limit
+    });
+
   } catch (error) {
     if (error.isJoi) {
       // Handle validation error
-      return res.status(400).json({ error: error.details[0].message });
+      return res.status(400).json({ 
+        error: error.details[0].message 
+      });
     }
 
     console.error("Error fetching investment users:", error);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while fetching investment users" });
+    return res.status(500).json({ 
+      error: "An error occurred while fetching investment users" 
+    });
   }
 };
