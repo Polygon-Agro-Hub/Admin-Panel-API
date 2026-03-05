@@ -17,18 +17,22 @@ exports.getAllGoviShopUsers = async (req, res) => {
   try {
     const { search, currentPlan } = req.query;
 
-    const { total, shopUsers } = await GoviShopDAO.getAllGoviShopUsers(
-      search,
-      currentPlan,
-    );
+    const { total, shopUsers, expiredCount, activeCount } =
+      await GoviShopDAO.getAllGoviShopUsers(search, currentPlan);
 
     res.json({
-      shopUsers,
-      total,
+      success: true,
+      data: {
+        shopUsers,
+        total,
+        expiredCount,
+        activeCount,
+      },
     });
   } catch (err) {
     console.error("Error fetching shop users:", err);
     res.status(500).json({
+      success: false,
       message: "An error occurred while fetching shop users",
       error: err.message,
     });
@@ -81,10 +85,9 @@ exports.deleteGoviShopUser = async (req, res) => {
   }
 };
 
-
 exports.viewGoviShopSupplierById = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = await GoviShopValidation.viewGoviShopSupplierByIdSchema.validateAsync(req.params);
 
     if (!id) {
       return res.status(400).json({
@@ -115,35 +118,110 @@ exports.viewGoviShopSupplierById = async (req, res) => {
   }
 };
 
-
-
-
-
 exports.getAllShowViewActionEp = async (req, res) => {
-    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-    console.log(fullUrl);
-  
-  
-    try {
-        const { status, searchText, page } = await GoviShopValidation.getAllShopViewActionSchema.validateAsync(req.query);
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
 
-      // Call the DAO to get all collection officers
-      const result = await GoviShopDAO.getAllShowViewActionDAO(
-        status,
-        searchText,  
+  try {
+    const { status, searchText, page } =
+      await GoviShopValidation.getAllShopViewActionSchema.validateAsync(
+        req.query,
       );
-  
-      console.log('result', result);
-  
-      return res.status(200).json(result);
-    } catch (error) {
-      if (error.isJoi) {
-        return res.status(400).json({ error: error.details[0].message });
-      }
-  
-      console.error("Error fetching collection officers:", error);
-      return res
-        .status(500)
-        .json({ error: "An error occurred while fetching collection officers" });
+
+    // Call the DAO to get all collection officers
+    const result = await GoviShopDAO.getAllShowViewActionDAO(
+      status,
+      searchText,
+    );
+
+    console.log("result", result);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
     }
-  };
+
+    console.error("Error fetching collection officers:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while fetching collection officers" });
+  }
+};
+
+exports.goviShopViewDocumentById = async (req, res) => {
+  try {
+    const { id } = await GoviShopValidation.goviShopViewDocumentByIdSchema.validateAsync(
+      req.params,
+    );
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Shop id is required",
+      });
+    }
+
+    const document = await GoviShopDAO.goviShopViewDocumentDAO(id);
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: document,
+    });
+  } catch (error) {
+    console.error("View Govi Shop Document Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.updateGoviShopUserStatus = async (req, res) => {
+  try {
+    const { id } = await GoviShopValidation.updateGoviShopUserParamsSchema.validateAsync(req.params);
+    const { status } = await GoviShopValidation.updateGoviShopUserBodySchema.validateAsync(req.body);
+
+    if (!id || !status) {
+      return res.status(400).json({
+        success: false,
+        message: "User id and status are required",
+      });
+    }
+
+    const allowedStatuses = ["Activate", "Rejected", "Deactivate"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status value",
+      });
+    }
+
+    const updated = await GoviShopDAO.updateGoviShopUserStatusDAO(id, status);
+
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop user not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Shop user status updated to ${status}`,
+    });
+  } catch (error) {
+    console.error("Update Govi Shop User Status Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};

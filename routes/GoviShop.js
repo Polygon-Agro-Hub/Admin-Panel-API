@@ -12,7 +12,7 @@ router.get(
 router.delete(
   "/delete-govi-shop-user/:id",
   authMiddleware,
-  GoviShopEp.deleteGoviShopUser
+  GoviShopEp.deleteGoviShopUser,
 );
 
 router.get(
@@ -21,11 +21,22 @@ router.get(
   GoviShopEp.viewGoviShopSupplierById,
 );
 
+router.get(
+  "/get-all-shop-view-action",
+  authMiddleware,
+  GoviShopEp.getAllShowViewActionEp,
+);
 
 router.get(
-    "/get-all-shop-view-action",
-    authMiddleware,
-    GoviShopEp.getAllShowViewActionEp
-  )
+  "/govi-shop-view-document/:id",
+  authMiddleware,
+  GoviShopEp.goviShopViewDocumentById,
+);
+
+router.put(
+  "/update-govi-shop-user-status/:id",
+  authMiddleware,
+  GoviShopEp.updateGoviShopUserStatus,
+);
 
 module.exports = router;

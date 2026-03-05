@@ -1767,7 +1767,7 @@ exports.GetProjectInvesmentDAO = (filters = {}) => {
       params.push(searchTerm, searchTerm, searchTerm, searchTerm);
     }
 
-    sql += ` ORDER BY cg.cropNameEnglish, fillShares DESC`;
+    sql += ` ORDER BY cg.cropNameEnglish, (fillShares/ai.defineShares) DESC`;
 
     investment.query(sql, params, (err, results) => {
       if (err) {
