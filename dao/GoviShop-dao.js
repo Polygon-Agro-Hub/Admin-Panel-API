@@ -298,3 +298,44 @@ exports.getAllShowViewActionDAO = (status, searchText) => {
     });
   });
 };
+
+exports.goviShopViewDocumentDAO = (id) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT
+        id,
+        shopName,
+        ownername,
+        shopPhone,
+        nic,
+        userStatus,
+        brImg,
+        paySlip
+      FROM shopusers
+      WHERE id = ?
+    `;
+
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.updateGoviShopUserStatusDAO = (id, status) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE shopusers
+      SET userStatus = ?
+      WHERE id = ?
+    `;
+
+    goviShop.query(sql, [status, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.affectedRows > 0);
+    });
+  });
+};
