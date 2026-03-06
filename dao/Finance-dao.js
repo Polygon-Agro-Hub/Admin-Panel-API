@@ -2403,9 +2403,16 @@ exports.getFarmerPensionDetailsDao = (page, limit, searchText) => {
 };
 
 exports.getGocicareAllInvestmentUsersDao = (
-  id, status, search
+  id, status, search, limit, offset
 ) => {
   return new Promise((resolve, reject) => {
+    // Count query for total records
+    let countSql = `
+    SELECT COUNT(*) as total
+    FROM investmentusers iu
+    `;
+
+    // Data query for paginated results
     let dataSql = `
     SELECT
         iu.id,
@@ -2437,26 +2444,54 @@ exports.getGocicareAllInvestmentUsersDao = (
     if (search) {
       whereConditions.push(`
         (iu.nic LIKE ? 
-        OR CONCAT(iu.phoneCode, iu.phoneNumber) LIKE ?)
+        OR CONCAT(iu.phoneCode, iu.phoneNumber) LIKE ?
+        OR iu.userName LIKE ?
+        OR iu.email LIKE ?)
       `);
       const searchValue = `%${search}%`;
-      params.push(searchValue, searchValue);
+      params.push(searchValue, searchValue, searchValue, searchValue);
     }
 
     // Add WHERE clause if there are conditions
     if (whereConditions.length > 0) {
-      dataSql += " WHERE " + whereConditions.join(" AND ");
+      const whereClause = " WHERE " + whereConditions.join(" AND ");
+      countSql += whereClause;
+      dataSql += whereClause;
     }
 
     dataSql += " ORDER BY iu.createdAt DESC";
+    
+    // Add pagination if limit and offset are provided
+    if (limit !== undefined && offset !== undefined) {
+      dataSql += " LIMIT ? OFFSET ?";
+    }
 
-    investment.query(dataSql, params, (dataErr, dataResults) => {
-      if (dataErr) {
-        console.error("Error in data query:", dataErr);
-        return reject(dataErr);
+    // Execute count query first
+    investment.query(countSql, params, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
       }
-      resolve({
-        items: dataResults
+
+      const total = countResults[0].total;
+
+      // Prepare data query parameters including pagination
+      const dataParams = [...params];
+      if (limit !== undefined && offset !== undefined) {
+        dataParams.push(limit, offset);
+      }
+
+      // Execute data query with pagination
+      investment.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+
+        resolve({
+          total: total,
+          items: dataResults
+        });
       });
     });
   });
