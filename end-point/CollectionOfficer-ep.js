@@ -294,6 +294,8 @@ exports.getAllCollectionOfficersStatus = async (req, res) => {
 };
 
 exports.getCollectionOfficerReports = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
   const { id: collectionOfficerId, date } = req.params;
 
   try {
@@ -321,6 +323,8 @@ exports.getCollectionOfficerReports = async (req, res) => {
         )
       )
     );
+
+    console.log('farmerPaymentsCrops', farmerPaymentsCrops)
 
     // Flatten the results into one array
     const cropsDetails = farmerPaymentsCrops.flat();
@@ -353,6 +357,8 @@ exports.getCollectionOfficerReports = async (req, res) => {
         parseFloat(totalQuantity) || 0;
     });
 
+    console.log('groupedData', groupedData)
+
     return res.json(groupedData);
   } catch (error) {
     if (error.isJoi) {
@@ -384,7 +390,7 @@ exports.getCollectionOfficerDistrictReports = async (req, res) => {
       );
 
     console.log("Successfully retrieved reports");
-    res.status(200).json(results);
+    return res.status(200).json(results);
   } catch (error) {
     if (error.isJoi) {
       // Handle validation error
