@@ -311,6 +311,13 @@ exports.getCollectionOfficerReports = async (req, res) => {
         date
       );
 
+    // const collectionOfficerEmpId =
+    //   await collectionofficerDao.getCollectionOfficerEmpId(
+    //     collectionOfficerId
+    //   );
+
+    // console.log('collectionOfficerEmpId', collectionOfficerEmpId)
+
     // if (!registeredFarmerPayments.length) {
     //     return res.status(404).json({ error: "No registered farmer payments found for the specified officer and date." });
     // }
@@ -413,6 +420,8 @@ exports.getCollectionOfficerProvinceReports = async (req, res) => {
       await collectionofficerValidate.getDistrictProvinceSchema.validateAsync(
         req.params
       );
+
+      console.log('province', validatedParams.province)
 
     const results =
       await collectionofficerDao.getCollectionOfficerProvinceReports(

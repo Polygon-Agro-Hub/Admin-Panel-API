@@ -15,7 +15,7 @@ const path = require("path");
 exports.getCollectionOfficerDistrictReports = (district) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT cg.cropNameEnglish AS cropName,
+            SELECT cv.varietyNameEnglish AS cropName,
              c.district, 
              SUM(fpc.gradeAquan) AS qtyA, 
              SUM(fpc.gradeBquan) AS qtyB, 
@@ -25,7 +25,7 @@ exports.getCollectionOfficerDistrictReports = (district) => {
              SUM(fpc.gradeCprice) AS priceC
             FROM registeredfarmerpayments rp, collectionofficer c, plant_care.cropvariety cv , plant_care.cropgroup cg, farmerpaymentscrops fpc
             WHERE rp.id = fpc.registerFarmerId AND rp.collectionOfficerId = c.id AND fpc.cropId = cv.id AND cv.cropGroupId = cg.id AND c.district = ? AND c.companyId = 1
-            GROUP BY cg.cropNameEnglish, c.district
+            GROUP BY cv.varietyNameEnglish, c.district
         `;
     collectionofficer.query(sql, [district], (err, results) => {
       if (err) {
@@ -815,6 +815,24 @@ exports.getRegisteredFarmerPaymentsByOfficer = (collectionOfficerId, date) => {
   });
 };
 
+exports.getCollectionOfficerEmpId = (collectionOfficerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            SELECT coff.empId 
+            FROM collectionofficer coff
+            WHERE coff.id = ? 
+        `;
+    const values = [collectionOfficerId];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
 exports.getFarmerPaymentsCropsByRegisteredFarmerId = (registeredFarmerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -840,7 +858,7 @@ exports.getCollectionOfficerProvinceReports = (province) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-        cg.cropNameEnglish AS cropName,
+        cv.varietyNameEnglish AS cropName,
         cc.province, 
         SUM(fpc.gradeAquan) AS qtyA, 
         SUM(fpc.gradeBquan) AS qtyB, 
@@ -855,7 +873,7 @@ exports.getCollectionOfficerProvinceReports = (province) => {
       INNER JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       INNER JOIN collectioncenter cc ON c.centerId = cc.id
       WHERE cc.province = ? AND c.companyId = 1
-      GROUP BY cg.cropNameEnglish, cc.province
+      GROUP BY cv.varietyNameEnglish, cc.province
     `;
 
     collectionofficer.query(sql, [province], (err, results) => {
