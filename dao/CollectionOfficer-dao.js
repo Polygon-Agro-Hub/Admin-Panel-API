@@ -830,6 +830,7 @@ exports.getFarmerPaymentsCropsByRegisteredFarmerId = (registeredFarmerId) => {
       if (err) {
         return reject(err);
       }
+      console.log('results', results)
       resolve(results);
     });
   });
