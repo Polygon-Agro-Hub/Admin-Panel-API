@@ -815,6 +815,24 @@ exports.getRegisteredFarmerPaymentsByOfficer = (collectionOfficerId, date) => {
   });
 };
 
+exports.getCollectionOfficerEmpId = (collectionOfficerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            SELECT coff.empId 
+            FROM collectionofficer coff
+            WHERE coff.id = ? 
+        `;
+    const values = [collectionOfficerId];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
 exports.getFarmerPaymentsCropsByRegisteredFarmerId = (registeredFarmerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -840,7 +858,7 @@ exports.getCollectionOfficerProvinceReports = (province) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-        cg.cropNameEnglish AS cropName,
+        cv.varietyNameEnglish AS cropName,
         cc.province, 
         SUM(fpc.gradeAquan) AS qtyA, 
         SUM(fpc.gradeBquan) AS qtyB, 
@@ -855,7 +873,7 @@ exports.getCollectionOfficerProvinceReports = (province) => {
       INNER JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       INNER JOIN collectioncenter cc ON c.centerId = cc.id
       WHERE cc.province = ? AND c.companyId = 1
-      GROUP BY cg.cropNameEnglish, cc.province
+      GROUP BY cv.varietyNameEnglish, cc.province
     `;
 
     collectionofficer.query(sql, [province], (err, results) => {
