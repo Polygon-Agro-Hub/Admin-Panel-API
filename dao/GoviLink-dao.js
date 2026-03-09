@@ -807,13 +807,16 @@ exports.getFieldAuditHistoryResponseByIdDAO = (jobId) => {
         sqi.type,
         sqi.uploadImage,
         sqi.officerTickResult,
-        sq.id AS slaveQId
+        sq.id AS slaveQId,
+        COALESCE(f.regCode, f2.regCode) AS farmId
       FROM feildaudits fa
       LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
       LEFT JOIN certificates ct ON ct.id = cp.certificateId
       LEFT JOIN certificationpaymentcrop cpc ON cpc.paymentId = cp.id
       LEFT JOIN ongoingcultivationscrops occ ON occ.id = cpc.cropId
+      LEFT JOIN certificationpaymentfarm cpf ON cpf.paymentId = cp.id
       LEFT JOIN farms f ON f.id = occ.farmId
+      LEFT JOIN farms f2 ON f2.id = cpf.farmId
       LEFT JOIN cropcalender cc ON cc.id = occ.cropCalendar
       LEFT JOIN cropvariety cv ON cv.id = cc.cropVarietyId
       LEFT JOIN cropgroup cg ON cg.id = cv.cropGroupId
@@ -834,7 +837,8 @@ exports.getFieldAuditHistoryResponseByIdDAO = (jobId) => {
         regCode: results[0].regCode,
         cropId: results[0].cropId,
         cropNameEnglish: results[0].cropNameEnglish,
-        applicable: results[0].applicable
+        applicable: results[0].applicable,
+        farmId: results[0].farmId
       };
 
       const slaveQIds = [...new Set(results.map(row => row.slaveQId).filter(id => id))];
