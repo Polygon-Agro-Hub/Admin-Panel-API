@@ -311,6 +311,8 @@ exports.getCollectionOfficerReports = async (req, res) => {
         date
       );
 
+      console.log('registeredFarmerPayments', registeredFarmerPayments)
+
     // const collectionOfficerEmpId =
     //   await collectionofficerDao.getCollectionOfficerEmpId(
     //     collectionOfficerId
