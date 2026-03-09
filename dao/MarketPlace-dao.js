@@ -2824,6 +2824,66 @@ exports.totalMarketOrderCountDao = async () => {
   });
 };
 
+// exports.areaOrderDataDao = async () => {
+//   return new Promise((resolve, reject) => {
+//     const sql = `
+//       SELECT 
+//         DATE_FORMAT(PO.createdAt, '%b') AS month,
+//         MONTH(PO.createdAt) AS monthNum,
+//         COUNT(*) AS salesCount, 
+//         SUM(O.fullTotal) AS total
+//       FROM processorders PO
+//       LEFT JOIN orders O ON PO.orderId = O.id
+//       WHERE PO.createdAt >= DATE_SUB(DATE_FORMAT(NOW(), '%Y-%m-01'), INTERVAL 12 MONTH)
+//         AND PO.createdAt < DATE_FORMAT(NOW(), '%Y-%m-01')
+//       GROUP BY monthNum, month
+//       ORDER BY monthNum
+//     `;
+
+//     marketPlace.query(sql, (err, results) => {
+//       if (err) {
+//         reject(err);
+//       } else {
+//         const allMonths = [
+//           "Jan",
+//           "Feb",
+//           "Mar",
+//           "Apr",
+//           "May",
+//           "Jun",
+//           "Jul",
+//           "Aug",
+//           "Sep",
+//           "Oct",
+//           "Nov",
+//           "Dec",
+//         ];
+
+//         const currentMonth = new Date().getMonth() + 1;
+
+//         const monthlyData = {
+//           months: [],
+//           salesCount: [],
+//           total: [],
+//         };
+
+//         allMonths.forEach((month, index) => {
+//           const monthNumber = index + 1;
+//           if (monthNumber < currentMonth) {
+//             monthlyData.months.push(month);
+
+//             const monthData = results.find((r) => r.monthNum === monthNumber);
+//             monthlyData.salesCount.push(monthData ? monthData.salesCount : 0);
+//             monthlyData.total.push(monthData ? monthData.total : 0);
+//           }
+//         });
+
+//         resolve(monthlyData);
+//       }
+//     });
+//   });
+// };
+
 exports.areaOrderDataDao = async () => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -2845,21 +2905,16 @@ exports.areaOrderDataDao = async () => {
         reject(err);
       } else {
         const allMonths = [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
+          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
         ];
 
-        const currentMonth = new Date().getMonth() + 1;
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth(); // 0-11
+        const currentYear = currentDate.getFullYear();
+        
+        // Get past year December month number (0-11)
+        const pastYearDec = 11; // December is index 11
 
         const monthlyData = {
           months: [],
@@ -2867,16 +2922,30 @@ exports.areaOrderDataDao = async () => {
           total: [],
         };
 
-        allMonths.forEach((month, index) => {
-          const monthNumber = index + 1;
-          if (monthNumber < currentMonth) {
-            monthlyData.months.push(month);
-
-            const monthData = results.find((r) => r.monthNum === monthNumber);
-            monthlyData.salesCount.push(monthData ? monthData.salesCount : 0);
-            monthlyData.total.push(monthData ? monthData.total : 0);
+        // Start from past year December
+        let startMonth = pastYearDec; // 11 (December)
+        
+        // Generate months from past year December to current month
+        for (let i = 0; i <= 12; i++) {
+          const monthIndex = (startMonth + i) % 12;
+          const monthName = allMonths[monthIndex];
+          
+          // Stop if we've reached current month
+          if (i > 0 && monthIndex === currentMonth) {
+            break;
           }
-        });
+          
+          // For December (index 11), show "0" as label instead of "Dec"
+          if (monthIndex === 11) {
+            monthlyData.months.push("0"); // "0" instead of "Dec"
+          } else {
+            monthlyData.months.push(monthName);
+          }
+          
+          const monthData = results.find(r => r.monthNum === monthIndex + 1);
+          monthlyData.salesCount.push(monthData ? monthData.salesCount : 0);
+          monthlyData.total.push(monthData ? monthData.total : 0);
+        }
 
         resolve(monthlyData);
       }
