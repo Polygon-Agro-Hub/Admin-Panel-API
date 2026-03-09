@@ -3,7 +3,6 @@ const express = require("express");
 const DashEp = require("../end-point/Dash-ep");
 
 const db = require("../startup/database");
-const CollectionOfficerEp = require("../end-point/CollectionOfficer-ep");
 const bodyParser = require("body-parser");
 const authMiddleware = require("../middlewares/authMiddleware");
 const multer = require("multer");

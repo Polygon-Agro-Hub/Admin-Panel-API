@@ -8,13 +8,9 @@ exports.getAllCustomers = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
-
     const { page, limit, searchText } = await ValidateSchema.getAllSalesAgentsSchema.validateAsync(req.query);
-    console.log(page, limit, searchText);
-
     const { items, total } = await DashDao.getAllSalesCustomers(page, limit, searchText);
 
-    console.log("Successfully fetched customers");
     res.json({ items, total });
   } catch (err) {
     if (err.isJoi) {
@@ -30,20 +26,10 @@ exports.getAllCustomers = async (req, res) => {
 
 exports.getAllSalesAgents = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log(fullUrl);
 
   try {
-    // Validate query parameters
-    // const validatedQuery =
-    //   await collectionofficerValidate.getAllCollectionOfficersSchema.validateAsync(
-    //     req.query
-    //   );
-
+  
     const { page, limit, searchText, status } = req.query;
-
-    // const { page, limit, nic, company } = validatedQuery;
-
-    // Call the DAO to get all collection officers
     const result = await DashDao.getAllSalesAgents(
       page,
       limit,
@@ -51,14 +37,9 @@ exports.getAllSalesAgents = async (req, res) => {
       status
     );
 
-    console.log({ page, limit });
     return res.status(200).json(result);
   } catch (error) {
-    // if (error.isJoi) {
-    //   // Handle validation error
-    //   return res.status(400).json({ error: error.details[0].message });
-    // }
-
+    
     console.error("Error fetching collection officers:", error);
     return res
       .status(500)
@@ -82,12 +63,11 @@ exports.deleteSalesAgent = async (req, res) => {
     if (affectedRows === 0) {
       return res.status(404).json({ message: "company head not found" });
     } else {
-      console.log("company head deleted successfully");
       return res.status(200).json({ status: true });
     }
   } catch (err) {
     if (err.isJoi) {
-      // Validation error
+     
       return res.status(400).json({ error: err.details[0].message });
     }
 
@@ -103,10 +83,7 @@ exports.getForCreateId = async (req, res) => {
 
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
-    // const { role } = await ValidateSchema.getRoleShema.validateAsync(
-    //   req.params
-    // );
-
+    
     const role = 'SA';
     const results = await DashDao.getForCreateId(role);
 
@@ -131,9 +108,6 @@ exports.createSalesAgent = async (req, res) => {
 
   try {
     const officerData = JSON.parse(req.body.officerData);
-    console.log(officerData);
-
-    // Collect validation errors
     let errors = [];
 
     // Check if phone numbers, NIC, or email already exist
@@ -174,7 +148,6 @@ exports.createSalesAgent = async (req, res) => {
         const fileExtension = mimeType.split("/")[1];
         const fileName = `${officerData.firstName || 'user'}_${officerData.lastName || 'image'}.${fileExtension}`;
 
-        console.log('Uploading to S3...');
         profileImageUrl = await uploadFileToS3(
           fileBuffer,
           fileName,
@@ -188,8 +161,6 @@ exports.createSalesAgent = async (req, res) => {
 
     // Generate a new Sales Agent ID
     const newSalseAgentId = await DashDao.genarateNewSalesAgentIdDao();
-    console.log("New Sales Agent ID:", newSalseAgentId);
-
     // Save sales agent data
     const resultsPersonal = await DashDao.createSalesAgent(
       officerData,
@@ -197,7 +168,6 @@ exports.createSalesAgent = async (req, res) => {
       newSalseAgentId
     );
 
-    console.log("Sales Agent created successfully");
     return res.status(201).json({
       message: "Sales Agent created successfully",
       id: resultsPersonal.insertId,
@@ -242,11 +212,6 @@ exports.updateSalesAgentDetails = async (req, res) => {
   const { id } = req.params;
 
   const officerData = JSON.parse(req.body.officerData);
-  // const qrCode = await collectionofficerDao.getQrImage(id);
-  // const officerDataForImage = await DashDao.getSalesAgentDataById(id);
-  console.log(officerData);
-
-
   let validationErrors = [];
 
   // Check duplicates
@@ -272,14 +237,9 @@ exports.updateSalesAgentDetails = async (req, res) => {
     });
   }
 
-
-  // let qrImageUrl;
-
   if (req.body.file) {
     await deleteFromS3(officerData.image);
-    console.log(req.body.file);
-
-
+    
     const base64String = req.body.file.split(",")[1]; // Extract the Base64 content
     const mimeType = req.body.file.match(/data:(.*?);base64,/)[1]; // Extract MIME type
     const fileBuffer = Buffer.from(base64String, "base64"); // Decode Base64 to buffer
@@ -318,7 +278,6 @@ exports.updateSalesAgentDetails = async (req, res) => {
     branchName,
     image
   } = officerData;
-  console.log(empId);
 
   try {
     await DashDao.updateSalesAgentDetails(
@@ -383,10 +342,6 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
 
-    // Update status and password in the database
-
-
-    // If status is 'Approved', send the password email
     if (status === "Approved") {
       const emailResult = await DashDao.SendGeneratedPasswordDao(
         email,
@@ -420,13 +375,12 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
       });
     }
 
-    // Return success response with empId and email
     res.status(200).json({
       message: "Status updated and password sent successfully.",
       status: true,
       data: {
-        empId, // Include empId for reference
-        email, // Include the email sent to
+        empId, 
+        email, 
       },
     });
   } catch (error) {
@@ -438,11 +392,8 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
 exports.getAllOrders = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
-
-
   try {
     const { page, limit, orderStatus, paymentMethod, paymentStatus, deliveryType, searchText, date } = req.query;
-
 
     // Call the DAO to get all collection officers
     const result = await DashDao.getAllOrders(
@@ -457,16 +408,9 @@ exports.getAllOrders = async (req, res) => {
 
     );
 
-    // console.log({ page, limit });
-    console.log('result', result);
-
     return res.status(200).json(result);
   } catch (error) {
-    // if (error.isJoi) {
-    //   // Handle validation error
-    //   return res.status(400).json({ error: error.details[0].message });
-    // }
-
+    
     console.error("Error fetching collection officers:", error);
     return res
       .status(500)
@@ -476,7 +420,6 @@ exports.getAllOrders = async (req, res) => {
 
 exports.getDashUserOrders = async (req, res) => {
   try {
-
     const userId = req.params.userId;
     const statusFilter = req.query.status || "Ordered";
 
