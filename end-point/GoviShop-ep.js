@@ -190,38 +190,35 @@ exports.updateGoviShopUserStatus = async (req, res) => {
     const { status } = await GoviShopValidation.updateGoviShopUserBodySchema.validateAsync(req.body);
 
     if (!id || !status) {
-      return res.status(400).json({
-        success: false,
-        message: "User id and status are required",
-      });
+      return res.status(400).json({ success: false, message: "User id and status are required" });
     }
 
     const allowedStatuses = ["Activate", "Rejected", "Deactivate"];
     if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status value",
-      });
+      return res.status(400).json({ success: false, message: "Invalid status value" });
     }
 
     const updated = await GoviShopDAO.updateGoviShopUserStatusDAO(id, status);
-
     if (!updated) {
-      return res.status(404).json({
-        success: false,
-        message: "Shop user not found",
-      });
+      return res.status(404).json({ success: false, message: "Shop user not found" });
+    }
+
+    // ✅ Call email function from DAO
+    if (status === "Activate") {
+      try {
+        await GoviShopDAO.sendGoviShopRenewalEmailDAO(id);
+      } catch (emailError) {
+        console.error("❌ Email sending failed:", emailError.message);
+      }
     }
 
     return res.status(200).json({
       success: true,
       message: `Shop user status updated to ${status}`,
     });
+
   } catch (error) {
     console.error("Update Govi Shop User Status Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
