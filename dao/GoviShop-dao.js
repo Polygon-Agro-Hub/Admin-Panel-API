@@ -371,7 +371,7 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
     },
   });
 
-  const loginUrl = "../assets/govishop logo.png";
+  const loginUrl = "../assets/logo.png";
 
   const htmlTemplate = `
 <!DOCTYPE html>
