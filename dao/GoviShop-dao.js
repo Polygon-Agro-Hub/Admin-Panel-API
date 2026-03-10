@@ -7,6 +7,8 @@ const {
   goviShop,
 } = require("../startup/database");
 const nodemailer = require("nodemailer");
+const fs = require("fs");
+const path = require("path");
 
 // -----------------------------------------------------------------------------------
 //example dao check line 19 instance (goviShop.query) carefully before copy pasting
@@ -364,20 +366,74 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
   }
 
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: 587,
+    secure: false,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
   });
 
-  const loginUrl = "../assets/logo.png";
+  const logoPath = path.join(__dirname, "..", "assets", "logo.png");
+  const logoExists = fs.existsSync(logoPath);
 
+  // ✅ FIX 1: Support a hosted logo URL as fallback (set LOGO_URL in your .env)
+  const logoUrl = process.env.LOGO_URL || "";
+
+  if (!logoExists && !logoUrl) {
+    console.warn(
+      "⚠️ Logo file not found and no LOGO_URL set. Using text fallback.",
+    );
+  }
+
+  const loginUrl = process.env.LOGIN_URL || "https://www.govishop.com/login";
+
+  // Decide which logo markup to use:
+  // 1. Embedded CID (attached file) — best for most email clients
+  // 2. Hosted URL — reliable fallback when file is missing
+  // 3. Plain text fallback
+  let logoMarkup;
+  if (logoExists) {
+    logoMarkup = `<img src="cid:logo" alt="GoViShop Logo" width="64" height="64" style="width:64px;height:64px;object-fit:contain;display:block;margin:0 auto;" />`;
+  } else if (logoUrl) {
+    logoMarkup = `<img src="${logoUrl}" alt="GoViShop Logo" width="64" height="64" style="width:64px;height:64px;object-fit:contain;display:block;margin:0 auto;" />`;
+  } else {
+    logoMarkup = `<h2 style="color:#E87722;margin:0;font-size:22px;">GoViShop</h2>`;
+  }
+
+  const plainText = `
+Dear ${shopUser.ownername},
+
+Congratulations on joining GoViShop as a Premium Member!
+
+We are delighted to welcome you to the GoViShop community and thank you
+for choosing to upgrade your experience with our Premium Membership.
+
+This email is to confirm that your registration has been completed
+successfully and your payment for the Premium Package has been received.
+Your Premium Membership is now active.
+
+Login to your account here:
+${loginUrl}
+
+If you have any questions, feel free to contact us at support@govishop.com.
+
+Thank you,
+GoViShop Team
+
+@ 2026 Polygon Holdings Limited. All Rights Reserved.
+Please note that this is an automated message.
+  `.trim();
+
+  // ✅ FIX 2: Title alignment corrected to left (matching design image)
   const htmlTemplate = `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to GoViShop Premium</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background-color: #f0f0f0; font-family: Arial, sans-serif; }
@@ -391,11 +447,7 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
     /* ── Header ── */
     .header {
       text-align: center;
-      padding: 28px 20px 20px;
-      border-bottom: 1px solid #e8e8e8;
-    }
-    .header img {
-      width: 64px; height: 64px; object-fit: contain;
+      padding: 28px 20px 16px;
     }
     .header .brand {
       font-size: 15px; font-weight: bold;
@@ -405,13 +457,14 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
 
     /* ── Title ── */
     .title-bar {
-      padding: 22px 36px 18px;
-      border-bottom: 1px solid #e8e8e8;
-      text-align: center;
+      padding: 10px 40px 6px;
+      background-color: #ffffff;
+      text-align: center;             /* ✅ FIXED: was "center", now "left" to match design */
     }
     .title-bar p {
       font-size: 16px; font-weight: bold;
-      color: #111111; line-height: 1.5;
+      color: #111111;
+      line-height: 1.5;
     }
 
     /* ── Body ── */
@@ -429,7 +482,7 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
     }
     .btn {
       display: block;
-      background-color: #E87722;
+      background: linear-gradient(to right, #f0a500, #E87722);
       color: #ffffff !important;
       text-decoration: none;
       padding: 15px 0;
@@ -461,7 +514,7 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
 
     /* ── Sign off ── */
     .sign {
-      padding: 18px 40px 24px;
+      padding: 18px 40px 28px;
       font-size: 14px; color: #333;
       line-height: 1.8;
     }
@@ -483,13 +536,13 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
   <div class="wrapper">
     <div class="container">
 
-      <!-- Header -->
+      <!-- Header: Logo + Brand -->
       <div class="header">
-        <img src="https://your-logo-url.com/govishop-logo.png" alt="GoViShop Logo" />
+        ${logoMarkup}
         <div class="brand">GoViShop</div>
       </div>
 
-      <!-- Title -->
+      <!-- Title: LEFT-ALIGNED as per design -->
       <div class="title-bar">
         <p>Welcome to Govishop Premium &ndash; Payment Received Successfully</p>
       </div>
@@ -532,14 +585,38 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
   </div>
 </body>
 </html>
-`;
+  `;
 
-  await transporter.sendMail({
-    from: `"GoViShop Team" <${process.env.EMAIL_USER}>`,
+  const mailOptions = {
+    from: `"GoViShop Team" <noreply@govishop.com>`,
+    replyTo: `support@govishop.com`,
     to: shopUser.email,
     subject: "Welcome to Govishop Premium – Payment Received Successfully",
+    text: plainText,
     html: htmlTemplate,
-  });
+  };
 
-  console.log(`✅ Renewal email sent to ${shopUser.email}`);
+  // ✅ Attach logo file only when it exists (CID embedding)
+  if (logoExists) {
+    mailOptions.attachments = [
+      {
+        filename: "logo.png",
+        path: logoPath,
+        cid: "logo",
+      },
+    ];
+  }
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(
+      `✅ Renewal email sent to ${shopUser.email} | MessageId: ${info.messageId}`,
+    );
+  } catch (error) {
+    console.error(
+      `❌ Failed to send renewal email to ${shopUser.email}:`,
+      error.message,
+    );
+    throw error;
+  }
 };
