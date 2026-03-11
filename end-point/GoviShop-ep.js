@@ -15,18 +15,39 @@ const GoviShopValidation = require("../validations/GoviShop-validation");
 
 exports.getAllGoviShopUsers = async (req, res) => {
   try {
+    // Get pagination parameters from query string with defaults
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    
     const { search, currentPlan } = req.query;
 
     const { total, shopUsers, expiredCount, activeCount } =
-      await GoviShopDAO.getAllGoviShopUsers(search, currentPlan);
+      await GoviShopDAO.getAllGoviShopUsers(limit, offset, search, currentPlan);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
 
     res.json({
       success: true,
       data: {
         shopUsers,
-        total,
-        expiredCount,
-        activeCount,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages,
+          hasNextPage,
+          hasPrevPage,
+          nextPage: hasNextPage ? page + 1 : null,
+          prevPage: hasPrevPage ? page - 1 : null,
+        },
+        stats: {
+          expiredCount,
+          activeCount,
+        },
       },
     });
   } catch (err) {

@@ -35,9 +35,10 @@ const path = require("path");
 //   });
 // };
 
-exports.getAllGoviShopUsers = (search, currentPlanFilter) => {
+exports.getAllGoviShopUsers = (limit, offset, search, currentPlanFilter) => {
   return new Promise((resolve, reject) => {
-    let sql = `
+    // Base SQL for data query
+    let dataSql = `
       SELECT 
         su.id,
         su.shopName,
@@ -82,7 +83,28 @@ exports.getAllGoviShopUsers = (search, currentPlanFilter) => {
       ) pp ON su.id = pp.userId
     `;
 
-    const values = [];
+    // Base SQL for count query
+    let countSql = `
+      SELECT COUNT(*) as total 
+      FROM shopusers su
+      LEFT JOIN agro_world_admin.adminusers au ON su.acticatedBy = au.id
+      LEFT JOIN (
+        SELECT 
+          userId,
+          planPrice,
+          expireDate,
+          createdAt
+        FROM paymentplan pp1
+        WHERE createdAt = (
+          SELECT MAX(createdAt)
+          FROM paymentplan pp2
+          WHERE pp2.userId = pp1.userId
+        )
+      ) pp ON su.id = pp.userId
+    `;
+
+    const dataParams = [];
+    const countParams = [];
     const whereConditions = [];
 
     // Add search condition if search parameter is provided
@@ -90,39 +112,53 @@ exports.getAllGoviShopUsers = (search, currentPlanFilter) => {
       whereConditions.push(
         `(su.shopName LIKE ? OR su.nic LIKE ? OR su.shopPhone LIKE ?)`,
       );
-      values.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      const searchValue = `%${search}%`;
+      dataParams.push(searchValue, searchValue, searchValue);
+      countParams.push(searchValue, searchValue, searchValue);
     }
 
     // Add currentPlan filter if provided
     if (currentPlanFilter) {
       whereConditions.push(`su.currentPlan = ?`);
-      values.push(currentPlanFilter);
+      dataParams.push(currentPlanFilter);
+      countParams.push(currentPlanFilter);
     }
 
     // Add WHERE clause if there are any conditions
     if (whereConditions.length > 0) {
-      sql += ` WHERE ` + whereConditions.join(" AND ");
+      const whereClause = ` WHERE ` + whereConditions.join(" AND ");
+      dataSql += whereClause;
+      countSql += whereClause;
     }
 
-    sql += " ORDER BY su.createdAt DESC";
+    // Add order by and pagination to data query
+    dataSql += " ORDER BY su.createdAt DESC LIMIT ? OFFSET ?";
+    dataParams.push(parseInt(limit), parseInt(offset));
 
-    goviShop.query(sql, values, (err, results) => {
-      if (err) return reject(err);
+    // First execute count query to get total records
+    goviShop.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
 
-      // Add additional processing to mark expired plans if needed
-      const processedResults = results.map((user) => ({
-        ...user,
-        isPlanExpired: user.planStatus === "expired",
-        planExpiryStatus: user.planStatus,
-        daysUntilExpiry: user.daysRemaining || 0,
-      }));
+      const total = countResults[0].total;
 
-      resolve({
-        total: results.length,
-        shopUsers: processedResults,
-        expiredCount: processedResults.filter((u) => u.isPlanExpired).length,
-        activeCount: processedResults.filter((u) => u.planStatus === "active")
-          .length,
+      // Then execute data query with pagination
+      goviShop.query(dataSql, dataParams, (dataErr, results) => {
+        if (dataErr) return reject(dataErr);
+
+        // Add additional processing to mark expired plans if needed
+        const processedResults = results.map((user) => ({
+          ...user,
+          isPlanExpired: user.planStatus === "expired",
+          planExpiryStatus: user.planStatus,
+          daysUntilExpiry: user.daysRemaining || 0,
+        }));
+
+        resolve({
+          total: total,
+          shopUsers: processedResults,
+          expiredCount: processedResults.filter((u) => u.isPlanExpired).length,
+          activeCount: processedResults.filter((u) => u.planStatus === "active").length,
+        });
       });
     });
   });
