@@ -261,7 +261,8 @@ exports.viewGoviShopSupplierByIdDao = (id) => {
   });
 };
 
-exports.getAllShowViewActionDAO = (status, searchText) => {
+exports.getAllShowViewActionDAO = (page, limit, status, searchText) => {
+  const offset = (page - 1) * limit;
   return new Promise((resolve, reject) => {
     let countSql = `
       SELECT COUNT(*) as total 
@@ -284,6 +285,7 @@ exports.getAllShowViewActionDAO = (status, searchText) => {
     `;
 
     const params = [];
+    const countParams = [];
 
     let whereConditions = [];
 
@@ -298,11 +300,13 @@ exports.getAllShowViewActionDAO = (status, searchText) => {
 
       const searchValue = `%${searchText}%`;
       params.push(...Array(3).fill(searchValue));
+      countParams.push(...Array(3).fill(searchValue));
     }
 
     if (status) {
       whereConditions.push(`su.userStatus = ?`);
       params.push(status);
+      countParams.push(status);
     }
 
     // Append WHERE conditions if any exist
@@ -314,8 +318,11 @@ exports.getAllShowViewActionDAO = (status, searchText) => {
 
     dataSql += " ORDER BY su.createdAt DESC";
 
+    dataSql += " LIMIT ? OFFSET ?";
+    params.push(limit, offset);
+
     // Execute count query first
-    goviShop.query(countSql, params, (countErr, countResults) => {
+    goviShop.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
         return reject(countErr);

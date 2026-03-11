@@ -144,13 +144,14 @@ exports.getAllShowViewActionEp = async (req, res) => {
   console.log(fullUrl);
 
   try {
-    const { status, searchText, page } =
+    const { page, limit, status, searchText } =
       await GoviShopValidation.getAllShopViewActionSchema.validateAsync(
         req.query,
       );
 
     // Call the DAO to get all collection officers
     const result = await GoviShopDAO.getAllShowViewActionDAO(
+      page, limit,
       status,
       searchText,
     );
