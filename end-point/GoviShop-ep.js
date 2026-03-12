@@ -15,18 +15,39 @@ const GoviShopValidation = require("../validations/GoviShop-validation");
 
 exports.getAllGoviShopUsers = async (req, res) => {
   try {
+    // Get pagination parameters from query string with defaults
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    
     const { search, currentPlan } = req.query;
 
     const { total, shopUsers, expiredCount, activeCount } =
-      await GoviShopDAO.getAllGoviShopUsers(search, currentPlan);
+      await GoviShopDAO.getAllGoviShopUsers(limit, offset, search, currentPlan);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
 
     res.json({
       success: true,
       data: {
         shopUsers,
-        total,
-        expiredCount,
-        activeCount,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages,
+          hasNextPage,
+          hasPrevPage,
+          nextPage: hasNextPage ? page + 1 : null,
+          prevPage: hasPrevPage ? page - 1 : null,
+        },
+        stats: {
+          expiredCount,
+          activeCount,
+        },
       },
     });
   } catch (err) {
@@ -123,13 +144,14 @@ exports.getAllShowViewActionEp = async (req, res) => {
   console.log(fullUrl);
 
   try {
-    const { status, searchText, page } =
+    const { page, limit, status, searchText } =
       await GoviShopValidation.getAllShopViewActionSchema.validateAsync(
         req.query,
       );
 
     // Call the DAO to get all collection officers
     const result = await GoviShopDAO.getAllShowViewActionDAO(
+      page, limit,
       status,
       searchText,
     );
@@ -190,38 +212,35 @@ exports.updateGoviShopUserStatus = async (req, res) => {
     const { status } = await GoviShopValidation.updateGoviShopUserBodySchema.validateAsync(req.body);
 
     if (!id || !status) {
-      return res.status(400).json({
-        success: false,
-        message: "User id and status are required",
-      });
+      return res.status(400).json({ success: false, message: "User id and status are required" });
     }
 
     const allowedStatuses = ["Activate", "Rejected", "Deactivate"];
     if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status value",
-      });
+      return res.status(400).json({ success: false, message: "Invalid status value" });
     }
 
     const updated = await GoviShopDAO.updateGoviShopUserStatusDAO(id, status);
-
     if (!updated) {
-      return res.status(404).json({
-        success: false,
-        message: "Shop user not found",
-      });
+      return res.status(404).json({ success: false, message: "Shop user not found" });
+    }
+
+    // ✅ Call email function from DAO
+    if (status === "Activate") {
+      try {
+        await GoviShopDAO.sendGoviShopRenewalEmailDAO(id);
+      } catch (emailError) {
+        console.error("❌ Email sending failed:", emailError.message);
+      }
     }
 
     return res.status(200).json({
       success: true,
       message: `Shop user status updated to ${status}`,
     });
+
   } catch (error) {
     console.error("Update Govi Shop User Status Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
