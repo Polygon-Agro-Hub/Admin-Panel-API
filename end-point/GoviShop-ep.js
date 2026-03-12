@@ -144,16 +144,19 @@ exports.getAllShowViewActionEp = async (req, res) => {
   console.log(fullUrl);
 
   try {
-    const { page, limit, status, searchText } =
+    const { allSuppliers, page, limit, status, searchText } =
       await GoviShopValidation.getAllShopViewActionSchema.validateAsync(
         req.query,
       );
+
+    console.log('allSuppliers', allSuppliers)
 
     // Call the DAO to get all collection officers
     const result = await GoviShopDAO.getAllShowViewActionDAO(
       page, limit,
       status,
       searchText,
+      allSuppliers
     );
 
     console.log("result", result);
@@ -242,5 +245,35 @@ exports.updateGoviShopUserStatus = async (req, res) => {
   } catch (error) {
     console.error("Update Govi Shop User Status Error:", error);
     return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+exports.deleteGoviShopSupplierEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = await GoviShopValidation.goviShopViewDocumentByIdSchema.validateAsync(
+      req.params,
+    );
+
+    const results = await GoviShopDAO.deleteGoviShopSupplierDao(id);
+
+    console.log("Successfully Delete Status");
+    if (results.affectedRows > 0) {
+      res.status(200).json({ results: results, status: true });
+    } else {
+      res.json({ results: results, status: false });
+    }
+  } catch (error) {
+    if (error.isJoi) {
+      return res
+        .status(400)
+        .json({ error: error.details[0].message, status: false });
+    }
+
+    console.error("Error retrieving Updated Status:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while Updated Statuss" });
   }
 };
