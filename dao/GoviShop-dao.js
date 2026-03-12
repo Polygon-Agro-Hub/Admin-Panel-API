@@ -261,9 +261,18 @@ exports.viewGoviShopSupplierByIdDao = (id) => {
   });
 };
 
-exports.getAllShowViewActionDAO = (page, limit, status, searchText) => {
+exports.getAllShowViewActionDAO = (page, limit, status, searchText, allSuppliers) => {
   const offset = (page - 1) * limit;
   return new Promise((resolve, reject) => {
+
+    let whereClause = `WHERE 1=1 `;
+
+    if (!allSuppliers) {
+      whereClause += `AND su.userStatus != 'Activate'`
+    }
+
+    console.log('whereClause', whereClause)
+
     let countSql = `
       SELECT COUNT(*) as total 
        FROM govi_shop.shopusers su
@@ -278,6 +287,7 @@ exports.getAllShowViewActionDAO = (page, limit, status, searchText) => {
         su.shopPhone, 
         su.nic, 
         su.userStatus, 
+        su.currentPlan,
         su.acticatedAt, 
         a.userName 
       FROM govi_shop.shopusers su 
@@ -304,22 +314,35 @@ exports.getAllShowViewActionDAO = (page, limit, status, searchText) => {
     }
 
     if (status) {
-      whereConditions.push(`su.userStatus = ?`);
-      params.push(status);
-      countParams.push(status);
+      switch (allSuppliers) {
+        case false:
+          whereConditions.push(`su.userStatus = ?`);
+          params.push(status);
+          countParams.push(status);
+          break;
+    
+        case true:
+          whereConditions.push(`su.currentPlan = ?`);
+          params.push(status);
+          countParams.push(status);
+          break;
+      }
     }
 
     // Append WHERE conditions if any exist
     if (whereConditions.length > 0) {
-      const whereClause = " WHERE " + whereConditions.join(" AND ");
-      countSql += whereClause;
-      dataSql += whereClause;
+      whereClause += ' AND ' + whereConditions.join(" AND ");  
     }
+
+    countSql += whereClause;
+    dataSql += whereClause;
 
     dataSql += " ORDER BY su.createdAt DESC";
 
     dataSql += " LIMIT ? OFFSET ?";
     params.push(limit, offset);
+
+    console.log('dataSql', dataSql)
 
     // Execute count query first
     goviShop.query(countSql, countParams, (countErr, countResults) => {
@@ -662,4 +685,19 @@ Please note that this is an automated message.
     );
     throw error;
   }
+};
+
+exports.deleteGoviShopSupplierDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            DELETE FROM shopusers
+            WHERE id = ?
+        `;
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err); 
+      }
+      resolve(results); 
+    });
+  });
 };

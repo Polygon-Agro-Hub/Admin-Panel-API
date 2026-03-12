@@ -5,6 +5,7 @@ exports.getByIdSchema = Joi.object({
 });
 
 exports.getAllShopViewActionSchema = Joi.object({
+  allSuppliers: Joi.boolean().optional(),
   page: Joi.number().integer().min(1).default(1).optional(),
   limit: Joi.number().integer().min(1).max(100).default(10).optional(),
   status: Joi.string().optional(),
