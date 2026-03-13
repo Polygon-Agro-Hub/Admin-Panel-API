@@ -463,6 +463,13 @@ exports.updateGroup = (newsData, id) => {
       incomeFeild,
       bgColor,
       image,
+      seedRate,      // ADD
+      rowSpace,      // ADD
+      plantSpace,    // ADD
+      AvgYield,      // ADD
+      nitrogen,      // ADD
+      phosphorus,    // ADD
+      potassium,     // ADD
     } = newsData;
     console.log(newsData);
 
@@ -475,7 +482,14 @@ exports.updateGroup = (newsData, id) => {
                 category = ?,
                 costFeild = ?,
                 incomeFeild = ?,
-                bgColor = ?
+                bgColor = ?,
+                seedRate = ?,
+                rowSpace = ?,
+                plantSpace = ?,
+                AvgYield = ?,
+                nitrogen = ?,
+                phosphorus = ?,
+                potassium = ?
         `;
 
     let values = [
@@ -486,10 +500,17 @@ exports.updateGroup = (newsData, id) => {
       costFeild,
       incomeFeild,
       bgColor,
+      seedRate,      // ADD
+      rowSpace,      // ADD
+      plantSpace,    // ADD
+      AvgYield,      // ADD
+      nitrogen,      // ADD
+      phosphorus,    // ADD
+      potassium,     // ADD
     ];
 
     if (image) {
-      sql += `, image = ?`; // Update the image field with binary data
+      sql += `, image = ?`;
       values.push(image);
     }
 

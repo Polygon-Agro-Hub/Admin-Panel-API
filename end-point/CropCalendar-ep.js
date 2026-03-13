@@ -595,14 +595,28 @@ exports.getVarietyById = async (req, res) => {
 };
 
 exports.updateGroup = async (req, res) => {
-  const { cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, bgColor } =
-    req.body;
+  const { 
+    cropNameEnglish, 
+    cropNameSinhala, 
+    cropNameTamil, 
+    category, 
+    costFeild, 
+    incomeFeild, 
+    bgColor,
+    seedRate,      // ADD
+    rowSpace,      // ADD
+    plantSpace,    // ADD
+    AvgYield,      // ADD
+    nitrogen,      // ADD
+    phosphorus,    // ADD
+    potassium,     // ADD
+  } = req.body;
+  
   const id = req.params.id;
   const Existname = req.params.name;
   let image = null;
   console.log(req.params);
-
-  console.log('bgColor', bgColor)
+  console.log('bgColor', bgColor);
 
   try {
     const cropGroup = await cropCalendarDao.getGroupByIds3(id);
@@ -614,9 +628,7 @@ exports.updateGroup = async (req, res) => {
     console.log(imageUrl);
 
     if (Existname !== cropNameEnglish) {
-      const checkCropName = await cropCalendarDao.checkCropGroup(
-        cropNameEnglish
-      );
+      const checkCropName = await cropCalendarDao.checkCropGroup(cropNameEnglish);
       console.log(checkCropName);
 
       if (checkCropName.length > 0) {
@@ -644,9 +656,17 @@ exports.updateGroup = async (req, res) => {
         incomeFeild,
         bgColor,
         image,
+        seedRate,      // ADD
+        rowSpace,      // ADD
+        plantSpace,    // ADD
+        AvgYield,      // ADD
+        nitrogen,      // ADD
+        phosphorus,    // ADD
+        potassium,     // ADD
       },
       id
     );
+
     res.json({ message: "Crop group updated successfully.", status: true });
   } catch (err) {
     console.error("Error updating crop group:", err);
