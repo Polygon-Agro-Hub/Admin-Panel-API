@@ -126,7 +126,7 @@ exports.getAllGoviShopUsers = (limit, offset, search, currentPlanFilter) => {
 
     // Add WHERE clause if there are any conditions
     if (whereConditions.length > 0) {
-      const whereClause = ` WHERE ` + whereConditions.join(" AND ");
+      const whereClause = ` WHERE su.isAvailable = 1 AND ` + whereConditions.join(" AND ");
       dataSql += whereClause;
       countSql += whereClause;
     }
@@ -199,7 +199,7 @@ exports.getGoviShopUserById = (id) => {
 
 exports.deleteGoviShopUser = (id) => {
   return new Promise((resolve, reject) => {
-    const sql = "DELETE FROM shopusers WHERE id = ?";
+    const sql = "UPDATE shopusers SET isAvailable = 0 WHERE id = ?";
     goviShop.query(sql, [id], (err, results) => {
       if (err) return reject(err);
       resolve(results.affectedRows > 0);
@@ -265,10 +265,10 @@ exports.getAllShowViewActionDAO = (page, limit, status, searchText, allSuppliers
   const offset = (page - 1) * limit;
   return new Promise((resolve, reject) => {
 
-    let whereClause = `WHERE 1=1 `;
+    let whereClause = `WHERE 1=1 AND su.isAvailable = 1`;
 
     if (!allSuppliers) {
-      whereClause += `AND su.userStatus != 'Activate'`
+      whereClause += ` AND su.userStatus != 'Activate' `
     }
 
     console.log('whereClause', whereClause)
@@ -690,10 +690,11 @@ Please note that this is an automated message.
 exports.deleteGoviShopSupplierDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            DELETE FROM shopusers
+            UPDATE shopusers
+            SET isAvailable = 0
             WHERE id = ?
         `;
-    collectionofficer.query(sql, [id], (err, results) => {
+    goviShop.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err); 
       }
