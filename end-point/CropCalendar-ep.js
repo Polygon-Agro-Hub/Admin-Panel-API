@@ -44,6 +44,13 @@ exports.createCropGroup = async (req, res) => {
       costFeild,
       incomeFeild,
       bgColor,
+      seedRate,
+      rowSpace,
+      plantSpace,
+      AvgYield,
+      nitrogen,
+      phosphorus,
+      potassium
     } = req.body;
     console.log(req.body);
 
@@ -71,7 +78,7 @@ exports.createCropGroup = async (req, res) => {
       "cropgroup/image"
     );
 
-    // Call DAO to save news and the image file as longblob
+    // Call DAO to save crop group with all fields
     const newsId = await cropCalendarDao.createCropGroup(
       cropNameEnglish,
       cropNameSinhala,
@@ -80,7 +87,14 @@ exports.createCropGroup = async (req, res) => {
       costFeild,
       incomeFeild,
       profileImageUrl,
-      bgColor
+      bgColor,
+      seedRate,
+      rowSpace,
+      plantSpace,
+      AvgYield,
+      nitrogen,
+      phosphorus,
+      potassium
     );
 
     console.log("crop group creation success");

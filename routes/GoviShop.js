@@ -39,4 +39,10 @@ router.put(
   GoviShopEp.updateGoviShopUserStatus,
 );
 
+router.delete(
+  "/delete-govishop-supplier/:id",
+  authMiddleware,
+  GoviShopEp.deleteGoviShopSupplierEp
+);
+
 module.exports = router;
