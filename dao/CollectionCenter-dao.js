@@ -1999,7 +1999,7 @@ exports.getCenterTargetDAO = (companyCenterId, status, searchText) => {
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN collection_officer.companycenter cc ON dt.companyCenterId = cc.id
       LEFT JOIN collection_officer.collectioncenter coc ON cc.centerId = coc.id
-      WHERE dt.companyCenterId = ? AND DATE(dt.date) = CURDATE() AND (dt.target != 0 OR dt.complete != 0)
+      WHERE dt.companyCenterId = ? AND DATE(dt.date) = '2026-03-16' AND (dt.target != 0 OR dt.complete != 0)
         `;
 
     const sqlParams = [companyCenterId];
