@@ -3185,6 +3185,27 @@ exports.getHomeDiliveryTracking = async (req, res) => {
     const centerDetails = await DistributionDao.getHomeDiliveryTrackingCenterDetailsDao(id);
     const driverDetails = await DistributionDao.getHomeDiliveryTrackingDriverDetailsDao(id);
 
+    // const convertSLToUTC = (dateStr) => {
+    //   if (!dateStr) return null;
+    
+    //   // Fix format (remove microseconds)
+    //   const clean = dateStr.replace(' ', 'T').split('.')[0];
+    
+    //   const date = new Date(clean);
+    
+    //   // subtract 5 hours 30 minutes
+    //   return new Date(date.getTime() - (5.5 * 60 * 60 * 1000)).toISOString();
+    // };
+    
+    // deliveriesFormatted = {
+    //   ...driverDetails,
+    //   holdDetails: driverDetails.holdDetails?.map(h => ({
+    //     ...h,
+    //     holdTime: convertSLToUTC(h.holdTime),
+    //     restartedTime: convertSLToUTC(h.restartedTime)
+    //   }))
+    // };
+
     res.status(200).json({
       centerDetails,
       driverDetails

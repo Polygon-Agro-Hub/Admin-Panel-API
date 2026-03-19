@@ -3199,7 +3199,7 @@ exports.resetPassword = async (req, res) => {
     if (!tokenData)
       return res.status(400).json({
         success: false,
-        message: "Invalid or expired token",
+        message: "This password reset link has expired. Please request a new reset link to continue.",
       });
 
     await adminDao.resetPassword(tokenData.userId, newPassword);

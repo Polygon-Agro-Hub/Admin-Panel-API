@@ -2201,7 +2201,7 @@ exports.GetAllPensionRequestsDAO = (filters = {}) => {
         COALESCE(pr.approveTime) AS Approved_Date_Time
       FROM plant_care.pensionrequest pr
       LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
-      WHERE 1=1
+      WHERE pr.reqStatus NOT IN ('Approved')
     `;
 
     const params = [];
@@ -2251,6 +2251,8 @@ exports.GetPensionRequestByIdDAO = (id) => {
     pr.nicBack AS NIC_Back_Image,
     pr.sucNicFront AS Successor_NIC_Front_Image,
     pr.sucNicBack AS Successor_NIC_Back_Image,
+    pr.birthCrtFront AS Successor_birthCrtFront,
+    pr.birthCrtBack AS Successor_birthCrtBack,
     co.empId,
     CASE 
         WHEN pr.approveBy IS NULL THEN 'Not Approved'
@@ -2354,7 +2356,7 @@ exports.getFarmerPensionDetailsDao = (page, limit, searchText) => {
         pr.id,
         pr.fullName,
         pr.nic,
-        CONCAT(u.firstName, ' ', u.lastName) AS farmerFullName,
+        pr.fullName AS farmerFullName,
         u.phoneNumber,
         pr.dob,
         pr.sucType,
