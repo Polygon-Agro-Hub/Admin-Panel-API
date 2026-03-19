@@ -4897,7 +4897,7 @@ exports.getHomeDiliveryTrackingDriverDetailsDao = async (id) => {
               SELECT JSON_ARRAYAGG(
                   JSON_OBJECT(
                   	 'holdId',dho.id,
-                      'holdTime', dho.createdAt,
+                      'holdTime', DATE_ADD(dho.createdAt, INTERVAL 330 MINUTE),           
                       'holdReason', hr.rsnEnglish,
                       'restartedTime', dho.restartedTime
                   )
