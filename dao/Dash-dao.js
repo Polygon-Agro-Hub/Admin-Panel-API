@@ -1022,6 +1022,7 @@ const getUserOrdersDao = async (userId, status) => {
         P.invNo,
         O.sheduleType,
         O.sheduleDate,
+        DATE_ADD(P.createdAt, INTERVAL 330 MINUTE) AS createdAt,
         P.paymentMethod,
         P.isPaid,
         O.fullTotal,
