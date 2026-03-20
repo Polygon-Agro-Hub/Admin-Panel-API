@@ -724,9 +724,14 @@ const getAllOrders = (
       }
     }
 
-    if (paymentStatus !== undefined && paymentStatus !== "") {
-      whereConditions.push(`po.isPaid = ?`);
-      params.push(parseInt(paymentStatus));
+    if (paymentStatus) {
+      if(paymentStatus === "Paid"){
+        whereConditions.push(`po.isPaid = 1 AND po.paymentMethod = 'Card'`);
+      }else if(paymentStatus === "Received"){
+        whereConditions.push(`po.isPaid = 1 AND po.paymentMethod = 'Cash'`);
+      }else if(paymentStatus === "Pending"){
+        whereConditions.push(`po.isPaid = 0`);
+      }
     }
 
     if (deliveryType) {
