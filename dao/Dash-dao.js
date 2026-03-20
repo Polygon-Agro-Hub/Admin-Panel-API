@@ -1026,7 +1026,8 @@ const getUserOrdersDao = async (userId, status) => {
         P.isPaid,
         O.fullTotal,
         O.isPackage,
-        P.status
+        P.status,
+        DATE_ADD(P.createdAt, INTERVAL '5:30' HOUR_MINUTE) AS createdAt
       FROM processorders P
       JOIN orders O ON P.orderId = O.id
       WHERE O.userId = ? 
