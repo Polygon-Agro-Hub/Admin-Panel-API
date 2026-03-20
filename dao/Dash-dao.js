@@ -562,6 +562,7 @@ const getAllSalesCustomers = (page, limit, searchText) => {
               CUS.id,
               CUS.cusId,
               CUS.phoneNumber, 
+              CUS.title,
               CUS.firstName, 
               CUS.lastName, 
               CUS.buildingType,
