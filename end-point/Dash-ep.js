@@ -8,7 +8,10 @@ exports.getAllCustomers = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
+    
     const { page, limit, searchText } = await ValidateSchema.getAllSalesAgentsSchema.validateAsync(req.query);
+    console.log(page, limit, searchText);
+
     const { items, total } = await DashDao.getAllSalesCustomers(page, limit, searchText);
 
     res.json({ items, total });
