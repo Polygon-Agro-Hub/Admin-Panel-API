@@ -562,6 +562,7 @@ const getAllSalesCustomers = (page, limit, searchText) => {
               CUS.id,
               CUS.cusId,
               CUS.phoneNumber, 
+              CUS.title,
               CUS.firstName, 
               CUS.lastName, 
               CUS.buildingType,
@@ -723,9 +724,14 @@ const getAllOrders = (
       }
     }
 
-    if (paymentStatus !== undefined && paymentStatus !== "") {
-      whereConditions.push(`po.isPaid = ?`);
-      params.push(parseInt(paymentStatus));
+    if (paymentStatus) {
+      if(paymentStatus === "Paid"){
+        whereConditions.push(`po.isPaid = 1 AND po.paymentMethod = 'Card'`);
+      }else if(paymentStatus === "Received"){
+        whereConditions.push(`po.isPaid = 1 AND po.paymentMethod = 'Cash'`);
+      }else if(paymentStatus === "Pending"){
+        whereConditions.push(`po.isPaid = 0`);
+      }
     }
 
     if (deliveryType) {
@@ -1022,11 +1028,13 @@ const getUserOrdersDao = async (userId, status) => {
         P.invNo,
         O.sheduleType,
         O.sheduleDate,
+        DATE_ADD(P.createdAt, INTERVAL 330 MINUTE) AS createdAt,
         P.paymentMethod,
         P.isPaid,
         O.fullTotal,
         O.isPackage,
-        P.status
+        P.status,
+        DATE_ADD(P.createdAt, INTERVAL '5:30' HOUR_MINUTE) AS createdAt
       FROM processorders P
       JOIN orders O ON P.orderId = O.id
       WHERE O.userId = ? 
