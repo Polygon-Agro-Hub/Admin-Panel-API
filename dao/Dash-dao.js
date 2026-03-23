@@ -600,19 +600,21 @@ const getAllSalesCustomers = (page, limit, searchText) => {
     const dataParams = [];
 
     if (searchText) {
-      const searchCondition = `
-                AND (
-                    CUS.firstName LIKE ?
-                    OR CUS.lastName LIKE ?
-                    OR CUS.phoneNumber LIKE ?
-                )
-            `;
-      countSql += searchCondition;
-      dataSql += searchCondition;
-      const searchValue = `%${searchText}%`;
-      countParams.push(searchValue, searchValue, searchValue);
-      dataParams.push(searchValue, searchValue, searchValue);
-    }
+  const searchCondition = `
+    AND (
+      CUS.firstName LIKE ?
+      OR CUS.lastName LIKE ?
+      OR CUS.phoneNumber LIKE ?
+      OR CUS.cusId LIKE ?
+      OR SA.empId LIKE ?
+    )
+  `;
+  countSql += searchCondition;
+  dataSql += searchCondition;
+  const searchValue = `%${searchText}%`;
+  countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+  dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+}
 
     dataSql += " LIMIT ? OFFSET ?";
     dataParams.push(limit, offset);
