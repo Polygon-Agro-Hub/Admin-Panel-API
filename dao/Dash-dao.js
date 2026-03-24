@@ -1028,13 +1028,12 @@ const getUserOrdersDao = async (userId, status) => {
         P.invNo,
         O.sheduleType,
         O.sheduleDate,
-        DATE_ADD(P.createdAt, INTERVAL 330 MINUTE) AS createdAt,
+        P.createdAt,
         P.paymentMethod,
         P.isPaid,
         O.fullTotal,
         O.isPackage,
-        P.status,
-        DATE_ADD(P.createdAt, INTERVAL '5:30' HOUR_MINUTE) AS createdAt
+        P.status
       FROM processorders P
       JOIN orders O ON P.orderId = O.id
       WHERE O.userId = ? 
