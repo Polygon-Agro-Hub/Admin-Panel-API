@@ -4922,7 +4922,7 @@ exports.getHomeDiliveryTrackingDriverDetailsDao = async (id) => {
                   	 'holdId',dho.id,
                       'holdTime', DATE_ADD(dho.createdAt, INTERVAL 330 MINUTE),           
                       'holdReason', hr.rsnEnglish,
-                      'restartedTime', dho.restartedTime
+                      'restartedTime', DATE_ADD(dho.restartedTime, INTERVAL 330 MINUTE)
                   )
               )
               FROM driverholdorders dho
