@@ -3,6 +3,8 @@ const GoviShopValidation = require("../validations/GoviShop-validation");
 
 
 exports.getAllGoviShopUsers = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
   try {
     // Get pagination parameters from query string with defaults
     const page = parseInt(req.query.page) || 1;
@@ -11,7 +13,9 @@ exports.getAllGoviShopUsers = async (req, res) => {
     
     const { search, currentPlan } = req.query;
 
-    const { total, shopUsers, expiredCount, activeCount } =
+    console.log('currentPlan', currentPlan)
+
+    const { total, shopUsers } =
       await GoviShopDAO.getAllGoviShopUsers(limit, offset, search, currentPlan);
 
     // Calculate pagination metadata
@@ -32,11 +36,7 @@ exports.getAllGoviShopUsers = async (req, res) => {
           hasPrevPage,
           nextPage: hasNextPage ? page + 1 : null,
           prevPage: hasPrevPage ? page - 1 : null,
-        },
-        stats: {
-          expiredCount,
-          activeCount,
-        },
+        }
       },
     });
   } catch (err) {
@@ -52,7 +52,9 @@ exports.getAllGoviShopUsers = async (req, res) => {
 exports.deleteGoviShopUser = async (req, res) => {
   try {
     const { id } = req.params;
+    const {reason} = req.body;
 
+    console.log('reason', reason, 'id', id)
     // Validate id param
     const { error } = GoviShopValidation.getByIdSchema.validate({ id });
     if (error) {
@@ -72,9 +74,15 @@ exports.deleteGoviShopUser = async (req, res) => {
     }
 
     // Perform delete
-    const deleted = await GoviShopDAO.deleteGoviShopUser(id);
+    const deletedUser = await GoviShopDAO.deleteGoviShopUser(id);
 
-    if (!deleted) {
+    let InsertReason;
+    if (deletedUser) {
+      InsertReason = await GoviShopDAO.InsertReason(id, reason);
+    }
+
+
+    if (!deletedUser) {
       return res.status(404).json({
         message: "Shop user not found or already deleted",
         status: false,

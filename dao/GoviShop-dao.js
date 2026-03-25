@@ -41,94 +41,49 @@ exports.getAllGoviShopUsers = (limit, offset, search, currentPlanFilter) => {
     let dataSql = `
       SELECT 
         su.id,
-        su.shopName,
         su.ownername,
         su.shopPhone,
         su.email,
         su.nic,
-        su.adress,
-        su.brImg,
-        su.longitude,
-        su.latitude,
-        su.isAvailable,
-        su.currentPlan,
-        su.userStatus,
-        su.acticatedBy,
-        su.acticatedAt,
-        su.createdAt,
-        au.userName AS activatedByUser,
-        pp.planPrice,
-        pp.expireDate AS currentPlanExpireDate,
-        pp.createdAt AS paymentCreatedAt,
-        CASE 
-          WHEN pp.expireDate < NOW() THEN 'expired'
-          WHEN pp.expireDate >= NOW() THEN 'active'
-          ELSE 'no_payment'
-        END AS planStatus,
-        DATEDIFF(pp.expireDate, NOW()) AS daysRemaining
-      FROM shopusers su
-      LEFT JOIN agro_world_admin.adminusers au ON su.acticatedBy = au.id
-      LEFT JOIN (
-        SELECT 
-          userId,
-          planPrice,
-          expireDate,
-          createdAt
-        FROM paymentplan pp1
-        WHERE createdAt = (
-          SELECT MAX(createdAt)
-          FROM paymentplan pp2
-          WHERE pp2.userId = pp1.userId
-        )
-      ) pp ON su.id = pp.userId
+        su.currentPlan AS pricePlan,
+        su.accessStatus AS paymentStatus,
+        isActivated AS expireStatus,
+        DATE_ADD(su.activatedAt, INTERVAL 330 MINUTE) AS activatedAt,
+        su.onbordStatus,
+        DATE_ADD(su.createdAt, INTERVAL 330 MINUTE) AS createdAt
+        
+      FROM govi_shop.shopowners su 
+      WHERE su.isAvailable = 1
     `;
 
     // Base SQL for count query
     let countSql = `
       SELECT COUNT(*) as total 
-      FROM shopusers su
-      LEFT JOIN agro_world_admin.adminusers au ON su.acticatedBy = au.id
-      LEFT JOIN (
-        SELECT 
-          userId,
-          planPrice,
-          expireDate,
-          createdAt
-        FROM paymentplan pp1
-        WHERE createdAt = (
-          SELECT MAX(createdAt)
-          FROM paymentplan pp2
-          WHERE pp2.userId = pp1.userId
-        )
-      ) pp ON su.id = pp.userId
+      FROM govi_shop.shopowners su
+      WHERE su.isAvailable = 1
+      
     `;
 
     const dataParams = [];
     const countParams = [];
-    const whereConditions = [];
 
     // Add search condition if search parameter is provided
     if (search) {
-      whereConditions.push(
-        `(su.shopName LIKE ? OR su.nic LIKE ? OR su.shopPhone LIKE ?)`,
-      );
+
+      countSql += `AND (su.nic LIKE ? OR su.shopPhone LIKE ?)`
+      dataSql += `AND (su.nic LIKE ? OR su.shopPhone LIKE ?)`
       const searchValue = `%${search}%`;
-      dataParams.push(searchValue, searchValue, searchValue);
-      countParams.push(searchValue, searchValue, searchValue);
+      dataParams.push(searchValue, searchValue);
+      countParams.push(searchValue, searchValue);
     }
 
     // Add currentPlan filter if provided
     if (currentPlanFilter) {
-      whereConditions.push(`su.currentPlan = ?`);
+
+      countSql += `AND su.currentPlan = ?`
+      dataSql += `AND su.currentPlan = ?`
       dataParams.push(currentPlanFilter);
       countParams.push(currentPlanFilter);
-    }
-
-    // Add WHERE clause if there are any conditions
-    if (whereConditions.length > 0) {
-      const whereClause = ` WHERE su.isAvailable = 1 AND ` + whereConditions.join(" AND ");
-      dataSql += whereClause;
-      countSql += whereClause;
     }
 
     // Add order by and pagination to data query
@@ -145,19 +100,16 @@ exports.getAllGoviShopUsers = (limit, offset, search, currentPlanFilter) => {
       goviShop.query(dataSql, dataParams, (dataErr, results) => {
         if (dataErr) return reject(dataErr);
 
-        // Add additional processing to mark expired plans if needed
-        const processedResults = results.map((user) => ({
-          ...user,
-          isPlanExpired: user.planStatus === "expired",
-          planExpiryStatus: user.planStatus,
-          daysUntilExpiry: user.daysRemaining || 0,
-        }));
+        // const processedResults = results.map((user) => ({
+        //   ...user,
+        //   isPlanExpired: user.planStatus === "expired",
+        //   planExpiryStatus: user.planStatus,
+        //   daysUntilExpiry: user.daysRemaining || 0,
+        // }));
 
         resolve({
           total: total,
-          shopUsers: processedResults,
-          expiredCount: processedResults.filter((u) => u.isPlanExpired).length,
-          activeCount: processedResults.filter((u) => u.planStatus === "active").length,
+          shopUsers: results
         });
       });
     });
@@ -168,25 +120,8 @@ exports.getGoviShopUserById = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-        su.id,
-        su.shopName,
-        su.ownername,
-        su.shopPhone,
-        su.email,
-        su.nic,
-        su.adress,
-        su.brImg,
-        su.longitude,
-        su.latitude,
-        su.isAvailable,
-        su.currentPlan,
-        su.userStatus,
-        su.acticatedBy,
-        su.acticatedAt,
-        su.createdAt,
-        au.userName AS activatedByUser
-      FROM shopusers su
-      LEFT JOIN agro_world_admin.adminusers au ON su.acticatedBy = au.id
+        su.id
+      FROM govi_shop.shopowners su
       WHERE su.id = ?
     `;
 
@@ -199,8 +134,18 @@ exports.getGoviShopUserById = (id) => {
 
 exports.deleteGoviShopUser = (id) => {
   return new Promise((resolve, reject) => {
-    const sql = "UPDATE shopusers SET isAvailable = 0 WHERE id = ?";
+    const sql = "UPDATE govi_shop.shopowners SET isAvailable = 0 WHERE id = ?";
     goviShop.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.affectedRows > 0);
+    });
+  });
+};
+
+exports.InsertReason = (id, reason) => {
+  return new Promise((resolve, reject) => {
+    const sql = "INSERT INTO govi_shop.removeownerreson (`ownerId`, `reason`) VALUES (?, ?)";
+    goviShop.query(sql, [id, reason], (err, results) => {
       if (err) return reject(err);
       resolve(results.affectedRows > 0);
     });
