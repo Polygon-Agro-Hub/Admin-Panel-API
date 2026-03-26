@@ -255,31 +255,31 @@ async function SendEmail(email, ownerName) {
 
     const pdfData = Buffer.concat(pdfBuffer); // Concatenate the buffer data
 
-    // const transporter = nodemailer.createTransport({
-    //   host: "smtp.gmail.com",
-    //   port: 465, // or 587 for TLS
-    //   secure: true,
-    //   auth: {
-    //     user: process.env.EMAIL_USER,
-    //     pass: process.env.EMAIL_PASS,
-    //   },
-    //   tls: {
-    //     family: 4,
-    //   },
-    // });
-
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      port: 465, // or 587 for TLS
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
       tls: {
-        rejectUnauthorized: false, 
+        family: 4,
       },
     });
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 587,
+    //   secure: false,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: {
+    //     rejectUnauthorized: false, 
+    //   },
+    // });
 
 
     const mailOptions = {
