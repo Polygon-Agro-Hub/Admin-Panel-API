@@ -1,6 +1,9 @@
 const GoviShopDAO = require("../dao/GoviShop-dao");
 const GoviShopValidation = require("../validations/GoviShop-validation");
-
+const nodemailer = require("nodemailer");
+const PDFDocument = require("pdfkit");
+const { resolve } = require("path");
+const path = require("path");
 
 exports.getAllGoviShopUsers = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -76,16 +79,42 @@ exports.deleteGoviShopUser = async (req, res) => {
     // Perform delete
     const deletedUser = await GoviShopDAO.deleteGoviShopUser(id);
 
+    if (!deletedUser) {
+      return res.status(404).json({
+        message: "Shop user not found or already deleted",
+        status: false,
+      });
+    }
+
     let InsertReason;
     if (deletedUser) {
       InsertReason = await GoviShopDAO.InsertReason(id, reason);
     }
 
+    const shopOwner = await GoviShopDAO.getShopOwnerEmailDao(
+      id
+    );
+    if (!shopOwner) {
+      return res
+        .status(404)
+        .json({ message: "Shop owner officer not found.", status: false });
+    }
 
-    if (!deletedUser) {
-      return res.status(404).json({
-        message: "Shop user not found or already deleted",
-        status: false,
+    console.log('shopOwner', shopOwner)
+
+    const { email, ownerName } = shopOwner;
+
+    const emailResult = await SendEmail(
+      email,
+      ownerName
+    );
+
+    console.log('emailResult', emailResult)
+
+    if (!emailResult.success) {
+      return res.status(500).json({
+        message: "Failed to send email.",
+        error: emailResult.error,
       });
     }
 
@@ -102,6 +131,181 @@ exports.deleteGoviShopUser = async (req, res) => {
     });
   }
 };
+
+async function SendEmail(email, ownerName) {
+  try {
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 50,
+    });
+    
+    const pdfBuffer = [];
+    doc.on("data", pdfBuffer.push.bind(pdfBuffer));
+    
+    /* ---------- CARD BACKGROUND ---------- */
+    doc
+      .roundedRect(40, 40, 515, 700, 10)
+      .fillAndStroke("#f9fafb", "#e5e7eb");
+    
+    /* ---------- LOGO ---------- */
+    const logo = path.resolve(__dirname, "../assets/govishop.png");
+    
+    doc.image(logo, 260, 60, { width: 75 });
+    
+    /* ---------- TITLE ---------- */
+    doc
+    .font("Helvetica-Bold") // ✅ set bold font
+    .fillColor("#02072C")
+    .fontSize(14)
+    .text("Your GoViShop Account Has Been Deleted", 80, 140, {
+      align: "center",
+    });
+    
+    /* ---------- DIVIDER ---------- */
+    doc
+      .moveTo(80, 180)
+      .lineTo(520, 180)
+      .strokeColor("#E8E6F6")
+      .stroke();
+    
+    /* ---------- BODY ---------- */
+    doc
+      .fillColor("#02072C")
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .text(`Dear ${ownerName},`, 80, 200);
+    
+    
+    doc
+    .font("Helvetica")
+    .fillColor("#02072C")
+    .fontSize(12)
+    .text(
+      "We wanted to inform you that your GoViShop account has been deleted.",
+      {
+        width: 440,
+      }
+    );
+    
+    /* ---------- REASON BOX ---------- */
+    doc
+      .roundedRect(80, 260, 440, 60, 5)
+      .fill("#FEF3F3");
+    
+    doc
+      .fillColor("#C91A3D")
+      .fontSize(12)
+      .text("Reason :", 100, 275);
+    
+    doc
+      .fillColor("#333C45")
+      .fontSize(12)
+      .text("Inactive account for extended period.", 100, 295);
+    
+    /* ---------- MORE TEXT ---------- */
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .text(
+        "As a result, you will no longer be able to access your account or any associated services.",
+        80,
+        340,
+        { width: 440 }
+      );
+    
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .text("Thank you for your time on GoViShop.", {
+      width: 440,
+    });
+    
+    /* ---------- FOOTER ---------- */
+    doc.moveDown();
+    
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .text("Thank you,", 80);
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .font("Helvetica-Bold").text("GoViShop Team", 80);
+    
+    /* ---------- BOTTOM NOTE ---------- */
+    doc
+      .font("Helvetica")
+      .fontSize(10)
+      .fillColor("#9ca3af")
+      .text(
+        "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
+        80,
+        700,
+        { align: "center", width: 440 }
+      );
+    
+    doc.text("Please note that this is an automated message.", {
+      align: "center",
+      width: 440,
+    });
+    
+    /* ---------- END ---------- */
+    doc.end();
+    await new Promise((resolve) => doc.on("end", resolve));
+
+    const pdfData = Buffer.concat(pdfBuffer); // Concatenate the buffer data
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 465, // or 587 for TLS
+    //   secure: true,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: {
+    //     family: 4,
+    //   },
+    // });
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false, 
+      },
+    });
+
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
+      text: `Dear ,\n\nYour registration details are attached in the PDF.`,
+      attachments: [
+        {
+          filename: `password_.pdf`, // PDF file name
+          content: pdfData, // Attach the PDF buffer directly
+        },
+      ],
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.response);
+
+    return { success: true, message: "Email sent successfully!" };
+  } catch (error) {
+    console.error("Error sending email:", error);
+
+    return { success: false, message: "Failed to send email.", error };
+  }
+}
+
 
 exports.viewGoviShopSupplierById = async (req, res) => {
   try {

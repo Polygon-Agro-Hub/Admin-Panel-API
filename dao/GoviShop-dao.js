@@ -152,6 +152,32 @@ exports.InsertReason = (id, reason) => {
   });
 };
 
+
+exports.getShopOwnerEmailDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+        SELECT 
+          su.email, su.ownername AS ownerName
+        FROM govi_shop.shopowners su
+        WHERE su.id = ?
+        `;
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      if (results.length > 0) {
+        resolve({
+          email: results[0].email, // Resolve with email
+          ownerName: results[0].ownerName
+        });
+      } else {
+        resolve(null); // Resolve with null if no record is found
+      }
+    });
+  });
+};
+
+
 exports.viewGoviShopSupplierByIdDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
