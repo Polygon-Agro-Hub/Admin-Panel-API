@@ -1022,7 +1022,6 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
             oof.id,
             oof.buildingAssetId,
             oof.landAssetId,
-            oof.issuedDate,
             oof.estimateValue
           FROM 
             ownershipownerfixedasset oof
