@@ -180,7 +180,7 @@ exports.getShopOwnerEmailDao = (id) => {
   });
 };
 
-exports.createGoviShopUser = (supplierData, adminId) => {
+exports.createGoviShopUser = (supplierData, adminId, accessStatus) => {
   return new Promise(async (resolve, reject) => {
     try {
       // 1. Generate date part (YYMMDD)
@@ -226,8 +226,8 @@ exports.createGoviShopUser = (supplierData, adminId) => {
           const insertSql = `
             INSERT INTO govi_shop.shopowners (
               ownername, shopPhone, email, nic, isAvailable, currentPlan, 
-              onbordStatus, onbordedAdmin, regCode
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+              onbordStatus, onbordedAdmin, regCode, accessStatus, isActivated
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `;
 
           collectionofficer.query(
@@ -241,7 +241,10 @@ exports.createGoviShopUser = (supplierData, adminId) => {
               supplierData.selectedSubscription,
               "Admin",
               adminId,
-              newRegCode
+              newRegCode,
+              accessStatus,
+              'Active'
+
             ],
             (err, results) => {
               if (err) {
@@ -262,115 +265,176 @@ exports.createGoviShopUser = (supplierData, adminId) => {
   });
 };
 
+exports.insertUserPaymentDetails = (slipUrl, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "INSERT INTO govi_shop.paymentplan (`ownerId`, `paymentSlip`) VALUES (?, ?)";
+    goviShop.query(sql, [id, slipUrl], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.affectedRows > 0);
+    });
+  });
+};
+
+
 exports.SendGeneratedPasswordDao = async (
   email,
   password,
   phone,
-  name
+  name,
+  subscription
 ) => {
   try {
-    const doc = new PDFDocument({
-      size: "A4",
-      margin: 50,
-    });
-    
+    const doc = new PDFDocument({ size: "A4", margin: 50 });
+
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    
-    /* ---------- CARD BACKGROUND ---------- */
+
+    /* ---------- CARD ---------- */
     doc
       .roundedRect(40, 40, 515, 700, 10)
-      .fillAndStroke("#f9fafb", "#e5e7eb");
-    
+      .fillAndStroke("#ffffff", "#e5e7eb");
+
     /* ---------- LOGO ---------- */
     const logo = path.resolve(__dirname, "../assets/govishop.png");
-    
-    doc.image(logo, 260, 60, { width: 75 });
-    
+    doc.image(logo, 255, 60, { width: 70 });
+
     /* ---------- TITLE ---------- */
     doc
-    .font("Helvetica-Bold") 
-    .fillColor("#02072C")
-    .fontSize(14)
-    .text("Your GoViShop Account Has Been Deleted", 80, 140, {
-      align: "center",
-    });
-    
+      .font("Helvetica-Bold")
+      .fillColor("#02072C")
+      .fontSize(14)
+      .text(
+        `Welcome to GoViShop – Your ${subscription} Plan is Activated`,
+        80,
+        140,
+        { align: "center", width: 440 }
+      );
+
     /* ---------- DIVIDER ---------- */
     doc
       .moveTo(80, 180)
       .lineTo(520, 180)
-      .strokeColor("#E8E6F6")
+      .strokeColor("#E5E7EB")
       .stroke();
-    
+
     /* ---------- BODY ---------- */
     doc
-      .fillColor("#02072C")
       .font("Helvetica-Bold")
       .fontSize(12)
+      .fillColor("#02072C")
       .text(`Dear ${name},`, 80, 200);
-    
-    
+
+    doc.moveDown();
+
     doc
-    .font("Helvetica")
-    .fillColor("#02072C")
-    .fontSize(12)
-    .text(
-      "We wanted to inform you that your GoViShop account has been deleted.",
-      {
-        width: 440,
-      }
+      .font("Helvetica")
+      .fontSize(12)
+      .fillColor("#02072C")
+      .text("Warm greetings from GoViShop!", { width: 440 });
+
+    doc.moveDown(0.5);
+
+    doc.text(
+      `We are pleased to inform you that your ${subscription} Plan has been successfully activated, and your account has been created.`,
+      { width: 440 }
     );
-    
-    /* ---------- REASON BOX ---------- */
+
+    doc.moveDown(0.5);
+
+    doc.text(
+      `Welcome to the GoViShop community! You can now start exploring our platform and enjoy the features available under your plan.`,
+      { width: 440 }
+    );
+
+    doc.moveDown();
+
+    doc.text("Your login details are as follows:", { width: 440 });
+
+    /* ---------- CREDENTIAL BOX ---------- */
+    const boxY = doc.y + 10;
+
     doc
-      .roundedRect(80, 260, 440, 60, 5)
-      .fill("#FEF3F3");
-    
+      .roundedRect(80, boxY, 440, 60, 6)
+      .fill("#FDE3C6");
+
     doc
-      .fillColor("#C91A3D")
-      .fontSize(12)
-      .text("Reason :", 100, 275);
-    
-    doc
-      .fillColor("#333C45")
-      .fontSize(12)
-      .text("Inactive account for extended period.", 100, 295);
-    
-    /* ---------- MORE TEXT ---------- */
+      .fillColor("#000000")
+      .fontSize(11)
+      .text(`Username: ${phone} / ${email}`, 95, boxY + 15);
+
+    doc.text(`Temporary Password: ${password}`, 95, boxY + 35);
+
+    doc.moveDown(5);
+
+    /* ---------- SECURITY NOTE ---------- */
     doc
       .fillColor("#02072C")
-      .fontSize(12)
+      .fontSize(11)
       .text(
-        "As a result, you will no longer be able to access your account or any associated services.",
+        "For security reasons, we strongly recommend that you change your password after your first login.",
         80,
-        340,
+        doc.y,
         { width: 440 }
       );
-    
-    doc
-      .fillColor("#02072C")
-      .fontSize(12)
-      .text("Thank you for your time on GoViShop.", {
+
+    doc.moveDown();
+
+    doc.text("To get started, simply log in using the link below:", {
       width: 440,
     });
-    
+
+    /* ---------- LOGIN BUTTON ---------- */
+    const btnY = doc.y + 15;
+
+    doc
+      .roundedRect(150, btnY, 300, 40, 8)
+      .fill("#FF7A00");
+
+    doc
+      .fillColor("#ffffff")
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .text("Login", 150, btnY + 13, {
+        width: 300,
+        align: "center",
+      });
+
+    doc.moveDown(4);
+
+    /* ---------- FALLBACK LINK ---------- */
+    doc
+      .font("Helvetica")
+      .fillColor("#02072C")
+      .fontSize(10)
+      .text(
+        "If the button doesn’t work, copy and paste the link into your browser:",
+        80,
+        doc.y,
+        { width: 440 }
+      );
+
+    doc
+      .fillColor("blue")
+      .text("https://your-login-link.com", {
+        underline: true,
+      });
+
+    doc.moveDown(2);
+
     /* ---------- FOOTER ---------- */
-    doc.moveDown();
-    
     doc
       .fillColor("#02072C")
-      .fontSize(12)
+      .fontSize(11)
       .text("Thank you,", 80);
+
     doc
-      .fillColor("#02072C")
-      .fontSize(12)
-      .font("Helvetica-Bold").text("GoViShop Team", 80);
-    
+      .font("Helvetica-Bold")
+      .text("GoViShop Team", 80);
+
     /* ---------- BOTTOM NOTE ---------- */
     doc
       .font("Helvetica")
-      .fontSize(10)
+      .fontSize(9)
       .fillColor("#9ca3af")
       .text(
         "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
@@ -378,31 +442,18 @@ exports.SendGeneratedPasswordDao = async (
         700,
         { align: "center", width: 440 }
       );
-    
+
     doc.text("Please note that this is an automated message.", {
       align: "center",
       width: 440,
     });
-    
-    /* ---------- END ---------- */
+
     doc.end();
     await new Promise((resolve) => doc.on("end", resolve));
 
-    const pdfData = Buffer.concat(pdfBuffer); // Concatenate the buffer data
+    const pdfData = Buffer.concat(pdfBuffer);
 
-    // const transporter = nodemailer.createTransport({
-    //   host: "smtp.gmail.com",
-    //   port: 465, // or 587 for TLS
-    //   secure: true,
-    //   auth: {
-    //     user: process.env.EMAIL_USER,
-    //     pass: process.env.EMAIL_PASS,
-    //   },
-    //   tls: {
-    //     family: 4,
-    //   },
-    // });
-
+    /* ---------- EMAIL ---------- */
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
@@ -411,32 +462,26 @@ exports.SendGeneratedPasswordDao = async (
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      tls: {
-        rejectUnauthorized: false, 
-      },
+      tls: { rejectUnauthorized: false },
     });
 
-    const mailOptions = {
+    await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
-      text: `Dear ${name},\n\nYour registration details are attached in the PDF.`,
+      subject: "Welcome to GoViShop – Your Account is Ready",
+      text: `Dear ${name},\n\nYour login details are attached.`,
       attachments: [
         {
-          filename: `Password_${name}.pdf`, // PDF file name
-          content: pdfData, // Attach the PDF buffer directly
+          filename: `Login_Details_${name}.pdf`,
+          content: pdfData,
         },
       ],
-    };
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent:", info.response);
-
-    return { success: true, message: "Email sent successfully!" };
+    return { success: true };
   } catch (error) {
-    console.error("Error sending email:", error);
-
-    return { success: false, message: "Failed to send email.", error };
+    console.error(error);
+    return { success: false, error };
   }
 };
 

@@ -5,6 +5,8 @@ const PDFDocument = require("pdfkit");
 const { resolve } = require("path");
 const path = require("path");
 const bcrypt = require("bcryptjs/dist/bcrypt");
+const uploadFileToS3 = require("../middlewares/s3upload");
+const deleteFromS3 = require("../middlewares/s3delete");
 
 exports.getAllGoviShopUsers = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -391,6 +393,18 @@ exports.sendOtp = async (req, res) => {
   }
 };
 
+
+const uploadImage = async (buffer, filename, folder) => {
+  return await uploadFileToS3(buffer, filename, folder);
+};
+
+const uploadBase64Image = async (base64, fileName, folder) => {
+  const base64String = base64.split(",")[1];
+  const buffer = Buffer.from(base64String, "base64");
+  return await uploadFileToS3(buffer, fileName, folder);
+};
+
+
 exports.createGoviShopUser = async (req, res) => {
 
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -410,10 +424,18 @@ exports.createGoviShopUser = async (req, res) => {
     console.log('file', req.files?.file?.[0]);
     const adminId = req.user.userId
 
+    let slipUrl = null;  
+
+    const uploadImage = async (buffer, filename, folder) => {
+      return await uploadFileToS3(buffer, filename, folder);
+    };
+
     console.log(req.user, 'user')
 
+    accessStatus = supplierData.selectedSubscription === 'Premium' ? 'Completed' : 'Free Access'
+
     const insertId = await GoviShopDAO.createGoviShopUser(
-      supplierData, adminId
+      supplierData, adminId, accessStatus
     );
 
     if (!insertId) {
@@ -426,6 +448,32 @@ exports.createGoviShopUser = async (req, res) => {
       });
     }
 
+    let paymentDetails;
+
+    if (supplierData.selectedSubscription == 'Premium') {
+      const slip = req.files?.file?.[0]; 
+      console.log('slip', slip)
+
+      if (slip) {
+        const slipName = `${supplierData.fullName}`;
+      
+        slipUrl = await uploadImage(
+          slip.buffer,
+          slipName,
+          "GoViShop/payment_slip"
+        );
+
+        paymentDetails = await GoviShopDAO.insertUserPaymentDetails(
+          slipUrl, insertId.results
+        );
+
+      } else {
+        console.log("No slip provided. Skipping upload.");
+      }
+
+      console.log('slipUrl', slipUrl)
+    }
+
     console.log('insertID', insertId)
 
     const generatedPassword = Math.random().toString(36).slice(-8); 
@@ -436,7 +484,8 @@ exports.createGoviShopUser = async (req, res) => {
       supplierData.email,
       generatedPassword,
       supplierData.mobileNumber,
-      supplierData.fullName
+      supplierData.fullName,
+      supplierData.selectedSubscription
 
     );
 
