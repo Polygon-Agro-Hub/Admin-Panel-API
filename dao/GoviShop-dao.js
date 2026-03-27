@@ -9,6 +9,9 @@ const {
 const nodemailer = require("nodemailer");
 const fs = require("fs");
 const path = require("path");
+const QRCode = require("qrcode");
+const uploadFileToS3 = require("../middlewares/s3upload");
+const PDFDocument = require("pdfkit");
 
 // -----------------------------------------------------------------------------------
 //example dao check line 19 instance (goviShop.query) carefully before copy pasting
@@ -177,6 +180,282 @@ exports.getShopOwnerEmailDao = (id) => {
   });
 };
 
+exports.createGoviShopUser = (supplierData, adminId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // 1. Generate date part (YYMMDD)
+      const today = new Date();
+      const yy = String(today.getFullYear()).slice(-2);
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+
+      const datePart = `${yy}${mm}${dd}`;
+      const prefix = `GSID${datePart}`;
+
+      // 2. Get last regCode for today
+      const getLastCodeSql = `
+        SELECT regCode 
+        FROM govi_shop.shopowners 
+        WHERE regCode LIKE ? 
+        ORDER BY regCode DESC 
+        LIMIT 1
+      `;
+
+      collectionofficer.query(
+        getLastCodeSql,
+        [`${prefix}%`],
+        (err, result) => {
+          if (err) {
+            console.log(err);
+            return reject(err);
+          }
+
+          let newSequence = "001";
+
+          if (result.length > 0) {
+            const lastCode = result[0].regCode; // e.g. GSID240326001
+            const lastNumber = parseInt(lastCode.slice(-3)); // get 001
+            newSequence = String(lastNumber + 1).padStart(3, "0");
+          }
+
+          const newRegCode = `${prefix}${newSequence}`;
+
+          console.log('newRegCode', newRegCode)
+
+          // 3. Insert query (add regCode column)
+          const insertSql = `
+            INSERT INTO govi_shop.shopowners (
+              ownername, shopPhone, email, nic, isAvailable, currentPlan, 
+              onbordStatus, onbordedAdmin, regCode
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `;
+
+          collectionofficer.query(
+            insertSql,
+            [
+              supplierData.fullName,
+              supplierData.mobileNumber,
+              supplierData.email,
+              supplierData.nic,
+              1,
+              supplierData.selectedSubscription,
+              "Admin",
+              adminId,
+              newRegCode
+            ],
+            (err, results) => {
+              if (err) {
+                console.log(err);
+                return reject(err);
+              }
+              console.log('results', results.insertId)
+              resolve({
+                results: results.insertId
+              });
+            }
+          );
+        }
+      );
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+exports.SendGeneratedPasswordDao = async (
+  email,
+  password,
+  phone,
+  name
+) => {
+  try {
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 50,
+    });
+    
+    const pdfBuffer = [];
+    doc.on("data", pdfBuffer.push.bind(pdfBuffer));
+    
+    /* ---------- CARD BACKGROUND ---------- */
+    doc
+      .roundedRect(40, 40, 515, 700, 10)
+      .fillAndStroke("#f9fafb", "#e5e7eb");
+    
+    /* ---------- LOGO ---------- */
+    const logo = path.resolve(__dirname, "../assets/govishop.png");
+    
+    doc.image(logo, 260, 60, { width: 75 });
+    
+    /* ---------- TITLE ---------- */
+    doc
+    .font("Helvetica-Bold") 
+    .fillColor("#02072C")
+    .fontSize(14)
+    .text("Your GoViShop Account Has Been Deleted", 80, 140, {
+      align: "center",
+    });
+    
+    /* ---------- DIVIDER ---------- */
+    doc
+      .moveTo(80, 180)
+      .lineTo(520, 180)
+      .strokeColor("#E8E6F6")
+      .stroke();
+    
+    /* ---------- BODY ---------- */
+    doc
+      .fillColor("#02072C")
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .text(`Dear ${name},`, 80, 200);
+    
+    
+    doc
+    .font("Helvetica")
+    .fillColor("#02072C")
+    .fontSize(12)
+    .text(
+      "We wanted to inform you that your GoViShop account has been deleted.",
+      {
+        width: 440,
+      }
+    );
+    
+    /* ---------- REASON BOX ---------- */
+    doc
+      .roundedRect(80, 260, 440, 60, 5)
+      .fill("#FEF3F3");
+    
+    doc
+      .fillColor("#C91A3D")
+      .fontSize(12)
+      .text("Reason :", 100, 275);
+    
+    doc
+      .fillColor("#333C45")
+      .fontSize(12)
+      .text("Inactive account for extended period.", 100, 295);
+    
+    /* ---------- MORE TEXT ---------- */
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .text(
+        "As a result, you will no longer be able to access your account or any associated services.",
+        80,
+        340,
+        { width: 440 }
+      );
+    
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .text("Thank you for your time on GoViShop.", {
+      width: 440,
+    });
+    
+    /* ---------- FOOTER ---------- */
+    doc.moveDown();
+    
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .text("Thank you,", 80);
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .font("Helvetica-Bold").text("GoViShop Team", 80);
+    
+    /* ---------- BOTTOM NOTE ---------- */
+    doc
+      .font("Helvetica")
+      .fontSize(10)
+      .fillColor("#9ca3af")
+      .text(
+        "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
+        80,
+        700,
+        { align: "center", width: 440 }
+      );
+    
+    doc.text("Please note that this is an automated message.", {
+      align: "center",
+      width: 440,
+    });
+    
+    /* ---------- END ---------- */
+    doc.end();
+    await new Promise((resolve) => doc.on("end", resolve));
+
+    const pdfData = Buffer.concat(pdfBuffer); // Concatenate the buffer data
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 465, // or 587 for TLS
+    //   secure: true,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: {
+    //     family: 4,
+    //   },
+    // });
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false, 
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
+      text: `Dear ${name},\n\nYour registration details are attached in the PDF.`,
+      attachments: [
+        {
+          filename: `Password_${name}.pdf`, // PDF file name
+          content: pdfData, // Attach the PDF buffer directly
+        },
+      ],
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.response);
+
+    return { success: true, message: "Email sent successfully!" };
+  } catch (error) {
+    console.error("Error sending email:", error);
+
+    return { success: false, message: "Failed to send email.", error };
+  }
+};
+
+exports.updateGovieShopPassword = (password, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            UPDATE shopowners
+            SET password = ?, isPasswordChanged = 0
+            WHERE id = ?
+        `;
+        goviShop.query(sql, [password, id], (err, results) => {
+        if (err) {
+          return reject(err); // Reject promise if an error occurs
+        }
+        resolve(results); // Resolve with the query results
+      }
+    );
+  });
+};
 
 exports.viewGoviShopSupplierByIdDao = (id) => {
   return new Promise((resolve, reject) => {

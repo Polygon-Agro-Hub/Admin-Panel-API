@@ -2,6 +2,7 @@ const express = require("express");
 const GoviShopEp = require("../end-point/GoviShop-ep");
 const authMiddleware = require("../middlewares/authMiddleware");
 const router = express.Router();
+const upload = require("../middlewares/uploadMiddleware");
 
 router.get(
   "/view-govi-shop-users",
@@ -13,6 +14,27 @@ router.delete(
   "/delete-govi-shop-user/:id",
   authMiddleware,
   GoviShopEp.deleteGoviShopUser,
+);
+
+router.post(
+  "/create-govi-shop-user",
+  authMiddleware,
+  upload.fields([
+    { name: "file", maxCount: 1 }
+  ]),
+  GoviShopEp.createGoviShopUser,
+);
+
+router.post(
+  "/check-phone",
+  authMiddleware,
+  GoviShopEp.checkPhone,
+);
+
+router.post(
+  "/send-otp",
+  authMiddleware,
+  GoviShopEp.sendOtp,
 );
 
 router.get(

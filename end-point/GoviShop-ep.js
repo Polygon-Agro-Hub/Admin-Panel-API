@@ -4,6 +4,7 @@ const nodemailer = require("nodemailer");
 const PDFDocument = require("pdfkit");
 const { resolve } = require("path");
 const path = require("path");
+const bcrypt = require("bcryptjs/dist/bcrypt");
 
 exports.getAllGoviShopUsers = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -305,6 +306,173 @@ async function SendEmail(email, ownerName) {
     return { success: false, message: "Failed to send email.", error };
   }
 }
+
+
+// const [
+    //   isExistingNIC,
+    //   isExistingEmail,
+    //   isExistingPhoneNumber01,
+    //   isExistingPhoneNumber02,
+    // ] = await Promise.all([
+    //   DistributionDao.checkNICExist(officerData.nic),
+    //   DistributionDao.checkEmailExist(officerData.email),
+    //   DistributionDao.checkPhoneNumberExist(officerData.phoneNumber01),
+    //   officerData.phoneNumber02
+    //     ? DistributionDao.checkPhoneNumberExist(officerData.phoneNumber02)
+    //     : Promise.resolve(false),
+    // ]);
+
+    // Collect all validation errors
+    // const validationErrors = [];
+    // if (isExistingNIC)
+    //   validationErrors.push('NIC');
+    // if (isExistingEmail)
+    //   validationErrors.push('email');
+    // if (isExistingPhoneNumber01)
+    //   validationErrors.push('phoneNumber01');
+    // if (isExistingPhoneNumber02)
+    //   validationErrors.push('phoneNumber02');
+
+    // if (validationErrors.length > 0) {
+    //   return res.status(400).json({
+    //     errors: validationErrors,
+    //     status: false
+    //   });
+    // }
+
+exports.checkPhone = async (req, res) => {
+
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+
+    const {mobileNumber} = req.body;
+
+    if (!mobileNumber) {
+      return res.status(400).json({
+        error: "mobileNumber is required",
+        status: false,
+      });
+    }
+    
+    res.json({
+      message: "mobile number exists",
+      status: true,
+    });
+  } catch (err) {
+    console.error("", err);
+    res.status(500).json({
+      message: "",
+      error: err.message,
+      status: false,
+    });
+  }
+};
+
+exports.sendOtp = async (req, res) => {
+
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+
+    const {mobileNumber} = req.body;
+    
+    res.json({
+      message: "",
+      status: true,
+    });
+  } catch (err) {
+    console.error("", err);
+    res.status(500).json({
+      message: "",
+      error: err.message,
+      status: false,
+    });
+  }
+};
+
+exports.createGoviShopUser = async (req, res) => {
+
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    if (!req.body.supplierData || req.body.supplierData.mobileNumber) {
+      return res.status(400).json({
+        error: "Supplier data is required",
+        status: false,
+      });
+    }
+
+    // Parse and sanitize officer data
+    const supplierData = JSON.parse(req.body.supplierData);
+
+    console.log('supplierData', supplierData)
+    console.log('file', req.files?.file?.[0]);
+    const adminId = req.user.userId
+
+    console.log(req.user, 'user')
+
+    const insertId = await GoviShopDAO.createGoviShopUser(
+      supplierData, adminId
+    );
+
+    if (!insertId) {
+      console.error(
+        "Officer creation failed - no rows affected or no ID returned"
+      );
+      return res.status(500).json({
+        error: "Failed to create officer record",
+        status: false,
+      });
+    }
+
+    console.log('insertID', insertId)
+
+    const generatedPassword = Math.random().toString(36).slice(-8); 
+
+    const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+
+    const emailResult = await GoviShopDAO.SendGeneratedPasswordDao(
+      supplierData.email,
+      generatedPassword,
+      supplierData.mobileNumber,
+      supplierData.fullName
+
+    );
+
+    if (!emailResult.success) {
+      return res.status(500).json({
+        message: "Failed to send password.",
+        error: emailResult.error,
+      });
+    }
+
+    const updateResult =
+      await GoviShopDAO.updateGovieShopPassword(
+        hashedPassword,
+        insertId.results
+       );
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(400).json({
+        message: "Failed to update password.",
+        status: false,
+      });
+    }
+    
+    res.json({
+      message: "",
+      status: true,
+    });
+  } catch (err) {
+    console.error("", err);
+    res.status(500).json({
+      message: "",
+      error: err.message,
+      status: false,
+    });
+  }
+};
 
 
 exports.viewGoviShopSupplierById = async (req, res) => {
