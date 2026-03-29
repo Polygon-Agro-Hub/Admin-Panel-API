@@ -289,11 +289,6 @@ exports.SendGeneratedPasswordDao = async (
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
 
-    /* ---------- CARD ---------- */
-    doc
-      .roundedRect(40, 40, 515, 700, 10)
-      .fillAndStroke("#ffffff", "#e5e7eb");
-
     /* ---------- LOGO ---------- */
     const logo = path.resolve(__dirname, "../assets/govishop.png");
     doc.image(logo, 255, 60, { width: 70 });
@@ -305,8 +300,7 @@ exports.SendGeneratedPasswordDao = async (
       .fontSize(14)
       .text(
         `Welcome to GoViShop – Your ${subscription} Plan is Activated`,
-        80,
-        140,
+        80, 140,
         { align: "center", width: 440 }
       );
 
@@ -334,19 +328,19 @@ exports.SendGeneratedPasswordDao = async (
 
     doc.moveDown(0.5);
 
-    doc.text(
-      `We are pleased to inform you that your ${subscription} Plan has been successfully activated, and your account has been created.`,
-      { width: 440 }
-    );
+    doc
+      .lineGap(6)
+      .text(
+        `We are pleased to inform you that your ${subscription} Plan has been successfully activated, and your account has been created.`,
+        { width: 440 }
+      );
 
-    doc.moveDown(0.5);
-
-    doc.text(
-      `Welcome to the GoViShop community! You can now start exploring our platform and enjoy the features available under your plan.`,
-      { width: 440 }
-    );
-
-    doc.moveDown();
+    doc
+      .lineGap(6)
+      .text(
+        `Welcome to the GoViShop community! You can now start exploring our platform and enjoy the features available under your plan.`,
+        { width: 440 }
+      );
 
     doc.text("Your login details are as follows:", { width: 440 });
 
@@ -359,25 +353,22 @@ exports.SendGeneratedPasswordDao = async (
 
     doc
       .fillColor("#000000")
-      .fontSize(11)
+      .fontSize(12)
       .text(`Username: ${phone} / ${email}`, 95, boxY + 15);
 
     doc.text(`Temporary Password: ${password}`, 95, boxY + 35);
 
-    doc.moveDown(5);
-
     /* ---------- SECURITY NOTE ---------- */
     doc
       .fillColor("#02072C")
-      .fontSize(11)
+      .lineGap(6)
+      .fontSize(12)
       .text(
         "For security reasons, we strongly recommend that you change your password after your first login.",
         80,
-        doc.y,
+        boxY + 80,
         { width: 440 }
       );
-
-    doc.moveDown();
 
     doc.text("To get started, simply log in using the link below:", {
       width: 440,
@@ -387,35 +378,49 @@ exports.SendGeneratedPasswordDao = async (
     const btnY = doc.y + 15;
 
     doc
-      .roundedRect(150, btnY, 300, 40, 8)
+      .roundedRect(80, btnY, 440, 40, 8)
       .fill("#FF7A00");
 
     doc
       .fillColor("#ffffff")
       .font("Helvetica-Bold")
       .fontSize(12)
-      .text("Login", 150, btnY + 13, {
-        width: 300,
+      .text("Login", 80, btnY + 13, {
+        width: 440,
         align: "center",
       });
 
-    doc.moveDown(4);
+    doc.link(80, btnY, 440, 40, "https://GoViShop-link.com");   // ← clickable overlay
+
+    doc.moveDown(2);
 
     /* ---------- FALLBACK LINK ---------- */
     doc
       .font("Helvetica")
       .fillColor("#02072C")
-      .fontSize(10)
+      .fontSize(12)
       .text(
-        "If the button doesn’t work, copy and paste the link into your browser:",
-        80,
-        doc.y,
+        "If the button doesn't work, copy and paste the link into your browser:",
+        80, doc.y,
         { width: 440 }
       );
 
+    doc.moveDown(0.5);
+
+    /* ---------- URL BOX ---------- */
+    const urlBoxY = doc.y;
+
     doc
-      .fillColor("blue")
-      .text("https://your-login-link.com", {
+      .roundedRect(80, urlBoxY, 440, 38, 6)     
+      .fill("#FAFAFA")
+      .stroke("#E5E7EB");
+
+    doc
+      .fillColor("#3177FF")
+      .font("Helvetica")
+      .fontSize(12)
+      .text("https://GoViShop-link.com", 95, urlBoxY + 13, {  
+        width: 420,
         underline: true,
       });
 
@@ -424,26 +429,43 @@ exports.SendGeneratedPasswordDao = async (
     /* ---------- FOOTER ---------- */
     doc
       .fillColor("#02072C")
-      .fontSize(11)
+      .fontSize(12)
+      .lineGap(0)
       .text("Thank you,", 80);
+
+    doc.moveDown(0.4);                           
 
     doc
       .font("Helvetica-Bold")
       .text("GoViShop Team", 80);
 
-    /* ---------- BOTTOM NOTE ---------- */
+    const cardBottomY = doc.y + 30;         
+    const cardHeight = cardBottomY - 40;    
+
+    doc.save();
+
+    doc
+      .roundedRect(40, 40, 515, cardHeight, 10)
+      .stroke("#e5e7eb");                   
+    doc.restore();
+
+    /* ---------- BOTTOM NOTE (outside card) ---------- */
     doc
       .font("Helvetica")
-      .fontSize(9)
-      .fillColor("#9ca3af")
+      .fontSize(10)
+      .fillColor("#666666")
       .text(
         "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
         80,
-        700,
+        cardBottomY + 15,
         { align: "center", width: 440 }
       );
+    doc.moveDown(1);
 
-    doc.text("Please note that this is an automated message.", {
+
+    doc
+    .fillColor('#868686')
+    .text("Please note that this is an automated message.", {
       align: "center",
       width: 440,
     });
@@ -453,17 +475,29 @@ exports.SendGeneratedPasswordDao = async (
 
     const pdfData = Buffer.concat(pdfBuffer);
 
-    /* ---------- EMAIL ---------- */
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      port: 465, // or 587 for TLS
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      tls: { rejectUnauthorized: false },
+      tls: {
+        family: 4,
+      },
     });
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 587,
+    //   secure: false,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: { rejectUnauthorized: false },
+    // });
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -492,12 +526,12 @@ exports.updateGovieShopPassword = (password, id) => {
             SET password = ?, isPasswordChanged = 0
             WHERE id = ?
         `;
-        goviShop.query(sql, [password, id], (err, results) => {
-        if (err) {
-          return reject(err); // Reject promise if an error occurs
-        }
-        resolve(results); // Resolve with the query results
+    goviShop.query(sql, [password, id], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
       }
+      resolve(results); // Resolve with the query results
+    }
     );
   });
 };
@@ -615,7 +649,7 @@ exports.getAllShowViewActionDAO = (page, limit, status, searchText, allSuppliers
           params.push(status);
           countParams.push(status);
           break;
-    
+
         case true:
           whereConditions.push(`su.currentPlan = ?`);
           params.push(status);
@@ -626,7 +660,7 @@ exports.getAllShowViewActionDAO = (page, limit, status, searchText, allSuppliers
 
     // Append WHERE conditions if any exist
     if (whereConditions.length > 0) {
-      whereClause += ' AND ' + whereConditions.join(" AND ");  
+      whereClause += ' AND ' + whereConditions.join(" AND ");
     }
 
     countSql += whereClause;
@@ -991,9 +1025,174 @@ exports.deleteGoviShopSupplierDao = (id) => {
         `;
     goviShop.query(sql, [id], (err, results) => {
       if (err) {
-        return reject(err); 
+        return reject(err);
       }
-      resolve(results); 
+      resolve(results);
+    });
+  });
+};
+
+
+exports.GetAllShopsByOwnerDAO = (
+  id,
+  page,
+  limit,
+  accessStatus,
+  approval,
+  bussinessType,
+  searchItem,
+) => {
+  return new Promise((resolve, reject) => {
+    const Sqlparams = [id];
+    const Counterparams = [id];
+    const offset = (page - 1) * limit;
+
+    // SQL to count total records - Added missing JOINs
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM govi_shop.govishops gs
+      WHERE gs.ownerId = ?
+    `;
+
+    // SQL to fetch paginated data
+    let sql = `
+      SELECT 
+        gs.id, 
+        gs.shopName,
+        gs.shopType,
+        gs.email,
+        gs.phone,
+        gs.updatedAt,
+        gs.logo,
+        gs.isActive,
+        gs.approvedStatus
+      FROM govi_shop.govishops gs
+      WHERE gs.ownerId = ?
+    `;
+
+    if (accessStatus) {
+      countSql += " AND gs.approvedStatus = ? ";
+      sql += " AND gs.approvedStatus = ? ";
+      Sqlparams.push(approval);
+      Counterparams.push(approval);
+    }
+
+    // Add filter for status
+    if (approval) {
+      countSql += " AND gs.approvedStatus = ? ";
+      sql += " AND gs.approvedStatus = ? ";
+      Sqlparams.push(approval);
+      Counterparams.push(approval);
+    }
+
+    // Fixed category filter to use the correct alias
+    if (bussinessType) {
+      countSql += " AND gs.shopType = ? ";
+      sql += " AND gs.shopType = ? ";
+      Sqlparams.push(bussinessType);
+      Counterparams.push(bussinessType);
+    }
+
+    // Add search functionality
+    if (searchItem) {
+      countSql += `
+        AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )
+      `;
+      sql += `
+        AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )
+      `;
+      const searchQuery = `%${searchItem}%`;
+      Sqlparams.push(searchQuery, searchQuery);
+      Counterparams.push(searchQuery, searchQuery);
+    }
+
+    // Add pagination
+    sql += " ORDER BY gs.updatedAt DESC LIMIT ? OFFSET ?";
+    Sqlparams.push(parseInt(limit), parseInt(offset));
+
+    // Execute count query to get total records
+    collectionofficer.query(
+      countSql,
+      Counterparams,
+      (countErr, countResults) => {
+        if (countErr) {
+          return reject(countErr);
+        }
+
+        const total = countResults[0]?.total || 0;
+
+        // Execute main query to get paginated results
+        collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
+          if (dataErr) {
+            return reject(dataErr);
+          }
+
+          resolve({ results, total });
+        });
+      }
+    );
+  });
+};
+
+exports.checkExistShopOwnerDao = (nic) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+          SELECT *
+          FROM govi_shop.shopowners
+          WHERE nic = ?
+      `;
+
+    collectionofficer.query(sql, [nic], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      let validationResult = false;
+      if (results.length > 0) {
+        validationResult = true;
+      }
+      resolve(validationResult);
+    });
+  });
+};
+
+exports.checkExistEmailsDao = (email) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+          SELECT *
+          FROM govi_shop.shopowners
+          WHERE email = ?
+      `;
+
+    collectionofficer.query(sql, [email], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      let validationResult = false;
+      if (results.length > 0) {
+        validationResult = true;
+      }
+      resolve(validationResult);
+    });
+  });
+};
+
+exports.checkExistPhoneDao = (phone1) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+          SELECT *
+          FROM govi_shop.shopowners
+          WHERE shopPhone = ?
+      `;
+
+    collectionofficer.query(sql, [phone1, phone1], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      let validationResult = false;
+      if (results.length > 0) {
+        validationResult = true;
+      }
+      resolve(validationResult);
     });
   });
 };
