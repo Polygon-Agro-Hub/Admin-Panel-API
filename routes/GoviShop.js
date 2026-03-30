@@ -67,4 +67,21 @@ router.delete(
   GoviShopEp.deleteGoviShopSupplierEp
 );
 
+router.get(
+  "/get-all-shops-by-owner",
+  authMiddleware,
+  GoviShopEp.getAllShopsByOwnerEp
+);
+
+router.get(
+  "/get-supplier-by-id/:id",
+  authMiddleware,
+  GoviShopEp.getGoviShopSupplierById,
+);
+
+router.post(
+  "/update-govi-shop-user",
+  authMiddleware,
+  GoviShopEp.updateGoviShopUser,
+);
 module.exports = router;

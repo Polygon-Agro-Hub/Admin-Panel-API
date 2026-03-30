@@ -657,7 +657,7 @@ exports.GetDistributionHeadDetailsByIdDao = (id) => {
       SELECT 
         co.id, 
         co.companyId, 
-        cc.centerName,  -- ✅ fetched from collectioncenter
+        cc.centerName, 
         co.irmId, 
         co.firstNameEnglish, 
         co.lastNameEnglish, 

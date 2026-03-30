@@ -5,6 +5,8 @@ const PDFDocument = require("pdfkit");
 const { resolve } = require("path");
 const path = require("path");
 const bcrypt = require("bcryptjs/dist/bcrypt");
+const uploadFileToS3 = require("../middlewares/s3upload");
+const deleteFromS3 = require("../middlewares/s3delete");
 
 exports.getAllGoviShopUsers = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -14,7 +16,7 @@ exports.getAllGoviShopUsers = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
-    
+
     const { search, currentPlan } = req.query;
 
     console.log('currentPlan', currentPlan)
@@ -56,7 +58,7 @@ exports.getAllGoviShopUsers = async (req, res) => {
 exports.deleteGoviShopUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const {reason} = req.body;
+    const { reason } = req.body;
 
     console.log('reason', reason, 'id', id)
     // Validate id param
@@ -139,117 +141,123 @@ async function SendEmail(email, ownerName) {
       size: "A4",
       margin: 50,
     });
-    
+
     const pdfBuffer = [];
     doc.on("data", pdfBuffer.push.bind(pdfBuffer));
-    
+
     /* ---------- CARD BACKGROUND ---------- */
     doc
-      .roundedRect(40, 40, 515, 700, 10)
+      .roundedRect(40, 40, 515, 480, 10)   // ← height 700 → 480
       .fillAndStroke("#f9fafb", "#e5e7eb");
-    
+
     /* ---------- LOGO ---------- */
     const logo = path.resolve(__dirname, "../assets/govishop.png");
-    
     doc.image(logo, 260, 60, { width: 75 });
-    
+
     /* ---------- TITLE ---------- */
     doc
-    .font("Helvetica-Bold") // ✅ set bold font
-    .fillColor("#02072C")
-    .fontSize(14)
-    .text("Your GoViShop Account Has Been Deleted", 80, 140, {
-      align: "center",
-    });
-    
+      .font("Helvetica-Bold")
+      .fillColor("#02072C")
+      .fontSize(14)
+      .text("Your GoViShop Account Has Been Deleted", 80, 140, {
+        align: "center",
+      });
+
     /* ---------- DIVIDER ---------- */
     doc
       .moveTo(80, 180)
       .lineTo(520, 180)
       .strokeColor("#E8E6F6")
       .stroke();
-    
+
     /* ---------- BODY ---------- */
     doc
       .fillColor("#02072C")
       .font("Helvetica-Bold")
       .fontSize(12)
+      .lineGap(6)
       .text(`Dear ${ownerName},`, 80, 200);
-    
-    
+
     doc
-    .font("Helvetica")
-    .fillColor("#02072C")
-    .fontSize(12)
-    .text(
-      "We wanted to inform you that your GoViShop account has been deleted.",
-      {
-        width: 440,
-      }
-    );
-    
+      .font("Helvetica")
+      .fillColor("#02072C")
+      .fontSize(12)
+      .lineGap(6)                                           // ← added
+      .text(
+        "We wanted to inform you that your GoViShop account has been deleted.",
+        { width: 440 }
+      );
+
     /* ---------- REASON BOX ---------- */
     doc
       .roundedRect(80, 260, 440, 60, 5)
       .fill("#FEF3F3");
-    
+
     doc
       .fillColor("#C91A3D")
       .fontSize(12)
+      .lineGap(0)                                           // ← reset inside box
       .text("Reason :", 100, 275);
-    
+
     doc
       .fillColor("#333C45")
       .fontSize(12)
       .text("Inactive account for extended period.", 100, 295);
-    
+
     /* ---------- MORE TEXT ---------- */
     doc
       .fillColor("#02072C")
       .fontSize(12)
+      .lineGap(6)                                           // ← added
       .text(
         "As a result, you will no longer be able to access your account or any associated services.",
         80,
         340,
         { width: 440 }
       );
-    
+
     doc
       .fillColor("#02072C")
       .fontSize(12)
-      .text("Thank you for your time on GoViShop.", {
-      width: 440,
-    });
-    
+      .lineGap(6)                                           // ← added
+      .text("Thank you for your time on GoViShop.", { width: 440 });
+
     /* ---------- FOOTER ---------- */
     doc.moveDown();
-    
+
     doc
       .fillColor("#02072C")
       .fontSize(12)
+      .lineGap(6)                                           // ← added
       .text("Thank you,", 80);
+
     doc
       .fillColor("#02072C")
       .fontSize(12)
-      .font("Helvetica-Bold").text("GoViShop Team", 80);
-    
-    /* ---------- BOTTOM NOTE ---------- */
+      .font("Helvetica-Bold")
+      .lineGap(0)                                           // ← reset
+      .text("GoViShop Team", 80);
+
+    /* ---------- BOTTOM NOTE (outside card) ---------- */  // ← moved outside
     doc
       .font("Helvetica")
       .fontSize(10)
+      .lineGap(6)
       .fillColor("#9ca3af")
       .text(
         "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
         80,
-        700,
+        535,                                                  // ← below card
         { align: "center", width: 440 }
       );
-    
-    doc.text("Please note that this is an automated message.", {
-      align: "center",
-      width: 440,
-    });
-    
+
+    doc
+      .lineGap(6)
+      .text("Please note that this is an automated message.", {
+        align: "center",
+        width: 440,
+      });
+
     /* ---------- END ---------- */
     doc.end();
     await new Promise((resolve) => doc.on("end", resolve));
@@ -278,7 +286,7 @@ async function SendEmail(email, ownerName) {
     //     pass: process.env.EMAIL_PASS,
     //   },
     //   tls: {
-    //     rejectUnauthorized: false, 
+    //     rejectUnauthorized: false,
     //   },
     // });
 
@@ -286,11 +294,11 @@ async function SendEmail(email, ownerName) {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
-      text: `Dear ,\n\nYour registration details are attached in the PDF.`,
+      subject: "PolygonAgro (Pvt) Ltd - GoViShop Supplier Account Has Been Deleted",
+      text: `Dear ${ownerName},\n\nDetails are attached in the PDF.`,
       attachments: [
         {
-          filename: `password_.pdf`, // PDF file name
+          filename: `GovViShop_Supplier_Account_Delete.pdf`, // PDF file name
           content: pdfData, // Attach the PDF buffer directly
         },
       ],
@@ -308,37 +316,6 @@ async function SendEmail(email, ownerName) {
 }
 
 
-// const [
-    //   isExistingNIC,
-    //   isExistingEmail,
-    //   isExistingPhoneNumber01,
-    //   isExistingPhoneNumber02,
-    // ] = await Promise.all([
-    //   DistributionDao.checkNICExist(officerData.nic),
-    //   DistributionDao.checkEmailExist(officerData.email),
-    //   DistributionDao.checkPhoneNumberExist(officerData.phoneNumber01),
-    //   officerData.phoneNumber02
-    //     ? DistributionDao.checkPhoneNumberExist(officerData.phoneNumber02)
-    //     : Promise.resolve(false),
-    // ]);
-
-    // Collect all validation errors
-    // const validationErrors = [];
-    // if (isExistingNIC)
-    //   validationErrors.push('NIC');
-    // if (isExistingEmail)
-    //   validationErrors.push('email');
-    // if (isExistingPhoneNumber01)
-    //   validationErrors.push('phoneNumber01');
-    // if (isExistingPhoneNumber02)
-    //   validationErrors.push('phoneNumber02');
-
-    // if (validationErrors.length > 0) {
-    //   return res.status(400).json({
-    //     errors: validationErrors,
-    //     status: false
-    //   });
-    // }
 
 exports.checkPhone = async (req, res) => {
 
@@ -346,7 +323,7 @@ exports.checkPhone = async (req, res) => {
   console.log('fullUrl', fullUrl)
   try {
 
-    const {mobileNumber} = req.body;
+    const { mobileNumber } = req.body;
 
     if (!mobileNumber) {
       return res.status(400).json({
@@ -354,7 +331,7 @@ exports.checkPhone = async (req, res) => {
         status: false,
       });
     }
-    
+
     res.json({
       message: "mobile number exists",
       status: true,
@@ -375,8 +352,8 @@ exports.sendOtp = async (req, res) => {
   console.log('fullUrl', fullUrl)
   try {
 
-    const {mobileNumber} = req.body;
-    
+    const { mobileNumber } = req.body;
+
     res.json({
       message: "",
       status: true,
@@ -390,6 +367,18 @@ exports.sendOtp = async (req, res) => {
     });
   }
 };
+
+
+const uploadImage = async (buffer, filename, folder) => {
+  return await uploadFileToS3(buffer, filename, folder);
+};
+
+const uploadBase64Image = async (base64, fileName, folder) => {
+  const base64String = base64.split(",")[1];
+  const buffer = Buffer.from(base64String, "base64");
+  return await uploadFileToS3(buffer, fileName, folder);
+};
+
 
 exports.createGoviShopUser = async (req, res) => {
 
@@ -410,10 +399,38 @@ exports.createGoviShopUser = async (req, res) => {
     console.log('file', req.files?.file?.[0]);
     const adminId = req.user.userId
 
+    let validationErrors = [];
+
+    const [
+      isExistingNIC,
+      isExistingEmail,
+      isExistingPhoneNumber01,
+    ] = await Promise.all([
+      GoviShopDAO.checkExistShopOwnerDao(supplierData.nic),
+      GoviShopDAO.checkExistEmailsDao(supplierData.email),
+      GoviShopDAO.checkExistPhoneDao(supplierData.mobileNumber)
+    ]);
+
+    if (isExistingNIC) validationErrors.push("NIC");
+    if (isExistingEmail) validationErrors.push("Email");
+    if (isExistingPhoneNumber01) validationErrors.push("phone");
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ errors: validationErrors, status: false });
+    }
+
+    let slipUrl = null;
+
+    const uploadImage = async (buffer, filename, folder) => {
+      return await uploadFileToS3(buffer, filename, folder);
+    };
+
     console.log(req.user, 'user')
 
+    accessStatus = supplierData.selectedSubscription === 'Premium' ? 'Completed' : 'Free Access'
+
     const insertId = await GoviShopDAO.createGoviShopUser(
-      supplierData, adminId
+      supplierData, adminId, accessStatus
     );
 
     if (!insertId) {
@@ -426,9 +443,35 @@ exports.createGoviShopUser = async (req, res) => {
       });
     }
 
+    let paymentDetails;
+
+    if (supplierData.selectedSubscription == 'Premium') {
+      const slip = req.files?.file?.[0];
+      console.log('slip', slip)
+
+      if (slip) {
+        const slipName = `${supplierData.fullName}`;
+
+        slipUrl = await uploadImage(
+          slip.buffer,
+          slipName,
+          "GoViShop/payment_slip"
+        );
+
+        paymentDetails = await GoviShopDAO.insertUserPaymentDetails(
+          slipUrl, insertId.results
+        );
+
+      } else {
+        console.log("No slip provided. Skipping upload.");
+      }
+
+      console.log('slipUrl', slipUrl)
+    }
+
     console.log('insertID', insertId)
 
-    const generatedPassword = Math.random().toString(36).slice(-8); 
+    const generatedPassword = Math.random().toString(36).slice(-8);
 
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
 
@@ -436,7 +479,8 @@ exports.createGoviShopUser = async (req, res) => {
       supplierData.email,
       generatedPassword,
       supplierData.mobileNumber,
-      supplierData.fullName
+      supplierData.fullName,
+      supplierData.selectedSubscription
 
     );
 
@@ -451,7 +495,7 @@ exports.createGoviShopUser = async (req, res) => {
       await GoviShopDAO.updateGovieShopPassword(
         hashedPassword,
         insertId.results
-       );
+      );
 
     if (updateResult.affectedRows === 0) {
       return res.status(400).json({
@@ -459,7 +503,7 @@ exports.createGoviShopUser = async (req, res) => {
         status: false,
       });
     }
-    
+
     res.json({
       message: "",
       status: true,
@@ -646,3 +690,140 @@ exports.deleteGoviShopSupplierEp = async (req, res) => {
       .json({ error: "An error occurred while Updated Statuss" });
   }
 };
+
+exports.getAllShopsByOwnerEp = async (req, res) => {
+  try {
+    console.log(req.query);
+    const { id, page, limit, accessStatus, approval, bussinessType, searchItem } =
+      req.query;
+
+    const { results, total } = await GoviShopDAO.GetAllShopsByOwnerDAO(
+      id,
+      page,
+      limit,
+      accessStatus,
+      approval,
+      bussinessType,
+      searchItem,
+    );
+
+    console.log("results", results);
+
+    console.log("Successfully retrieved all collection centre");
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching news:", err);
+    res.status(500).json({ error: "An error occurred while fetching news" });
+  }
+};
+
+exports.getGoviShopSupplierById = async (req, res) => {
+  try {
+    const { id } = await GoviShopValidation.viewGoviShopSupplierByIdSchema.validateAsync(req.params);
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Shop user id is required",
+      });
+    }
+
+    const shopUser = await GoviShopDAO.getGoViShopSupplierById(id);
+
+    if (!shopUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop user not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: shopUser,
+    });
+  } catch (error) {
+    console.error("View Govi Shop Supplier Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.updateGoviShopUser = async (req, res) => {
+
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    if (!req.body) {
+      return res.status(400).json({
+        error: "Supplier data is required",
+        status: false,
+      });
+    }
+
+    console.log('supplierData', req.body);
+
+    // Parse and sanitize officer data
+    const supplierData = req.body;
+
+    console.log('supplierData', supplierData)
+    const adminId = req.user.userId
+
+    let validationErrors = [];
+
+    const [
+      isExistingNIC,
+      isExistingEmail,
+      isExistingPhoneNumber01,
+    ] = await Promise.all([
+      GoviShopDAO.checkExistShopOwnerDao(supplierData.nic, supplierData.id),       
+      GoviShopDAO.checkExistEmailsDao(supplierData.email, supplierData.id),
+      GoviShopDAO.checkExistPhoneDao(supplierData.mobileNumber, supplierData.id)
+    ]);
+
+    if (isExistingNIC) validationErrors.push("NIC");
+    if (isExistingEmail) validationErrors.push("Email");
+    if (isExistingPhoneNumber01) validationErrors.push("phone");
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ errors: validationErrors, status: false });
+    }
+
+    console.log(req.user, 'user')
+
+    const result = await GoviShopDAO.updateGoviShopUser(
+      supplierData
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "GoViShop Supplier not found or no changes made",
+      });
+    }
+
+    res.json({
+      message: "GoViShop Supplier details updated successfully",
+      status: true,
+      data: {
+        id: supplierData.id,
+        affectedRows: result.affectedRows,
+      }
+    });
+  } catch (err) {
+    console.error("Error updating GoViShop Supplier details", err);
+    res.status(500).json({
+      message: "",
+      error: err.message,
+      status: false,
+    });
+  }
+};
+
