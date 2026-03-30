@@ -1196,3 +1196,102 @@ exports.checkExistPhoneDao = (phone1) => {
     });
   });
 };
+
+exports.getGoViShopSupplierById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        su.id,
+        su.ownername AS fullName,
+        su.email,
+        su.nic,
+        su.shopPhone AS mobileNumber
+
+      FROM govi_shop.shopowners su
+      WHERE su.id = ?
+    `;
+
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+
+exports.checkExistShopOwnerDao = (nic, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT *
+      FROM govi_shop.shopowners
+      WHERE nic = ? AND id != ?       
+    `;
+
+    collectionofficer.query(sql, [nic, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.length > 0);
+    });
+  });
+};
+
+exports.checkExistEmailsDao = (email, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT *
+      FROM govi_shop.shopowners
+      WHERE email = ? AND id != ?  
+    `;
+
+    collectionofficer.query(sql, [email, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.length > 0);
+    });
+  });
+};
+
+exports.checkExistPhoneDao = (phone1, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT *
+      FROM govi_shop.shopowners
+      WHERE shopPhone = ? AND id != ?  
+    `;
+
+    collectionofficer.query(sql, [phone1, id], (err, results) => {      
+      if (err) return reject(err);
+      resolve(results.length > 0);
+    });
+  });
+};
+
+exports.updateGoviShopUser = (supplierData) => {
+
+  return new Promise((resolve, reject) => {
+    let sql = `
+      UPDATE govi_shop.shopowners
+      SET 
+        ownerName = ?, shopPhone = ?, email = ?, nic = ?
+      WHERE id = ?
+    `;
+
+    const values = [
+      supplierData.ownerName,
+      supplierData.shopPhone,
+      supplierData.email,
+      supplierData.nic,
+      supplierData.id
+    ];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log("GoViShop Supplier details updated successfully");
+      console.log("Affected rows:", results.affectedRows);
+      resolve(results);
+    });
+  });
+};

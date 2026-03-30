@@ -175,7 +175,7 @@ async function SendEmail(email, ownerName) {
       .fillColor("#02072C")
       .font("Helvetica-Bold")
       .fontSize(12)
-      .lineGap(6) 
+      .lineGap(6)
       .text(`Dear ${ownerName},`, 80, 200);
 
     doc
@@ -242,7 +242,7 @@ async function SendEmail(email, ownerName) {
     doc
       .font("Helvetica")
       .fontSize(10)
-      .lineGap(6) 
+      .lineGap(6)
       .fillColor("#9ca3af")
       .text(
         "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
@@ -252,11 +252,11 @@ async function SendEmail(email, ownerName) {
       );
 
     doc
-    .lineGap(6) 
-    .text("Please note that this is an automated message.", {
-      align: "center",
-      width: 440,
-    });
+      .lineGap(6)
+      .text("Please note that this is an automated message.", {
+        align: "center",
+        width: 440,
+      });
 
     /* ---------- END ---------- */
     doc.end();
@@ -722,3 +722,108 @@ exports.getAllShopsByOwnerEp = async (req, res) => {
     res.status(500).json({ error: "An error occurred while fetching news" });
   }
 };
+
+exports.getGoviShopSupplierById = async (req, res) => {
+  try {
+    const { id } = await GoviShopValidation.viewGoviShopSupplierByIdSchema.validateAsync(req.params);
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Shop user id is required",
+      });
+    }
+
+    const shopUser = await GoviShopDAO.getGoViShopSupplierById(id);
+
+    if (!shopUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop user not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: shopUser,
+    });
+  } catch (error) {
+    console.error("View Govi Shop Supplier Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.updateGoviShopUser = async (req, res) => {
+
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    if (!req.body) {
+      return res.status(400).json({
+        error: "Supplier data is required",
+        status: false,
+      });
+    }
+
+    console.log('supplierData', req.body);
+
+    // Parse and sanitize officer data
+    const supplierData = req.body;
+
+    console.log('supplierData', supplierData)
+    const adminId = req.user.userId
+
+    let validationErrors = [];
+
+    const [
+      isExistingNIC,
+      isExistingEmail,
+      isExistingPhoneNumber01,
+    ] = await Promise.all([
+      GoviShopDAO.checkExistShopOwnerDao(supplierData.nic, supplierData.id),       
+      GoviShopDAO.checkExistEmailsDao(supplierData.email, supplierData.id),
+      GoviShopDAO.checkExistPhoneDao(supplierData.mobileNumber, supplierData.id)
+    ]);
+
+    if (isExistingNIC) validationErrors.push("NIC");
+    if (isExistingEmail) validationErrors.push("Email");
+    if (isExistingPhoneNumber01) validationErrors.push("phone");
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ errors: validationErrors, status: false });
+    }
+
+    console.log(req.user, 'user')
+
+    const result = await GoviShopDAO.updateGoviShopUser(
+      supplierData
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "GoViShop Supplier not found or no changes made",
+      });
+    }
+
+    res.json({
+      message: "GoViShop Supplier details updated successfully",
+      status: true,
+      data: {
+        id: supplierData.id,
+        affectedRows: result.affectedRows,
+      }
+    });
+  } catch (err) {
+    console.error("Error updating GoViShop Supplier details", err);
+    res.status(500).json({
+      message: "",
+      error: err.message,
+      status: false,
+    });
+  }
+};
+
