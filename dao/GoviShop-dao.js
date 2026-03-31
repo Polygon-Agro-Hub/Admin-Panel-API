@@ -1397,7 +1397,7 @@ exports.getGoViShopById = (id) => {
     const sql = `
       SELECT 
         gs.id,
-        gs.shopName AS fullName,
+        gs.shopName,
         gs.email,
         gs.address,
         gs.phone AS mobileNumber
