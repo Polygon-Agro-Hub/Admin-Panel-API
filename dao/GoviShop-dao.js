@@ -411,7 +411,7 @@ exports.SendGeneratedPasswordDao = async (
     const urlBoxY = doc.y;
 
     doc
-      .roundedRect(80, urlBoxY, 440, 38, 6)     
+      .roundedRect(80, urlBoxY, 440, 38, 6)
       .fill("#FAFAFA")
       .stroke("#E5E7EB");
 
@@ -419,7 +419,7 @@ exports.SendGeneratedPasswordDao = async (
       .fillColor("#3177FF")
       .font("Helvetica")
       .fontSize(12)
-      .text("https://GoViShop-link.com", 95, urlBoxY + 13, {  
+      .text("https://GoViShop-link.com", 95, urlBoxY + 13, {
         width: 420,
         underline: true,
       });
@@ -433,20 +433,20 @@ exports.SendGeneratedPasswordDao = async (
       .lineGap(0)
       .text("Thank you,", 80);
 
-    doc.moveDown(0.4);                           
+    doc.moveDown(0.4);
 
     doc
       .font("Helvetica-Bold")
       .text("GoViShop Team", 80);
 
-    const cardBottomY = doc.y + 30;         
-    const cardHeight = cardBottomY - 40;    
+    const cardBottomY = doc.y + 30;
+    const cardHeight = cardBottomY - 40;
 
     doc.save();
 
     doc
       .roundedRect(40, 40, 515, cardHeight, 10)
-      .stroke("#e5e7eb");                   
+      .stroke("#e5e7eb");
     doc.restore();
 
     /* ---------- BOTTOM NOTE (outside card) ---------- */
@@ -464,11 +464,11 @@ exports.SendGeneratedPasswordDao = async (
 
 
     doc
-    .fillColor('#868686')
-    .text("Please note that this is an automated message.", {
-      align: "center",
-      width: 440,
-    });
+      .fillColor('#868686')
+      .text("Please note that this is an automated message.", {
+        align: "center",
+        width: 440,
+      });
 
     doc.end();
     await new Promise((resolve) => doc.on("end", resolve));
@@ -594,33 +594,33 @@ exports.getAllShowViewActionDAO = (page, limit, status, searchText, allSuppliers
   const offset = (page - 1) * limit;
   return new Promise((resolve, reject) => {
 
-    let whereClause = `WHERE 1=1 AND su.isAvailable = 1`;
+    let whereClause = `WHERE 1=1 AND so.isAvailable = 1`;
 
     if (!allSuppliers) {
-      whereClause += ` AND su.userStatus != 'Activate' `
+      whereClause += ` AND so.accessStatus IN ('Pending', 'Rejected') `
     }
 
     console.log('whereClause', whereClause)
 
     let countSql = `
       SELECT COUNT(*) as total 
-       FROM govi_shop.shopusers su
-       LEFT JOIN agro_world_admin.adminusers a ON su.acticatedBy = a.id
+       FROM govi_shop.shopowners so
     `;
 
     let dataSql = `
       SELECT
-        su.id,
-        su.shopName, 
-        su.ownername, 
-        su.shopPhone, 
-        su.nic, 
-        su.userStatus, 
-        su.currentPlan,
-        su.acticatedAt, 
-        a.userName 
-      FROM govi_shop.shopusers su 
-      LEFT JOIN agro_world_admin.adminusers a ON su.acticatedBy = a.id
+        so.id,
+        so.ownername, 
+        so.nic, 
+        so.shopPhone, 
+        so.isActivated,
+        so.accessStatus,
+        so.currentPlan,
+        DATE_ADD(so.activatedAt, INTERVAL '5:30' HOUR_MINUTE) AS activatedAt, 
+        a.userName AS updatedAt
+      FROM govi_shop.shopowners so 
+      LEFT JOIN agro_world_admin.adminusers a ON so.activatedBy = a.id
+
     `;
 
     const params = [];
@@ -628,34 +628,23 @@ exports.getAllShowViewActionDAO = (page, limit, status, searchText, allSuppliers
 
     let whereConditions = [];
 
-    if (searchText) {
-      whereConditions.push(`
-          (
-            su.shopName LIKE ?
-            OR su.nic LIKE ?
-            OR su.shopPhone LIKE ?
-          )
-        `);
+    // if (searchText) {
+    //   whereConditions.push(`
+    //       (
+    //         su.shopName LIKE ?
+    //         OR su.nic LIKE ?
+    //         OR su.shopPhone LIKE ?
+    //       )
+    //     `);
 
-      const searchValue = `%${searchText}%`;
-      params.push(...Array(3).fill(searchValue));
-      countParams.push(...Array(3).fill(searchValue));
-    }
+    //   const searchValue = `%${searchText}%`;
+    //   params.push(...Array(3).fill(searchValue));
+    //   countParams.push(...Array(3).fill(searchValue));
+    // }
 
     if (status) {
-      switch (allSuppliers) {
-        case false:
-          whereConditions.push(`su.userStatus = ?`);
-          params.push(status);
-          countParams.push(status);
-          break;
-
-        case true:
-          whereConditions.push(`su.currentPlan = ?`);
-          params.push(status);
-          countParams.push(status);
-          break;
-      }
+      if (status === 'Deactivate') whereConditions.push(` so.accessStatus = 'Pending' `);
+      else if (status === 'Rejected') whereConditions.push(` so.accessStatus = 'Rejected' `);
     }
 
     // Append WHERE conditions if any exist
@@ -666,7 +655,7 @@ exports.getAllShowViewActionDAO = (page, limit, status, searchText, allSuppliers
     countSql += whereClause;
     dataSql += whereClause;
 
-    dataSql += " ORDER BY su.createdAt DESC";
+    dataSql += " ORDER BY so.createdAt DESC";
 
     dataSql += " LIMIT ? OFFSET ?";
     params.push(limit, offset);
@@ -701,16 +690,18 @@ exports.goviShopViewDocumentDAO = (id) => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT
-        id,
-        shopName,
-        ownername,
-        shopPhone,
-        nic,
-        userStatus,
-        brImg,
-        paySlip
-      FROM shopusers
-      WHERE id = ?
+          so.id,
+          so.ownername,
+          so.shopPhone,
+          so.nic,
+          so.accessStatus,
+          so.isActivated,
+          so.currentPlan,
+          pp.paymentSlip,
+          pp.planPrice
+      FROM shopowners so
+      LEFT JOIN paymentplan pp ON so.id = pp.ownerId AND pp.id = ( SELECT MAX(id) FROM paymentplan WHERE ownerId = so.id)
+      WHERE so.id = ?;
     `;
 
     goviShop.query(sql, [id], (err, results) => {
@@ -1098,7 +1089,7 @@ exports.GetAllShopsByOwnerDAO = (
     // Add search functionality
     if (searchItem) {
       countSql += " AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )";
-      sql +=  " AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )";
+      sql += " AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )";
       const searchQuery = `%${searchItem}%`;
       Sqlparams.push(searchQuery, searchQuery);
       Counterparams.push(searchQuery, searchQuery);
@@ -1260,7 +1251,7 @@ exports.checkExistPhoneDao = (phone1, id) => {
       WHERE shopPhone = ? AND id != ?  
     `;
 
-    collectionofficer.query(sql, [phone1, id], (err, results) => {      
+    collectionofficer.query(sql, [phone1, id], (err, results) => {
       if (err) return reject(err);
       resolve(results.length > 0);
     });
@@ -1315,7 +1306,7 @@ exports.GetAllShopRequestsDAO = (
       LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
       WHERE gs.approvedStatus != 'Approved'
     `;
-    
+
     // SQL to fetch paginated data
     let sql = `
       SELECT 
