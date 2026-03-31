@@ -226,8 +226,8 @@ exports.createGoviShopUser = (supplierData, adminId, accessStatus) => {
           const insertSql = `
             INSERT INTO govi_shop.shopowners (
               ownername, shopPhone, email, nic, isAvailable, currentPlan, 
-              onbordStatus, onbordedAdmin, regCode, accessStatus, isActivated
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              onbordStatus, onbordedAdmin, regCode, accessStatus, isActivated, activatedBy
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `;
 
           collectionofficer.query(
@@ -243,7 +243,8 @@ exports.createGoviShopUser = (supplierData, adminId, accessStatus) => {
               adminId,
               newRegCode,
               accessStatus,
-              'Active'
+              'Active',
+              adminId
 
             ],
             (err, results) => {
@@ -253,7 +254,8 @@ exports.createGoviShopUser = (supplierData, adminId, accessStatus) => {
               }
               console.log('results', results.insertId)
               resolve({
-                results: results.insertId
+                insertId: results.insertId,
+                regCode: newRegCode
               });
             }
           );
@@ -265,12 +267,80 @@ exports.createGoviShopUser = (supplierData, adminId, accessStatus) => {
   });
 };
 
-exports.insertUserPaymentDetails = (slipUrl, id) => {
+exports.deleteGoviShopSupplierRecordDao = (id) => {
   return new Promise((resolve, reject) => {
-    const sql = "INSERT INTO govi_shop.paymentplan (`ownerId`, `paymentSlip`) VALUES (?, ?)";
-    goviShop.query(sql, [id, slipUrl], (err, results) => {
+    const sql = `
+        Delete FROM govi_shop.shopowners so
+        WHERE so.id = ?
+        `;
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.insertUserPaymentDetails = (slipUrl, id, regCode) => {
+  return new Promise((resolve, reject) => {
+
+    // Step 1: Get last transaction for this regCode
+    const getLastIdSql = `
+      SELECT transactionId 
+      FROM govi_shop.paymentplan 
+      WHERE transactionId LIKE ?
+      ORDER BY id DESC 
+      LIMIT 1
+    `;
+
+    // Match IDs starting with this regCode (or userId if that's your base)
+    const likePattern = `${regCode}%`;
+
+    goviShop.query(getLastIdSql, [likePattern], (err, result) => {
       if (err) return reject(err);
-      resolve(results.affectedRows > 0);
+
+      const today = new Date();
+      const yy = String(today.getFullYear()).slice(-2);
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+
+      const datePart = `${yy}${mm}${dd}`;
+
+      let sequence = '01';
+
+      // Step 2: Extract last sequence if exists
+      if (result.length > 0 && result[0].transactionId) {
+        const lastId = result[0].transactionId;
+
+        // last 2 digits = sequence
+        const lastSeq = lastId.slice(-2);
+
+        const nextSeq = parseInt(lastSeq, 10) + 1;
+        sequence = String(nextSeq).padStart(2, '0');
+      }
+
+      // Step 3: Build transaction ID using regCode
+      const transactionId = `${regCode}${datePart}${sequence}`;
+
+      // Step 4: Insert
+      const insertSql = `
+        INSERT INTO govi_shop.paymentplan 
+        (ownerId, planPrice, transactionId, paymentSlip) 
+        VALUES (?, ?, ?, ?)
+      `;
+
+      goviShop.query(
+        insertSql,
+        [id, 1200, transactionId, slipUrl],
+        (err, results) => {
+          if (err) return reject(err);
+          resolve({
+            success: results.affectedRows > 0,
+            transactionId
+          });
+        }
+      );
     });
   });
 };
@@ -1146,6 +1216,8 @@ exports.checkExistShopOwnerDao = (nic) => {
   });
 };
 
+
+
 exports.checkExistEmailsDao = (email) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1258,29 +1330,30 @@ exports.checkExistPhoneDao = (phone1, id) => {
   });
 };
 
-exports.updateGoviShopUser = (supplierData) => {
+exports.updateGoviShopUser = (shopData, adminId) => {
 
   return new Promise((resolve, reject) => {
     let sql = `
-      UPDATE govi_shop.shopowners
+      UPDATE govi_shop.govishops
       SET 
-        ownerName = ?, shopPhone = ?, email = ?, nic = ?
+        shopName = ?, email = ?, phone = ?, address = ?, updatedby = ?, updatedAt = NOW()
       WHERE id = ?
     `;
 
     const values = [
-      supplierData.ownerName,
-      supplierData.shopPhone,
-      supplierData.email,
-      supplierData.nic,
-      supplierData.id
+      shopData.shopName,
+      shopData.email,
+      shopData.mobileNumber,
+      shopData.address,
+      adminId,
+      shopData.id
     ];
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         return reject(err);
       }
-      console.log("GoViShop Supplier details updated successfully");
+      console.log("GoViShop details updated successfully");
       console.log("Affected rows:", results.affectedRows);
       resolve(results);
     });
@@ -1406,3 +1479,76 @@ exports.getGoViShopById = (id) => {
     });
   });
 };
+
+
+exports.checkExistShopEmailsDao = (email, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT *
+      FROM govi_shop.govishops
+      WHERE email = ? AND id != ?  
+    `;
+
+    collectionofficer.query(sql, [email, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.length > 0);
+    });
+  });
+};
+
+exports.checkExistShopPhoneDao = (phone1, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT *
+      FROM govi_shop.govishops
+      WHERE phone = ? AND id != ?  
+    `;
+
+    collectionofficer.query(sql, [phone1, id], (err, results) => {      
+      if (err) return reject(err);
+      resolve(results.length > 0);
+    });
+  });
+};
+
+
+exports.getGoViShopByIdDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        gs.id AS shopId,
+        gs.shopName,
+        gs.address,
+        gs.email,
+        gs.shopType,
+        gs.phone AS mobileNumber,
+        gs.updatedAt,
+        gs.updatedBy,
+        gs.logo,
+        gs.shopTypeImg,
+        gs.isActive,
+        gs.approvedStatus,
+        so.ownerName,
+        so.nic,
+        so.shopPhone,
+        au1.userName AS approvedBY,
+        au2.userName AS updatedBy
+
+      FROM govi_shop.govishops gs
+      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
+      LEFT JOIN agro_world_admin.adminusers au1 ON gs.approvedBy = au1.id
+      LEFT JOIN agro_world_admin.adminusers au2 ON gs.updatedBy = au2.id
+      WHERE gs.id = ?
+    `;
+
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+

@@ -96,4 +96,18 @@ router.get(
   authMiddleware,
   GoviShopEp.getGoviShopById,
 );
+
+
+router.post(
+  "/update-govi-shop",
+  authMiddleware,
+  GoviShopEp.updateGoviShopUser,
+);
+
+router.get(
+  "/get-shop-by-id/:id",
+  authMiddleware,
+  GoviShopEp.getGoviShopById,
+);
+
 module.exports = router;
