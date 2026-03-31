@@ -204,11 +204,10 @@ async function SendEmail(email, ownerName) {
       .fontSize(12)
       .text("Inactive account for extended period.", 100, 295);
 
-    /* ---------- MORE TEXT ---------- */
     doc
       .fillColor("#02072C")
       .fontSize(12)
-      .lineGap(6)                                           // ← added
+      .lineGap(6)                                           
       .text(
         "As a result, you will no longer be able to access your account or any associated services.",
         80,
@@ -219,7 +218,7 @@ async function SendEmail(email, ownerName) {
     doc
       .fillColor("#02072C")
       .fontSize(12)
-      .lineGap(6)                                           // ← added
+      .lineGap(6)                                           
       .text("Thank you for your time on GoViShop.", { width: 440 });
 
     /* ---------- FOOTER ---------- */
@@ -228,17 +227,16 @@ async function SendEmail(email, ownerName) {
     doc
       .fillColor("#02072C")
       .fontSize(12)
-      .lineGap(6)                                           // ← added
+      .lineGap(6)                                          
       .text("Thank you,", 80);
 
     doc
       .fillColor("#02072C")
       .fontSize(12)
       .font("Helvetica-Bold")
-      .lineGap(0)                                           // ← reset
+      .lineGap(0)                                           
       .text("GoViShop Team", 80);
 
-    /* ---------- BOTTOM NOTE (outside card) ---------- */  // ← moved outside
     doc
       .font("Helvetica")
       .fontSize(10)
@@ -247,7 +245,7 @@ async function SendEmail(email, ownerName) {
       .text(
         "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
         80,
-        535,                                                  // ← below card
+        535,                                                  
         { align: "center", width: 440 }
       );
 
@@ -258,7 +256,6 @@ async function SendEmail(email, ownerName) {
         width: 440,
       });
 
-    /* ---------- END ---------- */
     doc.end();
     await new Promise((resolve) => doc.on("end", resolve));
 
@@ -692,6 +689,8 @@ exports.deleteGoviShopSupplierEp = async (req, res) => {
 };
 
 exports.getAllShopsByOwnerEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
   try {
     console.log(req.query);
     const { id, page, limit, accessStatus, approval, bussinessType, searchItem } =
@@ -827,3 +826,71 @@ exports.updateGoviShopUser = async (req, res) => {
   }
 };
 
+exports.getAllShopRequests = async (req, res) => {
+  try {
+    console.log(req.query);
+
+    const { page, limit,  approval, bussinessType, searchItem } =
+      await GoviShopValidation.getAllGoViShopSchema.validateAsync(
+        req.query
+    );
+
+    const { results, total } = await GoviShopDAO.GetAllShopRequestsDAO(
+      page,
+      limit,
+      approval,
+      bussinessType,
+      searchItem,
+    );
+
+    console.log("results", results);
+
+    console.log("Successfully retrieved all collection centre");
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      // Validation error
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching news:", err);
+    res.status(500).json({ error: "An error occurred while fetching news" });
+  }
+};
+
+exports.getGoviShopById = async (req, res) => {
+  try {
+    const { id } = await GoviShopValidation.viewGoviShopSupplierByIdSchema.validateAsync(req.params);
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "GoViShop id is required",
+      });
+    }
+
+    const shopUser = await GoviShopDAO.getGoViShopById(id);
+
+    if (!shopUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop user not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: shopUser,
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+    console.error("View Govi Shop Supplier Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
