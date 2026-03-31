@@ -27,3 +27,11 @@ exports.updateGoviShopUserParamsSchema = Joi.object({
 exports.updateGoviShopUserBodySchema = Joi.object({
   status: Joi.string().valid("Activate", "Deactivate", "Rejected", "Expired").required(),
 });
+
+exports.getAllGoViShopSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).default(10).optional(),
+  approval: Joi.string().optional(),
+  bussinessType: Joi.string().optional(),
+  searchItem: Joi.string().optional(),
+});

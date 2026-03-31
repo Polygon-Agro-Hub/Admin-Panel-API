@@ -1062,8 +1062,8 @@ exports.GetAllShopsByOwnerDAO = (
         gs.shopType,
         gs.email,
         gs.phone,
-        gs.updatedAt,
-        gs.logo,
+        DATE_ADD(gs.updatedAt, INTERVAL 330 MINUTE) AS updatedAt,
+        gs.shopTypeImg AS logo,
         gs.isActive,
         gs.approvedStatus
       FROM govi_shop.govishops gs
@@ -1071,10 +1071,12 @@ exports.GetAllShopsByOwnerDAO = (
     `;
 
     if (accessStatus) {
-      countSql += " AND gs.approvedStatus = ? ";
-      sql += " AND gs.approvedStatus = ? ";
-      Sqlparams.push(approval);
-      Counterparams.push(approval);
+
+      const active = accessStatus === 'Active' ? 1 : 0;
+      countSql += " AND gs.isActive = ? ";
+      sql += " AND gs.isActive = ? ";
+      Sqlparams.push(active);
+      Counterparams.push(active);
     }
 
     // Add filter for status
@@ -1095,12 +1097,8 @@ exports.GetAllShopsByOwnerDAO = (
 
     // Add search functionality
     if (searchItem) {
-      countSql += `
-        AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )
-      `;
-      sql += `
-        AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )
-      `;
+      countSql += " AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )";
+      sql +=  " AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )";
       const searchQuery = `%${searchItem}%`;
       Sqlparams.push(searchQuery, searchQuery);
       Counterparams.push(searchQuery, searchQuery);
@@ -1109,6 +1107,8 @@ exports.GetAllShopsByOwnerDAO = (
     // Add pagination
     sql += " ORDER BY gs.updatedAt DESC LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
+
+    console.log('sql', sql)
 
     // Execute count query to get total records
     collectionofficer.query(
@@ -1292,6 +1292,126 @@ exports.updateGoviShopUser = (supplierData) => {
       console.log("GoViShop Supplier details updated successfully");
       console.log("Affected rows:", results.affectedRows);
       resolve(results);
+    });
+  });
+};
+
+exports.GetAllShopRequestsDAO = (
+  page,
+  limit,
+  approval,
+  bussinessType,
+  searchItem,
+) => {
+  return new Promise((resolve, reject) => {
+    const Sqlparams = [];
+    const Counterparams = [];
+    const offset = (page - 1) * limit;
+
+    // SQL to count total records - Added missing JOINs
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM govi_shop.govishops gs
+      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
+      WHERE gs.approvedStatus != 'Approved'
+    `;
+    
+    // SQL to fetch paginated data
+    let sql = `
+      SELECT 
+        gs.id, 
+        gs.shopName,
+        gs.shopType,
+        gs.email,
+        gs.phone,
+        DATE_ADD(gs.updatedAt, INTERVAL 330 MINUTE) AS updatedAt,
+        gs.shopTypeImg AS logo,
+        gs.isActive,
+        gs.approvedStatus,
+        so.ownerName,
+        so.shopPhone As ownerPhone
+      FROM govi_shop.govishops gs
+      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
+      WHERE gs.approvedStatus != 'Approved'
+    `;
+
+    // Add filter for status
+    if (approval) {
+      countSql += " AND gs.approvedStatus = ? ";
+      sql += " AND gs.approvedStatus = ? ";
+      Sqlparams.push(approval);
+      Counterparams.push(approval);
+    }
+
+    // Fixed category filter to use the correct alias
+    if (bussinessType) {
+      countSql += " AND gs.shopType = ? ";
+      sql += " AND gs.shopType = ? ";
+      Sqlparams.push(bussinessType);
+      Counterparams.push(bussinessType);
+    }
+
+    // Add search functionality
+    if (searchItem) {
+      countSql += `
+        AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )
+      `;
+      sql += `
+        AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )
+      `;
+      const searchQuery = `%${searchItem}%`;
+      Sqlparams.push(searchQuery, searchQuery);
+      Counterparams.push(searchQuery, searchQuery);
+    }
+
+    // Add pagination
+    sql += " ORDER BY gs.updatedAt DESC LIMIT ? OFFSET ?";
+    Sqlparams.push(parseInt(limit), parseInt(offset));
+
+    // Execute count query to get total records
+    collectionofficer.query(
+      countSql,
+      Counterparams,
+      (countErr, countResults) => {
+        if (countErr) {
+          return reject(countErr);
+        }
+
+        const total = countResults[0]?.total || 0;
+
+        // Execute main query to get paginated results
+        collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
+          if (dataErr) {
+            return reject(dataErr);
+          }
+
+          resolve({ results, total });
+        });
+      }
+    );
+  });
+};
+
+exports.getGoViShopById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        gs.id,
+        gs.shopName AS fullName,
+        gs.email,
+        gs.address,
+        gs.phone AS mobileNumber
+
+      FROM govi_shop.govishops gs
+      WHERE gs.id = ?
+    `;
+
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
     });
   });
 };
