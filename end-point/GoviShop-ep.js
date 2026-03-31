@@ -426,11 +426,11 @@ exports.createGoviShopUser = async (req, res) => {
 
     accessStatus = supplierData.selectedSubscription === 'Premium' ? 'Completed' : 'Free Access'
 
-    const insertId = await GoviShopDAO.createGoviShopUser(
+    const createResults = await GoviShopDAO.createGoviShopUser(
       supplierData, adminId, accessStatus
     );
 
-    if (!insertId) {
+    if (!createResults.insertId) {
       console.error(
         "Officer creation failed - no rows affected or no ID returned"
       );
@@ -442,7 +442,7 @@ exports.createGoviShopUser = async (req, res) => {
 
     let paymentDetails;
 
-    if (supplierData.selectedSubscription == 'Premium') {
+    if (supplierData.selectedSubscription === 'Premium') {
       const slip = req.files?.file?.[0];
       console.log('slip', slip)
 
@@ -456,17 +456,35 @@ exports.createGoviShopUser = async (req, res) => {
         );
 
         paymentDetails = await GoviShopDAO.insertUserPaymentDetails(
-          slipUrl, insertId.results
+          slipUrl, createResults.insertId, createResults.regCode
         );
+
+        if (!paymentDetails) {
+          console.error(
+            "Payment details inser failed"
+          );
+          return res.status(500).json({
+            error: "Failed to insert payment details",
+            status: false,
+          });
+        }
 
       } else {
         console.log("No slip provided. Skipping upload.");
+        const deleteRecord = await GoviShopDAO.deleteGoviShopSupplierRecordDao(
+          createResults.insertId
+        );
+
+        return res.status(400).json({
+          error: "Please upload the playment slip",
+          status: false,
+        });
       }
 
       console.log('slipUrl', slipUrl)
     }
 
-    console.log('insertID', insertId)
+    console.log('insertID', createResults.insertId)
 
     const generatedPassword = Math.random().toString(36).slice(-8);
 
@@ -491,7 +509,7 @@ exports.createGoviShopUser = async (req, res) => {
     const updateResult =
       await GoviShopDAO.updateGovieShopPassword(
         hashedPassword,
-        insertId.results
+        createResults.insertId
       );
 
     if (updateResult.affectedRows === 0) {
@@ -502,13 +520,13 @@ exports.createGoviShopUser = async (req, res) => {
     }
 
     res.json({
-      message: "",
+      message: "GoViShop owner creation successfull",
       status: true,
     });
   } catch (err) {
-    console.error("", err);
+    console.error("Error occured while creating GoViShop Owner", err);
     res.status(500).json({
-      message: "",
+      message: "Error occured while creating GoViShop Owner",
       error: err.message,
       status: false,
     });
@@ -888,6 +906,111 @@ exports.getGoviShopById = async (req, res) => {
       return res.status(400).json({ error: error.details[0].message });
     }
     console.error("View Govi Shop Supplier Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.updateGoviShopUser = async (req, res) => {
+
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    if (!req.body) {
+      return res.status(400).json({
+        error: "Shop data is required",
+        status: false,
+      });
+    }
+
+    console.log('ShopData', req.body);
+
+    // Parse and sanitize officer data
+    const shopData = req.body;
+
+    console.log('ShopData', shopData)
+    const adminId = req.user.userId
+
+    let validationErrors = [];
+
+    const [
+      isExistingNIC,
+      isExistingEmail,
+      isExistingPhoneNumber01,
+    ] = await Promise.all([   
+      GoviShopDAO.checkExistShopEmailsDao(shopData.email, shopData.id),
+      GoviShopDAO.checkExistShopPhoneDao(shopData.mobileNumber, shopData.id)
+    ]);
+
+    if (isExistingEmail) validationErrors.push("Email");
+    if (isExistingPhoneNumber01) validationErrors.push("phone");
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ errors: validationErrors, status: false });
+    }
+
+    console.log(req.user, 'user')
+
+    const result = await GoviShopDAO.updateGoviShopUser(
+      shopData, adminId
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "GoViShop not found or no changes made",
+      });
+    }
+
+    res.json({
+      message: "GoViShop details updated successfully",
+      status: true,
+      data: {
+        id: shopData.id,
+        affectedRows: result.affectedRows,
+      }
+    });
+  } catch (err) {
+    console.error("Error updating GoViShop details", err);
+    res.status(500).json({
+      message: "",
+      error: err.message,
+      status: false,
+    });
+  }
+};
+
+exports.getGoviShopById = async (req, res) => {
+  try {
+    const { id } = await GoviShopValidation.viewGoviShopSupplierByIdSchema.validateAsync(req.params);
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Shop id is required",
+      });
+    }
+
+    const shopData = await GoviShopDAO.getGoViShopByIdDao(id);
+
+    if (!shopData) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop Data not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: shopData,
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+    console.error("View Govi Shop DataError:", error);
     return res.status(500).json({
       success: false,
       message: "Internal server error",
