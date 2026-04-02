@@ -382,7 +382,7 @@ exports.createGoviShopUser = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log('fullUrl', fullUrl)
   try {
-    if (!req.body.supplierData || req.body.supplierData.mobileNumber) {
+    if (!req.body.supplierData) {
       return res.status(400).json({
         error: "Supplier data is required",
         status: false,
@@ -408,13 +408,20 @@ exports.createGoviShopUser = async (req, res) => {
       GoviShopDAO.checkExistPhoneDao(supplierData.mobileNumber)
     ]);
 
+    console.log('isExistingNIC', isExistingNIC, 'isExistingEmail', isExistingEmail, 'isExistingPhoneNumber01', isExistingPhoneNumber01)
+
     if (isExistingNIC) validationErrors.push("NIC");
     if (isExistingEmail) validationErrors.push("Email");
     if (isExistingPhoneNumber01) validationErrors.push("phone");
 
     if (validationErrors.length > 0) {
+      console.log('val errors', validationErrors )
       return res.status(400).json({ errors: validationErrors, status: false });
     }
+
+    isExistingNIC = await GoviShopDAO.checkExistShopOwnerDao(supplierData.nic);
+
+    console.log('isExistingNIC', isExistingNIC)
 
     let slipUrl = null;
 

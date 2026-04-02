@@ -545,29 +545,29 @@ exports.SendGeneratedPasswordDao = async (
 
     const pdfData = Buffer.concat(pdfBuffer);
 
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465, // or 587 for TLS
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      tls: {
-        family: 4,
-      },
-    });
-
     // const transporter = nodemailer.createTransport({
     //   host: "smtp.gmail.com",
-    //   port: 587,
-    //   secure: false,
+    //   port: 465, // or 587 for TLS
+    //   secure: true,
     //   auth: {
     //     user: process.env.EMAIL_USER,
     //     pass: process.env.EMAIL_PASS,
     //   },
-    //   tls: { rejectUnauthorized: false },
+    //   tls: {
+    //     family: 4,
+    //   },
     // });
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: { rejectUnauthorized: false },
+    });
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -1196,27 +1196,26 @@ exports.GetAllShopsByOwnerDAO = (
 };
 
 exports.checkExistShopOwnerDao = (nic) => {
+  console.log('called nic check')
   return new Promise((resolve, reject) => {
     const sql = `
-          SELECT *
-          FROM govi_shop.shopowners
-          WHERE nic = ?
-      `;
+      SELECT id
+      FROM govi_shop.shopowners
+      WHERE nic = ?
+      LIMIT 1
+    `;
 
     collectionofficer.query(sql, [nic], (err, results) => {
       if (err) {
         return reject(err);
       }
-      let validationResult = false;
-      if (results.length > 0) {
-        validationResult = true;
-      }
-      resolve(validationResult);
+
+      console.log('results', results);
+
+      resolve(results.length > 0);
     });
   });
 };
-
-
 
 exports.checkExistEmailsDao = (email) => {
   return new Promise((resolve, reject) => {
@@ -1230,7 +1229,7 @@ exports.checkExistEmailsDao = (email) => {
       if (err) {
         return reject(err);
       }
-      let validationResult = false;
+      let validationResult;
       if (results.length > 0) {
         validationResult = true;
       }
@@ -1251,7 +1250,7 @@ exports.checkExistPhoneDao = (phone1) => {
       if (err) {
         return reject(err);
       }
-      let validationResult = false;
+      let validationResult;
       if (results.length > 0) {
         validationResult = true;
       }
