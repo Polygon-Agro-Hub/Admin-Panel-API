@@ -72,9 +72,8 @@ exports.getAllGoviShopUsers = (limit, offset, search, currentPlanFilter) => {
 
     // Add search condition if search parameter is provided
     if (search) {
-
-      countSql += `AND (su.nic LIKE ? OR su.shopPhone LIKE ?)`
-      dataSql += `AND (su.nic LIKE ? OR su.shopPhone LIKE ?)`
+      countSql += `AND (su.nic LIKE ? OR su.shopPhone LIKE ?)`;
+      dataSql += `AND (su.nic LIKE ? OR su.shopPhone LIKE ?)`;
       const searchValue = `%${search}%`;
       dataParams.push(searchValue, searchValue);
       countParams.push(searchValue, searchValue);
@@ -82,9 +81,8 @@ exports.getAllGoviShopUsers = (limit, offset, search, currentPlanFilter) => {
 
     // Add currentPlan filter if provided
     if (currentPlanFilter) {
-
-      countSql += `AND su.currentPlan = ?`
-      dataSql += `AND su.currentPlan = ?`
+      countSql += `AND su.currentPlan = ?`;
+      dataSql += `AND su.currentPlan = ?`;
       dataParams.push(currentPlanFilter);
       countParams.push(currentPlanFilter);
     }
@@ -112,7 +110,7 @@ exports.getAllGoviShopUsers = (limit, offset, search, currentPlanFilter) => {
 
         resolve({
           total: total,
-          shopUsers: results
+          shopUsers: results,
         });
       });
     });
@@ -147,14 +145,14 @@ exports.deleteGoviShopUser = (id) => {
 
 exports.InsertReason = (id, reason) => {
   return new Promise((resolve, reject) => {
-    const sql = "INSERT INTO govi_shop.removeownerreson (`ownerId`, `reason`) VALUES (?, ?)";
+    const sql =
+      "INSERT INTO govi_shop.removeownerreson (`ownerId`, `reason`) VALUES (?, ?)";
     goviShop.query(sql, [id, reason], (err, results) => {
       if (err) return reject(err);
       resolve(results.affectedRows > 0);
     });
   });
 };
-
 
 exports.getShopOwnerEmailDao = (id) => {
   return new Promise((resolve, reject) => {
@@ -171,7 +169,7 @@ exports.getShopOwnerEmailDao = (id) => {
       if (results.length > 0) {
         resolve({
           email: results[0].email, // Resolve with email
-          ownerName: results[0].ownerName
+          ownerName: results[0].ownerName,
         });
       } else {
         resolve(null); // Resolve with null if no record is found
@@ -201,66 +199,61 @@ exports.createGoviShopUser = (supplierData, adminId, accessStatus) => {
         LIMIT 1
       `;
 
-      collectionofficer.query(
-        getLastCodeSql,
-        [`${prefix}%`],
-        (err, result) => {
-          if (err) {
-            console.log(err);
-            return reject(err);
-          }
+      collectionofficer.query(getLastCodeSql, [`${prefix}%`], (err, result) => {
+        if (err) {
+          console.log(err);
+          return reject(err);
+        }
 
-          let newSequence = "001";
+        let newSequence = "001";
 
-          if (result.length > 0) {
-            const lastCode = result[0].regCode; // e.g. GSID240326001
-            const lastNumber = parseInt(lastCode.slice(-3)); // get 001
-            newSequence = String(lastNumber + 1).padStart(3, "0");
-          }
+        if (result.length > 0) {
+          const lastCode = result[0].regCode; // e.g. GSID240326001
+          const lastNumber = parseInt(lastCode.slice(-3)); // get 001
+          newSequence = String(lastNumber + 1).padStart(3, "0");
+        }
 
-          const newRegCode = `${prefix}${newSequence}`;
+        const newRegCode = `${prefix}${newSequence}`;
 
-          console.log('newRegCode', newRegCode)
+        console.log("newRegCode", newRegCode);
 
-          // 3. Insert query (add regCode column)
-          const insertSql = `
+        // 3. Insert query (add regCode column)
+        const insertSql = `
             INSERT INTO govi_shop.shopowners (
               ownername, shopPhone, email, nic, isAvailable, currentPlan, 
               onbordStatus, onbordedAdmin, regCode, accessStatus, isActivated, activatedBy
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `;
 
-          collectionofficer.query(
-            insertSql,
-            [
-              supplierData.fullName,
-              supplierData.mobileNumber,
-              supplierData.email,
-              supplierData.nic,
-              1,
-              supplierData.selectedSubscription,
-              "Admin",
-              adminId,
-              newRegCode,
-              accessStatus,
-              'Active',
-              adminId
-
-            ],
-            (err, results) => {
-              if (err) {
-                console.log(err);
-                return reject(err);
-              }
-              console.log('results', results.insertId)
-              resolve({
-                insertId: results.insertId,
-                regCode: newRegCode
-              });
+        collectionofficer.query(
+          insertSql,
+          [
+            supplierData.fullName,
+            supplierData.mobileNumber,
+            supplierData.email,
+            supplierData.nic,
+            1,
+            supplierData.selectedSubscription,
+            "Admin",
+            adminId,
+            newRegCode,
+            accessStatus,
+            "Active",
+            adminId,
+          ],
+          (err, results) => {
+            if (err) {
+              console.log(err);
+              return reject(err);
             }
-          );
-        }
-      );
+            console.log("results", results.insertId);
+            resolve({
+              insertId: results.insertId,
+              regCode: newRegCode,
+            });
+          },
+        );
+      });
     } catch (error) {
       reject(error);
     }
@@ -284,7 +277,6 @@ exports.deleteGoviShopSupplierRecordDao = (id) => {
 
 exports.insertUserPaymentDetails = (slipUrl, id, regCode) => {
   return new Promise((resolve, reject) => {
-
     // Step 1: Get last transaction for this regCode
     const getLastIdSql = `
       SELECT transactionId 
@@ -302,12 +294,12 @@ exports.insertUserPaymentDetails = (slipUrl, id, regCode) => {
 
       const today = new Date();
       const yy = String(today.getFullYear()).slice(-2);
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
 
       const datePart = `${yy}${mm}${dd}`;
 
-      let sequence = '01';
+      let sequence = "01";
 
       // Step 2: Extract last sequence if exists
       if (result.length > 0 && result[0].transactionId) {
@@ -317,7 +309,7 @@ exports.insertUserPaymentDetails = (slipUrl, id, regCode) => {
         const lastSeq = lastId.slice(-2);
 
         const nextSeq = parseInt(lastSeq, 10) + 1;
-        sequence = String(nextSeq).padStart(2, '0');
+        sequence = String(nextSeq).padStart(2, "0");
       }
 
       // Step 3: Build transaction ID using regCode
@@ -337,21 +329,20 @@ exports.insertUserPaymentDetails = (slipUrl, id, regCode) => {
           if (err) return reject(err);
           resolve({
             success: results.affectedRows > 0,
-            transactionId
+            transactionId,
           });
-        }
+        },
       );
     });
   });
 };
-
 
 exports.SendGeneratedPasswordDao = async (
   email,
   password,
   phone,
   name,
-  subscription
+  subscription,
 ) => {
   try {
     const doc = new PDFDocument({ size: "A4", margin: 50 });
@@ -370,16 +361,13 @@ exports.SendGeneratedPasswordDao = async (
       .fontSize(14)
       .text(
         `Welcome to GoViShop – Your ${subscription} Plan is Activated`,
-        80, 140,
-        { align: "center", width: 440 }
+        80,
+        140,
+        { align: "center", width: 440 },
       );
 
     /* ---------- DIVIDER ---------- */
-    doc
-      .moveTo(80, 180)
-      .lineTo(520, 180)
-      .strokeColor("#E5E7EB")
-      .stroke();
+    doc.moveTo(80, 180).lineTo(520, 180).strokeColor("#E5E7EB").stroke();
 
     /* ---------- BODY ---------- */
     doc
@@ -402,14 +390,14 @@ exports.SendGeneratedPasswordDao = async (
       .lineGap(6)
       .text(
         `We are pleased to inform you that your ${subscription} Plan has been successfully activated, and your account has been created.`,
-        { width: 440 }
+        { width: 440 },
       );
 
     doc
       .lineGap(6)
       .text(
         `Welcome to the GoViShop community! You can now start exploring our platform and enjoy the features available under your plan.`,
-        { width: 440 }
+        { width: 440 },
       );
 
     doc.text("Your login details are as follows:", { width: 440 });
@@ -417,9 +405,7 @@ exports.SendGeneratedPasswordDao = async (
     /* ---------- CREDENTIAL BOX ---------- */
     const boxY = doc.y + 10;
 
-    doc
-      .roundedRect(80, boxY, 440, 60, 6)
-      .fill("#FDE3C6");
+    doc.roundedRect(80, boxY, 440, 60, 6).fill("#FDE3C6");
 
     doc
       .fillColor("#000000")
@@ -437,7 +423,7 @@ exports.SendGeneratedPasswordDao = async (
         "For security reasons, we strongly recommend that you change your password after your first login.",
         80,
         boxY + 80,
-        { width: 440 }
+        { width: 440 },
       );
 
     doc.text("To get started, simply log in using the link below:", {
@@ -447,9 +433,7 @@ exports.SendGeneratedPasswordDao = async (
     /* ---------- LOGIN BUTTON ---------- */
     const btnY = doc.y + 15;
 
-    doc
-      .roundedRect(80, btnY, 440, 40, 8)
-      .fill("#FF7A00");
+    doc.roundedRect(80, btnY, 440, 40, 8).fill("#FF7A00");
 
     doc
       .fillColor("#ffffff")
@@ -460,7 +444,7 @@ exports.SendGeneratedPasswordDao = async (
         align: "center",
       });
 
-    doc.link(80, btnY, 440, 40, "https://GoViShop-link.com");   // ← clickable overlay
+    doc.link(80, btnY, 440, 40, "https://GoViShop-link.com"); // ← clickable overlay
 
     doc.moveDown(2);
 
@@ -471,8 +455,9 @@ exports.SendGeneratedPasswordDao = async (
       .fontSize(12)
       .text(
         "If the button doesn't work, copy and paste the link into your browser:",
-        80, doc.y,
-        { width: 440 }
+        80,
+        doc.y,
+        { width: 440 },
       );
 
     doc.moveDown(0.5);
@@ -480,10 +465,7 @@ exports.SendGeneratedPasswordDao = async (
     /* ---------- URL BOX ---------- */
     const urlBoxY = doc.y;
 
-    doc
-      .roundedRect(80, urlBoxY, 440, 38, 6)
-      .fill("#FAFAFA")
-      .stroke("#E5E7EB");
+    doc.roundedRect(80, urlBoxY, 440, 38, 6).fill("#FAFAFA").stroke("#E5E7EB");
 
     doc
       .fillColor("#3177FF")
@@ -497,26 +479,18 @@ exports.SendGeneratedPasswordDao = async (
     doc.moveDown(2);
 
     /* ---------- FOOTER ---------- */
-    doc
-      .fillColor("#02072C")
-      .fontSize(12)
-      .lineGap(0)
-      .text("Thank you,", 80);
+    doc.fillColor("#02072C").fontSize(12).lineGap(0).text("Thank you,", 80);
 
     doc.moveDown(0.4);
 
-    doc
-      .font("Helvetica-Bold")
-      .text("GoViShop Team", 80);
+    doc.font("Helvetica-Bold").text("GoViShop Team", 80);
 
     const cardBottomY = doc.y + 30;
     const cardHeight = cardBottomY - 40;
 
     doc.save();
 
-    doc
-      .roundedRect(40, 40, 515, cardHeight, 10)
-      .stroke("#e5e7eb");
+    doc.roundedRect(40, 40, 515, cardHeight, 10).stroke("#e5e7eb");
     doc.restore();
 
     /* ---------- BOTTOM NOTE (outside card) ---------- */
@@ -528,13 +502,12 @@ exports.SendGeneratedPasswordDao = async (
         "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
         80,
         cardBottomY + 15,
-        { align: "center", width: 440 }
+        { align: "center", width: 440 },
       );
     doc.moveDown(1);
 
-
     doc
-      .fillColor('#868686')
+      .fillColor("#868686")
       .text("Please note that this is an automated message.", {
         align: "center",
         width: 440,
@@ -601,8 +574,7 @@ exports.updateGovieShopPassword = (password, id) => {
         return reject(err); // Reject promise if an error occurs
       }
       resolve(results); // Resolve with the query results
-    }
-    );
+    });
   });
 };
 
@@ -660,17 +632,22 @@ exports.viewGoviShopSupplierByIdDao = (id) => {
   });
 };
 
-exports.getAllShowViewActionDAO = (page, limit, status, searchText, allSuppliers) => {
+exports.getAllShowViewActionDAO = (
+  page,
+  limit,
+  status,
+  searchText,
+  allSuppliers,
+) => {
   const offset = (page - 1) * limit;
   return new Promise((resolve, reject) => {
-
     let whereClause = `WHERE 1=1 AND so.isAvailable = 1`;
 
     if (!allSuppliers) {
-      whereClause += ` AND so.accessStatus IN ('Pending', 'Rejected') `
+      whereClause += ` AND so.accessStatus IN ('Pending', 'Rejected') `;
     }
 
-    console.log('whereClause', whereClause)
+    console.log("whereClause", whereClause);
 
     let countSql = `
       SELECT COUNT(*) as total 
@@ -713,13 +690,15 @@ exports.getAllShowViewActionDAO = (page, limit, status, searchText, allSuppliers
     // }
 
     if (status) {
-      if (status === 'Deactivate') whereConditions.push(` so.accessStatus = 'Pending' `);
-      else if (status === 'Rejected') whereConditions.push(` so.accessStatus = 'Rejected' `);
+      if (status === "Deactivate")
+        whereConditions.push(` so.accessStatus = 'Pending' `);
+      else if (status === "Rejected")
+        whereConditions.push(` so.accessStatus = 'Rejected' `);
     }
 
     // Append WHERE conditions if any exist
     if (whereConditions.length > 0) {
-      whereClause += ' AND ' + whereConditions.join(" AND ");
+      whereClause += " AND " + whereConditions.join(" AND ");
     }
 
     countSql += whereClause;
@@ -730,7 +709,7 @@ exports.getAllShowViewActionDAO = (page, limit, status, searchText, allSuppliers
     dataSql += " LIMIT ? OFFSET ?";
     params.push(limit, offset);
 
-    console.log('dataSql', dataSql)
+    console.log("dataSql", dataSql);
 
     // Execute count query first
     goviShop.query(countSql, countParams, (countErr, countResults) => {
@@ -799,7 +778,6 @@ exports.renewGoviShopUserDAO = (id, status) => {
   });
 };
 
-
 // exports.renewGoviShopUserDAO = (id, status) => {
 //   console.log('id', id)
 //   return new Promise((resolve, reject) => {
@@ -864,7 +842,7 @@ exports.getGoviShopUserByIdDAO = (id) => {
 exports.sendGoviShopRenewalEmailDAO = async (id) => {
   try {
     const shopUser = await exports.getGoviShopUserByIdDAO(id);
-    console.log('shopUser', shopUser)
+    console.log("shopUser", shopUser);
     const doc = new PDFDocument({ size: "A4", margin: 50 });
 
     const pdfBuffer = [];
@@ -881,16 +859,13 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
       .fontSize(14)
       .text(
         `Welcome to Govishop ${shopUser.currentPlan} – Payment Received Successfully`,
-        80, 140,
-        { align: "center", width: 440 }
+        80,
+        140,
+        { align: "center", width: 440 },
       );
 
     /* ---------- DIVIDER ---------- */
-    doc
-      .moveTo(80, 180)
-      .lineTo(520, 180)
-      .strokeColor("#E5E7EB")
-      .stroke();
+    doc.moveTo(80, 180).lineTo(520, 180).strokeColor("#E5E7EB").stroke();
 
     /* ---------- BODY ---------- */
     doc
@@ -905,7 +880,10 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
       .font("Helvetica")
       .fontSize(12)
       .fillColor("#02072C")
-      .text(`Warm greetings, and congratulations on joining Govishop as a ${shopUser.currentPlan} Member!`, { width: 440 });
+      .text(
+        `Warm greetings, and congratulations on joining Govishop as a ${shopUser.currentPlan} Member!`,
+        { width: 440 },
+      );
 
     doc.moveDown(0.5);
 
@@ -913,25 +891,22 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
       .lineGap(6)
       .text(
         `We are delighted to welcome you to the Govishop community and thank you for choosing to upgrade your experience with our ${shopUser.currentPlan} Membership.`,
-        { width: 440 }
+        { width: 440 },
       );
 
     doc
       .lineGap(6)
       .text(
         `This email is to confirm that your registration has been completed successfully and your payment for the ${shopUser.currentPlan} Package has been received.`,
-        { width: 440 }
+        { width: 440 },
       );
 
     doc.text("Your Premium Membership is now active", { width: 440 });
 
-
     /* ---------- LOGIN BUTTON ---------- */
     const btnY = doc.y + 15;
 
-    doc
-      .roundedRect(80, btnY, 440, 40, 8)
-      .fill("#FF7A00");
+    doc.roundedRect(80, btnY, 440, 40, 8).fill("#FF7A00");
 
     doc
       .fillColor("#ffffff")
@@ -942,7 +917,7 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
         align: "center",
       });
 
-    doc.link(80, btnY, 440, 40, "https://GoViShop-link.com");  
+    doc.link(80, btnY, 440, 40, "https://GoViShop-link.com");
     doc.moveDown(2);
 
     /* ---------- FALLBACK LINK ---------- */
@@ -952,8 +927,9 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
       .fontSize(12)
       .text(
         "If the button doesn't work, copy and paste the link into your browser:",
-        80, doc.y,
-        { width: 440 }
+        80,
+        doc.y,
+        { width: 440 },
       );
 
     doc.moveDown(0.5);
@@ -961,10 +937,7 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
     /* ---------- URL BOX ---------- */
     const urlBoxY = doc.y;
 
-    doc
-      .roundedRect(80, urlBoxY, 440, 38, 6)
-      .fill("#FAFAFA")
-      .stroke("#E5E7EB");
+    doc.roundedRect(80, urlBoxY, 440, 38, 6).fill("#FAFAFA").stroke("#E5E7EB");
 
     doc
       .fillColor("#3177FF")
@@ -978,26 +951,18 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
     doc.moveDown(2);
 
     /* ---------- FOOTER ---------- */
-    doc
-      .fillColor("#02072C")
-      .fontSize(12)
-      .lineGap(0)
-      .text("Thank you,", 80);
+    doc.fillColor("#02072C").fontSize(12).lineGap(0).text("Thank you,", 80);
 
     doc.moveDown(0.4);
 
-    doc
-      .font("Helvetica-Bold")
-      .text("GoViShop Team", 80);
+    doc.font("Helvetica-Bold").text("GoViShop Team", 80);
 
     const cardBottomY = doc.y + 30;
     const cardHeight = cardBottomY - 40;
 
     doc.save();
 
-    doc
-      .roundedRect(40, 40, 515, cardHeight, 10)
-      .stroke("#e5e7eb");
+    doc.roundedRect(40, 40, 515, cardHeight, 10).stroke("#e5e7eb");
     doc.restore();
 
     /* ---------- BOTTOM NOTE (outside card) ---------- */
@@ -1009,13 +974,12 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
         "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
         80,
         cardBottomY + 15,
-        { align: "center", width: 440 }
+        { align: "center", width: 440 },
       );
     doc.moveDown(1);
 
-
     doc
-      .fillColor('#868686')
+      .fillColor("#868686")
       .text("Please note that this is an automated message.", {
         align: "center",
         width: 440,
@@ -1071,8 +1035,6 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
 };
 
 exports.sendGoviShopRenewalEmailDAO1 = async (id) => {
-  
-
   if (!shopUser?.email) {
     console.warn(`⚠️ No email found for shop user ID: ${id}`);
     return;
@@ -1350,7 +1312,6 @@ exports.deleteGoviShopSupplierDao = (id) => {
   });
 };
 
-
 exports.GetAllShopsByOwnerDAO = (
   id,
   page,
@@ -1389,8 +1350,7 @@ exports.GetAllShopsByOwnerDAO = (
     `;
 
     if (accessStatus) {
-
-      const active = accessStatus === 'Active' ? 1 : 0;
+      const active = accessStatus === "Active" ? 1 : 0;
       countSql += " AND gs.isActive = ? ";
       sql += " AND gs.isActive = ? ";
       Sqlparams.push(active);
@@ -1426,7 +1386,7 @@ exports.GetAllShopsByOwnerDAO = (
     sql += " ORDER BY gs.updatedAt DESC LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
-    console.log('sql', sql)
+    console.log("sql", sql);
 
     // Execute count query to get total records
     collectionofficer.query(
@@ -1447,13 +1407,13 @@ exports.GetAllShopsByOwnerDAO = (
 
           resolve({ results, total });
         });
-      }
+      },
     );
   });
 };
 
 exports.checkExistShopOwnerDao = (nic) => {
-  console.log('called nic check')
+  console.log("called nic check");
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT id
@@ -1467,7 +1427,7 @@ exports.checkExistShopOwnerDao = (nic) => {
         return reject(err);
       }
 
-      console.log('results', results);
+      console.log("results", results);
 
       resolve(results.length > 0);
     });
@@ -1540,7 +1500,6 @@ exports.getGoViShopSupplierById = (id) => {
   });
 };
 
-
 exports.checkExistShopOwnerDao = (nic, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1587,7 +1546,6 @@ exports.checkExistPhoneDao = (phone1, id) => {
 };
 
 exports.updateGoviShopUser = (shopData, adminId) => {
-
   return new Promise((resolve, reject) => {
     let sql = `
       UPDATE govi_shop.govishops
@@ -1602,7 +1560,7 @@ exports.updateGoviShopUser = (shopData, adminId) => {
       shopData.mobileNumber,
       shopData.address,
       adminId,
-      shopData.id
+      shopData.id,
     ];
 
     collectionofficer.query(sql, values, (err, results) => {
@@ -1707,7 +1665,7 @@ exports.GetAllShopRequestsDAO = (
 
           resolve({ results, total });
         });
-      }
+      },
     );
   });
 };
@@ -1736,7 +1694,6 @@ exports.getGoViShopById = (id) => {
   });
 };
 
-
 exports.checkExistShopEmailsDao = (email, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1760,13 +1717,12 @@ exports.checkExistShopPhoneDao = (phone1, id) => {
       WHERE phone = ? AND id != ?  
     `;
 
-    collectionofficer.query(sql, [phone1, id], (err, results) => {      
+    collectionofficer.query(sql, [phone1, id], (err, results) => {
       if (err) return reject(err);
       resolve(results.length > 0);
     });
   });
 };
-
 
 exports.getGoViShopByIdDao = (id) => {
   return new Promise((resolve, reject) => {
@@ -1807,4 +1763,53 @@ exports.getGoViShopByIdDao = (id) => {
   });
 };
 
+exports.getUsersDao = async (search = "", role = "Manager") => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        bs.id,
+        bs.branchId,
+        bs.userName,
+        bs.phone,
+        bs.email,
+        bs.role,
+        bs.isActive,
+        bs.createdAt,
+        b.branchName,
+        b.shopId,
+        g.shopName 
+      FROM branchstaff bs
+      LEFT JOIN branches b ON bs.branchId = b.id
+      LEFT JOIN govishops g ON b.shopId = g.id
+      WHERE bs.role = ?
+    `;
 
+    let params = [role];
+    let conditions = [];
+
+    // Add search functionality for userName and phone only
+    if (search && search.trim() !== "") {
+      conditions.push("(bs.userName LIKE ? OR bs.phone LIKE ?)");
+      params.push(`%${search.trim()}%`, `%${search.trim()}%`);
+    }
+
+    // Append conditions to SQL
+    if (conditions.length > 0) {
+      sql += " AND " + conditions.join(" AND ");
+    }
+
+    // Add ORDER BY
+    sql += " ORDER BY bs.createdAt DESC";
+
+    console.log("Executing SQL:", sql);
+    console.log("With params:", params);
+
+    goviShop.query(sql, params, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};

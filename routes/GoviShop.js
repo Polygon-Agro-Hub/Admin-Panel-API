@@ -122,4 +122,6 @@ router.get(
   GoviShopEp.getGoviShopById,
 );
 
+router.get("/users", authMiddleware, GoviShopEp.getUsers);
+
 module.exports = router;

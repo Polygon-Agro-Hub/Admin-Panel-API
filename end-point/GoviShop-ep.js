@@ -1113,3 +1113,41 @@ exports.getGoviShopById = async (req, res) => {
     });
   }
 };
+
+exports.getUsers = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    // Extract search and role from query parameters
+    const { search, role } = req.query;
+
+    // Use the role from query parameter, default to 'Manager' if not provided
+    const userRole = role || "Manager";
+
+    // Get the users using the DAO function
+    const users = await GoviShopDAO.getUsersDao(search, userRole);
+
+    // Build response message
+    let message = `${userRole}s fetched successfully!`;
+    if (search) {
+      message = `${userRole}s searched successfully!`;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: message,
+      data: users,
+      count: users.length,
+      search: search || null,
+      role: userRole,
+    });
+  } catch (error) {
+    console.error("Error in getUsers route:", error);
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while fetching users",
+      details: error.message,
+    });
+  }
+};
