@@ -124,4 +124,25 @@ router.get(
 
 router.get("/users", authMiddleware, GoviShopEp.getUsers);
 
+router.get(
+  "/get-pos-user-by-id/:id",
+  authMiddleware,
+  GoviShopEp.getPosUserById,
+);
+
+router.post(
+  "/update-pos-user",
+  authMiddleware,
+  GoviShopEp.updatePOSUserEp,
+);
+
+router.post(
+  "/reset-govi-shop-user-password",
+  authMiddleware,
+  GoviShopEp.resetPosUserPasswordEp,
+);
+
+
 module.exports = router;
+
+

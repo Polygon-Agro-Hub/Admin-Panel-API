@@ -1812,4 +1812,285 @@ exports.getUsersDao = async (search = "", role = "Manager") => {
       }
     });
   });
+};exports.getPosUserByIdDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    SELECT 
+        bs.id,
+        bs.userName AS fullName,
+        bs.email,
+        bs.phone AS mobileNumber,
+        b.id AS branchId,
+        gs.shopName,
+        gs.id AS shopId
+ 
+      FROM govi_shop.branchstaff bs
+      LEFT JOIN govi_shop.branches b ON bs.branchId = b.id
+      LEFT JOIN govi_shop.govishops gs ON b.shopId = gs.id
+      WHERE bs.id = ? AND bs.role = 'POS'
+    `;
+
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.updateGovieShopPosUserPasswordDao = (password, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            UPDATE branchstaff
+            SET password = ?
+            WHERE id = ?
+        `;
+    goviShop.query(sql, [password, id], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      resolve(results); // Resolve with the query results
+    }
+    );
+  });
+};
+
+
+
+exports.SendGeneratedPasswordPosUserDao = async (
+  email,
+  password,
+  phone,
+  name,
+  branchName,
+  shopName
+) => {
+  try {
+    const doc = new PDFDocument({ size: "A4", margin: 50 });
+
+    const pdfBuffer = [];
+    doc.on("data", pdfBuffer.push.bind(pdfBuffer));
+
+    /* ---------- LOGO ---------- */
+    const logo = path.resolve(__dirname, "../assets/govishop.png");
+    doc.image(logo, 255, 60, { width: 70 });
+
+    /* ---------- TITLE ---------- */
+    doc
+      .font("Helvetica-Bold")
+      .fillColor("#02072C")
+      .fontSize(14)
+      .text(
+        `Password Reset Update`,
+        80, 140,
+        { align: "center", width: 440 }
+      );
+
+    /* ---------- DIVIDER ---------- */
+    doc
+      .moveTo(80, 180)
+      .lineTo(520, 180)
+      .strokeColor("#E5E7EB")
+      .stroke();
+
+    /* ---------- BODY ---------- */
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .fillColor("#02072C")
+      .text(`Dear ${name},`, 80, 200);
+
+    doc.moveDown();
+
+    doc
+      .font("Helvetica")
+      .fontSize(12)
+      .fillColor("#02072C")
+      .text("We would like to inform you that the password for the following POS user’s password has been reset by a customer support agent.", { width: 440 });
+
+    doc.moveDown(0.5);
+
+    doc
+      .lineGap(6)
+      .text(
+        `User: ${name} – ${phone}`,
+        { width: 440 }
+      );
+
+    doc
+      .lineGap(6)
+      .text(
+        `Shop: ${  shopName}`,
+        { width: 440 }
+      );
+
+    doc
+    .lineGap(6)
+    .text(
+      `Branch: ${branchName}`,
+      { width: 440 }
+    );
+
+    /* ---------- CREDENTIAL BOX ---------- */
+    const boxY = doc.y + 10;
+
+    doc
+      .roundedRect(80, boxY, 440, 60, 6)
+      .fill("#FDE3C6");
+
+      doc
+      .fillColor("#000000")
+      .fontSize(12)
+      .text(`Temporary Password: ${password}`, 95, boxY + 35);
+
+    /* ---------- SECURITY NOTE ---------- */
+    doc
+      .fillColor("#02072C")
+      .lineGap(6)
+      .fontSize(12)
+      .text(
+        "For security reasons, we strongly recommend that you change your password after your first login.",
+        80,
+        boxY + 80,
+        { width: 440 }
+      );
+
+    doc.moveDown(2);
+
+    /* ---------- FOOTER ---------- */
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .lineGap(0)
+      .text("Thank you,", 80);
+
+    doc.moveDown(0.4);
+
+    doc
+      .font("Helvetica-Bold")
+      .text("GoViShop Team", 80);
+
+    const cardBottomY = doc.y + 30;
+    const cardHeight = cardBottomY - 40;
+
+    doc.save();
+
+    doc
+      .roundedRect(40, 40, 515, cardHeight, 10)
+      .stroke("#e5e7eb");
+    doc.restore();
+
+    /* ---------- BOTTOM NOTE (outside card) ---------- */
+    doc
+      .font("Helvetica")
+      .fontSize(10)
+      .fillColor("#666666")
+      .text(
+        "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
+        80,
+        cardBottomY + 15,
+        { align: "center", width: 440 }
+      );
+    doc.moveDown(1);
+
+
+    doc
+      .fillColor('#868686')
+      .text("Please note that this is an automated message.", {
+        align: "center",
+        width: 440,
+      });
+
+    doc.end();
+    await new Promise((resolve) => doc.on("end", resolve));
+
+    const pdfData = Buffer.concat(pdfBuffer);
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 465, // or 587 for TLS
+    //   secure: true,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: {
+    //     family: 4,
+    //   },
+    // });
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: { rejectUnauthorized: false },
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Welcome to GoViShop",
+      text: `Dear ${name},\n\nYour rested password details are attached.`,
+      attachments: [
+        {
+          filename: `Rest_passwrod_details${name}.pdf`,
+          content: pdfData,
+        },
+      ],
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error };
+  }
+};
+
+
+exports.getGoViShopBranchesByShopIdDao = (shopId) => {
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT b.id, b.branchName FROM govi_shop.branches b WHERE b.shopId = ? ";
+      goviShop.query(sql, [shopId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.updateGoviShopPOSUserDao = (userData) => {
+
+  return new Promise((resolve, reject) => {
+    let sql = `
+      UPDATE govi_shop.branchstaff
+      SET 
+        branchId = ?, userName = ?, email = ?, phone = ?
+      WHERE id = ?
+    `;
+
+    const values = [
+      userData.branchId,
+      userData.fullName,
+      userData.email,
+      userData.mobileNumber,
+      userData.id
+    ];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log("GoViShop details updated successfully");
+      console.log("Affected rows:", results.affectedRows);
+      resolve(results);
+    });
+  });
 };

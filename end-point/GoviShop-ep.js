@@ -1151,3 +1151,178 @@ exports.getUsers = async (req, res) => {
     });
   }
 };
+
+exports.getPosUserById = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = await GoviShopValidation.viewGoviShopSupplierByIdSchema.validateAsync(req.params);
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Shop user id is required",
+      });
+    }
+
+    const posUser = await GoviShopDAO.getPosUserByIdDao(id);
+
+    if (!posUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Pos user not found",
+      });
+    }
+
+    const branches = await GoviShopDAO.getGoViShopBranchesByShopIdDao(posUser.shopId);
+
+    return res.status(200).json({
+      success: true,
+      data: {posUser: posUser, branches: branches},
+    });
+  } catch (error) {
+    console.error("View Govi Shop Supplier Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.updatePOSUserEp = async (req, res) => {
+
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    if (!req.body) {
+      return res.status(400).json({
+        error: "user data is required",
+        status: false,
+      });
+    }
+
+    console.log('userData', req.body);
+
+    // Parse and sanitize officer data
+    const userData = req.body;
+
+    console.log('userData', userData)
+
+    // let validationErrors = [];
+
+    // const [
+    //   isExistingNIC,
+    //   isExistingEmail,
+    //   isExistingPhoneNumber01,
+    // ] = await Promise.all([   
+    //   GoviShopDAO.checkExistShopEmailsDao(shopData.email, shopData.id),
+    //   GoviShopDAO.checkExistShopPhoneDao(shopData.mobileNumber, shopData.id)
+    // ]);
+
+    // if (isExistingEmail) validationErrors.push("Email");
+    // if (isExistingPhoneNumber01) validationErrors.push("phone");
+
+    // if (validationErrors.length > 0) {
+    //   return res.status(400).json({ errors: validationErrors, status: false });
+    // }
+
+    const result = await GoviShopDAO.updateGoviShopPOSUserDao(
+      userData
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "GoViShop POS user not found or no changes made",
+      });
+    }
+
+    res.json({
+      message: "GoViShop POS user details updated successfully",
+      status: true,
+      data: {
+        id: userData.id,
+        affectedRows: result.affectedRows,
+      }
+    });
+  } catch (err) {
+    console.error("Error updating GoViShop POS user details", err);
+    res.status(500).json({
+      message: "",
+      error: err.message,
+      status: false,
+    });
+  }
+};
+
+exports.resetPosUserPasswordEp = async (req, res) => {
+
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    if (!req.body) {
+      return res.status(400).json({
+        error: "user data is required",
+        status: false,
+      });
+    }
+
+    console.log('userData', req.body);
+
+    // Parse and sanitize officer data
+    const userData = req.body;
+
+    console.log('userData', userData)
+    
+    const generatedPassword = Math.random().toString(36).slice(-8);
+
+    const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+
+    const emailResult = await GoviShopDAO.SendGeneratedPasswordPosUserDao(
+      userData.email,
+      generatedPassword,
+      userData.mobileNumber,
+      userData.fullName,
+      userData.branchName,
+      userData.shopName
+
+    );
+
+    if (!emailResult.success) {
+      return res.status(500).json({
+        message: "Failed to send password.",
+        error: emailResult.error,
+      });
+    }
+
+    const updateResult =
+      await GoviShopDAO.updateGovieShopPosUserPasswordDao(
+        hashedPassword,
+        userData.id
+      );
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(400).json({
+        message: "Failed to update password.",
+        status: false,
+      });
+    }
+
+    res.json({
+      message: "GoViShop POS user details updated successfully",
+      status: true,
+      data: {
+        id: userData.id,
+        affectedRows: updateResult.affectedRows,
+      }
+    });
+  } catch (err) {
+    console.error("Error updating GoViShop POS user details", err);
+    res.status(500).json({
+      message: "",
+      error: err.message,
+      status: false,
+    });
+  }
+};
+
