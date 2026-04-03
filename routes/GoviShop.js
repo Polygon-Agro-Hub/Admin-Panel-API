@@ -61,6 +61,18 @@ router.put(
   GoviShopEp.updateGoviShopUserStatus,
 );
 
+router.put(
+  "/reneve-govi-shop-user/:id",
+  authMiddleware,
+  GoviShopEp.reneveGoviShopUser,
+);
+
+router.put(
+  "/reject-govi-shop-user/:id",
+  authMiddleware,
+  GoviShopEp.rejectGoviShopUser,
+);
+
 router.delete(
   "/delete-govishop-supplier/:id",
   authMiddleware,

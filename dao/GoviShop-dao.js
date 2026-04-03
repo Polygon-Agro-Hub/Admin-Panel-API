@@ -784,15 +784,63 @@ exports.goviShopViewDocumentDAO = (id) => {
   });
 };
 
-exports.updateGoviShopUserStatusDAO = (id, status) => {
+exports.renewGoviShopUserDAO = (id, status) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      UPDATE shopusers
-      SET userStatus = ?
+    UPDATE shopowners
+    SET accessStatus = 'Completed', isActivated = 'Active'
+    WHERE id = ?
+    `;
+
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.affectedRows > 0);
+    });
+  });
+};
+
+
+// exports.renewGoviShopUserDAO = (id, status) => {
+//   console.log('id', id)
+//   return new Promise((resolve, reject) => {
+
+//     const updateSql = `
+//       UPDATE shopowners
+//       SET accessStatus = 'Completed', isActivated = 'Active'
+//       WHERE id = ?
+//     `;
+
+//     goviShop.query(updateSql, [id], (err, result) => {
+//       if (err) return reject(err);
+
+//       if (result.affectedRows === 0) {
+//         return resolve(null); // no user found
+//       }
+
+//       const selectSql = `
+//         SELECT email, currentPlan, ownerName
+//         FROM shopowners
+//         WHERE id = ?
+//       `;
+
+//       goviShop.query(selectSql, [id], (err, rows) => {
+//         if (err) return reject(err);
+
+//         resolve(rows[0]);
+//       });
+//     });
+//   });
+// };
+
+exports.rejectGoviShopUserDAO = (id, status) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE shopowners
+      SET accessStatus = 'Rejected', isActivated = 'Expired'
       WHERE id = ?
     `;
 
-    goviShop.query(sql, [status, id], (err, results) => {
+    goviShop.query(sql, [id], (err, results) => {
       if (err) return reject(err);
       resolve(results.affectedRows > 0);
     });
@@ -802,8 +850,8 @@ exports.updateGoviShopUserStatusDAO = (id, status) => {
 exports.getGoviShopUserByIdDAO = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT id, shopName, ownername, shopPhone, email
-      FROM shopusers
+      SELECT id, ownername, currentPlan, shopPhone, email
+      FROM shopowners
       WHERE id = ?
     `;
     goviShop.query(sql, [id], (err, results) => {
@@ -814,7 +862,216 @@ exports.getGoviShopUserByIdDAO = (id) => {
 };
 
 exports.sendGoviShopRenewalEmailDAO = async (id) => {
-  const shopUser = await exports.getGoviShopUserByIdDAO(id);
+  try {
+    const shopUser = await exports.getGoviShopUserByIdDAO(id);
+    console.log('shopUser', shopUser)
+    const doc = new PDFDocument({ size: "A4", margin: 50 });
+
+    const pdfBuffer = [];
+    doc.on("data", pdfBuffer.push.bind(pdfBuffer));
+
+    /* ---------- LOGO ---------- */
+    const logo = path.resolve(__dirname, "../assets/govishop.png");
+    doc.image(logo, 255, 60, { width: 70 });
+
+    /* ---------- TITLE ---------- */
+    doc
+      .font("Helvetica-Bold")
+      .fillColor("#02072C")
+      .fontSize(14)
+      .text(
+        `Welcome to Govishop ${shopUser.currentPlan} – Payment Received Successfully`,
+        80, 140,
+        { align: "center", width: 440 }
+      );
+
+    /* ---------- DIVIDER ---------- */
+    doc
+      .moveTo(80, 180)
+      .lineTo(520, 180)
+      .strokeColor("#E5E7EB")
+      .stroke();
+
+    /* ---------- BODY ---------- */
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .fillColor("#02072C")
+      .text(`Dear ${shopUser.ownername},`, 80, 200);
+
+    doc.moveDown();
+
+    doc
+      .font("Helvetica")
+      .fontSize(12)
+      .fillColor("#02072C")
+      .text(`Warm greetings, and congratulations on joining Govishop as a ${shopUser.currentPlan} Member!`, { width: 440 });
+
+    doc.moveDown(0.5);
+
+    doc
+      .lineGap(6)
+      .text(
+        `We are delighted to welcome you to the Govishop community and thank you for choosing to upgrade your experience with our ${shopUser.currentPlan} Membership.`,
+        { width: 440 }
+      );
+
+    doc
+      .lineGap(6)
+      .text(
+        `This email is to confirm that your registration has been completed successfully and your payment for the ${shopUser.currentPlan} Package has been received.`,
+        { width: 440 }
+      );
+
+    doc.text("Your Premium Membership is now active", { width: 440 });
+
+
+    /* ---------- LOGIN BUTTON ---------- */
+    const btnY = doc.y + 15;
+
+    doc
+      .roundedRect(80, btnY, 440, 40, 8)
+      .fill("#FF7A00");
+
+    doc
+      .fillColor("#ffffff")
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .text("Login", 80, btnY + 13, {
+        width: 440,
+        align: "center",
+      });
+
+    doc.link(80, btnY, 440, 40, "https://GoViShop-link.com");  
+    doc.moveDown(2);
+
+    /* ---------- FALLBACK LINK ---------- */
+    doc
+      .font("Helvetica")
+      .fillColor("#02072C")
+      .fontSize(12)
+      .text(
+        "If the button doesn't work, copy and paste the link into your browser:",
+        80, doc.y,
+        { width: 440 }
+      );
+
+    doc.moveDown(0.5);
+
+    /* ---------- URL BOX ---------- */
+    const urlBoxY = doc.y;
+
+    doc
+      .roundedRect(80, urlBoxY, 440, 38, 6)
+      .fill("#FAFAFA")
+      .stroke("#E5E7EB");
+
+    doc
+      .fillColor("#3177FF")
+      .font("Helvetica")
+      .fontSize(12)
+      .text("https://GoViShop-link.com", 95, urlBoxY + 13, {
+        width: 420,
+        underline: true,
+      });
+
+    doc.moveDown(2);
+
+    /* ---------- FOOTER ---------- */
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .lineGap(0)
+      .text("Thank you,", 80);
+
+    doc.moveDown(0.4);
+
+    doc
+      .font("Helvetica-Bold")
+      .text("GoViShop Team", 80);
+
+    const cardBottomY = doc.y + 30;
+    const cardHeight = cardBottomY - 40;
+
+    doc.save();
+
+    doc
+      .roundedRect(40, 40, 515, cardHeight, 10)
+      .stroke("#e5e7eb");
+    doc.restore();
+
+    /* ---------- BOTTOM NOTE (outside card) ---------- */
+    doc
+      .font("Helvetica")
+      .fontSize(10)
+      .fillColor("#666666")
+      .text(
+        "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
+        80,
+        cardBottomY + 15,
+        { align: "center", width: 440 }
+      );
+    doc.moveDown(1);
+
+
+    doc
+      .fillColor('#868686')
+      .text("Please note that this is an automated message.", {
+        align: "center",
+        width: 440,
+      });
+
+    doc.end();
+    await new Promise((resolve) => doc.on("end", resolve));
+
+    const pdfData = Buffer.concat(pdfBuffer);
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 465, // or 587 for TLS
+    //   secure: true,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: {
+    //     family: 4,
+    //   },
+    // });
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: { rejectUnauthorized: false },
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: shopUser.email,
+      subject: "Welcome to GoViShop – Your Account is Ready",
+      text: `Dear ${shopUser.ownerName},\n\nYour login details are attached.`,
+      attachments: [
+        {
+          filename: `Login_Details_${shopUser.ownerName}.pdf`,
+          content: pdfData,
+        },
+      ],
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error };
+  }
+};
+
+exports.sendGoviShopRenewalEmailDAO1 = async (id) => {
+  
 
   if (!shopUser?.email) {
     console.warn(`⚠️ No email found for shop user ID: ${id}`);
@@ -915,7 +1172,7 @@ Please note that this is an automated message.
     .title-bar {
       padding: 10px 40px 6px;
       background-color: #ffffff;
-      text-align: center;             /* ✅ FIXED: was "center", now "left" to match design */
+      text-align: center;            
     }
     .title-bar p {
       font-size: 16px; font-weight: bold;
