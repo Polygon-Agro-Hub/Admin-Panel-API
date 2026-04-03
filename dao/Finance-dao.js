@@ -1281,7 +1281,8 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
         ir.nicBack AS NIC_Back_Image,
         DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
         DATE_FORMAT(ir.createdAt, '%M %d, %Y') AS Requested_On,
-        COALESCE(ao.userName, '--') AS Assigned_By
+        COALESCE(ao.userName, '--') AS Assigned_By,
+        ir.officerStatus
       FROM investmentrequest ir
       INNER JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.feildofficer co ON ir.officerId = co.id

@@ -1742,14 +1742,19 @@ exports.getDistributionOutForDlvrOrder = async (req, res) => {
         req.query
       );
 
-    const result = await DistributionDao.getDistributionOutForDlvrOrderDao(
+    const items = await DistributionDao.getDistributionOutForDlvrOrderDao(
       id,
       searchText,
       date,
       status
     );
 
-    console.log("Successfully retrieved distribution out for delivery orders");
+    console.log("Successfully retrieved distribution out for delivery orders", items);
+
+    const result = items.map(item => ({
+      ...item,
+      outDlvrStatus: computeDeliveryStatus(item)
+    }));
     res.json({ status: true, data: result });
   } catch (err) {
     if (err.isJoi) {
@@ -1764,6 +1769,55 @@ exports.getDistributionOutForDlvrOrder = async (req, res) => {
   }
 };
 
+function computeDeliveryStatus(item) {
+  const scheduleDate = item.sheduleDateA;
+  const deliveredDate = item.outDlvrDateA;
+
+  console.log('scheduleDate', scheduleDate, 'deliveredDate', deliveredDate)
+
+  // Extract YYYY-MM-DD for comparison (ignoring time)
+  const sDate = scheduleDate.toISOString().split("T")[0];
+  const dDate = deliveredDate.toISOString().split("T")[0];
+
+  console.log('sDate', sDate, 'dDate', dDate)
+
+  // 1. Delivered after schedule date → "Later"
+  if (dDate > sDate) {
+    return "Later";
+  }
+
+  // If delivered before schedule date → always On Time
+  if (dDate < sDate) {
+    return "On Time";
+  }
+
+  // At this point: SAME DATE, need to check time slot
+  const deliveredTime = deliveredDate.toTimeString().substring(0, 8); // hh:mm:ss
+
+  console.log('deliveredTime', deliveredTime)
+
+  let cutOffTime = null;
+
+  switch (item.sheduleTime) {
+    case "Within 8AM - 2PM":
+      cutOffTime = "14:00:00";
+      break;
+    case "Within 2PM - 8PM":
+      cutOffTime = "20:00:00";
+      break;
+    default:
+      // If unknown slot → treat as on-time
+      return "On Time";
+  }
+
+  // 2. Same date but delivered after slot cutoff → "Late"
+  if (deliveredTime > cutOffTime) {
+    return "Late";
+  }
+
+  // 3. Otherwise → "On Time"
+  return "On Time";
+}
 exports.getOfficerByIdMonthly = async (req, res) => {
   try {
     const id = req.params.id;

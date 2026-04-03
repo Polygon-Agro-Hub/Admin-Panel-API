@@ -657,7 +657,7 @@ exports.GetDistributionHeadDetailsByIdDao = (id) => {
       SELECT 
         co.id, 
         co.companyId, 
-        cc.centerName,  -- ✅ fetched from collectioncenter
+        cc.centerName, 
         co.irmId, 
         co.firstNameEnglish, 
         co.lastNameEnglish, 
@@ -1910,6 +1910,7 @@ exports.getDistributedCenterTargetDao = async (
         co.firstNameEnglish, 
         co.lastNameEnglish, 
         o.sheduleDate, 
+        o.sheduleTime,
         dti.isComplete,
         COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
         COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus
@@ -1991,6 +1992,7 @@ exports.getDistributedCenterTargetDao = async (
       co.firstNameEnglish, 
       co.lastNameEnglish, 
       o.sheduleDate, 
+      o.sheduleTime,
       dti.isComplete,
       pic.packageStatus, 
       aic.additionalItemsStatus
@@ -2090,8 +2092,10 @@ exports.getDistributionOutForDlvrOrderDao = (
   status
 ) => {
   return new Promise((resolve, reject) => {
-    console.log('filterDate', filterDate)
+    console.log('filterDate', filterDate);
+
     const sqlParams = [id];
+
     let sql = `
         SELECT 
             po.id,
@@ -2101,37 +2105,57 @@ exports.getDistributionOutForDlvrOrderDao = (
             o.sheduleDate,
             o.sheduleTime,
             po.outDlvrDate,
-            CASE 
-                WHEN po.outDlvrDate IS NULL THEN 'Pending'
-                WHEN po.outDlvrDate <= o.sheduleDate THEN 'On Time'
-                ELSE 'Late'
-            END AS outDlvrStatus
+            DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE) AS sheduleDateA,
+            DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE) AS outDlvrDateA
         FROM distributedtarget dt
         JOIN distributedtargetitems dti ON dt.id = dti.targetId
         JOIN market_place.processorders po ON dti.orderId = po.id
         JOIN market_place.orders o ON po.orderId = o.id
         JOIN collectionofficer cof ON po.outBy = cof.id
-        WHERE (po.status = 'Out For Delivery' OR po.status = 'Out For Delivery') AND dt.companycenterId = ?    `;
+        WHERE po.status = 'Out For Delivery'
+        AND dt.companycenterId = ?
+    `;
 
-    // Add search functionality for invNo
     if (searchText) {
       sql += ` AND po.invNo LIKE ? `;
       sqlParams.push(`%${searchText}%`);
     }
 
-    // Add date filter for specific outDlvrDate
     if (filterDate) {
       sql += ` AND DATE(po.outDlvrDate) = ? `;
       sqlParams.push(filterDate);
     }
 
-    // Add status filter (only 'On Time' or 'Late')
-    if (status) {
-      if (status === "On Time") {
-        sql += ` AND po.outDlvrDate IS NOT NULL AND po.outDlvrDate <= o.sheduleDate `;
-      } else if (status === "Late") {
-        sql += ` AND po.outDlvrDate IS NOT NULL AND po.outDlvrDate > o.sheduleDate `;
-      }
+    if (status === 'Late') {
+      sql += `
+        AND (
+          (o.sheduleTime = 'Within 8AM - 2PM' AND 
+            (DATE(po.outDlvrDate) > DATE(o.sheduleDate) OR 
+            (DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND TIME(po.outDlvrDate) > '14:00:00')))
+          
+          OR
+          
+          (o.sheduleTime = 'Within 2PM - 8PM' AND 
+            (DATE(po.outDlvrDate) > DATE(o.sheduleDate) OR 
+            (DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND TIME(po.outDlvrDate) > '20:00:00')))
+        )
+      `;
+    }
+
+    if (status === 'On Time') {
+      sql += `
+        AND (
+          DATE(po.outDlvrDate) < DATE(o.sheduleDate)
+          OR
+          (
+            DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND (
+              (o.sheduleTime = 'Within 8AM - 2PM' AND TIME(po.outDlvrDate) <= '14:00:00')
+              OR
+              (o.sheduleTime = 'Within 2PM - 8PM' AND TIME(po.outDlvrDate) <= '20:00:00')
+            )
+          )
+        )
+      `;
     }
 
     collectionofficer.query(sql, sqlParams, (err, results) => {
@@ -2139,7 +2163,6 @@ exports.getDistributionOutForDlvrOrderDao = (
         console.log(err);
         return reject(err);
       }
-
       resolve(results);
     });
   });
@@ -4899,7 +4922,7 @@ exports.getHomeDiliveryTrackingDriverDetailsDao = async (id) => {
                   	 'holdId',dho.id,
                       'holdTime', DATE_ADD(dho.createdAt, INTERVAL 330 MINUTE),           
                       'holdReason', hr.rsnEnglish,
-                      'restartedTime', dho.restartedTime
+                      'restartedTime', DATE_ADD(dho.restartedTime, INTERVAL 330 MINUTE)
                   )
               )
               FROM driverholdorders dho
