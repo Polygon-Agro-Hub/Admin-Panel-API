@@ -16,6 +16,10 @@ exports.viewGoviShopSupplierByIdSchema = Joi.object({
   id: Joi.number().integer().required().positive(),
 });
 
+exports.getGoviShopIdSchema = Joi.object({
+  shopId: Joi.number().integer().required().positive(),
+});
+
 exports.goviShopViewDocumentByIdSchema = Joi.object({
   id: Joi.number().integer().required().positive(),
 });
