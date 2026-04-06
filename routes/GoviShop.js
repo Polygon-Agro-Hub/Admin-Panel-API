@@ -155,9 +155,15 @@ router.post(
 );
 
 router.post(
-  "/reject-govi-shop-user",
+  "/reject-govi-shop-user-status/:id",
   authMiddleware,
   GoviShopEp.rejectGoviShopUserEp,
+);
+
+router.put(
+  "/approve-govi-shop/:id",
+  authMiddleware,
+  GoviShopEp.approveGoviShopEp,
 );
 
 

@@ -774,15 +774,15 @@ exports.goviShopViewDocumentDAO = (id) => {
   });
 };
 
-exports.renewGoviShopUserDAO = (id, status) => {
+exports.renewGoviShopUserDAO = (id, status, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
     UPDATE shopowners
-    SET accessStatus = 'Completed', isActivated = 'Active'
+    SET accessStatus = 'Completed', isActivated = 'Active', activatedBy = ?, activatedAt = NOW()
     WHERE id = ?
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    goviShop.query(sql, [adminId, id], (err, results) => {
       if (err) return reject(err);
       resolve(results.affectedRows > 0);
     });
@@ -912,7 +912,7 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
         { width: 440 },
       );
 
-    doc.text("Your Premium Membership is now active", { width: 440 });
+    doc.text("Your Premium Membership is now active.", { width: 440 });
 
     /* ---------- LOGIN BUTTON ---------- */
     const btnY = doc.y + 15;
@@ -1047,7 +1047,7 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
 
 exports.sendGoviShopRenewalEmailDAO1 = async (id) => {
   if (!shopUser?.email) {
-    console.warn(`⚠️ No email found for shop user ID: ${id}`);
+    console.warn(`No email found for shop user ID: ${id}`);
     return;
   }
 
@@ -2164,7 +2164,7 @@ exports.rejecGoviShopUserDao = (id, text, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
             UPDATE govi_shop.shopowners
-            SET accessStatus = 'Rejected', isActivated = 1, approvedBy = ?, approvedAt = NOW()
+            SET accessStatus = 'Rejected', isActivated = 1, activatedBy = ?, activatedAt = NOW()
             WHERE id = ?
         `;
     goviShop.query(sql, [adminId, id], (err, results) => {
@@ -2177,19 +2177,251 @@ exports.rejecGoviShopUserDao = (id, text, adminId) => {
 };
 
 
-exports.rejecGoviShopUserDao = (id, text) => {
+exports.updaterejecReasonGoviShopUserDao = (id, text) => {
   return new Promise((resolve, reject) => {
-    const sql = `
-            INSERT INTO govi_shop.removeownerreson ('ownerId', 'reason') VALUES (?);
-            WHERE id = ?
-        `;
+    const sql = "INSERT INTO govi_shop.removeownerreson (`ownerId`, `reason`) VALUES (?, ?)";
 
-    const values = [id, text];
-    goviShop.query(sql, [values], (err, results) => {
+    goviShop.query(sql, [id, text], (err, results) => {
       if (err) {
         return reject(err);
       }
       resolve(results);
+    });
+  });
+};
+
+
+exports.SendGoViShopMembershipRejectEmailDao = async (id) => {
+
+  try {
+    const shopUser = await exports.getGoviShopUserByIdDAO(id);
+    const doc = new PDFDocument({ size: "A4", margin: 50 });
+
+    const pdfBuffer = [];
+    doc.on("data", pdfBuffer.push.bind(pdfBuffer));
+
+    /* ---------- LOGO ---------- */
+    const logo = path.resolve(__dirname, "../assets/govishop.png");
+    doc.image(logo, 255, 60, { width: 70 });
+
+    /* ---------- TITLE ---------- */
+    doc
+      .font("Helvetica-Bold")
+      .fillColor("#02072C")
+      .fontSize(14)
+      .text(
+        `Govishop ${shopUser.currentPlan} – Payment Verification Failed`,
+        80,
+        140,
+        { align: "center", width: 440 },
+      );
+
+    /* ---------- DIVIDER ---------- */
+    doc.moveTo(80, 180).lineTo(520, 180).strokeColor("#E5E7EB").stroke();
+
+    /* ---------- BODY ---------- */
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .fillColor("#02072C")
+      .text(`Dear ${shopUser.ownername},`, 80, 200);
+
+    doc.moveDown();
+
+    doc
+      .font("Helvetica")
+      .fontSize(12)
+      .fillColor("#02072C")
+      .text("Thank you for your interest in upgrading to our Premium Membership and for submitting your payment details.", { width: 440 });
+
+    doc.moveDown(0.5);
+
+    doc
+      .lineGap(6)
+      .text(
+        `After careful review, we regret to inform you that your payment could not be verified due to the following reason:`,
+        { width: 440 },
+      );
+
+
+    /* ---------- CREDENTIAL BOX ---------- */
+    const boxY = doc.y + 10;
+
+    doc.roundedRect(80, boxY, 440, 60, 6).fill("#FDE3C6");
+
+    doc
+      .font('Helvetica')
+      .fillColor('#C91A3D')
+      .fontSize(12)
+      .text('Reason: ', 95, boxY + 15, { continued: true })
+
+    doc
+      .font('Helvetica')
+      .fillColor('#333C45')
+      .text('Payment insufficient', 95, boxY + 35, { continued: true })
+
+    doc
+      .font("Helvetica")
+      .fontSize(12)
+      .fillColor("#02072C")
+      .text("We kindly request you to review the issue and resubmit your payment details or upload a valid payment confirmation to proceed with your membership activation. If you believe this decision was made in error, please feel free to contact our support team with the correct details for further assistance.", { width: 440 });
+
+    doc.moveDown(0.5);
+
+    /* ---------- LOGIN BUTTON ---------- */
+    const btnY = doc.y + 15;
+
+    doc.roundedRect(80, btnY, 440, 40, 8).fill("#FF7A00");
+
+    doc
+      .fillColor("#ffffff")
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .text("Retry Membership Upgrade", 80, btnY + 13, {
+        width: 440,
+        align: "center",
+      });
+
+    doc.link(80, btnY, 440, 40, "https://retry-link.com"); // ← clickable overlay
+
+    doc.moveDown(2);
+
+    /* ---------- FALLBACK LINK ---------- */
+    doc
+      .font("Helvetica")
+      .fillColor("#02072C")
+      .fontSize(12)
+      .text(
+        "If the button doesn't work, copy and paste the link into your browser:",
+        80,
+        doc.y,
+        { width: 440 },
+      );
+
+    doc.moveDown(0.5);
+
+    /* ---------- URL BOX ---------- */
+    const urlBoxY = doc.y;
+
+    doc.roundedRect(80, urlBoxY, 440, 38, 6).fill("#FAFAFA").stroke("#E5E7EB");
+
+    doc
+      .fillColor("#3177FF")
+      .font("Helvetica")
+      .fontSize(12)
+      .text("https://retry-link.com", 95, urlBoxY + 13, {
+        width: 420,
+        underline: true,
+      });
+
+      doc
+      .font("Helvetica")
+      .fontSize(12)
+      .fillColor("#02072C")
+      .text(
+        "We appreciate your understanding and look forward to welcoming you as a Premium Member soon.",
+        80,
+        doc.y,
+        { width: 440 }
+      );
+    
+    doc.moveDown(1);
+
+    /* ---------- FOOTER ---------- */
+    doc.fillColor("#02072C").fontSize(12).lineGap(0).text("Thank you,", 80);
+
+    doc.moveDown(0.4);
+
+    doc.font("Helvetica-Bold").text("GoViShop Team", 80);
+
+    const cardBottomY = doc.y + 30;
+    const cardHeight = cardBottomY - 40;
+
+    doc.save();
+
+    doc.roundedRect(40, 40, 515, cardHeight, 10).stroke("#e5e7eb");
+    doc.restore();
+
+    /* ---------- BOTTOM NOTE (outside card) ---------- */
+    doc
+      .font("Helvetica")
+      .fontSize(10)
+      .fillColor("#666666")
+      .text(
+        "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
+        80,
+        cardBottomY + 15,
+        { align: "center", width: 440 },
+      );
+    doc.moveDown(1);
+
+    doc
+      .fillColor("#868686")
+      .text("Please note that this is an automated message.", {
+        align: "center",
+        width: 440,
+      });
+
+    doc.end();
+    await new Promise((resolve) => doc.on("end", resolve));
+
+    const pdfData = Buffer.concat(pdfBuffer);
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 465, // or 587 for TLS
+    //   secure: true,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: {
+    //     family: 4,
+    //   },
+    // });
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: { rejectUnauthorized: false },
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: shopUser.email,
+      subject: "GoViShop Account Payment Verification failed",
+      text: `Dear ${shopUser.ownername},\n\nYour details are attached here.`,
+      attachments: [
+        {
+          filename: `Payment Verification_details_${shopUser.ownername}.pdf`,
+          content: pdfData,
+        },
+      ],
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error };
+  }
+};
+
+exports.approveGoviShopDAO = (id, status, adminId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+    UPDATE govishops
+    SET accessStatus = 'Approved', isActive = '1', activatedBy = ?, activatedAt = NOW()
+    WHERE id = ?
+    `;
+
+    goviShop.query(sql, [adminId, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.affectedRows > 0);
     });
   });
 };

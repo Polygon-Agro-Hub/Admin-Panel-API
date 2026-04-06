@@ -686,6 +686,8 @@ exports.reneveGoviShopUser = async (req, res) => {
     const { id } = await GoviShopValidation.updateGoviShopUserParamsSchema.validateAsync(req.params);
     const { status } = await GoviShopValidation.updateGoviShopUserBodySchema.validateAsync(req.body);
 
+    const adminId = req.user.userId
+
     if (!id || !status) {
       return res.status(400).json({ success: false, message: "User id and status are required" });
     }
@@ -695,7 +697,7 @@ exports.reneveGoviShopUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid status value" });
     }
 
-    const updatedData = await GoviShopDAO.renewGoviShopUserDAO(id, status);
+    const updatedData = await GoviShopDAO.renewGoviShopUserDAO(id, status, adminId);
 
     console.log('updatedData', updatedData)
     if (!updatedData) {
@@ -1399,7 +1401,7 @@ exports.rejectGoviShopUserEp = async (req, res) => {
     const { id } = await GoviShopValidation.goviShopViewDocumentByIdSchema.validateAsync(
       req.params,
     );
-    const text = await GoviShopValidation.goviShopViewRejectRequestSchema.validateAsync(req.body);
+    const {text} = await GoviShopValidation.goviShopViewRejectRequestSchema.validateAsync(req.body);
 
     console.log('text', text)
     const adminId = req.user.userId
@@ -1415,7 +1417,7 @@ exports.rejectGoviShopUserEp = async (req, res) => {
       });
     }
 
-    const updateReason = await GoviShopDAO.rejecGoviShopUserDao(
+    const updateReason = await GoviShopDAO.updaterejecReasonGoviShopUserDao(
       id, text
     );
 
@@ -1426,20 +1428,76 @@ exports.rejectGoviShopUserEp = async (req, res) => {
       });
     }
 
+    const emailResult = await GoviShopDAO.SendGoViShopMembershipRejectEmailDao(id);
+
+    if (!emailResult.success) {
+      return res.status(500).json({
+        message: "Failed to send password.",
+        error: emailResult.error,
+      });
+    }
+
     res.json({
-      message: "GoViShop Rejected successfully",
+      message: "GoViShop Membership Rejected successfully",
       status: true,
       data: {
-        id: shopData.id,
+        id: id,
         affectedRows: result.affectedRows,
       }
     });
   } catch (err) {
-    console.error("Error Rejected GoViShop", err);
+    console.error("Error Rejected GoViShop Membership", err);
     res.status(500).json({
       message: "",
       error: err.message,
       status: false,
     });
+  }
+};
+
+exports.approveGoviShopEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = await GoviShopValidation.updateGoviShopUserParamsSchema.validateAsync(req.params);
+
+    const adminId = req.user.userId
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: "shop id is required" });
+    }
+
+    const updatedData = await GoviShopDAO.approveGoviShopDAO(id, adminId);
+
+    console.log('updatedData', updatedData)
+    if (!updatedData) {
+      return res.status(404).json({ success: false, message: "Shop user not found" });
+    }
+
+    const emailResult = await GoviShopDAO.sendGoviShopRenewalEmailDAO(id);
+
+    if (!emailResult.success) {
+      return res.status(500).json({
+        message: "Failed to send password.",
+        error: emailResult.error,
+      });
+    }
+
+    // if (status === "Activate") {
+    //   try {
+    //     await GoviShopDAO.sendGoviShopRenewalEmailDAO(id);
+    //   } catch (emailError) {
+    //     console.error("mail sending failed:", emailError.message);
+    //   }
+    // }
+
+    return res.status(200).json({
+      success: true,
+      message: `Shop user status updated to ${status}`,
+    });
+
+  } catch (error) {
+    console.error("Update Govi Shop User Status Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
