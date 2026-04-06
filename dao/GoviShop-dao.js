@@ -529,29 +529,29 @@ exports.SendGeneratedPasswordDao = async (
 
     const pdfData = Buffer.concat(pdfBuffer);
 
-    // const transporter = nodemailer.createTransport({
-    //   host: "smtp.gmail.com",
-    //   port: 465, // or 587 for TLS
-    //   secure: true,
-    //   auth: {
-    //     user: process.env.EMAIL_USER,
-    //     pass: process.env.EMAIL_PASS,
-    //   },
-    //   tls: {
-    //     family: 4,
-    //   },
-    // });
-
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      port: 465, // or 587 for TLS
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      tls: { rejectUnauthorized: false },
+      tls: {
+        family: 4,
+      },
     });
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 587,
+    //   secure: false,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: { rejectUnauthorized: false },
+    // });
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -1001,29 +1001,29 @@ exports.sendGoviShopRenewalEmailDAO = async (id) => {
 
     const pdfData = Buffer.concat(pdfBuffer);
 
-    // const transporter = nodemailer.createTransport({
-    //   host: "smtp.gmail.com",
-    //   port: 465, // or 587 for TLS
-    //   secure: true,
-    //   auth: {
-    //     user: process.env.EMAIL_USER,
-    //     pass: process.env.EMAIL_PASS,
-    //   },
-    //   tls: {
-    //     family: 4,
-    //   },
-    // });
-
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      port: 465, // or 587 for TLS
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      tls: { rejectUnauthorized: false },
+      tls: {
+        family: 4,
+      },
     });
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 587,
+    //   secure: false,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: { rejectUnauthorized: false },
+    // });
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -1051,15 +1051,29 @@ exports.sendGoviShopRenewalEmailDAO1 = async (id) => {
     return;
   }
 
+
   const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || "smtp.gmail.com",
-    port: 587,
-    secure: false,
+    host: "smtp.gmail.com",
+    port: 465, // or 587 for TLS
+    secure: true,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    tls: {
+      family: 4,
+    },
   });
+
+  // const transporter = nodemailer.createTransport({
+  //   host: process.env.EMAIL_HOST || "smtp.gmail.com",
+  //   port: 587,
+  //   secure: false,
+  //   auth: {
+  //     user: process.env.EMAIL_USER,
+  //     pass: process.env.EMAIL_PASS,
+  //   },
+  // });
 
   const logoPath = path.join(__dirname, "..", "assets", "logo.png");
   const logoExists = fs.existsSync(logoPath);
@@ -2077,29 +2091,29 @@ exports.SendGeneratedPasswordPosUserDao = async (
 
     const pdfData = Buffer.concat(pdfBuffer);
 
-    // const transporter = nodemailer.createTransport({
-    //   host: "smtp.gmail.com",
-    //   port: 465, // or 587 for TLS
-    //   secure: true,
-    //   auth: {
-    //     user: process.env.EMAIL_USER,
-    //     pass: process.env.EMAIL_PASS,
-    //   },
-    //   tls: {
-    //     family: 4,
-    //   },
-    // });
-
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      port: 465, // or 587 for TLS
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      tls: { rejectUnauthorized: false },
+      tls: {
+        family: 4,
+      },
     });
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 587,
+    //   secure: false,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: { rejectUnauthorized: false },
+    // });
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -2371,29 +2385,29 @@ exports.SendGoViShopMembershipRejectEmailDao = async (id) => {
 
     const pdfData = Buffer.concat(pdfBuffer);
 
-    // const transporter = nodemailer.createTransport({
-    //   host: "smtp.gmail.com",
-    //   port: 465, // or 587 for TLS
-    //   secure: true,
-    //   auth: {
-    //     user: process.env.EMAIL_USER,
-    //     pass: process.env.EMAIL_PASS,
-    //   },
-    //   tls: {
-    //     family: 4,
-    //   },
-    // });
-
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      port: 465, // or 587 for TLS
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      tls: { rejectUnauthorized: false },
+      tls: {
+        family: 4,
+      },
     });
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 587,
+    //   secure: false,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: { rejectUnauthorized: false },
+    // });
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,

@@ -2093,6 +2093,7 @@ exports.getDistributionOutForDlvrOrderDao = (
 ) => {
   return new Promise((resolve, reject) => {
     console.log('filterDate', filterDate);
+    console.log('status' , status )
 
     const sqlParams = [id];
 
@@ -2126,37 +2127,35 @@ exports.getDistributionOutForDlvrOrderDao = (
       sqlParams.push(filterDate);
     }
 
-    if (status === 'Late') {
-      sql += `
+    if (status === 'Late' || status === 'On Time') {
+      const lateOrOnTimeCondition = `
         AND (
-          (o.sheduleTime = 'Within 8AM - 2PM' AND 
-            (DATE(po.outDlvrDate) > DATE(o.sheduleDate) OR 
-            (DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND TIME(po.outDlvrDate) > '14:00:00')))
-          
-          OR
-          
-          (o.sheduleTime = 'Within 2PM - 8PM' AND 
-            (DATE(po.outDlvrDate) > DATE(o.sheduleDate) OR 
-            (DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND TIME(po.outDlvrDate) > '20:00:00')))
-        )
-      `;
-    }
-
-    if (status === 'On Time') {
-      sql += `
-        AND (
-          DATE(po.outDlvrDate) < DATE(o.sheduleDate)
+          (
+            ? = 'Late' AND (
+              (o.sheduleTime = 'Within 8AM - 2PM' AND (DATE(po.outDlvrDate) > DATE(o.sheduleDate) OR (DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND TIME(po.outDlvrDate) > '14:00:00'))) OR
+              (o.sheduleTime = 'Within 2PM - 8PM' AND (DATE(po.outDlvrDate) > DATE(o.sheduleDate) OR (DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND TIME(po.outDlvrDate) > '20:00:00')))
+            )
+          )
           OR
           (
-            DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND (
-              (o.sheduleTime = 'Within 8AM - 2PM' AND TIME(po.outDlvrDate) <= '14:00:00')
+            ? = 'On Time' AND (
+              DATE(po.outDlvrDate) < DATE(o.sheduleDate)
               OR
-              (o.sheduleTime = 'Within 2PM - 8PM' AND TIME(po.outDlvrDate) <= '20:00:00')
+              (
+                DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND (
+                  (o.sheduleTime = 'Within 8AM - 2PM' AND TIME(po.outDlvrDate) <= '14:00:00') OR
+                  (o.sheduleTime = 'Within 2PM - 8PM' AND TIME(po.outDlvrDate) <= '20:00:00')
+                )
+              )
             )
           )
         )
       `;
+    
+      sql += lateOrOnTimeCondition;
+      sqlParams.push(status, status);
     }
+    console.log('sql', sql)
 
     collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
