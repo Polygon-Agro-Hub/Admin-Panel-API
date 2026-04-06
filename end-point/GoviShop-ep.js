@@ -1446,7 +1446,7 @@ exports.rejectGoviShopUserEp = async (req, res) => {
       }
     });
   } catch (err) {
-    console.error("Error Rejected GoViShop Membership", err);
+    console.error("Error Rejecting GoViShop Membership", err);
     res.status(500).json({
       message: "",
       error: err.message,
@@ -1471,33 +1471,71 @@ exports.approveGoviShopEp = async (req, res) => {
 
     console.log('updatedData', updatedData)
     if (!updatedData) {
-      return res.status(404).json({ success: false, message: "Shop user not found" });
+      return res.status(404).json({ success: false, message: "Shop not found" });
     }
-
-    const emailResult = await GoviShopDAO.sendGoviShopRenewalEmailDAO(id);
-
-    if (!emailResult.success) {
-      return res.status(500).json({
-        message: "Failed to send password.",
-        error: emailResult.error,
-      });
-    }
-
-    // if (status === "Activate") {
-    //   try {
-    //     await GoviShopDAO.sendGoviShopRenewalEmailDAO(id);
-    //   } catch (emailError) {
-    //     console.error("mail sending failed:", emailError.message);
-    //   }
-    // }
 
     return res.status(200).json({
       success: true,
-      message: `Shop user status updated to ${status}`,
+      message: `GoViShop Approved Successfully`,
     });
 
   } catch (error) {
-    console.error("Update Govi Shop User Status Error:", error);
+    console.error("GoViShop Approved Status Error :", error);
     return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+
+exports.rejectGoviShopEp = async (req, res) => {
+
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+
+    const { id } = await GoviShopValidation.goviShopViewDocumentByIdSchema.validateAsync(
+      req.params,
+    );
+    const {text} = await GoviShopValidation.goviShopViewRejectRequestSchema.validateAsync(req.body);
+
+    console.log('text', text)
+    const adminId = req.user.userId
+
+    const result = await GoviShopDAO.rejectGoviShopDao(
+      id, text, adminId
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "GoViShop not found or no changes made",
+      });
+    }
+
+    const updateReason = await GoviShopDAO.updateRejectReasonGoviShopDao(
+      id, text
+    );
+
+    if (updateReason.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Error updatig reason",
+      });
+    }
+
+    res.json({
+      message: "GoViShop Rejected successfully",
+      status: true,
+      data: {
+        id: id,
+        affectedRows: result.affectedRows,
+      }
+    });
+  } catch (err) {
+    console.error("Error Rejecting GoViShop", err);
+    res.status(500).json({
+      message: "",
+      error: err.message,
+      status: false,
+    });
   }
 };

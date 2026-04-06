@@ -166,6 +166,11 @@ router.put(
   GoviShopEp.approveGoviShopEp,
 );
 
+router.post(
+  "/reject-govi-shop/:id",
+  authMiddleware,
+  GoviShopEp.rejectGoviShopEp,
+);
 
 module.exports = router;
 

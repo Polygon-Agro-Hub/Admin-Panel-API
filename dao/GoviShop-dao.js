@@ -1341,7 +1341,7 @@ exports.GetAllShopsByOwnerDAO = (
     let countSql = `
       SELECT COUNT(*) AS total
       FROM govi_shop.govishops gs
-      WHERE gs.ownerId = ?
+      WHERE gs.ownerId = ? AND gs.isAvailable = 1
     `;
 
     // SQL to fetch paginated data
@@ -1357,7 +1357,7 @@ exports.GetAllShopsByOwnerDAO = (
         gs.isActive,
         gs.approvedStatus
       FROM govi_shop.govishops gs
-      WHERE gs.ownerId = ?
+      WHERE gs.ownerId = ? AND gs.isAvailable = 1
     `;
 
     if (accessStatus) {
@@ -1632,7 +1632,7 @@ exports.GetAllShopRequestsDAO = (
       SELECT COUNT(*) AS total
       FROM govi_shop.govishops gs
       LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
-      WHERE gs.approvedStatus != 'Approved'
+      WHERE gs.approvedStatus != 'Approved' AND gs.isAvailable = 1
     `;
 
     // SQL to fetch paginated data
@@ -1647,11 +1647,15 @@ exports.GetAllShopRequestsDAO = (
         gs.shopTypeImg AS logo,
         gs.isActive,
         gs.approvedStatus,
+        CASE 
+          WHEN gs.updatedAt IS NOT NULL THEN 'edit'
+          ELSE 'create'
+        END AS actionStatus,
         so.ownerName,
         so.shopPhone As ownerPhone
       FROM govi_shop.govishops gs
       LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
-      WHERE gs.approvedStatus != 'Approved'
+      WHERE gs.approvedStatus != 'Approved' AND gs.isAvailable = 1
     `;
 
     // Add filter for status
@@ -2415,13 +2419,42 @@ exports.approveGoviShopDAO = (id, status, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
     UPDATE govishops
-    SET accessStatus = 'Approved', isActive = '1', activatedBy = ?, activatedAt = NOW()
+    SET approvedStatus = 'Approved', approvedBy = ?, approvedAt = NOW()
     WHERE id = ?
     `;
 
     goviShop.query(sql, [adminId, id], (err, results) => {
       if (err) return reject(err);
       resolve(results.affectedRows > 0);
+    });
+  });
+};
+
+exports.rejectGoviShopDao = (id, text, adminId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            UPDATE govi_shop.govishops
+            SET approvedStatus = 'Rejected', approvedBy = ?, approvedAt = NOW()
+            WHERE id = ?
+        `;
+    goviShop.query(sql, [adminId, id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.updateRejectReasonGoviShopDao = (id, text) => {
+  return new Promise((resolve, reject) => {
+    const sql = "INSERT INTO govi_shop.removeshopreason (`shopId`, `reason`) VALUES (?, ?)";
+
+    goviShop.query(sql, [id, text], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
     });
   });
 };
