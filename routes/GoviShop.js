@@ -13,7 +13,7 @@ router.get(
 router.delete(
   "/delete-govi-shop-user/:id",
   authMiddleware,
-  GoviShopEp.deleteGoviShopUser,
+  GoviShopEp.deleteGoviShopUserEp,
 );
 
 router.post(
@@ -94,7 +94,13 @@ router.get(
 router.post(
   "/update-govi-shop-user",
   authMiddleware,
-  GoviShopEp.updateGoviShopUser,
+  GoviShopEp.updateGoviShopUserEp,
+);
+
+router.post(
+  "/delete-govi-shop",
+  authMiddleware,
+  GoviShopEp.deleteGoviShopEp,
 );
 
 router.get(
@@ -109,17 +115,23 @@ router.get(
   GoviShopEp.getGoviShopById,
 );
 
+router.get(
+  "/get-govi-shop-for-update/:id",
+  authMiddleware,
+  GoviShopEp.getGoviShopForUpdateEp,
+);
+
 
 router.post(
   "/update-govi-shop",
   authMiddleware,
-  GoviShopEp.updateGoviShopUser,
+  GoviShopEp.updateGoviShopEp,
 );
 
 router.get(
   "/get-shop-by-id/:id",
   authMiddleware,
-  GoviShopEp.getGoviShopById,
+  GoviShopEp.getGoviShopByIdEp,
 );
 
 router.get("/users", authMiddleware, GoviShopEp.getUsers);
@@ -140,6 +152,12 @@ router.post(
   "/reset-govi-shop-user-password",
   authMiddleware,
   GoviShopEp.resetPosUserPasswordEp,
+);
+
+router.post(
+  "/reject-govi-shop-user",
+  authMiddleware,
+  GoviShopEp.rejectGoviShopUserEp,
 );
 
 

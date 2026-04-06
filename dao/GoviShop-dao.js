@@ -133,7 +133,7 @@ exports.getGoviShopUserById = (id) => {
   });
 };
 
-exports.deleteGoviShopUser = (id) => {
+exports.deleteGoviShopUserDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = "UPDATE govi_shop.shopowners SET isAvailable = 0 WHERE id = ?";
     goviShop.query(sql, [id], (err, results) => {
@@ -408,14 +408,25 @@ exports.SendGeneratedPasswordDao = async (
     doc.roundedRect(80, boxY, 440, 60, 6).fill("#FDE3C6");
 
     doc
-      .fillColor("#000000")
+      .font('Helvetica')
+      .fillColor('#000000')
       .fontSize(12)
-      .text(`Username: ${phone} / ${email}`, 95, boxY + 15);
+      .text('Username: ', 95, boxY + 15, { continued: true })
+      .font('Helvetica-Bold')
+      .fillColor('#02072C')
+      .text(`${phone} / ${email}`);
 
-    doc.text(`Temporary Password: ${password}`, 95, boxY + 35);
+    doc
+      .font('Helvetica')
+      .fillColor('#000000')
+      .text('Temporary Password: ', 95, boxY + 35, { continued: true })
+      .font('Helvetica-Bold')
+      .fillColor('#02072C')
+      .text(password);
 
     /* ---------- SECURITY NOTE ---------- */
     doc
+      .font('Helvetica')
       .fillColor("#02072C")
       .lineGap(6)
       .fontSize(12)
@@ -476,7 +487,7 @@ exports.SendGeneratedPasswordDao = async (
         underline: true,
       });
 
-    doc.moveDown(2);
+    doc.moveDown(1);
 
     /* ---------- FOOTER ---------- */
     doc.fillColor("#02072C").fontSize(12).lineGap(0).text("Thank you,", 80);
@@ -1342,7 +1353,7 @@ exports.GetAllShopsByOwnerDAO = (
         gs.email,
         gs.phone,
         DATE_ADD(gs.updatedAt, INTERVAL 330 MINUTE) AS updatedAt,
-        gs.shopTypeImg AS logo,
+        gs.logo AS logo,
         gs.isActive,
         gs.approvedStatus
       FROM govi_shop.govishops gs
@@ -1412,7 +1423,7 @@ exports.GetAllShopsByOwnerDAO = (
   });
 };
 
-exports.checkExistShopOwnerDao = (nic) => {
+exports.checkExistShopOwnerCreateDao = (nic) => {
   console.log("called nic check");
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1427,14 +1438,16 @@ exports.checkExistShopOwnerDao = (nic) => {
         return reject(err);
       }
 
-      console.log("results", results);
-
-      resolve(results.length > 0);
+      let validationResult;
+      if (results.length > 0) {
+        validationResult = true;
+      }
+      resolve(validationResult);
     });
   });
 };
 
-exports.checkExistEmailsDao = (email) => {
+exports.checkExistEmailsCreateDao = (email) => {
   return new Promise((resolve, reject) => {
     const sql = `
           SELECT *
@@ -1455,7 +1468,7 @@ exports.checkExistEmailsDao = (email) => {
   });
 };
 
-exports.checkExistPhoneDao = (phone1) => {
+exports.checkExistPhoneCreateDao = (phone1) => {
   return new Promise((resolve, reject) => {
     const sql = `
           SELECT *
@@ -1545,7 +1558,35 @@ exports.checkExistPhoneDao = (phone1, id) => {
   });
 };
 
-exports.updateGoviShopUser = (shopData, adminId) => {
+exports.updateGoviShopUserDao = (supplierData) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      UPDATE govi_shop.shopowners
+      SET 
+        ownerName = ?, email = ?, shopPhone = ?, nic = ?
+      WHERE id = ?
+    `;
+
+    const values = [
+      supplierData.fullName,
+      supplierData.email,
+      supplierData.mobileNumber,
+      supplierData.nic,
+      supplierData.id
+    ];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log("GoViShop user details updated successfully");
+      console.log("Affected rows:", results.affectedRows);
+      resolve(results);
+    });
+  });
+};
+
+exports.updateGoviShopDao = (shopData, adminId) => {
   return new Promise((resolve, reject) => {
     let sql = `
       UPDATE govi_shop.govishops
@@ -1560,7 +1601,7 @@ exports.updateGoviShopUser = (shopData, adminId) => {
       shopData.mobileNumber,
       shopData.address,
       adminId,
-      shopData.id,
+      shopData.shopId,
     ];
 
     collectionofficer.query(sql, values, (err, results) => {
@@ -1643,7 +1684,7 @@ exports.GetAllShopRequestsDAO = (
     }
 
     // Add pagination
-    sql += " ORDER BY gs.updatedAt DESC LIMIT ? OFFSET ?";
+    sql += " ORDER BY gs.shopName ASC LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
     // Execute count query to get total records
@@ -1720,6 +1761,7 @@ exports.checkExistShopPhoneDao = (phone1, id) => {
     collectionofficer.query(sql, [phone1, id], (err, results) => {
       if (err) return reject(err);
       resolve(results.length > 0);
+      console.log('results', results)
     });
   });
 };
@@ -1750,6 +1792,29 @@ exports.getGoViShopByIdDao = (id) => {
       LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
       LEFT JOIN agro_world_admin.adminusers au1 ON gs.approvedBy = au1.id
       LEFT JOIN agro_world_admin.adminusers au2 ON gs.updatedBy = au2.id
+      WHERE gs.id = ?
+    `;
+
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+exports.getGoViShopForUpdateDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        gs.id AS shopId,
+        gs.shopName,
+        gs.address,
+        gs.email,
+        gs.phone AS mobileNumber
+      FROM govi_shop.govishops gs
       WHERE gs.id = ?
     `;
 
@@ -2090,6 +2155,40 @@ exports.updateGoviShopPOSUserDao = (userData) => {
       }
       console.log("GoViShop details updated successfully");
       console.log("Affected rows:", results.affectedRows);
+      resolve(results);
+    });
+  });
+};
+
+exports.rejecGoviShopUserDao = (id, text, adminId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            UPDATE govi_shop.shopowners
+            SET accessStatus = 'Rejected', isActivated = 1, approvedBy = ?, approvedAt = NOW()
+            WHERE id = ?
+        `;
+    goviShop.query(sql, [adminId, id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+
+exports.rejecGoviShopUserDao = (id, text) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            INSERT INTO govi_shop.removeownerreson ('ownerId', 'reason') VALUES (?);
+            WHERE id = ?
+        `;
+
+    const values = [id, text];
+    goviShop.query(sql, [values], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
       resolve(results);
     });
   });

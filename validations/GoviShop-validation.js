@@ -39,3 +39,8 @@ exports.getAllGoViShopSchema = Joi.object({
   bussinessType: Joi.string().optional(),
   searchItem: Joi.string().optional(),
 });
+
+
+exports.goviShopViewRejectRequestSchema = Joi.object({
+  text: Joi.string().required(),
+});
