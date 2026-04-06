@@ -2093,7 +2093,7 @@ exports.getDistributionOutForDlvrOrderDao = (
 ) => {
   return new Promise((resolve, reject) => {
     console.log('filterDate', filterDate);
-    console.log('status' , status )
+    console.log('status', status);
 
     const sqlParams = [id];
 
@@ -2123,39 +2123,48 @@ exports.getDistributionOutForDlvrOrderDao = (
     }
 
     if (filterDate) {
-      sql += ` AND DATE(po.outDlvrDate) = ? `;
+      sql += ` AND DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = ? `;
       sqlParams.push(filterDate);
     }
 
-    if (status === 'Late' || status === 'On Time') {
-      const lateOrOnTimeCondition = `
+    if (status === 'Late') {
+      sql += `
         AND (
-          (
-            ? = 'Late' AND (
-              (o.sheduleTime = 'Within 8AM - 2PM' AND (DATE(po.outDlvrDate) > DATE(o.sheduleDate) OR (DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND TIME(po.outDlvrDate) > '14:00:00'))) OR
-              (o.sheduleTime = 'Within 2PM - 8PM' AND (DATE(po.outDlvrDate) > DATE(o.sheduleDate) OR (DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND TIME(po.outDlvrDate) > '20:00:00')))
+          (o.sheduleTime = 'Within 8AM - 2PM' AND (
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            OR (
+              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+              AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > '14:00:00'
             )
-          )
+          )) OR
+          (o.sheduleTime = 'Within 2PM - 8PM' AND (
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            OR (
+              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+              AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > '20:00:00'
+            )
+          ))
+        )
+      `;
+    }
+
+    if (status === 'On Time') {
+      sql += `
+        AND (
+          DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) < DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
           OR
           (
-            ? = 'On Time' AND (
-              DATE(po.outDlvrDate) < DATE(o.sheduleDate)
-              OR
-              (
-                DATE(po.outDlvrDate) = DATE(o.sheduleDate) AND (
-                  (o.sheduleTime = 'Within 8AM - 2PM' AND TIME(po.outDlvrDate) <= '14:00:00') OR
-                  (o.sheduleTime = 'Within 2PM - 8PM' AND TIME(po.outDlvrDate) <= '20:00:00')
-                )
-              )
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            AND (
+              (o.sheduleTime = 'Within 8AM - 2PM' AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) <= '14:00:00') OR
+              (o.sheduleTime = 'Within 2PM - 8PM' AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) <= '20:00:00')
             )
           )
         )
       `;
-    
-      sql += lateOrOnTimeCondition;
-      sqlParams.push(status, status);
     }
-    console.log('sql', sql)
+
+    console.log('sql', sql);
 
     collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
