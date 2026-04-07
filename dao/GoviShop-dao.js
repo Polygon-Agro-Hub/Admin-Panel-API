@@ -221,8 +221,8 @@ exports.createGoviShopUser = (supplierData, adminId, accessStatus) => {
         const insertSql = `
             INSERT INTO govi_shop.shopowners (
               ownername, shopPhone, email, nic, isAvailable, currentPlan, 
-              onbordStatus, onbordedAdmin, regCode, accessStatus, isActivated, activatedBy
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              onbordStatus, onbordedAdmin, regCode, accessStatus, isActivated, activatedBy, activatedAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
           `;
 
         collectionofficer.query(
@@ -529,29 +529,29 @@ exports.SendGeneratedPasswordDao = async (
 
     const pdfData = Buffer.concat(pdfBuffer);
 
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465, // or 587 for TLS
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      tls: {
-        family: 4,
-      },
-    });
-
     // const transporter = nodemailer.createTransport({
     //   host: "smtp.gmail.com",
-    //   port: 587,
-    //   secure: false,
+    //   port: 465, // or 587 for TLS
+    //   secure: true,
     //   auth: {
     //     user: process.env.EMAIL_USER,
     //     pass: process.env.EMAIL_PASS,
     //   },
-    //   tls: { rejectUnauthorized: false },
+    //   tls: {
+    //     family: 4,
+    //   },
     // });
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: { rejectUnauthorized: false },
+    });
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -1905,12 +1905,14 @@ exports.getUsersDao = async (search = "", role = "Manager") => {
         bs.phone AS mobileNumber,
         b.id AS branchId,
         gs.shopName,
-        gs.id AS shopId
+        gs.id AS shopId,
+        bs.role,
+        b.branchName
  
       FROM govi_shop.branchstaff bs
       LEFT JOIN govi_shop.branches b ON bs.branchId = b.id
       LEFT JOIN govi_shop.govishops gs ON b.shopId = gs.id
-      WHERE bs.id = ? AND bs.role = 'POS'
+      WHERE bs.id = ?
     `;
 
     goviShop.query(sql, [id], (err, results) => {
@@ -1948,9 +1950,15 @@ exports.SendGeneratedPasswordPosUserDao = async (
   phone,
   name,
   branchName,
-  shopName
+  shopName,
+  role
 ) => {
   try {
+
+    console.log('branchName', branchName)
+
+    const roleText = (role === 'POS' ? 'POS user' : 'Manager')
+
     const doc = new PDFDocument({ size: "A4", margin: 50 });
 
     const pdfBuffer = [];
@@ -1991,52 +1999,51 @@ exports.SendGeneratedPasswordPosUserDao = async (
       .font("Helvetica")
       .fontSize(12)
       .fillColor("#02072C")
-      .text("We would like to inform you that the password for the following POS user’s password has been reset by a customer support agent.", { width: 440 });
+      .text(`We would like to inform you that the password for the following ${roleText}’s password has been reset by a customer support agent.`, { width: 440 });
 
     doc.moveDown(0.5);
 
-    doc
-      .lineGap(6)
-      .text(
-        `User: ${name} – ${phone}`,
-        { width: 440 }
-      );
+    // User line - label normal, value bold
+    doc.font("Helvetica").lineGap(6).fillColor("#02072C").text("User: ", { width: 440, continued: true });
+    doc.font("Helvetica-Bold").text(`${name} – ${phone}`, { width: 440 });
 
-    doc
-      .lineGap(6)
-      .text(
-        `Shop: ${  shopName}`,
-        { width: 440 }
-      );
+    // Shop line
+    doc.font("Helvetica").lineGap(6).text("Shop: ", { width: 440, continued: true });
+    doc.font("Helvetica-Bold").text(shopName, { width: 440 });
 
-    doc
-    .lineGap(6)
-    .text(
-      `Branch: ${branchName}`,
-      { width: 440 }
-    );
+    // Branch line
+    doc.font("Helvetica").lineGap(6).text("Branch: ", { width: 440, continued: true });
+    doc.font("Helvetica-Bold").text(branchName, { width: 440 });
 
     /* ---------- CREDENTIAL BOX ---------- */
-    const boxY = doc.y + 10;
+    const boxY = doc.y + 30;
+    const boxHeight = 40;
+    const boxWidth = 440;
 
     doc
-      .roundedRect(80, boxY, 440, 60, 6)
+      .roundedRect(80, boxY, 440, boxHeight, 6)
       .fill("#FDE3C6");
 
-      doc
+    doc
+      .font("Helvetica")
       .fillColor("#000000")
       .fontSize(12)
-      .text(`Temporary Password: ${password}`, 95, boxY + 35);
+      .text("Temporary Password: ", 95, boxY + (boxHeight / 2) - 6, { continued: true });
+
+    doc
+      .font("Helvetica-Bold")
+      .text(password);
 
     /* ---------- SECURITY NOTE ---------- */
     doc
+      .font("Helvetica")
       .fillColor("#02072C")
       .lineGap(6)
       .fontSize(12)
       .text(
-        "For security reasons, we strongly recommend that you change your password after your first login.",
+        `For security reasons, please ensure you change this password upon next login using this ${roleText} account.`,
         80,
-        boxY + 80,
+        boxY + 60,
         { width: 440 }
       );
 
@@ -2171,7 +2178,7 @@ exports.updateGoviShopPOSUserDao = (userData) => {
       if (err) {
         return reject(err);
       }
-      console.log("GoViShop details updated successfully");
+      console.log("User details updated successfully");
       console.log("Affected rows:", results.affectedRows);
       resolve(results);
     });
@@ -2469,6 +2476,37 @@ exports.updateRejectReasonGoviShopDao = (id, text) => {
         return reject(err);
       }
       resolve(results);
+    });
+  });
+};
+
+exports.checkExistPOSUserEmailsDao = (email, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT *
+      FROM govi_shop.branchstaff
+      WHERE email = ? AND id != ?  
+    `;
+
+    collectionofficer.query(sql, [email, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.length > 0);
+    });
+  });
+};
+
+exports.checkExistPOSUserPhoneDao = (phone1, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT *
+      FROM govi_shop.branchstaff
+      WHERE phone = ? AND id != ?  
+    `;
+
+    collectionofficer.query(sql, [phone1, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.length > 0);
+      console.log('results', results)
     });
   });
 };

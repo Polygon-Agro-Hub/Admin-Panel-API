@@ -450,7 +450,8 @@ exports.createGoviShopUser = async (req, res) => {
       console.log('slip', slip)
 
       if (slip) {
-        const slipName = `${supplierData.fullName}`;
+        const fileExtension = slip.originalname.split('.').pop();
+        const slipName = `${supplierData.fullName}.${fileExtension}`;
 
         slipUrl = await uploadImage(
           slip.buffer,
@@ -1241,23 +1242,22 @@ exports.updatePOSUserEp = async (req, res) => {
 
     console.log('userData', userData)
 
-    // let validationErrors = [];
+    let validationErrors = [];
 
-    // const [
-    //   isExistingNIC,
-    //   isExistingEmail,
-    //   isExistingPhoneNumber01,
-    // ] = await Promise.all([   
-    //   GoviShopDAO.checkExistShopEmailsDao(shopData.email, shopData.id),
-    //   GoviShopDAO.checkExistShopPhoneDao(shopData.mobileNumber, shopData.id)
-    // ]);
+    const [
+      isExistingEmail,
+      isExistingPhoneNumber01,
+    ] = await Promise.all([   
+      GoviShopDAO.checkExistPOSUserEmailsDao(userData.email, userData.id),
+      GoviShopDAO.checkExistPOSUserPhoneDao(userData.mobileNumber, userData.id)
+    ]);
 
-    // if (isExistingEmail) validationErrors.push("Email");
-    // if (isExistingPhoneNumber01) validationErrors.push("phone");
+    if (isExistingEmail) validationErrors.push("Email");
+    if (isExistingPhoneNumber01) validationErrors.push("phone");
 
-    // if (validationErrors.length > 0) {
-    //   return res.status(400).json({ errors: validationErrors, status: false });
-    // }
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ errors: validationErrors, status: false });
+    }
 
     const result = await GoviShopDAO.updateGoviShopPOSUserDao(
       userData
@@ -1317,7 +1317,8 @@ exports.resetPosUserPasswordEp = async (req, res) => {
       userData.mobileNumber,
       userData.fullName,
       userData.branchName,
-      userData.shopName
+      userData.shopName,
+      userData.role
 
     );
 
