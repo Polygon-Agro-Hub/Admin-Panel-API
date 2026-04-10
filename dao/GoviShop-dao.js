@@ -2189,7 +2189,7 @@ exports.rejecGoviShopUserDao = (id, text, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
             UPDATE govi_shop.shopowners
-            SET accessStatus = 'Rejected', isActivated = 1, activatedBy = ?, activatedAt = NOW()
+            SET accessStatus = 'Rejected', activatedBy = ?, activatedAt = NOW()
             WHERE id = ?
         `;
     goviShop.query(sql, [adminId, id], (err, results) => {
@@ -2273,23 +2273,26 @@ exports.SendGoViShopMembershipRejectEmailDao = async (id) => {
     const boxY = doc.y + 10;
 
     doc.roundedRect(80, boxY, 440, 60, 6).fill("#FDE3C6");
-
+    
     doc
       .font('Helvetica')
       .fillColor('#C91A3D')
       .fontSize(12)
-      .text('Reason: ', 95, boxY + 15, { continued: true })
-
+      .text('Reason: ', 95, boxY + 15);  // ← remove { continued: true }
+    
     doc
       .font('Helvetica')
       .fillColor('#333C45')
-      .text('Payment insufficient', 95, boxY + 35, { continued: true })
+      .text('Payment insufficient', 95, boxY + 35);  // ← remove { continued: true }
+    
+    doc.moveDown(0.5);
+    doc.y = boxY + 70; 
 
     doc
-      .font("Helvetica")
-      .fontSize(12)
-      .fillColor("#02072C")
-      .text("We kindly request you to review the issue and resubmit your payment details or upload a valid payment confirmation to proceed with your membership activation. If you believe this decision was made in error, please feel free to contact our support team with the correct details for further assistance.", { width: 440 });
+    .font("Helvetica")
+    .fontSize(12)
+    .fillColor("#02072C")
+    .text("We kindly request you to review the issue and resubmit your payment details or upload a valid payment confirmation to proceed with your membership activation. If you believe this decision was made in error, please feel free to contact our support team with the correct details for further assistance.", 80, boxY + 75, { width: 440 });
 
     doc.moveDown(0.5);
 
@@ -2392,29 +2395,29 @@ exports.SendGoViShopMembershipRejectEmailDao = async (id) => {
 
     const pdfData = Buffer.concat(pdfBuffer);
 
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465, // or 587 for TLS
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      tls: {
-        family: 4,
-      },
-    });
-
     // const transporter = nodemailer.createTransport({
     //   host: "smtp.gmail.com",
-    //   port: 587,
-    //   secure: false,
+    //   port: 465, // or 587 for TLS
+    //   secure: true,
     //   auth: {
     //     user: process.env.EMAIL_USER,
     //     pass: process.env.EMAIL_PASS,
     //   },
-    //   tls: { rejectUnauthorized: false },
+    //   tls: {
+    //     family: 4,
+    //   },
     // });
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: { rejectUnauthorized: false },
+    });
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -2507,6 +2510,23 @@ exports.checkExistPOSUserPhoneDao = (phone1, id) => {
       if (err) return reject(err);
       resolve(results.length > 0);
       console.log('results', results)
+    });
+  });
+};
+
+
+exports.deleteGoviShopDao = (id, text, adminId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            UPDATE govi_shop.govishops
+            SET isAvailable = 0
+            WHERE id = ?
+        `;
+    goviShop.query(sql, [adminId, id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
     });
   });
 };

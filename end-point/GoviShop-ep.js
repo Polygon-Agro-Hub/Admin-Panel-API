@@ -1368,14 +1368,14 @@ exports.deleteGoviShopEp = async (req, res) => {
       req.params,
     );
 
-    // const results = await GoviShopDAO.deleteGoviShopDao(id);
+    const results = await GoviShopDAO.deleteGoviShopDao(id);
 
-    // console.log("Successfully Deleted the GoViShop");
-    // if (results.affectedRows > 0) {
-    //   res.status(200).json({ results: results, status: true });
-    // } else {
-    //   res.json({ results: results, status: false });
-    // }
+    console.log("Successfully Deleted the GoViShop");
+    if (results.affectedRows > 0) {
+      res.status(200).json({ results: results, status: true });
+    } else {
+      res.json({ results: results, status: false });
+    }
 
     res.status(200).json({ results: results, status: true });
   } catch (error) {
