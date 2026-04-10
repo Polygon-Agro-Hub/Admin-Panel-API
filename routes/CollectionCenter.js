@@ -185,11 +185,10 @@ router.get(
 );
 
 router.get(
-  "/get-all-complain-category-list-super/:appName",
+  "/get-all-complain-category-list-super/:id",
   authMiddleware,
   CollectionCenterEp.GetComplainCategoriesByRoleSuper
 );
-
 router.get(
   "/get-all-comppany-for-officer-complain",
   authMiddleware,

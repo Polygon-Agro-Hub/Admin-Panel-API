@@ -849,7 +849,7 @@ exports.GetAllDriverComplainDAO = (
   });
 };
 
-exports.getDriverComplainById = (id) => {
+exports.getDriverComplainByIdDAO = (id) => {
   return new Promise((resolve, reject) => {
     const sql = ` 
     SELECT 

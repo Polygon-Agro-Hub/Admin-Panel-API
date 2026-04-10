@@ -1619,13 +1619,13 @@ exports.GetComplainCategoriesByRole = (roleId, appName) => {
   });
 };
 
-exports.GetComplainCategoriesByRoleSuper = (appName) => {
+exports.GetComplainCategoriesByRoleSuper = (id) => {
   return new Promise((resolve, reject) => {
     const sql =
       `SELECT cc.id, cc.categoryEnglish FROM agro_world_admin.complaincategory cc
        LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
-       WHERE sa.appName = ?`;
-    admin.query(sql, [appName], (err, results) => {
+       WHERE sa.id = ?`;
+    admin.query(sql, [parseInt(id, 10)], (err, results) => {
       if (err) {
         return reject(err);
       }

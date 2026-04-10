@@ -704,7 +704,7 @@ exports.getDriverComplainById = async (req, res) => {
   try {
     const id = req.params.id;
 
-    const result = await ComplainCategoryDAO.getDriverComplainById(id);
+    const result = await ComplainCategoryDAO.getDriverComplainByIdDAO(id);
     console.log('results', result);
 
     if (result.length === 0) {
