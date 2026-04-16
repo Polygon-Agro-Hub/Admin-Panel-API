@@ -2530,3 +2530,61 @@ exports.deleteGoviShopDao = (id, text, adminId) => {
     });
   });
 };
+
+exports.getAllDeletedSuppliersDao = (page, limit, searchItem) => {
+  return new Promise((resolve, reject) => {
+    const sqlParams = [];
+    const counterParams = [];
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM shopowners s
+      INNER JOIN removeownerreson r ON s.id = r.ownerId
+      WHERE s.isAvailable = 0
+    `;
+
+    let sql = `
+      SELECT
+        s.id,
+        s.ownername,
+        s.nic,
+        s.shopPhone,
+        s.email,
+        s.onbordStatus,
+        JSON_OBJECT(
+          'ownerId', r.ownerId,
+          'reason', r.reason,
+          'deletedAt', r.createdAt
+        ) AS deletedInfo
+      FROM shopowners s
+      INNER JOIN removeownerreson r ON s.id = r.ownerId
+      WHERE s.isAvailable = 0
+    `;
+
+    // Search by NIC or Phone Number
+    if (searchItem) {
+      countSql += ` AND (s.nic LIKE ? OR s.shopPhone LIKE ?)`;
+      sql += ` AND (s.nic LIKE ? OR s.shopPhone LIKE ?)`;
+      const searchQuery = `%${searchItem}%`;
+      sqlParams.push(searchQuery, searchQuery);
+      counterParams.push(searchQuery, searchQuery);
+    }
+
+    // Pagination
+    sql += ` ORDER BY r.createdAt DESC LIMIT ? OFFSET ?`;
+    sqlParams.push(parseInt(limit), parseInt(offset));
+
+    goviShop.query(countSql, counterParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+
+      const total = countResults[0]?.total || 0;
+
+      goviShop.query(sql, sqlParams, (dataErr, results) => {
+        if (dataErr) return reject(dataErr);
+
+        resolve({ results, total });
+      });
+    });
+  });
+};
