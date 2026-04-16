@@ -150,7 +150,7 @@ exports.createMarketProductDao = async (product) => {
       product.category,
       product.discount,
       product.varietyId,
-      product.displaytype,
+      product.displaytype || null,
       product.category === "WholeSale" ? product.maxQuantity : null,
     ];
 
@@ -554,13 +554,13 @@ exports.updateMarketProductDao = async (product, id) => {
     const values = [
       product.cropName || null,
       parseFloat(product.normalPrice) || 0,
-      parseFloat(product.discountedPrice) || 0,
+      parseFloat(product.salePrice) || 0,
       product.promo ? 1 : 0,
       product.unitType || null,
       parseFloat(product.startValue) || 0,
       parseFloat(product.changeby) || 0,
       product.tags || "",
-      product.displaytype || "",
+      product.displaytype || null,
       product.category || null,
       parseFloat(product.discount) || 0,
       product.category === "WholeSale" ? parseFloat(product.maxQuantity) : null,
