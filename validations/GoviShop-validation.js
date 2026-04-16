@@ -44,3 +44,9 @@ exports.getAllGoViShopSchema = Joi.object({
 exports.goviShopViewRejectRequestSchema = Joi.object({
   text: Joi.string().required(),
 });
+
+exports.getAllDeletedSuppliersSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).default(10),
+  searchItem: Joi.string().allow("", null).optional(),
+})

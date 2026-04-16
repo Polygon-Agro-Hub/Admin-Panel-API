@@ -172,6 +172,12 @@ router.post(
   GoviShopEp.rejectGoviShopEp,
 );
 
+router.get(
+  "/get-all-deleted-suppliers",
+  authMiddleware,
+  GoviShopEp.getAllDeletedSuppliersEp,
+);
+
 module.exports = router;
 
 
