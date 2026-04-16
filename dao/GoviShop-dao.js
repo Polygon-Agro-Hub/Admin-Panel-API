@@ -2530,3 +2530,101 @@ exports.deleteGoviShopDao = (id, text, adminId) => {
     });
   });
 };
+
+exports.toggleShopActiveStatusDAO = (id, isActive) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE govi_shop.govishops
+      SET isActive = ?, updatedAt = NOW()
+      WHERE id = ? AND isAvailable = 1
+    `;
+ 
+    goviShop.query(sql, [isActive, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+exports.GetAllShopsDAO = (
+  page,
+  limit,
+  accessStatus,
+  approval,
+  bussinessType,
+  searchItem,
+) => {
+  return new Promise((resolve, reject) => {
+    const Sqlparams = [];
+    const Counterparams = [];
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM govi_shop.govishops gs
+      WHERE gs.isAvailable = 1
+    `;
+
+    let sql = `
+      SELECT 
+        gs.id, 
+        gs.shopName,
+        gs.shopType,
+        gs.email,
+        gs.phone,
+        DATE_ADD(gs.updatedAt, INTERVAL 330 MINUTE) AS updatedAt,
+        gs.logo AS logo,
+        gs.isActive,
+        gs.approvedStatus,
+        so.ownerName,
+        au.userName AS updatedBy
+      FROM govi_shop.govishops gs
+      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
+      LEFT JOIN agro_world_admin.adminusers au ON gs.updatedBy = au.id
+      WHERE gs.isAvailable = 1
+    `;
+
+    if (accessStatus) {
+      const active = accessStatus === "Active" ? 1 : 0;
+      countSql += " AND gs.isActive = ? ";
+      sql += " AND gs.isActive = ? ";
+      Sqlparams.push(active);
+      Counterparams.push(active);
+    }
+
+    if (approval) {
+      countSql += " AND gs.approvedStatus = ? ";
+      sql += " AND gs.approvedStatus = ? ";
+      Sqlparams.push(approval);
+      Counterparams.push(approval);
+    }
+
+    if (bussinessType) {
+      countSql += " AND gs.shopType = ? ";
+      sql += " AND gs.shopType = ? ";
+      Sqlparams.push(bussinessType);
+      Counterparams.push(bussinessType);
+    }
+
+    if (searchItem) {
+      countSql += " AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )";
+      sql += " AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )";
+      const searchQuery = `%${searchItem}%`;
+      Sqlparams.push(searchQuery, searchQuery);
+      Counterparams.push(searchQuery, searchQuery);
+    }
+
+    sql += " ORDER BY gs.updatedAt DESC LIMIT ? OFFSET ?";
+    Sqlparams.push(parseInt(limit), parseInt(offset));
+
+    goviShop.query(countSql, Counterparams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+      const total = countResults[0]?.total || 0;
+
+      goviShop.query(sql, Sqlparams, (dataErr, results) => {
+        if (dataErr) return reject(dataErr);
+        resolve({ results, total });
+      });
+    });
+  });
+};

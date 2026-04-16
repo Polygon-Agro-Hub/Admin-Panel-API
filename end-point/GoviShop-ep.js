@@ -1540,3 +1540,76 @@ exports.rejectGoviShopEp = async (req, res) => {
     });
   }
 };
+
+exports.getAllShopsEp = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      accessStatus,
+      approval,
+      bussinessType,
+      searchItem,
+    } = req.query;
+
+    const { results, total } = await GoviShopDAO.GetAllShopsDAO(
+      page,
+      limit,
+      accessStatus,
+      approval,
+      bussinessType,
+      searchItem
+    );
+
+    res.json({ results, total });
+  } catch (err) {
+    console.error("Error fetching all shops:", err);
+    res.status(500).json({ error: "An error occurred while fetching shops" });
+  }
+};
+
+exports.toggleShopStatusEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+ 
+    if (!id) {
+      return res.status(400).json({ error: "Shop id is required", status: false });
+    }
+ 
+    if (isActive === undefined || isActive === null) {
+      return res.status(400).json({ error: "isActive is required", status: false });
+    }
+ 
+    const activeValue = parseInt(isActive);
+    if (activeValue !== 0 && activeValue !== 1) {
+      return res.status(400).json({
+        error: "isActive must be 0 or 1",
+        status: false,
+      });
+    }
+ 
+    const result = await GoviShopDAO.toggleShopActiveStatusDAO(id, activeValue);
+ 
+    if (!result || result.affectedRows === 0) {
+      return res.status(404).json({
+        error: "Shop not found or no changes made",
+        status: false,
+      });
+    }
+ 
+    res.status(200).json({
+      message: `Shop ${activeValue === 1 ? "activated" : "deactivated"} successfully`,
+      status: true,
+    });
+  } catch (err) {
+    console.error("Error toggling shop status:", err);
+    res.status(500).json({
+      error: "An error occurred while updating shop status",
+      status: false,
+    });
+  }
+};
+ 

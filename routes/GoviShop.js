@@ -10,6 +10,8 @@ router.get(
   GoviShopEp.getAllGoviShopUsers,
 );
 
+ 
+
 router.delete(
   "/delete-govi-shop-user/:id",
   authMiddleware,
@@ -170,6 +172,18 @@ router.post(
   "/reject-govi-shop/:id",
   authMiddleware,
   GoviShopEp.rejectGoviShopEp,
+);
+
+router.get(
+  "/get-all-shops",
+  authMiddleware,
+  GoviShopEp.getAllShopsEp,
+);
+
+router.put(
+  "/toggle-shop-status/:id",
+  authMiddleware,
+  GoviShopEp.toggleShopStatusEp
 );
 
 module.exports = router;
