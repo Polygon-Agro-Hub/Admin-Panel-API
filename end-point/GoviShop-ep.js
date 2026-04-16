@@ -1570,34 +1570,6 @@ exports.getAllDeletedSuppliersEp = async (req, res) => {
   }
 };
 
-exports.getAllDeletedSuppliersEp = async (req, res) => {
-  try {
-    console.log(req.query);
-
-    const { page, limit, searchItem } =
-      await GoviShopValidation.getAllDeletedSuppliersSchema.validateAsync(
-        req.query
-      );
-
-    const { results, total } = await GoviShopDAO.getAllDeletedSuppliersDao(
-      page,
-      limit,
-      searchItem
-    );
-
-    console.log("results", results);
-    console.log("Successfully retrieved all deleted suppliers");
-    res.json({ results, total });
-
-  } catch (err) {
-    console.error("Error Rejecting GoViShop", err);
-    res.status(500).json({
-      message: "",
-      error: err.message,
-      status: false,
-    });
-  }
-};
 
 exports.getAllShopsEp = async (req, res) => {
   try {
