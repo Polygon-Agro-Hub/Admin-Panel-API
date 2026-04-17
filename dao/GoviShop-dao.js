@@ -2555,10 +2555,12 @@ exports.getAllDeletedSuppliersDao = (page, limit, searchItem) => {
         JSON_OBJECT(
           'ownerId', r.ownerId,
           'reason', r.reason,
-          'deletedAt', r.createdAt
+          'deletedAt', r.createdAt,
+          'deletedBy', a.userName
         ) AS deletedInfo
       FROM shopowners s
       INNER JOIN removeownerreson r ON s.id = r.ownerId
+      INNER JOIN agro_world_admin.adminusers a ON r.removedBy = a.id 
       WHERE s.isAvailable = 0
     `;
 
@@ -2682,6 +2684,52 @@ exports.GetAllShopsDAO = (
         if (dataErr) return reject(dataErr);
         resolve({ results, total });
       });
+    });
+  });
+};
+
+exports.getShopBranchDetailsByIdDao = (branchId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        JSON_OBJECT(
+          'shopName',  gs.shopName,
+          'logo',      gs.logo,
+          'phone',     gs.phone,
+          'address',   gs.address,
+          'shopType',  gs.shopType,
+          'email',     gs.email,
+          'createdAt', gs.createdAt,
+          'updatedBy', au.userName,
+          'updatedAt', gs.updatedAt
+        ) AS shopInfo,
+        JSON_OBJECT(
+          'branchName',  b.branchName,
+          'createdAt',   b.createdAt,
+          'mobilePhone', b.mobilePhone,
+          'landPhone',   b.LandPhone,
+          'address',     b.address,
+          'province',    b.province,
+          'district',    b.district,
+          'longitude',   b.longitude,
+          'latitude',    b.latitude
+        ) AS branchInfo,
+        JSON_OBJECT(
+          'ownerName',  so.ownername,
+          'shopPhone',  so.shopPhone,
+          'nic',        so.nic,
+          'email',      so.email
+        ) AS ownerInfo
+      FROM branches b
+      LEFT JOIN govishops gs ON b.shopId = gs.id
+      LEFT JOIN shopowners so ON gs.ownerId = so.id
+      LEFT JOIN agro_world_admin.adminusers au ON gs.updatedBy  = au.id 
+      WHERE b.id = ?
+    `;
+
+    goviShop.query(sql, [branchId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
     });
   });
 };

@@ -192,6 +192,12 @@ router.put(
   GoviShopEp.toggleShopStatusEp
 );
 
+router.get(
+  "/view-branch-by-id/:id",
+  authMiddleware,
+  GoviShopEp.getShopBranchDetailsByIdEp,
+);
+
 module.exports = router;
 
 

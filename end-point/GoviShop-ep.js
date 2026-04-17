@@ -1642,4 +1642,28 @@ exports.toggleShopStatusEp = async (req, res) => {
     });
   }
 };
+
+exports.getShopBranchDetailsByIdEp = async (req, res) => {
+  try {
+    // const { id } = req.params;
+    const id = 3;
+
+    if (!id) {
+      return res.status(400).json({ error: "Branch ID is required" });
+    }
+
+    const result = await GoviShopDAO.getShopBranchDetailsByIdDao(id);
+
+    if (!result) {
+      return res.status(404).json({ error: "Branch not found" });
+    }
+
+    console.log("Successfully retrieved branch details");
+    res.json({ result });
+
+  } catch (err) {
+    console.error("Error fetching branch details:", err);
+    res.status(500).json({ error: "An error occurred while fetching branch details" });
+  }
+};
  
