@@ -1574,25 +1574,23 @@ exports.getAllDeletedSuppliersEp = async (req, res) => {
 exports.getAllShopsEp = async (req, res) => {
   try {
     const {
-      page = 1,
-      limit = 10,
-      accessStatus,
-      approval,
-      bussinessType,
-      searchItem,
-    } = req.query;
-
-    const { results, total } = await GoviShopDAO.GetAllShopsDAO(
       page,
       limit,
       accessStatus,
       approval,
       bussinessType,
-      searchItem
+      searchItem,
+    } = await GoviShopValidation.getAllShopsQuerySchema.validateAsync(req.query);
+
+    const { results, total } = await GoviShopDAO.GetAllShopsDAO(
+      page, limit, accessStatus, approval, bussinessType, searchItem
     );
 
     res.json({ results, total });
   } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message, status: false });
+    }
     console.error("Error fetching all shops:", err);
     res.status(500).json({ error: "An error occurred while fetching shops" });
   }
@@ -1602,39 +1600,26 @@ exports.toggleShopStatusEp = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    const { id } = req.params;
-    const { isActive } = req.body;
- 
-    if (!id) {
-      return res.status(400).json({ error: "Shop id is required", status: false });
-    }
- 
-    if (isActive === undefined || isActive === null) {
-      return res.status(400).json({ error: "isActive is required", status: false });
-    }
- 
-    const activeValue = parseInt(isActive);
-    if (activeValue !== 0 && activeValue !== 1) {
-      return res.status(400).json({
-        error: "isActive must be 0 or 1",
-        status: false,
-      });
-    }
- 
-    const result = await GoviShopDAO.toggleShopActiveStatusDAO(id, activeValue);
- 
+    const { id } = await GoviShopValidation.toggleShopStatusParamsSchema.validateAsync(req.params);
+    const { isActive } = await GoviShopValidation.toggleShopStatusSchema.validateAsync(req.body);
+
+    const result = await GoviShopDAO.toggleShopActiveStatusDAO(id, isActive);
+
     if (!result || result.affectedRows === 0) {
       return res.status(404).json({
         error: "Shop not found or no changes made",
         status: false,
       });
     }
- 
+
     res.status(200).json({
-      message: `Shop ${activeValue === 1 ? "activated" : "deactivated"} successfully`,
+      message: `Shop ${isActive === 1 ? "activated" : "deactivated"} successfully`,
       status: true,
     });
   } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message, status: false });
+    }
     console.error("Error toggling shop status:", err);
     res.status(500).json({
       error: "An error occurred while updating shop status",
@@ -1643,3 +1628,79 @@ exports.toggleShopStatusEp = async (req, res) => {
   }
 };
  
+exports.getBranchesByShopIdEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+
+  try {
+    const { shopId } = await GoviShopValidation.getBranchesByShopIdParamsSchema.validateAsync(
+      req.params
+    );
+
+    const { page, limit, province, district, searchItem } =
+      await GoviShopValidation.getBranchesByShopIdQuerySchema.validateAsync(
+        req.query
+      );
+
+    const { results, total } = await GoviShopDAO.GetBranchesByShopIdDAO(
+      shopId,
+      page,
+      limit,
+      province,
+      district,
+      searchItem
+    );
+
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message, status: false });
+    }
+    console.error('Error fetching branches:', err);
+    res.status(500).json({ error: 'An error occurred while fetching branches' });
+  }
+};
+
+exports.toggleBranchStatusEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+
+  try {
+    const { branchId } = await GoviShopValidation.toggleBranchStatusSchema.validateAsync(
+      req.params
+    );
+
+    const { isActive } = await GoviShopValidation.toggleShopStatusSchema.validateAsync(
+      req.body
+    );
+
+    const userId = req.user.userId;
+
+    const result = await GoviShopDAO.toggleBranchActiveStatusDAO(
+      branchId,
+      isActive,
+      userId          // ← passed as updatedBy
+    );
+
+    if (!result || result.affectedRows === 0) {
+      return res.status(404).json({
+        error: 'Branch not found or no changes made',
+        status: false,
+      });
+    }
+
+    res.status(200).json({
+      message: `Branch ${isActive === 1 ? 'activated' : 'deactivated'} successfully`,
+      status: true,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message, status: false });
+    }
+    console.error('Error toggling branch status:', err);
+    res.status(500).json({
+      error: 'An error occurred while updating branch status',
+      status: false,
+    });
+  }
+};

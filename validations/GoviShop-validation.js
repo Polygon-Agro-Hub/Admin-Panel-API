@@ -50,3 +50,36 @@ exports.getAllDeletedSuppliersSchema = Joi.object({
   limit: Joi.number().integer().min(1).default(10),
   searchItem: Joi.string().allow("", null).optional(),
 })
+
+exports.toggleShopStatusSchema = Joi.object({
+  isActive: Joi.number().integer().valid(0, 1).required(),
+});
+
+exports.toggleBranchStatusSchema = Joi.object({
+  branchId: Joi.number().integer().required().positive(),
+});
+
+exports.getBranchesByShopIdParamsSchema = Joi.object({
+  shopId: Joi.number().integer().required().positive(),
+});
+
+exports.getBranchesByShopIdQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).default(10).optional(),
+  province: Joi.string().allow("", null).optional(),
+  district: Joi.string().allow("", null).optional(),
+  searchItem: Joi.string().allow("", null).optional(),
+});
+
+exports.getAllShopsQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).default(10).optional(),
+  accessStatus: Joi.string().allow("", null).optional(),
+  approval: Joi.string().allow("", null).optional(),
+  bussinessType: Joi.string().allow("", null).optional(),
+  searchItem: Joi.string().allow("", null).optional(),
+});
+
+exports.toggleShopStatusParamsSchema = Joi.object({
+  id: Joi.number().integer().required().positive(),
+});
