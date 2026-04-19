@@ -2733,3 +2733,107 @@ exports.getShopBranchDetailsByIdDao = (branchId) => {
     });
   });
 };
+
+exports.GetBranchesByShopIdDAO = (
+  shopId,
+  page,
+  limit,
+  province,
+  district,
+  searchItem
+) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+    const sqlParams = [shopId];
+    const countParams = [shopId];
+ 
+    // ── Count query ──────────────────────────────────────────────────────────
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM govi_shop.branches b
+      WHERE b.shopId = ?
+    `;
+
+    let dataSql = `
+      SELECT
+        b.id,
+        b.branchName,
+        b.mobilePhone,
+        b.district,
+        b.province,
+        b.isActive,
+        b.createdAt,
+        COUNT(DISTINCT CASE WHEN bs.role = 'Manager' THEN bs.id END) AS managerCount,
+        COUNT(DISTINCT CASE WHEN bs.role = 'POS'     THEN bs.id END) AS posCount,
+        au.userName  AS updatedBy,
+        b.updatedAt
+      FROM govi_shop.branches b
+      LEFT JOIN govi_shop.branchstaff bs ON bs.branchId = b.id
+      LEFT JOIN agro_world_admin.adminusers au ON b.updatedBy = au.id
+      WHERE b.shopId = ?
+    `;
+ 
+    // ── Optional filters ─────────────────────────────────────────────────────
+    if (province) {
+      countSql += ' AND b.province = ?';
+      dataSql  += ' AND b.province = ?';
+      sqlParams.push(province);
+      countParams.push(province);
+    }
+ 
+    if (district) {
+      countSql += ' AND b.district = ?';
+      dataSql  += ' AND b.district = ?';
+      sqlParams.push(district);
+      countParams.push(district);
+    }
+ 
+    if (searchItem) {
+      const like = `%${searchItem}%`;
+      countSql += ' AND (b.branchName LIKE ? OR b.mobilePhone LIKE ?)';
+      dataSql  += ' AND (b.branchName LIKE ? OR b.mobilePhone LIKE ?)';
+      sqlParams.push(like, like);
+      countParams.push(like, like);
+    }
+ 
+    // GROUP BY is required because of the COUNT(DISTINCT ...) aggregates
+    dataSql += `
+      GROUP BY
+        b.id, b.branchName, b.mobilePhone, b.district, b.province,
+        b.isActive, b.createdAt, au.userName, b.updatedAt
+      ORDER BY b.createdAt DESC
+      LIMIT ? OFFSET ?
+    `;
+    sqlParams.push(parseInt(limit), parseInt(offset));
+ 
+    // ── Execute count first ──────────────────────────────────────────────────
+    goviShop.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+ 
+      const total = countResults[0]?.total || 0;
+ 
+      goviShop.query(dataSql, sqlParams, (dataErr, results) => {
+        if (dataErr) return reject(dataErr);
+        resolve({ results, total });
+      });
+    });
+  });
+};
+ 
+exports.toggleBranchActiveStatusDAO = (branchId, isActive, updatedBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE govi_shop.branches
+      SET 
+        isActive  = ?,
+        updatedBy = ?,
+        updatedAt = NOW()
+      WHERE id = ?
+    `;
+
+    goviShop.query(sql, [isActive, updatedBy, branchId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};

@@ -198,6 +198,9 @@ router.get(
   GoviShopEp.getShopBranchDetailsByIdEp,
 );
 
+router.get('/get-branches/:shopId',   authMiddleware, GoviShopEp.getBranchesByShopIdEp);
+router.put('/toggle-branch-status/:branchId', authMiddleware, GoviShopEp.toggleBranchStatusEp);
+
 module.exports = router;
 
 
