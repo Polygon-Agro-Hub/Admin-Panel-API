@@ -1707,8 +1707,8 @@ exports.toggleBranchStatusEp = async (req, res) => {
 
 exports.getShopBranchDetailsByIdEp = async (req, res) => {
   try {
-    // const { id } = req.params;
-    const id = 3;
+    
+    const { id } = req.params;
 
     if (!id) {
       return res.status(400).json({ error: "Branch ID is required" });
