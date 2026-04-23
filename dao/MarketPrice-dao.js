@@ -341,7 +341,7 @@ exports.getAllMarketPriceAgroDAO = (crop, grade, search, centerId, companyId) =>
           ms.price,
           ms.updatedPrice,
           ms.updateAt,
-          m.createdAt
+          m.createdAt AS updateAt
         FROM marketpriceserve ms
         JOIN marketprice m ON ms.marketPriceId = m.id
         JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
