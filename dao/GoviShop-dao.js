@@ -2251,7 +2251,7 @@ exports.SendGoViShopMembershipRejectEmailDao = async (id) => {
       .fillColor("#02072C")
       .text(`Dear ${shopUser.ownername},`, 80, 200);
 
-    doc.moveDown();
+    doc.moveDown(0.5);
 
     doc
       .font("Helvetica")
@@ -2294,10 +2294,8 @@ exports.SendGoViShopMembershipRejectEmailDao = async (id) => {
     .fillColor("#02072C")
     .text("We kindly request you to review the issue and resubmit your payment details or upload a valid payment confirmation to proceed with your membership activation. If you believe this decision was made in error, please feel free to contact our support team with the correct details for further assistance.", 80, boxY + 75, { width: 440 });
 
-    doc.moveDown(0.5);
-
     /* ---------- LOGIN BUTTON ---------- */
-    const btnY = doc.y + 15;
+    const btnY = doc.y + 8;
 
     doc.roundedRect(80, btnY, 440, 40, 8).fill("#FF7A00");
 
@@ -2310,9 +2308,9 @@ exports.SendGoViShopMembershipRejectEmailDao = async (id) => {
         align: "center",
       });
 
-    doc.link(80, btnY, 440, 40, "https://retry-link.com"); // ← clickable overlay
+    doc.link(80, btnY, 440, 40, "https://retry-link.com");
 
-    doc.moveDown(2);
+    doc.moveDown(0.5);
 
     /* ---------- FALLBACK LINK ---------- */
     doc
@@ -2342,14 +2340,14 @@ exports.SendGoViShopMembershipRejectEmailDao = async (id) => {
         underline: true,
       });
 
-      doc
+    doc
       .font("Helvetica")
       .fontSize(12)
       .fillColor("#02072C")
       .text(
         "We appreciate your understanding and look forward to welcoming you as a Premium Member soon.",
         80,
-        doc.y,
+        urlBoxY + 48,
         { width: 440 }
       );
     
@@ -2523,6 +2521,22 @@ exports.deleteGoviShopDao = (id, text, adminId) => {
             WHERE id = ?
         `;
     goviShop.query(sql, [adminId, id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.updateReasonGoviShopDao = (id, reason) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO govi_shop.removeshopreason (shopId, reason)
+      VALUES (?, ?)
+    `;
+
+    goviShop.query(sql, [id, reason], (err, results) => {
       if (err) {
         return reject(err);
       }

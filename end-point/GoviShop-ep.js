@@ -1368,7 +1368,14 @@ exports.deleteGoviShopEp = async (req, res) => {
       req.params,
     );
 
+    const reason = '';
+
     const results = await GoviShopDAO.deleteGoviShopDao(id);
+
+    let reasonUpdate;
+    if (results.affectedRows > 0) {
+        reasonUpdate = await GoviShopDAO.updateReasonGoviShopDao(id, reason);
+    }
 
     console.log("Successfully Deleted the GoViShop");
     if (results.affectedRows > 0) {
