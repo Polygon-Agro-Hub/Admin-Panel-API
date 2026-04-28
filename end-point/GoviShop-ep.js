@@ -1736,3 +1736,50 @@ exports.getShopBranchDetailsByIdEp = async (req, res) => {
   }
 };
  
+exports.getProductsByBranchIdEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+
+  try {
+    // Validate branchId from params
+    const { branchId } = await GoviShopValidation.getProductsByBranchIdParamsSchema.validateAsync(
+      req.params
+    );
+
+    console.log(`Fetching products for branchId: ${branchId}`); // Debug log
+
+    // Validate query parameters (categoryId, searchItem)
+    const { categoryId, searchItem } =
+      await GoviShopValidation.getProductsByBranchIdQuerySchema.validateAsync(
+        req.query
+      );
+
+    console.log('Query params:', { categoryId, searchItem }); // Debug log
+
+    // Fetch products
+    const { results, total } = await GoviShopDAO.GetProductsByBranchIdDAO(
+      branchId,
+      categoryId,
+      searchItem
+    );
+
+    console.log(`Products fetched: ${results.length}`); // Debug log
+
+    // Fetch categories for dropdown
+    const categories = await GoviShopDAO.GetCategoriesByBranchIdWithTableDAO(branchId);
+    
+    console.log(`Categories fetched: ${categories.length}`); // Debug log
+
+    res.json({ 
+      success: true,
+      products: results, 
+      categories: categories
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message, status: false });
+    }
+    console.error('Error fetching products:', err);
+    res.status(500).json({ error: 'An error occurred while fetching products' });
+  }
+};

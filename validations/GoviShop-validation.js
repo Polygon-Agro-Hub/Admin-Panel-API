@@ -83,3 +83,12 @@ exports.getAllShopsQuerySchema = Joi.object({
 exports.toggleShopStatusParamsSchema = Joi.object({
   id: Joi.number().integer().required().positive(),
 });
+
+exports.getProductsByBranchIdParamsSchema = Joi.object({
+  branchId: Joi.number().integer().required().positive(),
+});
+
+exports.getProductsByBranchIdQuerySchema = Joi.object({
+  categoryId: Joi.string().allow("", null).optional(),
+  searchItem: Joi.string().allow("", null).optional(),
+});
