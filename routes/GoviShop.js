@@ -201,6 +201,8 @@ router.get(
 router.get('/get-branches/:shopId',   authMiddleware, GoviShopEp.getBranchesByShopIdEp);
 router.put('/toggle-branch-status/:branchId', authMiddleware, GoviShopEp.toggleBranchStatusEp);
 
+router.get('/get-products/:branchId', authMiddleware, GoviShopEp.getProductsByBranchIdEp);
+
 module.exports = router;
 
 
