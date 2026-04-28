@@ -164,7 +164,7 @@ app.use(BASE_PATH + '/api/shop', GoviShopRoutes)
 app.use("/uploads", express.static("uploads"));
 
 app.get(BASE_PATH + "/test", (req, res) => {
-  res.send(`Test route is working 12/24! ${process.env.DB_NAME_INV}`);
+  res.send(`Test route is working 4/28`);
   console.log("test route is working");
 });
 
