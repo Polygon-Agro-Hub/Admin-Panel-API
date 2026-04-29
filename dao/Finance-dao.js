@@ -657,6 +657,7 @@ exports.getAllCertificatePayments = (
     let dataSql = `
       SELECT 
         cp.transactionId,
+        cp.payType,
         CASE 
           WHEN cp.payType = 'Cluster' THEN fc.clsName
           ELSE CONCAT(u.firstName, ' ', u.lastName)
