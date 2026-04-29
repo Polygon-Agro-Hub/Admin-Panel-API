@@ -1783,7 +1783,7 @@ function computeDeliveryStatus(item) {
 
   // 1. Delivered after schedule date → "Later"
   if (dDate > sDate) {
-    return "Later";
+    return "Late";
   }
 
   // If delivered before schedule date → always On Time
