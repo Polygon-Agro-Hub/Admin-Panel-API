@@ -1175,6 +1175,36 @@ exports.getLeaseDetails = (landAssetId) => {
   });
 };
 
+exports.getOwnLandDetails = (landAssetId) => {
+  return new Promise((resolve, reject) => {
+    const query = `
+      SELECT estimateValue
+      FROM plant_care.ownershipownerfixedasset
+      WHERE landAssetId = ?
+    `;
+
+    plantcare.query(query, [landAssetId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.getSharedLandDetails = (landAssetId) => {
+  return new Promise((resolve, reject) => {
+    const query = `
+      SELECT paymentAnnually
+      FROM plant_care.ownershipsharedfixedasset
+      WHERE landAssetId = ?
+    `;
+
+    plantcare.query(query, [landAssetId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
 exports.getCurrentAssetsByCategory = (userId, category, farmId) => {
   const sql = `SELECT * FROM currentasset WHERE userId = ? AND category = ? AND farmId = ?`;
   const values = [userId, category, farmId];
