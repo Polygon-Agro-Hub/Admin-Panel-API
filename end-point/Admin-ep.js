@@ -968,6 +968,17 @@ exports.getLandOwnershipDetails = async (req, res) => {
       parseInt(landAssetId)
     );
 
+    if (results.ownershipType === "Lease") {
+      const leaseDetails = await adminDao.getLeaseDetails(
+        parseInt(landAssetId)
+      );
+
+      // Step 3: Attach extra data
+      results.leaseDetails = leaseDetails;
+    } else {
+      results.leaseDetails = null;
+    }
+
     console.log("Successfully retrieved land ownership details");
     res.status(200).json(results);
   } catch (err) {

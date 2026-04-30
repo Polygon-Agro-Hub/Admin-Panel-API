@@ -1158,6 +1158,23 @@ exports.getLandOwnershipDetails = (landAssetId) => {
   });
 };
 
+
+// example
+exports.getLeaseDetails = (landAssetId) => {
+  return new Promise((resolve, reject) => {
+    const query = `
+      SELECT DATE_ADD(startDate, INTERVAL 330 MINUTE) AS startDate, durationYears, durationMonths, leastAmountAnnually
+      FROM plant_care.ownershipleastfixedasset
+      WHERE landAssetId = ?
+    `;
+
+    plantcare.query(query, [landAssetId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
 exports.getCurrentAssetsByCategory = (userId, category, farmId) => {
   const sql = `SELECT * FROM currentasset WHERE userId = ? AND category = ? AND farmId = ?`;
   const values = [userId, category, farmId];
