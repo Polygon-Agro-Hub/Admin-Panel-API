@@ -2506,14 +2506,14 @@ exports.checkExistPOSUserPhoneDao = (phone1, id) => {
   });
 };
 
-exports.deleteGoviShopDao = (id, text, adminId) => {
+exports.deleteGoviShopDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            UPDATE govi_shop.govishops
-            SET isAvailable = 0
-            WHERE id = ?
-        `;
-    goviShop.query(sql, [adminId, id], (err, results) => {
+      UPDATE govi_shop.govishops
+      SET isAvailable = 0
+      WHERE id = ?
+    `;
+    goviShop.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2897,6 +2897,32 @@ exports.GetCategoriesByBranchIdWithTableDAO = (branchId) => {
     goviShop.query(sql, [branchId], (err, results) => {
       if (err) return reject(err);
       resolve(results);
+    });
+  });
+};
+
+exports.getShopEmailDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+        SELECT 
+          gs.email, su.ownername AS ownerName, gs.shopName
+        FROM govi_shop.govishops gs
+        LEFT JOIN govi_shop.shopowners su ON gs.ownerId = su.id
+        WHERE gs.id = ?
+        `;
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err); // Reject promise if an error occurs
+      }
+      if (results.length > 0) {
+        resolve({
+          email: results[0].email, // Resolve with email
+          ownerName: results[0].ownerName,
+          shopName: results[0].shopName,
+        });
+      } else {
+        resolve(null); // Resolve with null if no record is found
+      }
     });
   });
 };

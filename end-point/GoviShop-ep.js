@@ -1361,44 +1361,71 @@ exports.resetPosUserPasswordEp = async (req, res) => {
 };
 
 exports.deleteGoviShopEp = async (req, res) => {
-  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log(fullUrl);
   try {
-    const { id } = await GoviShopValidation.goviShopViewDocumentByIdSchema.validateAsync(
-      req.params,
-    );
+    const { id } =
+      await GoviShopValidation.goviShopViewDocumentByIdSchema.validateAsync(
+        req.params
+      );
 
-    const reason = '';
+    const { reason } = req.body;
+
+    console.log("Deleting shop ID:", id, "Reason:", reason);
+
+    const shopOwner = await GoviShopDAO.getShopEmailDao(id);
+
+    if (!shopOwner) {
+      return res.status(404).json({
+        message: "Shop not found.",
+        status: false,
+      });
+    }
+
+    const { email, ownerName, shopName } = shopOwner;
+
+    // Save reason BEFORE deleting so it's always recorded
+    if (reason) {
+      await GoviShopDAO.updateReasonGoviShopDao(id, reason);
+    }
 
     const results = await GoviShopDAO.deleteGoviShopDao(id);
 
-    let reasonUpdate;
-    if (results.affectedRows > 0) {
-        reasonUpdate = await GoviShopDAO.updateReasonGoviShopDao(id, reason);
+    if (results.affectedRows === 0) {
+      return res.status(400).json({
+        message: "Delete failed.",
+        status: false,
+      });
     }
 
-    console.log("Successfully Deleted the GoViShop");
-    if (results.affectedRows > 0) {
-      res.status(200).json({ results: results, status: true });
-    } else {
-      res.json({ results: results, status: false });
+    console.log("Successfully deleted the GoViShop");
+
+    // Send email but don't block success if it fails — log the error instead
+    const emailResult = await deleteShopEmail(email, ownerName, shopName);
+
+    if (!emailResult.success) {
+      console.error("Email sending failed:", emailResult.error);
     }
 
-    res.status(200).json({ results: results, status: true });
+    return res.status(200).json({
+      message: "Shop deleted and email sent.",
+      status: true,
+    });
+
   } catch (error) {
     if (error.isJoi) {
-      return res
-        .status(400)
-        .json({ error: error.details[0].message, status: false });
+      return res.status(400).json({
+        error: error.details[0].message,
+        status: false,
+      });
     }
 
-    console.error("Error Deleting the GoViShop:", error);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while Deleting GoViShop" });
+    console.error("Error deleting GoViShop:", error);
+
+    return res.status(500).json({
+      error: "An error occurred while deleting GoViShop",
+      status: false,
+    });
   }
 };
-
 
 exports.rejectGoviShopUserEp = async (req, res) => {
 
@@ -1783,3 +1810,173 @@ exports.getProductsByBranchIdEp = async (req, res) => {
     res.status(500).json({ error: 'An error occurred while fetching products' });
   }
 };
+
+
+async function deleteShopEmail(email, ownerName, shopName) {
+  try {
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 50,
+    });
+
+    const pdfBuffer = [];
+    doc.on("data", pdfBuffer.push.bind(pdfBuffer));
+
+    /* ---------- CARD BACKGROUND ---------- */
+    doc
+      .roundedRect(40, 40, 515, 480, 10)   // ← height 700 → 480
+      .fillAndStroke("#f9fafb", "#e5e7eb");
+
+    /* ---------- LOGO ---------- */
+    const logo = path.resolve(__dirname, "../assets/govishop.png");
+    doc.image(logo, 260, 60, { width: 75 });
+
+    /* ---------- TITLE ---------- */
+    doc
+      .font("Helvetica-Bold")
+      .fillColor("#02072C")
+      .fontSize(14)
+      .text("Your GoViShop Has Been Deleted", 80, 140, {
+        align: "center",
+      });
+
+    /* ---------- DIVIDER ---------- */
+    doc
+      .moveTo(80, 180)
+      .lineTo(520, 180)
+      .strokeColor("#E8E6F6")
+      .stroke();
+
+    /* ---------- BODY ---------- */
+    doc
+      .fillColor("#02072C")
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .lineGap(6)
+      .text(`Dear ${ownerName},`, 80, 200);
+
+    doc
+      .font("Helvetica")
+      .fillColor("#02072C")
+      .fontSize(12)
+      .lineGap(6)                                           // ← added
+      .text(
+        `We wanted to inform you that your GoViShop shop ${shopName} has been deleted.`,
+        { width: 440 }
+      );
+
+    /* ---------- REASON BOX ---------- */
+    doc
+      .roundedRect(80, 260, 440, 60, 5)
+      .fill("#FEF3F3");
+
+    doc
+      .fillColor("#C91A3D")
+      .fontSize(12)
+      .lineGap(0)                                           // ← reset inside box
+      .text("Reason :", 100, 275);
+
+    doc
+      .fillColor("#333C45")
+      .fontSize(12)
+      .text("Inactive shop for extended period.", 100, 295);
+
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .lineGap(6)                                           
+      .text(
+        "As a result, your shop will no longer be visible or accessible on GoViShop, and all associated services have been disabled.",
+        80,
+        340,
+        { width: 440 }
+      );
+
+
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .lineGap(6)                                          
+      .text("Thank you,", 80);
+
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .lineGap(0)                                           
+      .text("GoViShop Team", 80);
+
+    doc
+      .font("Helvetica")
+      .fontSize(10)
+      .lineGap(6)
+      .fillColor("#9ca3af")
+      .text(
+        "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
+        80,
+        535,                                                  
+        { align: "center", width: 440 }
+      );
+
+    doc
+      .lineGap(6)
+      .text("Please note that this is an automated message.", {
+        align: "center",
+        width: 440,
+      });
+
+    doc.end();
+    await new Promise((resolve) => doc.on("end", resolve));
+
+    const pdfData = Buffer.concat(pdfBuffer); // Concatenate the buffer data
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 465, // or 587 for TLS
+    //   secure: true,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: {
+    //     family: 4,
+    //   },
+    // });
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
+
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "PolygonAgro (Pvt) Ltd - GoViShop Has Been Deleted",
+      text: `Dear ${ownerName},\n\nDetails are attached in the PDF.`,
+      attachments: [
+        {
+          filename: `GovViShop_Delete.pdf`, // PDF file name
+          content: pdfData, // Attach the PDF buffer directly
+        },
+      ],
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.response);
+
+    return { success: true, message: "Email sent successfully!" };
+  } catch (error) {
+    console.error("Error sending email:", error);
+
+    return { success: false, message: "Failed to send email.", error };
+  }
+}

@@ -98,13 +98,6 @@ router.post(
   authMiddleware,
   GoviShopEp.updateGoviShopUserEp,
 );
-
-router.post(
-  "/delete-govi-shop",
-  authMiddleware,
-  GoviShopEp.deleteGoviShopEp,
-);
-
 router.get(
   "/get-all-shop-requests",
   authMiddleware,
@@ -197,6 +190,13 @@ router.get(
   authMiddleware,
   GoviShopEp.getShopBranchDetailsByIdEp,
 );
+
+router.delete(
+  "/delete-govi-shop/:id",
+  authMiddleware,
+  GoviShopEp.deleteGoviShopEp,
+);
+
 
 router.get('/get-branches/:shopId',   authMiddleware, GoviShopEp.getBranchesByShopIdEp);
 router.put('/toggle-branch-status/:branchId', authMiddleware, GoviShopEp.toggleBranchStatusEp);
