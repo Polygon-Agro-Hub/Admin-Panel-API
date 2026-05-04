@@ -663,14 +663,27 @@ exports.getAllCertificatePayments = (
           ELSE CONCAT(u.firstName, ' ', u.lastName)
         END as farmerName,
         FORMAT(cp.amount, 2) as amount,
-        DATE_FORMAT(cp.createdAt, '%d %b, %Y %h:%i%p') as dateTime,
-        cp.expireDate,
-        cp.createdAt as sortDate,
+    DATE_FORMAT(cp.createdAt, '%Y-%m-%d %H:%i') as dateTime,
+    DATE_FORMAT(cp.expireDate, '%Y-%m-%d') as expiryDate,
+    CASE 
+      WHEN cp.expireDate IS NULL OR cp.createdAt IS NULL THEN 'Expired'
+      ELSE CONCAT(
+        TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate),
+        ' month',
+        CASE WHEN TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) != 1 THEN 's' ELSE '' END,
+        ' ',
+        DATEDIFF(
+          cp.expireDate, 
+          DATE_ADD(cp.createdAt, INTERVAL TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) MONTH)
+        ),
+        ' day',
         CASE 
-          WHEN cp.expireDate < NOW() THEN 'Expired'
-          ELSE CONCAT(
-            FLOOR(DATEDIFF(cp.expireDate, NOW()) / 30), ' months ',
-            MOD(DATEDIFF(cp.expireDate, NOW()), 30), ' days'
+          WHEN DATEDIFF(
+            cp.expireDate, 
+            DATE_ADD(cp.createdAt, INTERVAL TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) MONTH)
+          ) != 1 THEN 's' 
+          ELSE '' 
+        END
           )
         END as validityPeriod
       FROM certificationpayment cp
