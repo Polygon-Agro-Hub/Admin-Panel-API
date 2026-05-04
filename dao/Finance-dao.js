@@ -379,41 +379,71 @@ exports.getAllCertificateDashboardData = () => {
       // Monthly income = (Certificate Price / No of months) * active user count per certificate
       // Only include valid/active certificates (expireDate > current date for current month)
       // Certificate durations: 1 month, 4 months, 12 months
+      // -----------------old one-----------------------------
+      // const incomeQuery = `
+      //   SELECT 
+      //     COALESCE(SUM(
+      //       CASE 
+      //         WHEN c.timeLine > 0
+      //         THEN (c.price / c.timeLine) * current_users.userCount
+      //         ELSE 0
+      //       END
+      //     ), 0) as currentMonthIncome,
+      //     COALESCE(SUM(
+      //       CASE 
+      //         WHEN c.timeLine > 0
+      //         THEN (c.price / c.timeLine) * previous_users.userCount
+      //         ELSE 0
+      //       END
+      //     ), 0) as previousMonthIncome
+      //   FROM certificates c
+      //   LEFT JOIN (
+      //     SELECT 
+      //       certificateId,
+      //       COUNT(DISTINCT userId) as userCount
+      //     FROM certificationpayment
+      //     WHERE expireDate > CURRENT_TIMESTAMP()
+      //     GROUP BY certificateId
+      //   ) current_users ON c.id = current_users.certificateId
+      //   LEFT JOIN (
+      //     SELECT 
+      //       certificateId,
+      //       COUNT(DISTINCT userId) as userCount
+      //     FROM certificationpayment
+      //     WHERE expireDate > DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)
+      //       AND createdAt <= LAST_DAY(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH))
+      //     GROUP BY certificateId
+      //   ) previous_users ON c.id = previous_users.certificateId
+      //   WHERE c.timeLine IN (1, 4, 12)
+      // `;
+      // ----------------------------------------------
+
       const incomeQuery = `
         SELECT 
-          COALESCE(SUM(
-            CASE 
-              WHEN c.timeLine > 0
-              THEN (c.price / c.timeLine) * current_users.userCount
-              ELSE 0
-            END
-          ), 0) as currentMonthIncome,
-          COALESCE(SUM(
-            CASE 
-              WHEN c.timeLine > 0
-              THEN (c.price / c.timeLine) * previous_users.userCount
-              ELSE 0
-            END
-          ), 0) as previousMonthIncome
-        FROM certificates c
-        LEFT JOIN (
-          SELECT 
-            certificateId,
-            COUNT(DISTINCT userId) as userCount
-          FROM certificationpayment
-          WHERE expireDate > CURRENT_TIMESTAMP()
-          GROUP BY certificateId
-        ) current_users ON c.id = current_users.certificateId
-        LEFT JOIN (
-          SELECT 
-            certificateId,
-            COUNT(DISTINCT userId) as userCount
-          FROM certificationpayment
-          WHERE expireDate > DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)
-            AND createdAt <= LAST_DAY(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH))
-          GROUP BY certificateId
-        ) previous_users ON c.id = previous_users.certificateId
-        WHERE c.timeLine IN (1, 4, 12)
+  -- Current month: only payments NOT expired right now
+  COALESCE(SUM(
+    CASE 
+      WHEN c.timeLine > 0 
+        AND cp.expireDate > CURRENT_TIMESTAMP()
+      THEN (c.price / c.timeLine)
+      ELSE 0
+    END
+  ), 0) AS currentMonthIncome,
+
+  -- Previous month: payments that were active during last month
+  COALESCE(SUM(
+    CASE 
+      WHEN c.timeLine > 0
+        AND cp.expireDate > DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)
+        AND cp.createdAt <= LAST_DAY(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH))
+      THEN (c.price / c.timeLine)
+      ELSE 0
+    END
+  ), 0) AS previousMonthIncome
+
+FROM certificates c
+JOIN certificationpayment cp ON c.id = cp.certificateId
+WHERE c.timeLine IN (1, 4, 12)
       `;
 
       // Get recent 6 payments with validity period calculation (FIXED)
