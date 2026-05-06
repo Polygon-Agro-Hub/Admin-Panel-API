@@ -1042,7 +1042,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
           WHERE 
             olf.buildingAssetId = ?;
         `,
-          "Permit Building": `
+          "Permitted Building": `
           SELECT 
             opf.id,
             opf.buildingAssetId,
@@ -1068,6 +1068,8 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
         };
 
         const ownershipQuery = ownershipQueries[ownership];
+
+        console.log('ownershipQuery', ownershipQuery)
 
         if (!ownershipQuery) {
           // If no specific ownership query, return just building details
