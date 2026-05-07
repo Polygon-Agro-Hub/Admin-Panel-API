@@ -1235,6 +1235,9 @@ exports.updatePOSUserEp = async (req, res) => {
       });
     }
 
+    const adminId = req.user.userId;
+    console.log('adminId', adminId)
+
     console.log('userData', req.body);
 
     // Parse and sanitize officer data
@@ -1260,7 +1263,7 @@ exports.updatePOSUserEp = async (req, res) => {
     }
 
     const result = await GoviShopDAO.updateGoviShopPOSUserDao(
-      userData
+      userData, adminId
     );
 
     if (result.affectedRows === 0) {
@@ -1930,31 +1933,31 @@ async function deleteShopEmail(email, ownerName, shopName) {
 
     const pdfData = Buffer.concat(pdfBuffer); // Concatenate the buffer data
 
-    // const transporter = nodemailer.createTransport({
-    //   host: "smtp.gmail.com",
-    //   port: 465, // or 587 for TLS
-    //   secure: true,
-    //   auth: {
-    //     user: process.env.EMAIL_USER,
-    //     pass: process.env.EMAIL_PASS,
-    //   },
-    //   tls: {
-    //     family: 4,
-    //   },
-    // });
-
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      port: 465, // or 587 for TLS
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
       tls: {
-        rejectUnauthorized: false,
+        family: 4,
       },
     });
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 587,
+    //   secure: false,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: {
+    //     rejectUnauthorized: false,
+    //   },
+    // });
 
 
     const mailOptions = {
