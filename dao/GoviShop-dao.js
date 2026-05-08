@@ -455,7 +455,7 @@ exports.SendGeneratedPasswordDao = async (
         align: "center",
       });
 
-    doc.link(80, btnY, 440, 40, "https://GoViShop-link.com"); // ← clickable overlay
+    doc.link(80, btnY, 440, 40, `${process.env.GOVI_SHOP_DEV_URL}`); // ← clickable overlay
 
     doc.moveDown(2);
 
@@ -1657,7 +1657,7 @@ exports.GetAllShopRequestsDAO = (
         gs.email,
         gs.phone,
         DATE_ADD(gs.updatedAt, INTERVAL 330 MINUTE) AS updatedAt,
-        gs.shopTypeImg AS logo,
+        gs.logo,
         gs.isActive,
         gs.approvedStatus,
         CASE 
@@ -1803,7 +1803,8 @@ exports.getGoViShopByIdDao = (id) => {
         so.nic,
         so.shopPhone,
         au1.userName AS approvedBY,
-        au2.userName AS updatedBy
+        au2.userName AS updatedBy,
+        gs.approvedAt
 
       FROM govi_shop.govishops gs
       LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
@@ -2430,7 +2431,7 @@ exports.SendGoViShopMembershipRejectEmailDao = async (id) => {
   }
 };
 
-exports.approveGoviShopDAO = (id, status, adminId) => {
+exports.approveGoviShopDAO = (id, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
     UPDATE govishops
