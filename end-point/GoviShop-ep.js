@@ -1161,6 +1161,7 @@ exports.getUsers = async (req, res) => {
 
     // Get the users using the DAO function
     const users = await GoviShopDAO.getUsersDao(search, userRole);
+    console.log('users', users)
 
     // Build response message
     let message = `${userRole}s fetched successfully!`;

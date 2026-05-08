@@ -1850,21 +1850,40 @@ exports.getUsersDao = async (search = "", role = "Manager") => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-        bs.id,
-        bs.branchId,
-        bs.userName,
-        bs.phone,
-        bs.email,
-        bs.role,
-        bs.isActive,
-        bs.createdAt,
-        b.branchName,
-        b.shopId,
-        g.shopName 
-      FROM branchstaff bs
-      LEFT JOIN branches b ON bs.branchId = b.id
-      LEFT JOIN govishops g ON b.shopId = g.id
-      WHERE bs.role = ?
+    bs.id,
+    bs.branchId,
+    bs.userName,
+    bs.phone,
+    bs.email,
+    bs.role,
+    bs.isActive,
+    bs.createdAt,
+    b.branchName,
+    b.shopId,
+    g.shopName,
+    DATE_ADD(bs.updatedAt, INTERVAL 330 MINUTE) AS updatedAt,
+
+    CASE
+        WHEN bs.adminUpdatedBy IS NOT NULL THEN au.username
+        WHEN bs.ownerUpdatedBy IS NOT NULL THEN so.ownername
+        ELSE NULL
+    END AS updatedBy
+
+FROM branchstaff bs
+
+LEFT JOIN branches b 
+    ON bs.branchId = b.id
+
+LEFT JOIN govishops g 
+    ON b.shopId = g.id
+
+LEFT JOIN agro_world_admin.adminusers au 
+    ON bs.adminUpdatedBy = au.id
+
+LEFT JOIN govi_shop.shopowners so 
+    ON bs.ownerUpdatedBy = so.id
+
+WHERE bs.role = ?
     `;
 
     let params = [role];
@@ -2146,12 +2165,12 @@ exports.getGoViShopBranchesByShopIdDao = (shopId) => {
   });
 };
 
-exports.updateGoviShopPOSUserDao = (userData) => {
+exports.updateGoviShopPOSUserDao = (userData, adminId) => {
   return new Promise((resolve, reject) => {
     let sql = `
       UPDATE govi_shop.branchstaff
       SET 
-        branchId = ?, userName = ?, email = ?, phone = ?
+        branchId = ?, userName = ?, email = ?, phone = ?, adminUpdatedBy = ?, updatedAt = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
 
@@ -2160,6 +2179,7 @@ exports.updateGoviShopPOSUserDao = (userData) => {
       userData.fullName,
       userData.email,
       userData.mobileNumber,
+      adminId,
       userData.id,
     ];
 
