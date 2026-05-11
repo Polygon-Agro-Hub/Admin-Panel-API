@@ -116,6 +116,12 @@ router.get(
   GoviShopEp.getGoviShopForUpdateEp,
 );
 
+router.get(
+  "/get-branch-for-update/:id",
+  authMiddleware,
+  GoviShopEp.getBranchForUpdateEp,
+);
+
 
 router.post(
   "/update-govi-shop",
@@ -196,6 +202,12 @@ router.delete(
   authMiddleware,
   GoviShopEp.deleteGoviShopEp,
 );
+
+// router.post(
+//   "/update-govi-shop-branch",
+//   authMiddleware,
+//   GoviShopEp.updateGoviShopBranchEp,
+// );
 
 
 router.get('/get-branches/:shopId',   authMiddleware, GoviShopEp.getBranchesByShopIdEp);
