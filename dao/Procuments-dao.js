@@ -1348,10 +1348,12 @@ exports.getExcludeListDao = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-        MPI.id,
-        MPI.displayName
-      FROM excludelist XL, marketplaceitems MPI
-      WHERE XL.userId = ? AND XL.mpItemId = MPI.id
+    MPI.id,
+    MPI.displayName
+FROM excludelist XL
+JOIN marketplaceitems MPI ON XL.mpItemId = MPI.id
+WHERE XL.userId = ? 
+    AND MPI.category = 'Retail';
     `;
     marketPlace.query(sql, [id], (err, results) => {
       if (err) {

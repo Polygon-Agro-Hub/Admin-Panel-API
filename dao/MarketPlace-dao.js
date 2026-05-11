@@ -2791,13 +2791,15 @@ exports.salesAnalyzeDao = async () => {
         if (results[0].previous_30_to_60_days_total === null)
           results[0].previous_30_to_60_days_total = 0;
 
+        let percentage =
+          ((results[0].last_30_days_count -
+            results[0].previous_30_to_60_days_count) /
+            results[0].previous_30_to_60_days_count) *
+          100;
+
         let obj = {
           amount: results[0].last_30_days_total,
-          precentage:
-            ((results[0].last_30_days_count -
-              results[0].previous_30_to_60_days_count) /
-              results[0].previous_30_to_60_days_count) *
-            100,
+          precentage: Number(percentage.toFixed(2)),
         };
         resolve(obj);
       }
@@ -2912,7 +2914,7 @@ exports.areaOrderDataDao = async () => {
         const currentDate = new Date();
         const currentMonth = currentDate.getMonth(); // 0-11
         const currentYear = currentDate.getFullYear();
-        
+
         // Get past year December month number (0-11)
         const pastYearDec = 11; // December is index 11
 
@@ -2924,24 +2926,24 @@ exports.areaOrderDataDao = async () => {
 
         // Start from past year December
         let startMonth = pastYearDec; // 11 (December)
-        
+
         // Generate months from past year December to current month
         for (let i = 0; i <= 12; i++) {
           const monthIndex = (startMonth + i) % 12;
           const monthName = allMonths[monthIndex];
-          
+
           // Stop if we've reached current month
           if (i > 0 && monthIndex === currentMonth) {
             break;
           }
-          
+
           // For December (index 11), show "0" as label instead of "Dec"
           if (monthIndex === 11) {
             monthlyData.months.push("0"); // "0" instead of "Dec"
           } else {
             monthlyData.months.push(monthName);
           }
-          
+
           const monthData = results.find(r => r.monthNum === monthIndex + 1);
           monthlyData.salesCount.push(monthData ? monthData.salesCount : 0);
           monthlyData.total.push(monthData ? monthData.total : 0);

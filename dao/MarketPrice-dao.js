@@ -1,4 +1,4 @@
-const { plantcare, collectionofficer, marketPlace } = require('../startup/database');
+const { plantcare, collectionofficer, marketPlace, admin} = require('../startup/database');
 const Joi = require('joi');
 const path = require('path');
 
@@ -335,21 +335,23 @@ exports.getAllMarketPriceAgroDAO = (crop, grade, search, centerId, companyId) =>
       
       let sql = `
         SELECT 
-          m.id,
-          cg.cropNameEnglish AS cropName,
-          cv.varietyNameEnglish AS varietyName,
-          m.grade,
-          ms.price,
-          ms.updatedPrice,
-          ms.updateAt,
-          xh.createdAt AS updateAt,
-          xh.xlName
-        FROM marketpriceserve ms
-        JOIN marketprice m ON ms.marketPriceId = m.id
-        JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
-        JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
-        LEFT JOIN collection_officer.xlsxhistory xh ON m.xlindex = xh.id 
-        WHERE ms.companyCenterId = ?
+    m.id,
+    cg.cropNameEnglish AS cropName,
+    cv.varietyNameEnglish AS varietyName,
+    m.grade,
+    ms.price,
+    ms.updatedPrice,
+    ms.updateAt,
+    xh.createdAt AS updateAt,
+    xh.xlName,
+    au.userName 
+FROM marketpriceserve ms
+JOIN marketprice m ON ms.marketPriceId = m.id
+JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
+JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+LEFT JOIN collection_officer.xlsxhistory xh ON m.xlindex = xh.id 
+LEFT JOIN agro_world_admin.adminusers au ON xh.adminId = au.id
+WHERE ms.companyCenterId = ?
       `;
 
       // Add companyCenterId as the first parameter

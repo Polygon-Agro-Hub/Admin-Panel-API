@@ -968,6 +968,31 @@ exports.getLandOwnershipDetails = async (req, res) => {
       parseInt(landAssetId)
     );
 
+    if (results.ownershipType === "Lease") {
+      const leaseDetails = await adminDao.getLeaseDetails(
+        parseInt(landAssetId)
+      );
+
+      // Step 3: Attach extra data
+      results.leaseDetails = leaseDetails;
+    } else if (results.ownershipType === "Own") {
+      const ownLandDetails = await adminDao.getOwnLandDetails(
+        parseInt(landAssetId)
+      );
+
+      results.ownLandDetails = ownLandDetails;
+
+    } else if (results.ownershipType === "Shared") {
+      const sharedLandDetails = await adminDao.getSharedLandDetails(
+        parseInt(landAssetId)
+      );
+
+      results.sharedLandDetails = sharedLandDetails;
+
+    }
+
+    console.log('results', results)
+
     console.log("Successfully retrieved land ownership details");
     res.status(200).json(results);
   } catch (err) {
