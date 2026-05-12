@@ -455,7 +455,7 @@ exports.SendGeneratedPasswordDao = async (
         align: "center",
       });
 
-    doc.link(80, btnY, 440, 40, `${process.env.GOVI_SHOP_DEV_URL}`); // ← clickable overlay
+    doc.link(80, btnY, 440, 40, `${process.env.GOVI_SHOP_DEV_URL}login`); // ← clickable overlay
 
     doc.moveDown(2);
 
@@ -482,7 +482,7 @@ exports.SendGeneratedPasswordDao = async (
       .fillColor("#3177FF")
       .font("Helvetica")
       .fontSize(12)
-      .text("https://GoViShop-link.com", 95, urlBoxY + 13, {
+      .text(`${process.env.GOVI_SHOP_DEV_URL}login`, 95, urlBoxY + 13, {
         width: 420,
         underline: true,
       });
