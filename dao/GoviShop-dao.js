@@ -3083,13 +3083,45 @@ exports.checkExistBranchLandPhoneDao = (phone1, id) => {
     const sql = `
       SELECT *
       FROM govi_shop.branches
-      WHERE landPhone = ? AND id != ?  
+      WHERE LandPhone = ? AND id != ?  
     `;
 
     collectionofficer.query(sql, [phone1, id], (err, results) => {
       if (err) return reject(err);
       resolve(results.length > 0);
       console.log("results", results);
+    });
+  });
+};
+
+
+exports.updateGoviShopBranchDao = (branchData, adminId) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      UPDATE govi_shop.branches
+      SET 
+        branchName = ?, mobilePhone = ?, LandPhone = ?, address = ?, district = ?, province = ?, updatedby = ?, updatedAt = NOW()
+      WHERE id = ?
+    `;
+
+    const values = [
+      branchData.branchName,
+      branchData.mobilePhone,
+      branchData.LandPhone,
+      branchData.address,
+      branchData.district,
+      branchData.province,
+      adminId,
+      branchData.branchId,
+    ];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log("GoViShop Branch details updated successfully");
+      console.log("Affected rows:", results.affectedRows);
+      resolve(results);
     });
   });
 };

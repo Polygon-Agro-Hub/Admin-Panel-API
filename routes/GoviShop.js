@@ -203,11 +203,11 @@ router.delete(
   GoviShopEp.deleteGoviShopEp,
 );
 
-// router.post(
-//   "/update-govi-shop-branch",
-//   authMiddleware,
-//   GoviShopEp.updateGoviShopBranchEp,
-// );
+router.post(
+  "/update-govi-shop-branch",
+  authMiddleware,
+  GoviShopEp.updateGoviShopBranchEp,
+);
 
 
 router.get('/get-branches/:shopId',   authMiddleware, GoviShopEp.getBranchesByShopIdEp);

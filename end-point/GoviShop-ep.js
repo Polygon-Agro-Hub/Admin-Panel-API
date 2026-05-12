@@ -2039,70 +2039,70 @@ async function deleteShopEmail(email, ownerName, shopName) {
   }
 }
 
-// exports.updateGoviShopBranchEp = async (req, res) => {
+exports.updateGoviShopBranchEp = async (req, res) => {
 
-//   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-//   console.log('fullUrl', fullUrl)
-//   try {
-//     if (!req.body) {
-//       return res.status(400).json({
-//         error: "Branch data is required",
-//         status: false,
-//       });
-//     }
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    if (!req.body) {
+      return res.status(400).json({
+        error: "Branch data is required",
+        status: false,
+      });
+    }
 
-//     console.log('branchData', req.body);
+    console.log('branchData', req.body);
 
-//     // Parse and sanitize officer data
-//     const branchData = req.body;
+    // Parse and sanitize officer data
+    const branchData = req.body;
 
-//     console.log('branchData', branchData)
-//     const adminId = req.user.userId
+    console.log('branchData', branchData)
+    const adminId = req.user.userId
 
-//     let validationErrors = [];
+    let validationErrors = [];
 
-//     const [
-//       isExistingEmail,
-//       isExistingPhoneNumber01,
-//     ] = await Promise.all([
-//       GoviShopDAO.checkExistBranchMobilePhoneDao(branchData.mobilePhone, shopData.shopId),
-//       GoviShopDAO.checkExistBranchLandPhoneDao(branchData.landPhone, shopData.shopId)
-//     ]);
+    const [
+      isExistingmobilePhone,
+      isExistingLandPhone,
+    ] = await Promise.all([
+      GoviShopDAO.checkExistBranchMobilePhoneDao(branchData.mobilePhone, branchData.branchId),
+      GoviShopDAO.checkExistBranchLandPhoneDao(branchData.LandPhone, branchData.branchId)
+    ]);
 
-//     if (isExistingEmail) validationErrors.push("Email");
-//     if (isExistingPhoneNumber01) validationErrors.push("phone");
+    if (isExistingmobilePhone) validationErrors.push("mobilePhone");
+    if (isExistingLandPhone) validationErrors.push("LandPhone");
 
-//     if (validationErrors.length > 0) {
-//       return res.status(400).json({ errors: validationErrors, status: false });
-//     }
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ errors: validationErrors, status: false });
+    }
 
-//     console.log(req.user, 'user')
+    console.log(req.user, 'user')
 
-//     const result = await GoviShopDAO.updateGoviShopDao(
-//       shopData, adminId
-//     );
+    const result = await GoviShopDAO.updateGoviShopBranchDao(
+      branchData, adminId
+    );
 
-//     if (result.affectedRows === 0) {
-//       return res.status(404).json({
-//         success: false,
-//         error: "GoViShop not found or no changes made",
-//       });
-//     }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "GoViShop Branch not found or no changes made",
+      });
+    }
 
-//     res.json({
-//       message: "GoViShop details updated successfully",
-//       status: true,
-//       data: {
-//         id: shopData.id,
-//         affectedRows: result.affectedRows,
-//       }
-//     });
-//   } catch (err) {
-//     console.error("Error updating GoViShop details", err);
-//     res.status(500).json({
-//       message: "",
-//       error: err.message,
-//       status: false,
-//     });
-//   }
-// };
+    res.json({
+      message: "GoViShop Branch details updated successfully",
+      status: true,
+      data: {
+        id: branchData.branchId,
+        affectedRows: result.affectedRows,
+      }
+    });
+  } catch (err) {
+    console.error("Error updating GoViShop details", err);
+    res.status(500).json({
+      message: "",
+      error: err.message,
+      status: false,
+    });
+  }
+};
