@@ -59,9 +59,9 @@ exports.toggleBranchStatusSchema = Joi.object({
   branchId: Joi.number().integer().required().positive(),
 });
 
-exports.getBranchesByShopIdParamsSchema = Joi.object({
-  shopId: Joi.number().integer().required().positive(),
-});
+// exports.getBranchesByShopIdParamsSchema = Joi.object({
+//   shopId: Joi.number().integer().positive().allow(null),
+// });
 
 exports.getBranchesByShopIdQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).optional(),

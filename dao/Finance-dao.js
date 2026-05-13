@@ -455,7 +455,7 @@ WHERE c.timeLine IN (1, 4, 12)
     c.srtName as certificateName,
     cp.payType,
     FORMAT(cp.amount, 2) as amount,
-    DATE_FORMAT(cp.createdAt, '%Y-%m-%d %H:%i') as dateTime,
+    DATE_ADD(cp.createdAt, INTERVAL 330 MINUTE) as dateTime,
     DATE_FORMAT(cp.expireDate, '%Y-%m-%d') as expiryDate,
     CASE 
       WHEN cp.expireDate IS NULL OR cp.createdAt IS NULL THEN 'Expired'

@@ -455,7 +455,7 @@ exports.SendGeneratedPasswordDao = async (
         align: "center",
       });
 
-    doc.link(80, btnY, 440, 40, `${process.env.GOVI_SHOP_DEV_URL}`); // ← clickable overlay
+    doc.link(80, btnY, 440, 40, `${process.env.GOVI_SHOP_DEV_URL}login`); // ← clickable overlay
 
     doc.moveDown(2);
 
@@ -482,7 +482,7 @@ exports.SendGeneratedPasswordDao = async (
       .fillColor("#3177FF")
       .font("Helvetica")
       .fontSize(12)
-      .text("https://GoViShop-link.com", 95, urlBoxY + 13, {
+      .text(`${process.env.GOVI_SHOP_DEV_URL}login`, 95, urlBoxY + 13, {
         width: 420,
         underline: true,
       });
@@ -1846,6 +1846,33 @@ exports.getGoViShopForUpdateDao = (id) => {
   });
 };
 
+
+exports.getBranchForUpdateDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        b.id AS branchId,
+        b.branchName,
+        b.address,
+        b.mobilePhone,
+        b.LandPhone,
+        b.district,
+        b.province
+      FROM govi_shop.branches b
+      WHERE b.id = ?
+    `;
+
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};
+
+
 exports.getUsersDao = async (search = "", role = "Manager") => {
   return new Promise((resolve, reject) => {
     let sql = `
@@ -2947,3 +2974,155 @@ exports.getShopEmailDao = (id) => {
     });
   });
 };
+
+
+exports.GetBranchesDAO = (
+  page,
+  limit,
+  province,
+  district,
+  searchItem,
+) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+    const sqlParams = [];
+    const countParams = [];
+
+    // ── Count query ──────────────────────────────────────────────────────────
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM govi_shop.branches b
+    `;
+
+    let dataSql = `
+      SELECT
+        b.id,
+        b.branchName,
+        b.mobilePhone,
+        b.district,
+        b.province,
+        b.isActive,
+        b.createdAt,
+        gs.shopName,
+        COUNT(DISTINCT CASE WHEN bs.role = 'Manager' THEN bs.id END) AS managerCount,
+        COUNT(DISTINCT CASE WHEN bs.role = 'POS'     THEN bs.id END) AS posCount,
+        au.userName  AS updatedBy,
+        b.updatedAt
+      FROM govi_shop.branches b
+      LEFT JOIN govi_shop.branchstaff bs ON bs.branchId = b.id
+      LEFT JOIN agro_world_admin.adminusers au ON b.updatedBy = au.id
+      LEFT JOIN govi_shop.govishops gs ON b.shopId = gs.id
+    `;
+
+    // ── Optional filters ─────────────────────────────────────────────────────
+    if (province) {
+      countSql += " AND b.province = ?";
+      dataSql += " AND b.province = ?";
+      sqlParams.push(province);
+      countParams.push(province);
+    }
+
+    if (district) {
+      countSql += " AND b.district = ?";
+      dataSql += " AND b.district = ?";
+      sqlParams.push(district);
+      countParams.push(district);
+    }
+
+    if (searchItem) {
+      const like = `%${searchItem}%`;
+      countSql += " AND (b.branchName LIKE ? OR b.mobilePhone LIKE ?)";
+      dataSql += " AND (b.branchName LIKE ? OR b.mobilePhone LIKE ?)";
+      sqlParams.push(like, like);
+      countParams.push(like, like);
+    }
+
+    // GROUP BY is required because of the COUNT(DISTINCT ...) aggregates
+    dataSql += `
+      GROUP BY
+        b.id, b.branchName, b.mobilePhone, b.district, b.province,
+        b.isActive, b.createdAt, au.userName, b.updatedAt
+      ORDER BY b.createdAt DESC
+      LIMIT ? OFFSET ?
+    `;
+    sqlParams.push(parseInt(limit), parseInt(offset));
+
+    // ── Execute count first ──────────────────────────────────────────────────
+    goviShop.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+
+      const total = countResults[0]?.total || 0;
+
+      goviShop.query(dataSql, sqlParams, (dataErr, results) => {
+        if (dataErr) return reject(dataErr);
+        resolve({ results, total });
+      });
+    });
+  });
+};
+
+
+exports.checkExistBranchMobilePhoneDao = (phone1, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT *
+      FROM govi_shop.branches
+      WHERE mobilePhone = ? AND id != ?  
+    `;
+
+    collectionofficer.query(sql, [phone1, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.length > 0);
+      console.log("results", results);
+    });
+  });
+};
+
+exports.checkExistBranchLandPhoneDao = (phone1, id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT *
+      FROM govi_shop.branches
+      WHERE LandPhone = ? AND id != ?  
+    `;
+
+    collectionofficer.query(sql, [phone1, id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.length > 0);
+      console.log("results", results);
+    });
+  });
+};
+
+
+exports.updateGoviShopBranchDao = (branchData, adminId) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      UPDATE govi_shop.branches
+      SET 
+        branchName = ?, mobilePhone = ?, LandPhone = ?, address = ?, district = ?, province = ?, updatedby = ?, updatedAt = NOW()
+      WHERE id = ?
+    `;
+
+    const values = [
+      branchData.branchName,
+      branchData.mobilePhone,
+      branchData.LandPhone,
+      branchData.address,
+      branchData.district,
+      branchData.province,
+      adminId,
+      branchData.branchId,
+    ];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      console.log("GoViShop Branch details updated successfully");
+      console.log("Affected rows:", results.affectedRows);
+      resolve(results);
+    });
+  });
+};
+
