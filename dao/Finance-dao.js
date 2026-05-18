@@ -375,45 +375,32 @@ exports.getAllCertificateDashboardData = () => {
         LEFT JOIN certificationpayment cp ON c.id = cp.certificateId
       `;
 
-      // Get monthly income with comparison to previous month
-      // Monthly income = (Certificate Price / No of months) * active user count per certificate
-      // Only include valid/active certificates (expireDate > current date for current month)
-      // Certificate durations: 1 month, 4 months, 12 months
       const incomeQuery = `
         SELECT 
-          COALESCE(SUM(
-            CASE 
-              WHEN c.timeLine > 0
-              THEN (c.price / c.timeLine) * current_users.userCount
-              ELSE 0
-            END
-          ), 0) as currentMonthIncome,
-          COALESCE(SUM(
-            CASE 
-              WHEN c.timeLine > 0
-              THEN (c.price / c.timeLine) * previous_users.userCount
-              ELSE 0
-            END
-          ), 0) as previousMonthIncome
-        FROM certificates c
-        LEFT JOIN (
-          SELECT 
-            certificateId,
-            COUNT(DISTINCT userId) as userCount
-          FROM certificationpayment
-          WHERE expireDate > CURRENT_TIMESTAMP()
-          GROUP BY certificateId
-        ) current_users ON c.id = current_users.certificateId
-        LEFT JOIN (
-          SELECT 
-            certificateId,
-            COUNT(DISTINCT userId) as userCount
-          FROM certificationpayment
-          WHERE expireDate > DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)
-            AND createdAt <= LAST_DAY(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH))
-          GROUP BY certificateId
-        ) previous_users ON c.id = previous_users.certificateId
-        WHERE c.timeLine IN (1, 4, 12)
+  -- Current month: only payments NOT expired right now
+  COALESCE(SUM(
+    CASE 
+      WHEN c.timeLine > 0 
+        AND cp.expireDate > CURRENT_TIMESTAMP()
+      THEN (c.price / c.timeLine)
+      ELSE 0
+    END
+  ), 0) AS currentMonthIncome,
+
+  -- Previous month: payments that were active during last month
+  COALESCE(SUM(
+    CASE 
+      WHEN c.timeLine > 0
+        AND cp.expireDate > DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)
+        AND cp.createdAt <= LAST_DAY(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH))
+      THEN (c.price / c.timeLine)
+      ELSE 0
+    END
+  ), 0) AS previousMonthIncome
+
+FROM certificates c
+JOIN certificationpayment cp ON c.id = cp.certificateId
+WHERE c.timeLine IN (1, 4, 12)
       `;
 
       // Get recent 6 payments with validity period calculation (FIXED)
@@ -425,7 +412,7 @@ exports.getAllCertificateDashboardData = () => {
     c.srtName as certificateName,
     cp.payType,
     FORMAT(cp.amount, 2) as amount,
-    DATE_FORMAT(cp.createdAt, '%Y-%m-%d %H:%i') as dateTime,
+    DATE_ADD(cp.createdAt, INTERVAL 330 MINUTE) as dateTime,
     DATE_FORMAT(cp.expireDate, '%Y-%m-%d') as expiryDate,
     CASE 
       WHEN cp.expireDate IS NULL OR cp.createdAt IS NULL THEN 'Expired'
@@ -657,19 +644,33 @@ exports.getAllCertificatePayments = (
     let dataSql = `
       SELECT 
         cp.transactionId,
+        cp.payType,
         CASE 
           WHEN cp.payType = 'Cluster' THEN fc.clsName
           ELSE CONCAT(u.firstName, ' ', u.lastName)
         END as farmerName,
         FORMAT(cp.amount, 2) as amount,
-        DATE_FORMAT(cp.createdAt, '%d %b, %Y %h:%i%p') as dateTime,
-        cp.expireDate,
-        cp.createdAt as sortDate,
+    DATE_FORMAT(cp.createdAt, '%Y-%m-%d %H:%i') as dateTime,
+    DATE_FORMAT(cp.expireDate, '%Y-%m-%d') as expiryDate,
+    CASE 
+      WHEN cp.expireDate IS NULL OR cp.createdAt IS NULL THEN 'Expired'
+      ELSE CONCAT(
+        TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate),
+        ' month',
+        CASE WHEN TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) != 1 THEN 's' ELSE '' END,
+        ' ',
+        DATEDIFF(
+          cp.expireDate, 
+          DATE_ADD(cp.createdAt, INTERVAL TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) MONTH)
+        ),
+        ' day',
         CASE 
-          WHEN cp.expireDate < NOW() THEN 'Expired'
-          ELSE CONCAT(
-            FLOOR(DATEDIFF(cp.expireDate, NOW()) / 30), ' months ',
-            MOD(DATEDIFF(cp.expireDate, NOW()), 30), ' days'
+          WHEN DATEDIFF(
+            cp.expireDate, 
+            DATE_ADD(cp.createdAt, INTERVAL TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) MONTH)
+          ) != 1 THEN 's' 
+          ELSE '' 
+        END
           )
         END as validityPeriod
       FROM certificationpayment cp

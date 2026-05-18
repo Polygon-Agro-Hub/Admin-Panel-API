@@ -1042,7 +1042,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
           WHERE 
             olf.buildingAssetId = ?;
         `,
-          "Permit Building": `
+          "Permitted Building": `
           SELECT 
             opf.id,
             opf.buildingAssetId,
@@ -1068,6 +1068,8 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
         };
 
         const ownershipQuery = ownershipQueries[ownership];
+
+        console.log('ownershipQuery', ownershipQuery)
 
         if (!ownershipQuery) {
           // If no specific ownership query, return just building details
@@ -1154,6 +1156,53 @@ exports.getLandOwnershipDetails = (landAssetId) => {
         },
         ownershipType: row.ownership,
       });
+    });
+  });
+};
+
+
+// example
+exports.getLeaseDetails = (landAssetId) => {
+  return new Promise((resolve, reject) => {
+    const query = `
+      SELECT DATE_ADD(startDate, INTERVAL 330 MINUTE) AS startDate, durationYears, durationMonths, leastAmountAnnually
+      FROM plant_care.ownershipleastfixedasset
+      WHERE landAssetId = ?
+    `;
+
+    plantcare.query(query, [landAssetId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.getOwnLandDetails = (landAssetId) => {
+  return new Promise((resolve, reject) => {
+    const query = `
+      SELECT estimateValue
+      FROM plant_care.ownershipownerfixedasset
+      WHERE landAssetId = ?
+    `;
+
+    plantcare.query(query, [landAssetId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.getSharedLandDetails = (landAssetId) => {
+  return new Promise((resolve, reject) => {
+    const query = `
+      SELECT paymentAnnually
+      FROM plant_care.ownershipsharedfixedasset
+      WHERE landAssetId = ?
+    `;
+
+    plantcare.query(query, [landAssetId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
     });
   });
 };

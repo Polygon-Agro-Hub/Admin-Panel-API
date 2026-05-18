@@ -59,9 +59,9 @@ exports.toggleBranchStatusSchema = Joi.object({
   branchId: Joi.number().integer().required().positive(),
 });
 
-exports.getBranchesByShopIdParamsSchema = Joi.object({
-  shopId: Joi.number().integer().required().positive(),
-});
+// exports.getBranchesByShopIdParamsSchema = Joi.object({
+//   shopId: Joi.number().integer().positive().allow(null),
+// });
 
 exports.getBranchesByShopIdQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).optional(),
@@ -82,4 +82,13 @@ exports.getAllShopsQuerySchema = Joi.object({
 
 exports.toggleShopStatusParamsSchema = Joi.object({
   id: Joi.number().integer().required().positive(),
+});
+
+exports.getProductsByBranchIdParamsSchema = Joi.object({
+  branchId: Joi.number().integer().required().positive(),
+});
+
+exports.getProductsByBranchIdQuerySchema = Joi.object({
+  categoryId: Joi.string().allow("", null).optional(),
+  searchItem: Joi.string().allow("", null).optional(),
 });

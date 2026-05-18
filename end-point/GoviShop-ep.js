@@ -207,7 +207,7 @@ async function SendEmail(email, ownerName) {
     doc
       .fillColor("#02072C")
       .fontSize(12)
-      .lineGap(6)                                           
+      .lineGap(6)
       .text(
         "As a result, you will no longer be able to access your account or any associated services.",
         80,
@@ -218,7 +218,7 @@ async function SendEmail(email, ownerName) {
     doc
       .fillColor("#02072C")
       .fontSize(12)
-      .lineGap(6)                                           
+      .lineGap(6)
       .text("Thank you for your time on GoViShop.", { width: 440 });
 
     /* ---------- FOOTER ---------- */
@@ -227,14 +227,14 @@ async function SendEmail(email, ownerName) {
     doc
       .fillColor("#02072C")
       .fontSize(12)
-      .lineGap(6)                                          
+      .lineGap(6)
       .text("Thank you,", 80);
 
     doc
       .fillColor("#02072C")
       .fontSize(12)
       .font("Helvetica-Bold")
-      .lineGap(0)                                           
+      .lineGap(0)
       .text("GoViShop Team", 80);
 
     doc
@@ -245,7 +245,7 @@ async function SendEmail(email, ownerName) {
       .text(
         "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
         80,
-        535,                                                  
+        535,
         { align: "center", width: 440 }
       );
 
@@ -415,7 +415,7 @@ exports.createGoviShopUser = async (req, res) => {
     if (isExistingPhoneNumber01) validationErrors.push("phone");
 
     if (validationErrors.length > 0) {
-      console.log('val errors', validationErrors )
+      console.log('val errors', validationErrors)
       return res.status(400).json({ errors: validationErrors, status: false });
     }
 
@@ -895,7 +895,7 @@ exports.updateGoviShopUserEp = async (req, res) => {
       isExistingEmail,
       isExistingPhoneNumber01,
     ] = await Promise.all([
-      GoviShopDAO.checkExistShopOwnerDao(supplierData.nic, supplierData.id),       
+      GoviShopDAO.checkExistShopOwnerDao(supplierData.nic, supplierData.id),
       GoviShopDAO.checkExistEmailsDao(supplierData.email, supplierData.id),
       GoviShopDAO.checkExistPhoneDao(supplierData.mobileNumber, supplierData.id)
     ]);
@@ -943,10 +943,10 @@ exports.getAllShopRequests = async (req, res) => {
   try {
     console.log(req.query);
 
-    const { page, limit,  approval, bussinessType, searchItem } =
+    const { page, limit, approval, bussinessType, searchItem } =
       await GoviShopValidation.getAllGoViShopSchema.validateAsync(
         req.query
-    );
+      );
 
     const { results, total } = await GoviShopDAO.GetAllShopRequestsDAO(
       page,
@@ -1033,7 +1033,7 @@ exports.updateGoviShopEp = async (req, res) => {
     const [
       isExistingEmail,
       isExistingPhoneNumber01,
-    ] = await Promise.all([   
+    ] = await Promise.all([
       GoviShopDAO.checkExistShopEmailsDao(shopData.email, shopData.shopId),
       GoviShopDAO.checkExistShopPhoneDao(shopData.mobileNumber, shopData.shopId)
     ]);
@@ -1148,6 +1148,43 @@ exports.getGoviShopForUpdateEp = async (req, res) => {
   }
 };
 
+
+exports.getBranchForUpdateEp = async (req, res) => {
+  try {
+    const { id } = await GoviShopValidation.viewGoviShopSupplierByIdSchema.validateAsync(req.params);
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Branch id is required",
+      });
+    }
+
+    const branchData = await GoviShopDAO.getBranchForUpdateDao(id);
+
+    if (!branchData) {
+      return res.status(404).json({
+        success: false,
+        message: "Branch Data not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: branchData,
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+    console.error("View Branch DataError:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 exports.getUsers = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
@@ -1161,6 +1198,7 @@ exports.getUsers = async (req, res) => {
 
     // Get the users using the DAO function
     const users = await GoviShopDAO.getUsersDao(search, userRole);
+    console.log('users', users)
 
     // Build response message
     let message = `${userRole}s fetched successfully!`;
@@ -1212,7 +1250,7 @@ exports.getPosUserById = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: {posUser: posUser, branches: branches},
+      data: { posUser: posUser, branches: branches },
     });
   } catch (error) {
     console.error("View Govi Shop Supplier Error:", error);
@@ -1235,6 +1273,9 @@ exports.updatePOSUserEp = async (req, res) => {
       });
     }
 
+    const adminId = req.user.userId;
+    console.log('adminId', adminId)
+
     console.log('userData', req.body);
 
     // Parse and sanitize officer data
@@ -1247,7 +1288,7 @@ exports.updatePOSUserEp = async (req, res) => {
     const [
       isExistingEmail,
       isExistingPhoneNumber01,
-    ] = await Promise.all([   
+    ] = await Promise.all([
       GoviShopDAO.checkExistPOSUserEmailsDao(userData.email, userData.id),
       GoviShopDAO.checkExistPOSUserPhoneDao(userData.mobileNumber, userData.id)
     ]);
@@ -1260,7 +1301,7 @@ exports.updatePOSUserEp = async (req, res) => {
     }
 
     const result = await GoviShopDAO.updateGoviShopPOSUserDao(
-      userData
+      userData, adminId
     );
 
     if (result.affectedRows === 0) {
@@ -1306,7 +1347,7 @@ exports.resetPosUserPasswordEp = async (req, res) => {
     const userData = req.body;
 
     console.log('userData', userData)
-    
+
     const generatedPassword = Math.random().toString(36).slice(-8);
 
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
@@ -1361,37 +1402,71 @@ exports.resetPosUserPasswordEp = async (req, res) => {
 };
 
 exports.deleteGoviShopEp = async (req, res) => {
-  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log(fullUrl);
   try {
-    const { id } = await GoviShopValidation.goviShopViewDocumentByIdSchema.validateAsync(
-      req.params,
-    );
+    const { id } =
+      await GoviShopValidation.goviShopViewDocumentByIdSchema.validateAsync(
+        req.params
+      );
+
+    const { reason } = req.body;
+
+    console.log("Deleting shop ID:", id, "Reason:", reason);
+
+    const shopOwner = await GoviShopDAO.getShopEmailDao(id);
+
+    if (!shopOwner) {
+      return res.status(404).json({
+        message: "Shop not found.",
+        status: false,
+      });
+    }
+
+    const { email, ownerName, shopName } = shopOwner;
+
+    // Save reason BEFORE deleting so it's always recorded
+    if (reason) {
+      await GoviShopDAO.updateReasonGoviShopDao(id, reason);
+    }
 
     const results = await GoviShopDAO.deleteGoviShopDao(id);
 
-    console.log("Successfully Deleted the GoViShop");
-    if (results.affectedRows > 0) {
-      res.status(200).json({ results: results, status: true });
-    } else {
-      res.json({ results: results, status: false });
+    if (results.affectedRows === 0) {
+      return res.status(400).json({
+        message: "Delete failed.",
+        status: false,
+      });
     }
 
-    res.status(200).json({ results: results, status: true });
+    console.log("Successfully deleted the GoViShop");
+
+    // Send email but don't block success if it fails — log the error instead
+    const emailResult = await deleteShopEmail(email, ownerName, shopName);
+
+    if (!emailResult.success) {
+      console.error("Email sending failed:", emailResult.error);
+    }
+
+    return res.status(200).json({
+      message: "Shop deleted and email sent.",
+      status: true,
+    });
+
   } catch (error) {
     if (error.isJoi) {
-      return res
-        .status(400)
-        .json({ error: error.details[0].message, status: false });
+      return res.status(400).json({
+        error: error.details[0].message,
+        status: false,
+      });
     }
 
-    console.error("Error Deleting the GoViShop:", error);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while Deleting GoViShop" });
+    console.error("Error deleting GoViShop:", error);
+
+    return res.status(500).json({
+      error: "An error occurred while deleting GoViShop",
+      status: false,
+    });
   }
 };
-
 
 exports.rejectGoviShopUserEp = async (req, res) => {
 
@@ -1402,7 +1477,7 @@ exports.rejectGoviShopUserEp = async (req, res) => {
     const { id } = await GoviShopValidation.goviShopViewDocumentByIdSchema.validateAsync(
       req.params,
     );
-    const {text} = await GoviShopValidation.goviShopViewRejectRequestSchema.validateAsync(req.body);
+    const { text } = await GoviShopValidation.goviShopViewRejectRequestSchema.validateAsync(req.body);
 
     console.log('text', text)
     const adminId = req.user.userId
@@ -1496,7 +1571,7 @@ exports.rejectGoviShopEp = async (req, res) => {
     const { id } = await GoviShopValidation.goviShopViewDocumentByIdSchema.validateAsync(
       req.params,
     );
-    const {text} = await GoviShopValidation.goviShopViewRejectRequestSchema.validateAsync(req.body);
+    const { text } = await GoviShopValidation.goviShopViewRejectRequestSchema.validateAsync(req.body);
 
     console.log('text', text)
     const adminId = req.user.userId
@@ -1627,29 +1702,46 @@ exports.toggleShopStatusEp = async (req, res) => {
     });
   }
 };
- 
+
 exports.getBranchesByShopIdEp = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
   console.log('fullUrl', fullUrl);
 
   try {
-    const { shopId } = await GoviShopValidation.getBranchesByShopIdParamsSchema.validateAsync(
+    const { shopId } =
       req.params
-    );
+
+
+    console.log('shopId', shopId)
 
     const { page, limit, province, district, searchItem } =
       await GoviShopValidation.getBranchesByShopIdQuerySchema.validateAsync(
         req.query
       );
 
-    const { results, total } = await GoviShopDAO.GetBranchesByShopIdDAO(
-      shopId,
-      page,
-      limit,
-      province,
-      district,
-      searchItem
-    );
+    let results;
+    let total;
+
+    if (!shopId || shopId === "null") {
+      console.log("yes");
+
+      ({ results, total } = await GoviShopDAO.GetBranchesDAO(
+        page,
+        limit,
+        province,
+        district,
+        searchItem
+      ));
+    } else {
+      ({ results, total } = await GoviShopDAO.GetBranchesByShopIdDAO(
+        Number(shopId),
+        page,
+        limit,
+        province,
+        district,
+        searchItem
+      ));
+    }
 
     res.json({ results, total });
   } catch (err) {
@@ -1707,8 +1799,8 @@ exports.toggleBranchStatusEp = async (req, res) => {
 
 exports.getShopBranchDetailsByIdEp = async (req, res) => {
   try {
-    // const { id } = req.params;
-    const id = 3;
+
+    const { id } = req.params;
 
     if (!id) {
       return res.status(400).json({ error: "Branch ID is required" });
@@ -1728,4 +1820,289 @@ exports.getShopBranchDetailsByIdEp = async (req, res) => {
     res.status(500).json({ error: "An error occurred while fetching branch details" });
   }
 };
- 
+
+exports.getProductsByBranchIdEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl);
+
+  try {
+    // Validate branchId from params
+    const { branchId } = await GoviShopValidation.getProductsByBranchIdParamsSchema.validateAsync(
+      req.params
+    );
+
+    console.log(`Fetching products for branchId: ${branchId}`); // Debug log
+
+    // Validate query parameters (categoryId, searchItem)
+    const { categoryId, searchItem } =
+      await GoviShopValidation.getProductsByBranchIdQuerySchema.validateAsync(
+        req.query
+      );
+
+    console.log('Query params:', { categoryId, searchItem }); // Debug log
+
+    // Fetch products
+    const { results, total } = await GoviShopDAO.GetProductsByBranchIdDAO(
+      branchId,
+      categoryId,
+      searchItem
+    );
+
+    console.log(`Products fetched: ${results.length}`); // Debug log
+
+    // Fetch categories for dropdown
+    const categories = await GoviShopDAO.GetCategoriesByBranchIdWithTableDAO(branchId);
+
+    console.log(`Categories fetched: ${categories.length}`); // Debug log
+
+    res.json({
+      success: true,
+      products: results,
+      categories: categories
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message, status: false });
+    }
+    console.error('Error fetching products:', err);
+    res.status(500).json({ error: 'An error occurred while fetching products' });
+  }
+};
+
+
+async function deleteShopEmail(email, ownerName, shopName) {
+  try {
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 50,
+    });
+
+    const pdfBuffer = [];
+    doc.on("data", pdfBuffer.push.bind(pdfBuffer));
+
+    /* ---------- CARD BACKGROUND ---------- */
+    doc
+      .roundedRect(40, 40, 515, 480, 10)   // ← height 700 → 480
+      .fillAndStroke("#f9fafb", "#e5e7eb");
+
+    /* ---------- LOGO ---------- */
+    const logo = path.resolve(__dirname, "../assets/govishop.png");
+    doc.image(logo, 260, 60, { width: 75 });
+
+    /* ---------- TITLE ---------- */
+    doc
+      .font("Helvetica-Bold")
+      .fillColor("#02072C")
+      .fontSize(14)
+      .text("Your GoViShop Has Been Deleted", 80, 140, {
+        align: "center",
+      });
+
+    /* ---------- DIVIDER ---------- */
+    doc
+      .moveTo(80, 180)
+      .lineTo(520, 180)
+      .strokeColor("#E8E6F6")
+      .stroke();
+
+    /* ---------- BODY ---------- */
+    doc
+      .fillColor("#02072C")
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .lineGap(6)
+      .text(`Dear ${ownerName},`, 80, 200);
+
+    doc
+      .font("Helvetica")
+      .fillColor("#02072C")
+      .fontSize(12)
+      .lineGap(6)                                           // ← added
+      .text(
+        `We wanted to inform you that your GoViShop shop ${shopName} has been deleted.`,
+        { width: 440 }
+      );
+
+    /* ---------- REASON BOX ---------- */
+    doc
+      .roundedRect(80, 260, 440, 60, 5)
+      .fill("#FEF3F3");
+
+    doc
+      .fillColor("#C91A3D")
+      .fontSize(12)
+      .lineGap(0)                                           // ← reset inside box
+      .text("Reason :", 100, 275);
+
+    doc
+      .fillColor("#333C45")
+      .fontSize(12)
+      .text("Inactive shop for extended period.", 100, 295);
+
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .lineGap(6)
+      .text(
+        "As a result, your shop will no longer be visible or accessible on GoViShop, and all associated services have been disabled.",
+        80,
+        340,
+        { width: 440 }
+      );
+
+
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .lineGap(6)
+      .text("Thank you,", 80);
+
+    doc
+      .fillColor("#02072C")
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .lineGap(0)
+      .text("GoViShop Team", 80);
+
+    doc
+      .font("Helvetica")
+      .fontSize(10)
+      .lineGap(6)
+      .fillColor("#9ca3af")
+      .text(
+        "@ 2026 Polygon Holdings Limited. All Rights Reserved.",
+        80,
+        535,
+        { align: "center", width: 440 }
+      );
+
+    doc
+      .lineGap(6)
+      .text("Please note that this is an automated message.", {
+        align: "center",
+        width: 440,
+      });
+
+    doc.end();
+    await new Promise((resolve) => doc.on("end", resolve));
+
+    const pdfData = Buffer.concat(pdfBuffer); // Concatenate the buffer data
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465, // or 587 for TLS
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        family: 4,
+      },
+    });
+
+    // const transporter = nodemailer.createTransport({
+    //   host: "smtp.gmail.com",
+    //   port: 587,
+    //   secure: false,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: {
+    //     rejectUnauthorized: false,
+    //   },
+    // });
+
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "PolygonAgro (Pvt) Ltd - GoViShop Has Been Deleted",
+      text: `Dear ${ownerName},\n\nDetails are attached in the PDF.`,
+      attachments: [
+        {
+          filename: `GovViShop_Delete.pdf`, // PDF file name
+          content: pdfData, // Attach the PDF buffer directly
+        },
+      ],
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.response);
+
+    return { success: true, message: "Email sent successfully!" };
+  } catch (error) {
+    console.error("Error sending email:", error);
+
+    return { success: false, message: "Failed to send email.", error };
+  }
+}
+
+exports.updateGoviShopBranchEp = async (req, res) => {
+
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log('fullUrl', fullUrl)
+  try {
+    if (!req.body) {
+      return res.status(400).json({
+        error: "Branch data is required",
+        status: false,
+      });
+    }
+
+    console.log('branchData', req.body);
+
+    // Parse and sanitize officer data
+    const branchData = req.body;
+
+    console.log('branchData', branchData)
+    const adminId = req.user.userId
+
+    let validationErrors = [];
+
+    const [
+      isExistingmobilePhone,
+      isExistingLandPhone,
+    ] = await Promise.all([
+      GoviShopDAO.checkExistBranchMobilePhoneDao(branchData.mobilePhone, branchData.branchId),
+      GoviShopDAO.checkExistBranchLandPhoneDao(branchData.LandPhone, branchData.branchId)
+    ]);
+
+    if (isExistingmobilePhone) validationErrors.push("mobilePhone");
+    if (isExistingLandPhone) validationErrors.push("LandPhone");
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ errors: validationErrors, status: false });
+    }
+
+    console.log(req.user, 'user')
+
+    const result = await GoviShopDAO.updateGoviShopBranchDao(
+      branchData, adminId
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "GoViShop Branch not found or no changes made",
+      });
+    }
+
+    res.json({
+      message: "GoViShop Branch details updated successfully",
+      status: true,
+      data: {
+        id: branchData.branchId,
+        affectedRows: result.affectedRows,
+      }
+    });
+  } catch (err) {
+    console.error("Error updating GoViShop details", err);
+    res.status(500).json({
+      message: "",
+      error: err.message,
+      status: false,
+    });
+  }
+};
