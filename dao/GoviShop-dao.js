@@ -2728,7 +2728,7 @@ exports.GetAllShopsDAO = (
       Counterparams.push(searchQuery, searchQuery);
     }
 
-    sql += " ORDER BY gs.updatedAt DESC LIMIT ? OFFSET ?";
+    sql += " ORDER BY gs.shopName LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
     goviShop.query(countSql, Counterparams, (countErr, countResults) => {
