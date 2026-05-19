@@ -2106,3 +2106,24 @@ exports.updateGoviShopBranchEp = async (req, res) => {
     });
   }
 };
+
+exports.getAllRemovedShopsEp = async (req, res) => {
+  try {
+    const {
+      businessType,
+      searchItem,
+    } = await GoviShopValidation.getAllRemovedShopsQuerySchema.validateAsync(req.query);
+
+    const { results, total } = await GoviShopDAO.GetAllRemovedShopsDAO(
+      businessType, searchItem
+    );
+
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message, status: false });
+    }
+    console.error("Error fetching removed shops:", err);
+    res.status(500).json({ error: "An error occurred while fetching removed shops" });
+  }
+};

@@ -92,3 +92,8 @@ exports.getProductsByBranchIdQuerySchema = Joi.object({
   categoryId: Joi.string().allow("", null).optional(),
   searchItem: Joi.string().allow("", null).optional(),
 });
+
+exports.getAllRemovedShopsQuerySchema = Joi.object({
+  businessType: Joi.string().allow("", null).optional(),
+  searchItem: Joi.string().allow("", null).optional(),
+});
