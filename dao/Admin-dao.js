@@ -3795,15 +3795,15 @@ exports.spicesEnrollTillPreviousMonth = (userId) => {
   });
 };
 
-exports.grainEnroll = (userId) => {
+exports.cerealsEnroll = (userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-    SELECT COUNT(DISTINCT occ.id) AS grain_cultivation_count
+    SELECT COUNT(DISTINCT occ.id) AS cereals_cultivation_count
     FROM ongoingcultivationscrops occ
     JOIN cropcalender cc ON occ.cropCalendar = cc.id
     JOIN cropvariety cv ON cc.cropVarietyId = cv.id
     JOIN cropgroup cg ON cv.cropGroupId = cg.id
-    WHERE cg.category = 'Grain' ;
+    WHERE cg.category = 'Cereals' ;
     `;
 
     plantcare.query(sql, [userId], (err, results) => {
@@ -3817,15 +3817,15 @@ exports.grainEnroll = (userId) => {
   });
 };
 
-exports.grainEnrollTillPreviousMonth = (userId) => {
+exports.cerealsEnrollTillPreviousMonth = (userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-    SELECT COUNT(DISTINCT occ.id) AS grain_cultivation_count_till_previous_month
+    SELECT COUNT(DISTINCT occ.id) AS cereals_cultivation_count_till_previous_month
     FROM ongoingcultivationscrops occ
     JOIN cropcalender cc ON occ.cropCalendar = cc.id
     JOIN cropvariety cv ON cc.cropVarietyId = cv.id
     JOIN cropgroup cg ON cv.cropGroupId = cg.id
-    WHERE cg.category = 'Grain' AND occ.createdAt <= DATE_SUB(CURDATE(), INTERVAL 1 MONTH) ;
+    WHERE cg.category = 'Cereals' AND occ.createdAt <= DATE_SUB(CURDATE(), INTERVAL 1 MONTH) ;
     `;
 
     plantcare.query(sql, [userId], (err, results) => {

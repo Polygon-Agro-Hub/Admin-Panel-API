@@ -2728,7 +2728,7 @@ exports.GetAllShopsDAO = (
       Counterparams.push(searchQuery, searchQuery);
     }
 
-    sql += " ORDER BY gs.updatedAt DESC LIMIT ? OFFSET ?";
+    sql += " ORDER BY gs.shopName LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
     goviShop.query(countSql, Counterparams, (countErr, countResults) => {
@@ -3122,6 +3122,49 @@ exports.updateGoviShopBranchDao = (branchData, adminId) => {
       console.log("GoViShop Branch details updated successfully");
       console.log("Affected rows:", results.affectedRows);
       resolve(results);
+    });
+  });
+};
+
+exports.GetAllRemovedShopsDAO = (
+  businessType,
+  searchItem,
+) => {
+  return new Promise((resolve, reject) => {
+    const Sqlparams = [];
+
+    let sql = `
+      SELECT 
+        gs.id, 
+        gs.shopName,
+        gs.shopType,
+        gs.email,
+        gs.phone,
+        gs.logo,
+        gs.isActive,
+        gs.isAvailable,
+        rr.reason AS removalReason
+      FROM govi_shop.govishops gs
+      LEFT JOIN govi_shop.removeshopreason rr ON gs.id = rr.shopId
+      WHERE gs.isAvailable = 0
+    `;
+
+    if (businessType) {
+      sql += " AND gs.shopType = ? ";
+      Sqlparams.push(businessType);
+    }
+
+    if (searchItem) {
+      sql += " AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )";
+      const searchQuery = `%${searchItem}%`;
+      Sqlparams.push(searchQuery, searchQuery);
+    }
+
+    sql += " ORDER BY rr.createdAt DESC, gs.updatedAt DESC";
+
+    goviShop.query(sql, Sqlparams, (dataErr, results) => {
+      if (dataErr) return reject(dataErr);
+      resolve({ results, total: results.length });
     });
   });
 };
