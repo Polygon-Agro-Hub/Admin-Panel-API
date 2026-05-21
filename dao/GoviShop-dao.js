@@ -2851,14 +2851,14 @@ exports.GetBranchesByShopIdDAO = (
       countParams.push(like, like);
     }
 
-    // GROUP BY is required because of the COUNT(DISTINCT ...) aggregates
-    dataSql += `
+   dataSql += `
       GROUP BY
         b.id, b.branchName, b.mobilePhone, b.district, b.province,
         b.isActive, b.createdAt, au.userName, b.updatedAt
-      ORDER BY b.createdAt DESC
+      ORDER BY b.branchName ASC
       LIMIT ? OFFSET ?
     `;
+    
     sqlParams.push(parseInt(limit), parseInt(offset));
 
     // ── Execute count first ──────────────────────────────────────────────────
@@ -3037,12 +3037,11 @@ exports.GetBranchesDAO = (
       countParams.push(like, like);
     }
 
-    // GROUP BY is required because of the COUNT(DISTINCT ...) aggregates
-    dataSql += `
+   dataSql += `
       GROUP BY
         b.id, b.branchName, b.mobilePhone, b.district, b.province,
         b.isActive, b.createdAt, au.userName, b.updatedAt
-      ORDER BY b.createdAt DESC
+      ORDER BY b.branchName ASC
       LIMIT ? OFFSET ?
     `;
     sqlParams.push(parseInt(limit), parseInt(offset));
