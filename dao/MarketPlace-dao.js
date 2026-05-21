@@ -2977,7 +2977,7 @@ exports.pieDataDao = async () => {
       if (err) {
         reject(err);
       } else {
-        const categoryOrder = ["Vegetables", "Grain", "Fruit", "Mushrooms"];
+        const categoryOrder = ["Vegetables", "Spices", "Cereals", "Fruit", "Legumes", "Mushrooms"];
 
         const resultMap = {};
         results.forEach((item) => {
