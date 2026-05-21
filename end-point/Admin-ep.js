@@ -2816,7 +2816,7 @@ exports.plantcareDashboard = async (req, res) => {
 
     const totalCultivationTillPreviousMonth =
       vegEnrollTillPreviousMonth.veg_cultivation_count_till_previous_month +
-      leLegumesEnrollTillPreviousMonth.egumes_cultivation_count_till_previous_month +
+      leLegumesEnrollTillPreviousMonth.legumes_cultivation_count_till_previous_month +
       fruitEnrollTillPreviousMonth.fruit_cultivation_count_till_previous_month +
       cerealsEnrollTillPreviousMonth.cereals_cultivation_count_till_previous_month +
       lspicesEnrollTillPreviousMonth.spices_cultivation_count_till_previous_month +
@@ -2826,7 +2826,7 @@ exports.plantcareDashboard = async (req, res) => {
       vegCultivation.veg_cultivation_count +
       leLegumesCultivation.legumes_cultivation_count +
       fruitCultivation.fruit_cultivation_count +
-      cerealsCultivation.grain_cultivation_count +
+      cerealsCultivation.cereals_cultivation_count +
       spicesCultivation.spices_cultivation_count +
       mushCultivation.mush_cultivation_count;
 
