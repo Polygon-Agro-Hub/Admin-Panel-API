@@ -2728,7 +2728,7 @@ exports.GetAllShopsDAO = (
       Counterparams.push(searchQuery, searchQuery);
     }
 
-    sql += " ORDER BY gs.updatedAt DESC LIMIT ? OFFSET ?";
+    sql += " ORDER BY gs.shopName LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
     goviShop.query(countSql, Counterparams, (countErr, countResults) => {
@@ -2851,14 +2851,14 @@ exports.GetBranchesByShopIdDAO = (
       countParams.push(like, like);
     }
 
-    // GROUP BY is required because of the COUNT(DISTINCT ...) aggregates
-    dataSql += `
+   dataSql += `
       GROUP BY
         b.id, b.branchName, b.mobilePhone, b.district, b.province,
         b.isActive, b.createdAt, au.userName, b.updatedAt
-      ORDER BY b.createdAt DESC
+      ORDER BY b.branchName ASC
       LIMIT ? OFFSET ?
     `;
+    
     sqlParams.push(parseInt(limit), parseInt(offset));
 
     // ── Execute count first ──────────────────────────────────────────────────
@@ -2992,6 +2992,7 @@ exports.GetBranchesDAO = (
     let countSql = `
       SELECT COUNT(*) AS total
       FROM govi_shop.branches b
+      WHERE 1=1 
     `;
 
     let dataSql = `
@@ -3012,6 +3013,7 @@ exports.GetBranchesDAO = (
       LEFT JOIN govi_shop.branchstaff bs ON bs.branchId = b.id
       LEFT JOIN agro_world_admin.adminusers au ON b.updatedBy = au.id
       LEFT JOIN govi_shop.govishops gs ON b.shopId = gs.id
+      WHERE 1=1 
     `;
 
     // ── Optional filters ─────────────────────────────────────────────────────
@@ -3037,12 +3039,11 @@ exports.GetBranchesDAO = (
       countParams.push(like, like);
     }
 
-    // GROUP BY is required because of the COUNT(DISTINCT ...) aggregates
-    dataSql += `
+   dataSql += `
       GROUP BY
         b.id, b.branchName, b.mobilePhone, b.district, b.province,
         b.isActive, b.createdAt, au.userName, b.updatedAt
-      ORDER BY b.createdAt DESC
+      ORDER BY b.branchName ASC
       LIMIT ? OFFSET ?
     `;
     sqlParams.push(parseInt(limit), parseInt(offset));
@@ -3122,6 +3123,49 @@ exports.updateGoviShopBranchDao = (branchData, adminId) => {
       console.log("GoViShop Branch details updated successfully");
       console.log("Affected rows:", results.affectedRows);
       resolve(results);
+    });
+  });
+};
+
+exports.GetAllRemovedShopsDAO = (
+  businessType,
+  searchItem,
+) => {
+  return new Promise((resolve, reject) => {
+    const Sqlparams = [];
+
+    let sql = `
+      SELECT 
+        gs.id, 
+        gs.shopName,
+        gs.shopType,
+        gs.email,
+        gs.phone,
+        gs.logo,
+        gs.isActive,
+        gs.isAvailable,
+        rr.reason AS removalReason
+      FROM govi_shop.govishops gs
+      LEFT JOIN govi_shop.removeshopreason rr ON gs.id = rr.shopId
+      WHERE gs.isAvailable = 0
+    `;
+
+    if (businessType) {
+      sql += " AND gs.shopType = ? ";
+      Sqlparams.push(businessType);
+    }
+
+    if (searchItem) {
+      sql += " AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )";
+      const searchQuery = `%${searchItem}%`;
+      Sqlparams.push(searchQuery, searchQuery);
+    }
+
+    sql += " ORDER BY rr.createdAt DESC, gs.updatedAt DESC";
+
+    goviShop.query(sql, Sqlparams, (dataErr, results) => {
+      if (dataErr) return reject(dataErr);
+      resolve({ results, total: results.length });
     });
   });
 };

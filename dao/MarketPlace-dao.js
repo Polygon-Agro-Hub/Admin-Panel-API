@@ -2736,27 +2736,27 @@ exports.thisMonthSalesDao = async () => {
   });
 };
 
-exports.toDayUserCountDao = async (isToday) => {
-  return new Promise((resolve, reject) => {
-    let sql = `
-      SELECT COUNT(*) AS userCount
-      FROM marketplaceusers
-      WHERE isMarketPlaceUser = 1 
-    `;
+// exports.toDayUserCountDao = async (isToday) => {
+//   return new Promise((resolve, reject) => {
+//     let sql = `
+//       SELECT COUNT(*) AS userCount
+//       FROM marketplaceusers
+//       WHERE isMarketPlaceUser = 1 
+//     `;
 
-    if (isToday) {
-      sql += ` AND DATE(created_at) = CURDATE() `;
-    }
+//     if (isToday) {
+//       sql += ` AND DATE(created_at) = CURDATE() `;
+//     }
 
-    marketPlace.query(sql, (err, results) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(results[0]);
-      }
-    });
-  });
-};
+//     marketPlace.query(sql, (err, results) => {
+//       if (err) {
+//         reject(err);
+//       } else {
+//         resolve(results[0]);
+//       }
+//     });
+//   });
+// };
 
 exports.salesAnalyzeDao = async () => {
   return new Promise((resolve, reject) => {
@@ -2807,84 +2807,69 @@ exports.salesAnalyzeDao = async () => {
   });
 };
 
-exports.totalMarketOrderCountDao = async () => {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT COUNT(*) AS count
-      FROM processorders PO
-      LEFT JOIN orders O ON PO.orderId = O.id
-      WHERE O.orderApp = 'Marketplace'
-    `;
-
-    marketPlace.query(sql, (err, results) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(results[0]);
-      }
-    });
-  });
-};
-
-// exports.areaOrderDataDao = async () => {
+// exports.totalMarketOrderCountDao = async () => {
 //   return new Promise((resolve, reject) => {
 //     const sql = `
-//       SELECT 
-//         DATE_FORMAT(PO.createdAt, '%b') AS month,
-//         MONTH(PO.createdAt) AS monthNum,
-//         COUNT(*) AS salesCount, 
-//         SUM(O.fullTotal) AS total
+//       SELECT COUNT(*) AS count
 //       FROM processorders PO
 //       LEFT JOIN orders O ON PO.orderId = O.id
-//       WHERE PO.createdAt >= DATE_SUB(DATE_FORMAT(NOW(), '%Y-%m-01'), INTERVAL 12 MONTH)
-//         AND PO.createdAt < DATE_FORMAT(NOW(), '%Y-%m-01')
-//       GROUP BY monthNum, month
-//       ORDER BY monthNum
+//       WHERE O.orderApp = 'Marketplace'
 //     `;
 
 //     marketPlace.query(sql, (err, results) => {
 //       if (err) {
 //         reject(err);
 //       } else {
-//         const allMonths = [
-//           "Jan",
-//           "Feb",
-//           "Mar",
-//           "Apr",
-//           "May",
-//           "Jun",
-//           "Jul",
-//           "Aug",
-//           "Sep",
-//           "Oct",
-//           "Nov",
-//           "Dec",
-//         ];
-
-//         const currentMonth = new Date().getMonth() + 1;
-
-//         const monthlyData = {
-//           months: [],
-//           salesCount: [],
-//           total: [],
-//         };
-
-//         allMonths.forEach((month, index) => {
-//           const monthNumber = index + 1;
-//           if (monthNumber < currentMonth) {
-//             monthlyData.months.push(month);
-
-//             const monthData = results.find((r) => r.monthNum === monthNumber);
-//             monthlyData.salesCount.push(monthData ? monthData.salesCount : 0);
-//             monthlyData.total.push(monthData ? monthData.total : 0);
-//           }
-//         });
-
-//         resolve(monthlyData);
+//         resolve(results[0]);
 //       }
 //     });
 //   });
 // };
+
+exports.totalMarketOrderCountDao = async () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        /* Last 30 days (0-30 days ago) */
+        COUNT(CASE WHEN PO.createdAt >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) 
+                   AND PO.createdAt < CURDATE() THEN 1 ELSE NULL END) AS last_30_days_count,
+                   
+        /* Previous 30-60 days */
+        COUNT(CASE WHEN PO.createdAt >= DATE_SUB(CURDATE(), INTERVAL 60 DAY) 
+                   AND PO.createdAt < DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 ELSE NULL END) AS previous_30_to_60_days_count
+      FROM processorders PO
+      LEFT JOIN orders O ON PO.orderId = O.id
+      WHERE O.orderApp = 'Marketplace'
+      AND PO.createdAt >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+    `;
+
+    marketPlace.query(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Handle null/undefined cases
+        let last30DaysCount = results[0]?.last_30_days_count || 0;
+        let previous30To60DaysCount = results[0]?.previous_30_to_60_days_count || 0;
+        
+        // Calculate percentage change
+        let percentage = 0;
+        if (previous30To60DaysCount > 0) {
+          percentage = ((last30DaysCount - previous30To60DaysCount) / previous30To60DaysCount) * 100;
+        } else if (last30DaysCount > 0) {
+          percentage = 100; // 100% increase from 0
+        }
+        
+        let obj = {
+          count: last30DaysCount,
+          percentage: Number(percentage.toFixed(2)),
+          previousPeriodCount: previous30To60DaysCount
+        };
+        
+        resolve(obj);
+      }
+    });
+  });
+};
 
 exports.areaOrderDataDao = async () => {
   return new Promise((resolve, reject) => {
@@ -2992,7 +2977,7 @@ exports.pieDataDao = async () => {
       if (err) {
         reject(err);
       } else {
-        const categoryOrder = ["Vegetables", "Grain", "Fruit", "Mushrooms"];
+        const categoryOrder = ["Vegetables", "Spices", "Cereals", "Fruit", "Legumes", "Mushrooms"];
 
         const resultMap = {};
         results.forEach((item) => {
@@ -3050,20 +3035,52 @@ exports.lastFiveOrdersDao = async () => {
 exports.toDayUserCountDao = async (isToday) => {
   return new Promise((resolve, reject) => {
     let sql = `
-      SELECT COUNT(*) AS userCount
+      SELECT 
+        /* Last 30 days (0-30 days ago) */
+        COUNT(CASE WHEN DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) 
+                   AND DATE(created_at) < CURDATE() THEN 1 ELSE NULL END) AS last_30_days_count,
+                   
+        /* Previous 30-60 days */
+        COUNT(CASE WHEN DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 60 DAY) 
+                   AND DATE(created_at) < DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 ELSE NULL END) AS previous_30_to_60_days_count
       FROM marketplaceusers
-      WHERE isMarketPlaceUser = 1 
+      WHERE isMarketPlaceUser = 1
     `;
 
     if (isToday) {
-      sql += ` AND DATE(created_at) = CURDATE() `;
+      sql = `
+        SELECT COUNT(*) AS userCount
+        FROM marketplaceusers
+        WHERE isMarketPlaceUser = 1 
+        AND DATE(created_at) = CURDATE()
+      `;
     }
 
     marketPlace.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
-        resolve(results[0]);
+        if (isToday) {
+          // Simple return for today only
+          let obj = {
+            userCount: results[0]?.userCount || 0
+          };
+          resolve(obj);
+        } else {
+          // Return with percentage calculation like salesAnalyzeDao
+          if (results[0].last_30_days_count === null)
+            results[0].last_30_days_count = 0;
+          if (results[0].previous_30_to_60_days_count === null)
+            results[0].previous_30_to_60_days_count = 0;
+
+          let percentage = ((results[0].last_30_days_count - results[0].previous_30_to_60_days_count) / results[0].previous_30_to_60_days_count) * 100;
+
+          let obj = {
+            userCount: results[0].last_30_days_count,
+            percentage: Number(percentage.toFixed(2)),
+          };
+          resolve(obj);
+        }
       }
     });
   });

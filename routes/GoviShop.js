@@ -215,6 +215,12 @@ router.put('/toggle-branch-status/:branchId', authMiddleware, GoviShopEp.toggleB
 
 router.get('/get-products/:branchId', authMiddleware, GoviShopEp.getProductsByBranchIdEp);
 
+router.get(
+  "/get-all-removed-shops",
+  authMiddleware,
+  GoviShopEp.getAllRemovedShopsEp,
+);
+
 module.exports = router;
 
 
