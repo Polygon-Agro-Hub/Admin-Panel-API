@@ -2992,6 +2992,7 @@ exports.GetBranchesDAO = (
     let countSql = `
       SELECT COUNT(*) AS total
       FROM govi_shop.branches b
+      WHERE 1=1 
     `;
 
     let dataSql = `
@@ -3012,6 +3013,7 @@ exports.GetBranchesDAO = (
       LEFT JOIN govi_shop.branchstaff bs ON bs.branchId = b.id
       LEFT JOIN agro_world_admin.adminusers au ON b.updatedBy = au.id
       LEFT JOIN govi_shop.govishops gs ON b.shopId = gs.id
+      WHERE 1=1 
     `;
 
     // ── Optional filters ─────────────────────────────────────────────────────

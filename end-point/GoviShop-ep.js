@@ -1708,10 +1708,7 @@ exports.getBranchesByShopIdEp = async (req, res) => {
   console.log('fullUrl', fullUrl);
 
   try {
-    const { shopId } =
-      req.params
-
-
+    const { shopId } = req.params
     console.log('shopId', shopId)
 
     const { page, limit, province, district, searchItem } =
