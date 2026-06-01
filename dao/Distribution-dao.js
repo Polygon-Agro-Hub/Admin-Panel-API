@@ -1527,7 +1527,7 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
         } else if (employee === "Distribution Officer") {
           return resolve("DIO00001");
         } else if (employee === "Driver") {
-          return resolve("DVR00001");
+          return resolve("DRV00001");
         }
       }
 

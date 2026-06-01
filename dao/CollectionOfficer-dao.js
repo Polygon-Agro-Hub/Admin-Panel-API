@@ -1440,7 +1440,7 @@ exports.getDailyReport = (collectionOfficerId, fromDate, toDate) => {
           farmerpaymentscrops fpc ON rfp.id = fpc.registerFarmerId
         WHERE 
           rfp.collectionOfficerId = ? 
-          AND rfp.createdAt BETWEEN ? AND ?
+          AND DATE(rfp.createdAt) BETWEEN DATE(?) AND DATE(?)
         GROUP BY 
           DATE(rfp.createdAt)
         ORDER BY 
