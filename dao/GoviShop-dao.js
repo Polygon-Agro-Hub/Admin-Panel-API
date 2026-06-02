@@ -3043,7 +3043,7 @@ exports.GetBranchesDAO = (
       GROUP BY
         b.id, b.branchName, b.mobilePhone, b.district, b.province,
         b.isActive, b.createdAt, au.userName, b.updatedAt
-      ORDER BY b.branchName ASC
+      ORDER BY gs.shopName ASC, b.branchName ASC
       LIMIT ? OFFSET ?
     `;
     sqlParams.push(parseInt(limit), parseInt(offset));
