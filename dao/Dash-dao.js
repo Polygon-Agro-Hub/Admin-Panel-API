@@ -600,7 +600,7 @@ const getAllSalesCustomers = (page, limit, searchText) => {
     const dataParams = [];
 
     if (searchText) {
-  const searchCondition = `
+      const searchCondition = `
     AND (
       CUS.firstName LIKE ?
       OR CUS.lastName LIKE ?
@@ -609,12 +609,12 @@ const getAllSalesCustomers = (page, limit, searchText) => {
       OR SA.empId LIKE ?
     )
   `;
-  countSql += searchCondition;
-  dataSql += searchCondition;
-  const searchValue = `%${searchText}%`;
-  countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
-  dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
-}
+      countSql += searchCondition;
+      dataSql += searchCondition;
+      const searchValue = `%${searchText}%`;
+      countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+      dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+    }
 
     dataSql += " LIMIT ? OFFSET ?";
     dataParams.push(limit, offset);
@@ -728,11 +728,11 @@ const getAllOrders = (
     }
 
     if (paymentStatus) {
-      if(paymentStatus === "Paid"){
+      if (paymentStatus === "Paid") {
         whereConditions.push(`po.isPaid = 1 AND po.paymentMethod = 'Card'`);
-      }else if(paymentStatus === "Received"){
+      } else if (paymentStatus === "Received") {
         whereConditions.push(`po.isPaid = 1 AND po.paymentMethod = 'Cash'`);
-      }else if(paymentStatus === "Pending"){
+      } else if (paymentStatus === "Pending") {
         whereConditions.push(`po.isPaid = 0`);
       }
     }
@@ -1115,29 +1115,47 @@ const genarateNewSalesAgentIdDao = async () => {
 
 const createSalesTarget = (id) => {
   return new Promise((resolve, reject) => {
-    const sql = `
-      INSERT INTO salesagentstars (salesagentId, date, target, completed, numOfStars)
-      VALUES(
-        ?,
-        CURDATE(),
-        (
-          SELECT targetValue
-          FROM target
-          WHERE DATE(createdAt) <= CURDATE()
-          ORDER BY createdAt DESC
-          LIMIT 1
-        ),
-        0,
-        0
-      )
+    // First check if record exists for today
+    const checkSql = `
+      SELECT *
+      FROM salesagentstars s
+      WHERE s.salesagentId = ? AND DATE(s.date) = CURDATE()
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    marketPlace.query(checkSql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
-      // For INSERT operations, you might want to check affectedRows instead
-      resolve(results.affectedRows > 0); // Return true if the insert was successful
+
+      // If record exists for today, resolve with false (no insert needed)
+      if (results.length > 0) {
+        return resolve({ inserted: false, message: 'Record already exists for today' });
+      }
+
+      // If no record exists, proceed with insert
+      const insertSql = `
+        INSERT INTO salesagentstars (salesagentId, date, target, completed, numOfStars)
+        VALUES(
+          ?,
+          CURDATE(),
+          (
+            SELECT targetValue
+            FROM target
+            WHERE DATE(createdAt) <= CURDATE()
+            ORDER BY createdAt DESC
+            LIMIT 1
+          ),
+          0,
+          0
+        )
+      `;
+
+      marketPlace.query(insertSql, [id], (err, insertResults) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve({ inserted: true, affectedRows: insertResults.affectedRows });
+      });
     });
   });
 };
