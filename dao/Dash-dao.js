@@ -684,7 +684,8 @@ const getAllOrders = (
         c.cusId,
         c.firstName,
         c.lastName,
-        sa.empId
+        sa.empId,
+        po.qrCode
       ${baseSql}
     `;
 
