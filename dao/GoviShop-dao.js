@@ -2821,7 +2821,7 @@ exports.GetBranchesByShopIdDAO = (
         COUNT(DISTINCT CASE WHEN bs.role = 'Manager' THEN bs.id END) AS managerCount,
         COUNT(DISTINCT CASE WHEN bs.role = 'POS'     THEN bs.id END) AS posCount,
         au.userName  AS updatedBy,
-        b.updatedAt
+        DATE_ADD(b.updatedAt, INTERVAL 330 MINUTE) AS updatedAt
       FROM govi_shop.branches b
       LEFT JOIN govi_shop.branchstaff bs ON bs.branchId = b.id
       LEFT JOIN agro_world_admin.adminusers au ON b.updatedBy = au.id
@@ -2851,14 +2851,14 @@ exports.GetBranchesByShopIdDAO = (
       countParams.push(like, like);
     }
 
-    // GROUP BY is required because of the COUNT(DISTINCT ...) aggregates
-    dataSql += `
+   dataSql += `
       GROUP BY
         b.id, b.branchName, b.mobilePhone, b.district, b.province,
         b.isActive, b.createdAt, au.userName, b.updatedAt
-      ORDER BY b.createdAt DESC
+      ORDER BY b.branchName ASC
       LIMIT ? OFFSET ?
     `;
+    
     sqlParams.push(parseInt(limit), parseInt(offset));
 
     // ── Execute count first ──────────────────────────────────────────────────
@@ -2992,6 +2992,7 @@ exports.GetBranchesDAO = (
     let countSql = `
       SELECT COUNT(*) AS total
       FROM govi_shop.branches b
+      WHERE 1=1 
     `;
 
     let dataSql = `
@@ -3012,6 +3013,7 @@ exports.GetBranchesDAO = (
       LEFT JOIN govi_shop.branchstaff bs ON bs.branchId = b.id
       LEFT JOIN agro_world_admin.adminusers au ON b.updatedBy = au.id
       LEFT JOIN govi_shop.govishops gs ON b.shopId = gs.id
+      WHERE 1=1 
     `;
 
     // ── Optional filters ─────────────────────────────────────────────────────
@@ -3037,12 +3039,11 @@ exports.GetBranchesDAO = (
       countParams.push(like, like);
     }
 
-    // GROUP BY is required because of the COUNT(DISTINCT ...) aggregates
-    dataSql += `
+   dataSql += `
       GROUP BY
         b.id, b.branchName, b.mobilePhone, b.district, b.province,
         b.isActive, b.createdAt, au.userName, b.updatedAt
-      ORDER BY b.createdAt DESC
+      ORDER BY gs.shopName ASC, b.branchName ASC
       LIMIT ? OFFSET ?
     `;
     sqlParams.push(parseInt(limit), parseInt(offset));

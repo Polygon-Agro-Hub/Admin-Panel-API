@@ -137,7 +137,7 @@ goviShop.getConnection((err, connection) => {
 const BASE_PATH = "/agro-api/admin-api";
 
 app.use("", heathRoutes);
-app.use(cors());
+// app.use(cors());
 app.use(BASE_PATH + process.env.AUTHOR, routes);
 
 app.use(BASE_PATH + process.env.AUTHOR, collectionOfficerRoutes);
