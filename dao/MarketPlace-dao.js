@@ -1331,8 +1331,15 @@ exports.getAllRetailOrderDetails = (
     `;
 
     let sql = `
-      SELECT o.id, po.id AS orderId, o.fullName AS customerName, o.delivaryMethod AS method, 
-             o.fullTotal AS amount, po.invNo, po.status, o.createdAt AS orderdDate 
+      SELECT 
+        o.id, po.id AS orderId, 
+        o.fullName AS customerName, 
+        o.delivaryMethod AS method, 
+        o.fullTotal AS amount,
+        po.invNo, 
+        po.status,
+        po.qrCode,
+        o.createdAt AS orderdDate 
       FROM market_place.orders o
       LEFT JOIN market_place.processorders po ON o.id = po.orderId
       LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
@@ -2517,8 +2524,15 @@ exports.getAllWholesaleOrderDetails = (
     `;
 
     let sql = `
-      SELECT o.id, po.id AS orderId, o.fullName AS customerName, o.delivaryMethod AS method, 
-             o.fullTotal AS amount, po.invNo, po.status, o.createdAt AS orderdDate 
+      SELECT 
+        o.id, 
+        po.id AS orderId, 
+        o.fullName AS customerName, 
+        o.delivaryMethod AS method, 
+        o.fullTotal AS amount, 
+        po.invNo, po.status,
+        po.qrCode,
+        o.createdAt AS orderdDate 
       FROM market_place.orders o
       LEFT JOIN market_place.processorders po ON o.id = po.orderId
       LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
