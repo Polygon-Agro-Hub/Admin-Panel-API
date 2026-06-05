@@ -3152,9 +3152,9 @@ exports.forgotPassword = async (req, res) => {
     });
 
     const mailOptions = {
-      from: `"Polygon Agro" <${process.env.EMAIL_USERNAME}>`,
+      from: `"Polygon Holdings" <${process.env.EMAIL_USERNAME}>`,
       to: email,
-      subject: "Polygon Agro Password Reset Request",
+      subject: "Polygon Holdings Password Reset Request",
       html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0;">
 
@@ -3169,7 +3169,7 @@ exports.forgotPassword = async (req, res) => {
 
         <p style="color: #000;">Hello,</p>
         <p style="color: #000;">
-          We received a request to reset your password for your Polygon Agro account.
+          We received a request to reset your password for your Polygon Holdings account.
           Click the button below to reset it:
         </p>
 
@@ -3296,9 +3296,9 @@ exports.resendResetLink = async (req, res) => {
     });
 
     const mailOptions = {
-      from: `"Polygon Agro" <${process.env.EMAIL_USERNAME}>`,
+      from: `"Polygon Holdings" <${process.env.EMAIL_USERNAME}>`,
       to: user.mail,
-      subject: "Polygon Agro Password Reset Link (Resent)",
+      subject: "Polygon Holdings Password Reset Link (Resent)",
       html: `
         <div style="font-family: Arial; max-width: 600px; margin: auto;">
           <div style="background:#3E206D; padding:15px; text-align:center; border-radius:6px 6px 0 0;">
