@@ -209,7 +209,7 @@ const createSalesAgent = (officerData, profileImageUrl, newSalseAgentId) => {
       // Prepare data for QR code generation
       // const qrData = `
       //       {
-      //           "empId": "${officerData.empId}",
+      //           "empId": "${officerData.empId}"
       //       }
       //       `;
 
