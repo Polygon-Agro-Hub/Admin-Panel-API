@@ -93,7 +93,7 @@ exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
 //       // Prepare data for QR code generation
 //       const qrData = `
 //             {
-//                 "empId": "${officerData.empId}",
+//                 "empId": "${officerData.empId}"
 //             }
 //             `;
 
@@ -181,7 +181,7 @@ exports.createCollectionOfficerPersonal = (
       // Prepare data for QR code generation
       const qrData = `
             {
-                "empId": "${officerData.empId}",
+                "empId": "${officerData.empId}"
             }
             `;
 
@@ -1595,7 +1595,7 @@ exports.createCenterHeadPersonal = (officerData, profileImageUrl, lastId) => {
       // Prepare data for QR code generation
       const qrData = `
             {
-                "empId": "${lastId}",
+                "empId": "${lastId}"
             }
             `;
 

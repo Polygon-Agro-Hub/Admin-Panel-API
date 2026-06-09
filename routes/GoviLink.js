@@ -111,4 +111,10 @@ router.get(
   GoviLinkEp.getFieldAuditHistoryClusterResponseById
 );
 
+router.get(
+  "/govilink-dashbord",
+  // authMiddleware,
+  GoviLinkEp.getGoviLinkDashbordData
+);
+
 module.exports = router;
