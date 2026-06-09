@@ -4,6 +4,7 @@ const {
   collectionofficer,
   marketPlace,
   investment,
+  goviShop
 } = require("../startup/database");
 const bcrypt = require("bcryptjs");
 const { Upload } = require("@aws-sdk/lib-storage");
@@ -2507,7 +2508,7 @@ exports.getGocicareAllInvestmentUsersDao = (
     }
 
     dataSql += " ORDER BY iu.createdAt DESC";
-    
+
     // Add pagination if limit and offset are provided
     if (limit !== undefined && offset !== undefined) {
       dataSql += " LIMIT ? OFFSET ?";
@@ -2538,6 +2539,196 @@ exports.getGocicareAllInvestmentUsersDao = (
         resolve({
           total: total,
           items: dataResults
+        });
+      });
+    });
+  });
+};
+
+
+// ───────────────────────────────────────────── Daos for the finance dashboard ─────────────────────────────────────────────
+
+exports.getAllFinanceDashboardDataDao = () => {
+  console.log("goviShop connection:", goviShop);
+  return new Promise((resolve, reject) => {
+    // ── Count Cards ──────────────────────────────────────────────────────────
+
+    const pensionCountSql = `
+      SELECT COUNT(*) AS count
+      FROM pensionrequest
+      WHERE reqStatus = 'To Review'
+    `;
+
+    const supplierUpgradeSql = `
+      SELECT COUNT(*) AS count
+      FROM shopowners
+      WHERE currentPlan = 'Premium'
+        AND accessStatus = 'Pending'
+    `;
+
+    const projectRequestSql = `
+      SELECT COUNT(*) AS count
+      FROM investmentrequest
+      WHERE reqStatus = 'Pending'
+    `;
+
+    const publishedProjectSql = `
+      SELECT COUNT(*) AS count
+      FROM investmentrequest
+      WHERE reqStatus = 'Approved'
+        AND publishStatus = 'Published'
+    `;
+
+
+    const goviCareProIncomeSql = `
+      SELECT
+        COALESCE(SUM(
+          mp.payment / CAST(SUBSTRING_INDEX(mp.plan, ' ', 1) AS UNSIGNED)
+        ), 0) AS currentMonthIncome
+      FROM membershippayment mp
+      WHERE mp.activeStatus = 1
+        AND CAST(SUBSTRING_INDEX(mp.plan, ' ', 1) AS UNSIGNED) > 0
+        AND mp.createdAt  <= LAST_DAY(CURRENT_DATE())
+        AND mp.expireDate >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01')
+    `;
+
+    const certificationsIncomeSql = `
+      SELECT
+        COALESCE(SUM(
+          cp.amount / NULLIF(c.timeLine, 0)
+        ), 0) AS currentMonthIncome
+      FROM certificationpayment cp
+      INNER JOIN certificates c ON cp.certificateId = c.id
+      WHERE c.timeLine > 0
+        AND cp.createdAt  <= LAST_DAY(CURRENT_DATE())
+        AND cp.expireDate >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01')
+    `;
+
+    const collectionExpensesSql = `
+      SELECT
+        COALESCE(SUM(
+          (COALESCE(fpc.gradeAprice, 0) * COALESCE(fpc.gradeAquan, 0)) +
+          (COALESCE(fpc.gradeBprice, 0) * COALESCE(fpc.gradeBquan, 0)) +
+          (COALESCE(fpc.gradeCprice, 0) * COALESCE(fpc.gradeCquan, 0))
+        ), 0) AS currentMonthExpenses
+      FROM farmerpaymentscrops fpc
+      WHERE MONTH(fpc.createdAt) = MONTH(CURRENT_DATE())
+        AND YEAR(fpc.createdAt)  = YEAR(CURRENT_DATE())
+    `;
+
+    const goviMartSalesIncomeSql = `
+      SELECT
+        COALESCE(SUM(o.fullTotal), 0) AS currentMonthIncome
+      FROM orders o
+      WHERE o.orderApp = 'Marketplace'
+        AND MONTH(o.createdAt) = MONTH(CURRENT_DATE())
+        AND YEAR(o.createdAt)  = YEAR(CURRENT_DATE())
+    `;
+
+    const salesDashIncomeSql = `
+      SELECT
+        COALESCE(SUM(o.fullTotal), 0) AS currentMonthIncome
+      FROM orders o
+      WHERE o.orderApp = 'Dash'
+        AND MONTH(o.createdAt) = MONTH(CURRENT_DATE())
+        AND YEAR(o.createdAt)  = YEAR(CURRENT_DATE())
+    `;
+
+    const returnedOrdersLossSql = `
+  SELECT
+    COALESCE(SUM(o.fullTotal), 0) AS currentMonthLoss
+  FROM driverorders dro
+  INNER JOIN market_place.processorders po ON dro.orderId = po.id
+  INNER JOIN market_place.orders o ON po.orderId = o.id
+  WHERE dro.drvStatus = 'Return Received'
+    AND po.paymentMethod = 'Cash'
+    AND MONTH(dro.handOverTime) = MONTH(CURRENT_DATE())
+    AND YEAR(dro.handOverTime)  = YEAR(CURRENT_DATE())
+`;
+
+    const goviShopPremiumIncomeSql = `
+      SELECT
+        COALESCE(SUM(pp.planPrice), 0) AS currentMonthIncome
+      FROM paymentplan pp
+      WHERE MONTH(pp.createdAt) = MONTH(CURRENT_DATE())
+        AND YEAR(pp.createdAt)  = YEAR(CURRENT_DATE())
+    `;
+
+    const goviShopOrderCommissionSql = `
+      SELECT
+        COALESCE(SUM(po.amount), 0) AS currentMonthCommission
+      FROM processorders po
+      INNER JOIN orders o ON po.orderId = o.id
+      WHERE po.isPaid = 1
+        AND MONTH(po.deliveredTime) = MONTH(CURRENT_DATE())
+        AND YEAR(po.deliveredTime)  = YEAR(CURRENT_DATE())
+    `;
+
+    // ── Execute all queries across databases ──────────────────────────────────
+
+    plantcare.query(pensionCountSql, (err1, pensionResult) => {
+      if (err1) return reject("Error in pension count query: " + err1);
+
+      goviShop.query(supplierUpgradeSql, (err2, supplierResult) => {
+        if (err2) return reject("Error in supplier upgrade count query: " + err2);
+
+        investment.query(projectRequestSql, (err3, projectResult) => {
+          if (err3) return reject("Error in project request count query: " + err3);
+
+          investment.query(publishedProjectSql, (err4, publishedResult) => {
+            if (err4) return reject("Error in published project count query: " + err4);
+
+            plantcare.query(goviCareProIncomeSql, (err5, goviCareResult) => {
+              if (err5) return reject("Error in GoViCare pro income query: " + err5);
+
+              plantcare.query(certificationsIncomeSql, (err6, certResult) => {
+                if (err6) return reject("Error in certifications income query: " + err6);
+
+                collectionofficer.query(collectionExpensesSql, (err7, collectionResult) => {
+                  if (err7) return reject("Error in collection expenses query: " + err7);
+
+                  marketPlace.query(goviMartSalesIncomeSql, (err8, goviMartResult) => {
+                    if (err8) return reject("Error in GoViMart sales income query: " + err8);
+
+                    marketPlace.query(salesDashIncomeSql, (err9, salesDashResult) => {
+                      if (err9) return reject("Error in SalesDash income query: " + err9);
+
+                      collectionofficer.query(returnedOrdersLossSql, (err10, returnedResult) => {
+                        if (err10) return reject("Error in returned orders loss query: " + err10);
+
+                        goviShop.query(goviShopPremiumIncomeSql, (err11, premiumResult) => {
+                          if (err11) return reject("Error in GoViShop premium income query: " + err11);
+
+                          marketPlace.query(goviShopOrderCommissionSql, (err12, commissionResult) => {
+                            if (err12) return reject("Error in GoViShop order commission query: " + err12);
+
+                            resolve({
+                              counts: {
+                                allPensionRequests: pensionResult[0].count,
+                                supplierUpgrades: supplierResult[0].count,
+                                allProjectRequests: projectResult[0].count,
+                                publishedProjects: publishedResult[0].count,
+                              },
+                              income: {
+                                goviCareProIncome: parseFloat(goviCareResult[0].currentMonthIncome) || 0,
+                                certificationsIncome: parseFloat(certResult[0].currentMonthIncome) || 0,
+                                collectionExpenses: parseFloat(collectionResult[0].currentMonthExpenses) || 0,
+                                goviMartSalesIncome: parseFloat(goviMartResult[0].currentMonthIncome) || 0,
+                                salesDashIncome: parseFloat(salesDashResult[0].currentMonthIncome) || 0,
+                                returnedOrdersLoss: parseFloat(returnedResult[0].currentMonthLoss) || 0,
+                                goviShopPremiumIncome: parseFloat(premiumResult[0].currentMonthIncome) || 0,
+                                goviShopOrderCommission: parseFloat(commissionResult[0].currentMonthCommission) || 0,
+                              },
+                            });
+                          });
+                        });
+                      });
+                    });
+                  });
+                });
+              });
+            });
+          });
         });
       });
     });
