@@ -113,7 +113,7 @@ router.get(
 
 router.get(
   "/govilink-dashbord",
-  // authMiddleware,
+  authMiddleware,
   GoviLinkEp.getGoviLinkDashbordData
 );
 
