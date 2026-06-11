@@ -1181,7 +1181,7 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
   });
 };
 
-exports.getDashbordOfficerCountDao = (id) => {
+exports.getDashbordOfficerCountDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT COUNT(*) AS count, JobRole
@@ -1197,7 +1197,7 @@ exports.getDashbordOfficerCountDao = (id) => {
   });
 };
 
-exports.getDashbordServiceCountDao = (id) => {
+exports.getDashbordServiceCountDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT SUM(count) AS total_count
@@ -1215,7 +1215,7 @@ exports.getDashbordServiceCountDao = (id) => {
     `;
     
 
-    plantcare.query(sql, [id], (err, results) => {
+    plantcare.query(sql, (err, results) => {
       if (err) return reject(err);
       resolve(results[0]);
     });
@@ -1223,7 +1223,7 @@ exports.getDashbordServiceCountDao = (id) => {
 };
 
 
-exports.getDashbordAuditCountDao = (id) => {
+exports.getDashbordAuditCountDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT COUNT(*) AS count
@@ -1231,7 +1231,7 @@ exports.getDashbordAuditCountDao = (id) => {
       WHERE status = 'Completed' AND DATE(completeDate) = CURDATE()
     `;
 
-    plantcare.query(sql, [id], (err, results) => {
+    plantcare.query(sql, (err, results) => {
       if (err) return reject(err);
       resolve(results[0]);
     });

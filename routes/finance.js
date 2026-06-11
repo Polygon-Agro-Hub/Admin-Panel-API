@@ -236,6 +236,12 @@ router.get(
   financeController.getFarmerPensionDetails
 );
 
+router.get(
+  "/main-dashboard",
+  authMiddleware,     
+  financeController.getFinanceMainDashboard
+);
+
 router.get('/govicare-investment-users', authMiddleware, financeController.getGocicareAllInvestmentUsers);
 
 module.exports = router;
