@@ -1234,7 +1234,18 @@ exports.createProductTypesDao = async (data) => {
 
 exports.viewProductTypeDao = async () => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT * FROM producttypes ORDER BY shortCode";
+    const sql = `
+      SELECT 
+        pt.id,
+        pt.typeName,
+        pt.shortCode,
+        pt.isValid,
+        pt.created_at,
+        au.userName AS modifyUserName
+      FROM producttypes pt
+      LEFT JOIN agro_world_admin.adminusers au ON au.id = pt.modifyId
+      ORDER BY pt.shortCode
+    `;
     marketPlace.query(sql, (err, results) => {
       if (err) {
         return reject(err);
