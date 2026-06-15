@@ -327,7 +327,10 @@ router.get(
   marketPlaceEp.getPostInvoiceDetails
 );
 
-
-
+router.patch(
+  "/update-product-type-status/:id",
+  authMiddleware,
+  marketPlaceEp.updateProductTypeStatus
+);
 
 module.exports = router;

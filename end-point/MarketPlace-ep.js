@@ -2385,3 +2385,36 @@ exports.getPostInvoiceDetails = async (req, res) => {
     });
   }
 };
+
+exports.updateProductTypeStatus = async (req, res) => {
+  try {
+    const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
+      req.params
+    );
+    const { isValid } = await MarketPriceValidate.ValidateStatusSchema.validateAsync(
+      req.body
+    );
+    
+    // Get the logged-in username from token
+    const modifyId = req.user.userId; // Make sure your token contains username
+    
+    const result = await MarketPlaceDao.UpdateProductTypeStatusDao(id, isValid, modifyId);
+
+    if (result.affectedRows === 0) {
+      return res.json({
+        message: "Product type status update failed",
+        status: false,
+      });
+    }
+
+    const statusMessage = isValid === 1 ? "activated" : "deactivated";
+    return res.status(200).json({
+      message: `Product type ${statusMessage} successfully`,
+      status: true,
+      modifyId: modifyId // Return the updated modifyId
+    });
+  } catch (error) {
+    console.error("Error updating product type status:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};

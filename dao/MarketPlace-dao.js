@@ -3277,3 +3277,14 @@ exports.getPosPackageDetailsDAO = (orderId) => {
   });
 };
 
+exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
+  return new Promise((resolve, reject) => {
+    const sql = "UPDATE producttypes SET isValid = ?, modifyId = ? WHERE id = ?";
+    marketPlace.query(sql, [isValid, modifyId, id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

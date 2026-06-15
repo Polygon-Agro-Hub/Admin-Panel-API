@@ -103,3 +103,8 @@ exports.changePackageStatusValidation = Joi.object({
   id: Joi.number().min(0).positive().required(),
   status: Joi.string().required(),
 });
+
+// In your MarketPriceValidate file, add:
+exports.ValidateStatusSchema = Joi.object({
+  isValid: Joi.number().valid(0, 1).required()
+});
