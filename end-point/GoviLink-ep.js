@@ -599,14 +599,16 @@ exports.getGoviLinkDashbordData = async (req, res) => {
     const officerCount = await GoviLinkDAO.getDashbordOfficerCountDao();
     const serviceCount = await GoviLinkDAO.getDashbordServiceCountDao();
     const auditCount = await GoviLinkDAO.getDashbordAuditCountDao();
-
-    
+    const auditSummery = await GoviLinkDAO.getDashbordAuditSummaryDao();
+    const serviceSummery = await GoviLinkDAO.getDashbordServiceSummaryDao();
 
     res.status(200).json({
       success: true,
       officerCount,
       serviceCount,
-      auditCount
+      auditCount,
+      auditSummery,
+      serviceSummery
     });
 
   } catch (error) {

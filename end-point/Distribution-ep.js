@@ -3300,3 +3300,20 @@ exports.getRecivedCashDashbord = async (req, res) => {
     });
   }
 };
+
+exports.getDistributionDashboard = async (req, res) => {
+  try {
+    const data = await DistributionDao.getDistributionDashboardDao();
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error("Distribution Dashboard Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch distribution dashboard data",
+      error,
+    });
+  }
+};

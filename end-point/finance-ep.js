@@ -1990,3 +1990,21 @@ exports.getGocicareAllInvestmentUsers = async (req, res) => {
     });
   }
 };
+
+exports.getFinanceMainDashboard = async (req, res) => {
+  try {
+    const dashboardData = await financeDao.getAllFinanceDashboardDataDao();
+ 
+    return res.status(200).json({
+      status: true,
+      data: dashboardData,
+    });
+  } catch (error) {
+    console.error("Error fetching finance main dashboard data:", error);
+    return res.status(500).json({
+      status: false,
+      message: "An error occurred while fetching finance dashboard data",
+      error: error,
+    });
+  }
+};
