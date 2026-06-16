@@ -2266,6 +2266,9 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         o.fullName,
         o.phonecode1,
         o.phone1,
+        o.isCoupon,
+      o.couponType,
+      o.couponValue,
         po.invNo AS invoiceNumber,
         po.paymentMethod AS paymentMethod,
         o.fullTotal AS grandTotal,
@@ -2332,6 +2335,7 @@ exports.getFamilyPackItemsDAO = (orderId) => {
     const sql = `
       SELECT 
         op.id,
+        op.qty,
         mp.id AS packageId,
         mp.displayName AS name,
         (mp.productPrice + mp.packingFee + mp.serviceFee) AS amount
@@ -2341,10 +2345,16 @@ exports.getFamilyPackItemsDAO = (orderId) => {
     `;
 
     marketPlace.query(sql, [orderId], (err, results) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve(results);
+      if (err) return reject(err);
+
+      const expanded = [];
+      results.forEach((row) => {
+        for (let i = 0; i < row.qty; i++) {
+          expanded.push({ ...row });
+        }
+      });
+
+      resolve(expanded);
     });
   });
 };
@@ -2356,10 +2366,10 @@ exports.getAdditionalItemsDAO = (id) => {
         oai.id,
         mi.displayName AS name,
         oai.unit, 
-        oai.price AS unitPrice,
+        mi.normalprice AS unitPrice,
         oai.qty AS quantity,
         oai.normalPrice,
-        (oai.price * oai.qty) AS amount,
+        oai.price AS amount,
         oai.discount AS itemDiscount,
         cv.image AS image
       FROM orderadditionalitems oai
