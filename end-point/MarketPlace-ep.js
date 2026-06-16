@@ -1900,7 +1900,16 @@ exports.getInvoiceDetails = async (req, res) => {
       deliveryChargeDetails = await MarketPlaceDao.getDeliveryChargeByCityDAO(
         invoiceDetails.city,
       );
+
+            // Nullify delivery charge if order has a Free Delivery coupon
+      if (
+        invoiceDetails.isCoupon === 1 &&
+        invoiceDetails.couponType === "Free Delivery"
+      ) {
+        deliveryChargeDetails = null;
+      }
     }
+
 
     const packageDetailsPromises = familyPackItems.map((item) =>
       MarketPlaceDao.getPackageDetailsDAO(item.packageId),
@@ -2185,11 +2194,19 @@ exports.getPostInvoiceDetails = async (req, res) => {
       deliveryChargeDetails = await MarketPlaceDao.getDeliveryChargeByCityDAO(
         invoiceDetails.city,
       );
+
+      // Nullify delivery charge if order has a Free Delivery coupon
+      if (
+        invoiceDetails.isCoupon === 1 &&
+        invoiceDetails.couponType === "Free Delivery"
+      ) {
+        deliveryChargeDetails = null;
+      }
     }
 
     // Get package details for each family pack item
     const packageDetailsPromises = familyPackItems.map(
-      (item) => MarketPlaceDao.getPosPackageDetailsDAO(processOrderId), // Use processOrderId instead of item.packageId
+      (item) => MarketPlaceDao.getPosPackageDetailsDAO(processOrderId),
     );
     const packageDetailsResults = await Promise.all(packageDetailsPromises);
 
