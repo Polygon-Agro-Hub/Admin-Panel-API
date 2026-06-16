@@ -2019,7 +2019,16 @@ exports.getInvoiceDetails = async (req, res) => {
       deliveryChargeDetails = await MarketPlaceDao.getDeliveryChargeByCityDAO(
         invoiceDetails.city
       );
+
+            // Nullify delivery charge if order has a Free Delivery coupon
+      if (
+        invoiceDetails.isCoupon === 1 &&
+        invoiceDetails.couponType === "Free Delivery"
+      ) {
+        deliveryChargeDetails = null;
+      }
     }
+
 
 
     const packageDetailsPromises = familyPackItems.map((item) =>
@@ -2326,21 +2335,28 @@ exports.getPostInvoiceDetails = async (req, res) => {
       deliveryChargeDetails = await MarketPlaceDao.getDeliveryChargeByCityDAO(
         invoiceDetails.city
       );
+
+      // Nullify delivery charge if order has a Free Delivery coupon
+      if (
+        invoiceDetails.isCoupon === 1 &&
+        invoiceDetails.couponType === "Free Delivery"
+      ) {
+        deliveryChargeDetails = null;
+      }
     }
 
     // Get package details for each family pack item
     const packageDetailsPromises = familyPackItems.map((item) =>
-      MarketPlaceDao.getPosPackageDetailsDAO(processOrderId) // Use processOrderId instead of item.packageId
+      MarketPlaceDao.getPosPackageDetailsDAO(processOrderId)
     );
     const packageDetailsResults = await Promise.all(packageDetailsPromises);
 
     // Map family pack items with their corresponding package details
     const familyPackItemsWithDetails = familyPackItems.map((item, index) => {
       const packageDetail = packageDetailsResults[index] || [];
-      
-      // Find the specific package that matches the current item
-      const matchedPackage = packageDetail.find(pkg => 
-        pkg.packageName === item.name
+
+      const matchedPackage = packageDetail.find(
+        (pkg) => pkg.packageName === item.name
       );
 
       return {
@@ -2348,7 +2364,7 @@ exports.getPostInvoiceDetails = async (req, res) => {
         packageId: item.packageId,
         name: item.name,
         amount: item.amount,
-        packageDetails: matchedPackage ? matchedPackage.items : []
+        packageDetails: matchedPackage ? matchedPackage.items : [],
       };
     });
 
