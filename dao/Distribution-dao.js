@@ -1555,11 +1555,7 @@ exports.createDistributionOfficerPersonal = (
   return new Promise(async (resolve, reject) => {
     try {
       // Prepare data for QR code generation
-      const qrData = `
-            {
-                "empId": "${lastId}"
-            }
-            `;
+      const qrData = `{"empId":"${lastId}"}`;
 
       const qrCodeBase64 = await QRCode.toDataURL(qrData);
       const qrCodeBuffer = Buffer.from(
