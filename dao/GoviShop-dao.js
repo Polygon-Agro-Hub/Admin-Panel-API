@@ -2756,7 +2756,7 @@ exports.getShopBranchDetailsByIdDao = (branchId) => {
           'email',     gs.email,
           'createdAt', gs.createdAt,
           'updatedBy', au.userName,
-          'updatedAt', gs.updatedAt
+          'updatedAt', DATE_ADD(gs.updatedAt, INTERVAL 330 MINUTE)       
         ) AS shopInfo,
         JSON_OBJECT(
           'branchName',  b.branchName,
