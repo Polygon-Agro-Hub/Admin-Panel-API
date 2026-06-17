@@ -517,7 +517,7 @@ exports.getProductById = async (id) => {
           FROM marketplaceitems MPI
           JOIN plant_care.cropvariety CV ON MPI.varietyId = CV.id
           JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
-          LEFT JOIN market_place.producttypes PT ON MPI.productTypeId = PT.id  
+          JOIN market_place.producttypes PT ON MPI.productTypeId = PT.id  
           WHERE MPI.id = ?
     `;
     marketPlace.query(sql, [id], (err, results) => {

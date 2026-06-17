@@ -1910,7 +1910,6 @@ exports.getInvoiceDetails = async (req, res) => {
       }
     }
 
-
     const packageDetailsPromises = familyPackItems.map((item) =>
       MarketPlaceDao.getPackageDetailsDAO(item.packageId),
     );
@@ -2206,7 +2205,7 @@ exports.getPostInvoiceDetails = async (req, res) => {
 
     // Get package details for each family pack item
     const packageDetailsPromises = familyPackItems.map(
-      (item) => MarketPlaceDao.getPosPackageDetailsDAO(processOrderId),
+      (item) => MarketPlaceDao.getPosPackageDetailsDAO(processOrderId), // Use processOrderId instead of item.packageId
     );
     const packageDetailsResults = await Promise.all(packageDetailsPromises);
 
