@@ -87,89 +87,6 @@ exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
   });
 };
 
-// exports.createCollectionOfficerPersonal = (officerData, profileImageUrl) => {
-//   return new Promise(async (resolve, reject) => {
-//     try {
-//       // Prepare data for QR code generation
-//       const qrData = `
-//             {
-//                 "empId": "${officerData.empId}"
-//             }
-//             `;
-
-//       const qrCodeBase64 = await QRCode.toDataURL(qrData);
-//       const qrCodeBuffer = Buffer.from(
-//         qrCodeBase64.replace(/^data:image\/png;base64,/, ""),
-//         "base64"
-//       );
-//       const qrcodeURL = await uploadFileToS3(
-//         qrCodeBuffer,
-//         `${officerData.empId}.png`,
-//         "collectionofficer/QRcode"
-//       );
-//       console.log(qrcodeURL);
-
-//       const sql = `
-//                 INSERT INTO collectionofficer (
-//                     centerId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
-//                     lastNameSinhala, lastNameTamil, jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
-//                     nic, email, houseNumber, streetName, city, district, province, country,
-//                     languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
-//                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-//                          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-//                          ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?, 'Not Approved')
-//             `;
-
-//       // Database query with QR image data added
-//       collectionofficer.query(
-//         sql,
-//         [
-//           officerData.centerId,
-//           officerData.companyId,
-//           officerData.irmId,
-//           officerData.firstNameEnglish,
-//           officerData.firstNameSinhala,
-//           officerData.firstNameTamil,
-//           officerData.lastNameEnglish,
-//           officerData.lastNameSinhala,
-//           officerData.lastNameTamil,
-//           officerData.jobRole,
-//           officerData.empId,
-//           officerData.empType,
-//           officerData.phoneCode01,
-//           officerData.phoneNumber01,
-//           officerData.phoneCode02,
-//           officerData.phoneNumber02,
-//           officerData.nic,
-//           officerData.email,
-//           officerData.houseNumber,
-//           officerData.streetName,
-//           officerData.city,
-//           officerData.district,
-//           officerData.province,
-//           officerData.country,
-//           officerData.languages,
-//           officerData.accHolderName,
-//           officerData.accNumber,
-//           officerData.bankName,
-//           officerData.branchName,
-//           profileImageUrl,
-//           qrcodeURL,
-//         ],
-//         (err, results) => {
-//           if (err) {
-//             console.log(err);
-
-//             return reject(err); // Reject promise if an error occurs
-//           }
-//           resolve(results); // Resolve the promise with the query results
-//         }
-//       );
-//     } catch (error) {
-//       reject(error); // Reject if any error occurs during QR code generation
-//     }
-//   });
-// };
 
 exports.createCollectionOfficerPersonal = (
   officerData,
@@ -178,8 +95,10 @@ exports.createCollectionOfficerPersonal = (
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
+      console.log(officerData.empId);
+      
       // Prepare data for QR code generation
-      const qrData = `{"empId":"${officerData.empId}"}`;
+      const qrData = `{"empId":"${lastId}"}`;
 
       const qrCodeBase64 = await QRCode.toDataURL(qrData);
       const qrCodeBuffer = Buffer.from(

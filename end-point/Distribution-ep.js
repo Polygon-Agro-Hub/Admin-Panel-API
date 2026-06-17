@@ -1575,6 +1575,7 @@ exports.getAllDistributionManagerList = async (req, res) => {
   }
 };
 
+// shold be check and remove it not used
 exports.getForCreateId = async (req, res) => {
   try {
     const { role } = await DistributionValidation.getRoleShema.validateAsync(
