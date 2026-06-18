@@ -3008,7 +3008,7 @@ exports.GetBranchesDAO = (
         COUNT(DISTINCT CASE WHEN bs.role = 'Manager' THEN bs.id END) AS managerCount,
         COUNT(DISTINCT CASE WHEN bs.role = 'POS'     THEN bs.id END) AS posCount,
         au.userName  AS updatedBy,
-        b.updatedAt
+        DATE_ADD(b.updatedAt, INTERVAL 330 MINUTE) AS updatedAt
       FROM govi_shop.branches b
       LEFT JOIN govi_shop.branchstaff bs ON bs.branchId = b.id
       LEFT JOIN agro_world_admin.adminusers au ON b.updatedBy = au.id

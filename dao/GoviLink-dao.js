@@ -1190,7 +1190,7 @@ exports.getDashbordOfficerCountDao = () => {
       GROUP BY JobRole
     `;
 
-    plantcare.query(sql, [id], (err, results) => {
+    plantcare.query(sql, (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
