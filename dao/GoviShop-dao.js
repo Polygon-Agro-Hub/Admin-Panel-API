@@ -2686,7 +2686,7 @@ exports.GetAllShopsDAO = (
         gs.shopType,
         gs.email,
         gs.phone,
-        DATE_ADD(gs.updatedAt, INTERVAL 330 MINUTE) AS updatedAt,
+        gs.updatedAt AS updatedAt,
         gs.logo AS logo,
         gs.isActive,
         gs.approvedStatus,
