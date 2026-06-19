@@ -2756,7 +2756,7 @@ exports.getShopBranchDetailsByIdDao = (branchId) => {
           'email',     gs.email,
           'createdAt', gs.createdAt,
           'updatedBy', au.userName,
-          'updatedAt', DATE_ADD(gs.updatedAt, INTERVAL 330 MINUTE)       
+          'updatedAt', DATE_ADD(gs.updatedAt, INTERVAL 330 MINUTE)    
         ) AS shopInfo,
         JSON_OBJECT(
           'branchName',  b.branchName,
@@ -2821,7 +2821,7 @@ exports.GetBranchesByShopIdDAO = (
         COUNT(DISTINCT CASE WHEN bs.role = 'Manager' THEN bs.id END) AS managerCount,
         COUNT(DISTINCT CASE WHEN bs.role = 'POS'     THEN bs.id END) AS posCount,
         au.userName  AS updatedBy,
-        DATE_ADD(b.updatedAt, INTERVAL 330 MINUTE) AS updatedAt
+        b.updatedAt AS updatedAt
       FROM govi_shop.branches b
       LEFT JOIN govi_shop.branchstaff bs ON bs.branchId = b.id
       LEFT JOIN agro_world_admin.adminusers au ON b.updatedBy = au.id
@@ -3008,7 +3008,7 @@ exports.GetBranchesDAO = (
         COUNT(DISTINCT CASE WHEN bs.role = 'Manager' THEN bs.id END) AS managerCount,
         COUNT(DISTINCT CASE WHEN bs.role = 'POS'     THEN bs.id END) AS posCount,
         au.userName  AS updatedBy,
-        DATE_ADD(b.updatedAt, INTERVAL 330 MINUTE) AS updatedAt
+        b.updatedAt AS updatedAt
       FROM govi_shop.branches b
       LEFT JOIN govi_shop.branchstaff bs ON bs.branchId = b.id
       LEFT JOIN agro_world_admin.adminusers au ON b.updatedBy = au.id
