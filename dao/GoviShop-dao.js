@@ -53,8 +53,7 @@ exports.getAllGoviShopUsers = (limit, offset, search, currentPlanFilter) => {
         isActivated AS expireStatus,
         DATE_ADD(su.activatedAt, INTERVAL 330 MINUTE) AS activatedAt,
         su.onbordStatus,
-        DATE_ADD(su.createdAt, INTERVAL 330 MINUTE) AS createdAt
-        
+        su.createdAt AS createdAt        
       FROM govi_shop.shopowners su 
       WHERE su.isAvailable = 1
     `;
@@ -1365,7 +1364,7 @@ exports.GetAllShopsByOwnerDAO = (
         gs.shopType,
         gs.email,
         gs.phone,
-        DATE_ADD(gs.updatedAt, INTERVAL 330 MINUTE) AS updatedAt,
+        gs.updatedAt AS updatedAt,
         gs.logo AS logo,
         gs.isActive,
         gs.approvedStatus
@@ -1656,7 +1655,7 @@ exports.GetAllShopRequestsDAO = (
         gs.shopType,
         gs.email,
         gs.phone,
-        DATE_ADD(gs.updatedAt, INTERVAL 330 MINUTE) AS updatedAt,
+        gs.updatedAt AS updatedAt,
         gs.logo,
         gs.isActive,
         gs.approvedStatus,
@@ -1877,40 +1876,29 @@ exports.getUsersDao = async (search = "", role = "Manager") => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-    bs.id,
-    bs.branchId,
-    bs.userName,
-    bs.phone,
-    bs.email,
-    bs.role,
-    bs.isActive,
-    bs.createdAt,
-    b.branchName,
-    b.shopId,
-    g.shopName,
-    DATE_ADD(bs.updatedAt, INTERVAL 330 MINUTE) AS updatedAt,
-
-    CASE
-        WHEN bs.adminUpdatedBy IS NOT NULL THEN au.username
-        WHEN bs.ownerUpdatedBy IS NOT NULL THEN so.ownername
-        ELSE NULL
-    END AS updatedBy
-
-FROM branchstaff bs
-
-LEFT JOIN branches b 
-    ON bs.branchId = b.id
-
-LEFT JOIN govishops g 
-    ON b.shopId = g.id
-
-LEFT JOIN agro_world_admin.adminusers au 
-    ON bs.adminUpdatedBy = au.id
-
-LEFT JOIN govi_shop.shopowners so 
-    ON bs.ownerUpdatedBy = so.id
-
-WHERE bs.role = ?
+        bs.id,
+        bs.branchId,
+        bs.userName,
+        bs.phone,
+        bs.email,
+        bs.role,
+        bs.isActive,
+        bs.createdAt,
+        b.branchName,
+        b.shopId,
+        g.shopName,
+        bs.updatedAt AS updatedAt,
+        CASE
+          WHEN bs.adminUpdatedBy IS NOT NULL THEN au.username
+          WHEN bs.ownerUpdatedBy IS NOT NULL THEN so.ownername
+          ELSE NULL
+        END AS updatedBy
+      FROM branchstaff bs
+      LEFT JOIN branches b ON bs.branchId = b.id
+      LEFT JOIN govishops g ON b.shopId = g.id
+      LEFT JOIN agro_world_admin.adminusers au ON bs.adminUpdatedBy = au.id
+      LEFT JOIN govi_shop.shopowners so ON bs.ownerUpdatedBy = so.id
+      WHERE bs.role = ?
     `;
 
     let params = [role];
@@ -2610,7 +2598,7 @@ exports.getAllDeletedSuppliersDao = (page, limit, searchItem) => {
         JSON_OBJECT(
           'ownerId', r.ownerId,
           'reason', r.reason,
-          'deletedAt', r.createdAt,
+          'deletedAt', DATE_ADD(r.createdAt, INTERVAL 330 MINUTE),
           'deletedBy', a.userName
         ) AS deletedInfo
       FROM shopowners s
