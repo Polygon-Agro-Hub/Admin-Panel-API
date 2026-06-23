@@ -29,6 +29,12 @@ router.get(
     DashEp.getAllCustomers
 )
 
+router.patch(
+  '/update-dash-customer-rating/:id',
+  authMiddleware,
+  DashEp.updateDashCustomerRating,
+);
+
 router.get(
     "/get-all-sales-agents",
     authMiddleware,
