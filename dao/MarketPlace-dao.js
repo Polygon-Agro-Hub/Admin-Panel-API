@@ -1695,21 +1695,21 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
   });
 };
 
-exports.getAllRetailCustomersDao = (limit, offset, searchText) => {
+exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => {
   return new Promise((resolve, reject) => {
     let countParms = [];
-    let dataParms = [];
+    let dataParms  = [];
+ 
     let countSql = `
-      SELECT 
-        COUNT(*) AS total
+      SELECT COUNT(*) AS total
       FROM marketplaceusers MP
-      WHERE 
-        MP.buyerType = 'Retail' 
-        AND MP.isMarketPlaceUser = 1   
-      `;
+      WHERE MP.buyerType = 'Retail'
+        AND MP.isMarketPlaceUser = 1
+    `;
+ 
     let dataSql = `
-      SELECT 
-        MP.id, 
+      SELECT
+        MP.id,
         MP.title,
         MP.firstName,
         MP.lastName,
@@ -1719,6 +1719,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText) => {
         MP.email,
         MP.created_at,
         MP.buildingType,
+        MP.rateofCus,
         H.houseNo,
         H.streetName,
         H.city,
@@ -1726,105 +1727,95 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText) => {
         A.buildingName,
         A.unitNo,
         A.floorNo,
-        A.houseNo AS AparthouseNo,
+        A.houseNo    AS AparthouseNo,
         A.streetName AS ApartstreetName,
-        A.city AS Apartcity,
+        A.city       AS Apartcity,
         (
-            SELECT COUNT(*)
-            FROM orders O
-            LEFT JOIN processorders PO ON O.id = PO.orderId
-            WHERE O.userId = MP.id
+          SELECT COUNT(*)
+          FROM orders O
+          LEFT JOIN processorders PO ON O.id = PO.orderId
+          WHERE O.userId = MP.id
         ) AS totalOrders
       FROM marketplaceusers MP
-      LEFT JOIN house H ON MP.id = H.customerId AND MP.buildingType = 'House'
-      LEFT JOIN apartment A ON MP.id = A.customerId AND MP.buildingType = 'Apartment'
-      WHERE 
-        MP.buyerType = 'Retail' 
-        AND MP.isMarketPlaceUser = 1   
-      `;
-
+      LEFT JOIN house      H ON MP.id = H.customerId AND MP.buildingType = 'House'
+      LEFT JOIN apartment  A ON MP.id = A.customerId AND MP.buildingType = 'Apartment'
+      WHERE MP.buyerType = 'Retail'
+        AND MP.isMarketPlaceUser = 1
+    `;
+ 
+    // ── Optional: free-text search ──────────────────────────
     if (searchText) {
-      countSql += `
+      const searchClause = `
         AND (
           CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
-          OR MP.firstName LIKE ?
-          OR MP.lastName LIKE ?
+          OR MP.firstName   LIKE ?
+          OR MP.lastName    LIKE ?
           OR MP.phoneNumber LIKE ?
-          OR MP.cusId LIKE ?
+          OR MP.cusId       LIKE ?
           OR CONCAT(MP.phoneCode, ' - ', MP.phoneNumber) LIKE ?
-          OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?
-          OR CONCAT(MP.phoneCode, MP.phoneNumber) LIKE ?
+          OR CONCAT(MP.phoneCode, '-',   MP.phoneNumber) LIKE ?
+          OR CONCAT(MP.phoneCode,        MP.phoneNumber) LIKE ?
           OR REPLACE(CONCAT(MP.phoneCode, ' - ', MP.phoneNumber), ' ', '') LIKE ?
-          OR REPLACE(CONCAT(MP.phoneCode, '-', MP.phoneNumber), ' ', '') LIKE ?
+          OR REPLACE(CONCAT(MP.phoneCode, '-',   MP.phoneNumber), ' ', '') LIKE ?
         )
       `;
-
-      dataSql += `
-        AND (
-          CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
-          OR MP.firstName LIKE ?
-          OR MP.lastName LIKE ?
-          OR MP.phoneNumber LIKE ?
-          OR MP.cusId LIKE ?
-          OR CONCAT(MP.phoneCode, ' - ', MP.phoneNumber) LIKE ?
-          OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?
-          OR CONCAT(MP.phoneCode, MP.phoneNumber) LIKE ?
-          OR REPLACE(CONCAT(MP.phoneCode, ' - ', MP.phoneNumber), ' ', '') LIKE ?
-          OR REPLACE(CONCAT(MP.phoneCode, '-', MP.phoneNumber), ' ', '') LIKE ?
-        )
-      `;
-
-      const search = `%${searchText}%`;
-      const searchWithoutSpaces = `%${searchText.replace(/\s/g, "")}%`;
-
-      countParms.push(
-        search,
-        search,
-        search,
-        search,
-        search,
-        search,
-        search,
-        searchWithoutSpaces,
-        searchWithoutSpaces,
-        searchWithoutSpaces,
-      );
-
-      dataParms.push(
-        search,
-        search,
-        search,
-        search,
-        search,
-        search,
-        search,
-        searchWithoutSpaces,
-        searchWithoutSpaces,
-        searchWithoutSpaces,
-      );
+      countSql += searchClause;
+      dataSql  += searchClause;
+ 
+      const search             = `%${searchText}%`;
+      const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
+      const searchParms = [
+        search, search, search, search, search,
+        search, search,
+        searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces,
+      ];
+      countParms.push(...searchParms);
+      dataParms.push(...searchParms);
     }
-
+ 
+    // ── Optional: rating filter ─────────────────────────────
+    const VALID_RATINGS = ['VVIP', 'VIP', 'COR', 'NOR', 'VVP'];
+    if (ratingFilter && VALID_RATINGS.includes(ratingFilter)) {
+      countSql += ` AND MP.rateofCus = ? `;
+      dataSql  += ` AND MP.rateofCus = ? `;
+      countParms.push(ratingFilter);
+      dataParms.push(ratingFilter);
+    }
+ 
+    // ── Ordering + pagination ───────────────────────────────
     dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
-    dataParms.push(limit);
-    dataParms.push(offset);
-
+    dataParms.push(limit, offset);
+ 
+    // ── Execute ─────────────────────────────────────────────
     marketPlace.query(countSql, countParms, (countErr, countResults) => {
-      if (countErr) {
-        console.log(countErr);
-        reject(countErr);
-      } else {
-        marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
-          if (dataErr) {
-            console.log(dataErr);
-            reject(dataErr);
-          } else {
-            resolve({
-              total: countResults[0].total,
-              items: dataResults,
-            });
-          }
+      if (countErr) return reject(countErr);
+ 
+      marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
+        if (dataErr) return reject(dataErr);
+ 
+        resolve({
+          total: countResults[0].total,
+          items: dataResults,
         });
-      }
+      });
+    });
+  });
+};
+
+
+exports.updateRetailCustomerRatingDao = (customerId, rateofCus) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE marketplaceusers
+      SET rateofCus = ?
+      WHERE id = ?
+        AND buyerType = 'Retail'
+        AND isMarketPlaceUser = 1
+    `;
+ 
+    marketPlace.query(sql, [rateofCus, customerId], (err, result) => {
+      if (err) return reject(err);
+      resolve(result.affectedRows > 0);
     });
   });
 };
@@ -2054,21 +2045,22 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
   });
 };
 
-exports.getAllWholesaleCustomersDao = (limit, offset, searchText) => {
+exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) => {
   return new Promise((resolve, reject) => {
     let countParms = [];
-    let dataParms = [];
+    let dataParms  = [];
+ 
     let countSql = `
-      SELECT 
-        COUNT(*) AS total
+      SELECT COUNT(*) AS total
       FROM marketplaceusers MP
-      WHERE 
-        MP.buyerType = 'Wholesale' 
-        AND MP.isMarketPlaceUser = 1   
-      `;
+      WHERE
+        MP.buyerType = 'Wholesale'
+        AND MP.isMarketPlaceUser = 1
+    `;
+ 
     let dataSql = `
-      SELECT 
-        MP.id, 
+      SELECT
+        MP.id,
         MP.title,
         MP.firstName,
         MP.lastName,
@@ -2079,6 +2071,9 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText) => {
         MP.created_at,
         MP.buildingType,
         MP.companyName,
+        MP.companyPhoneCode,
+        MP.companyPhone,
+        MP.rateofCus,
         H.houseNo,
         H.streetName,
         H.city,
@@ -2086,109 +2081,102 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText) => {
         A.buildingName,
         A.unitNo,
         A.floorNo,
-        A.houseNo AS AparthouseNo,
-        A.streetName AS ApartstreetName,
-        MP.companyPhoneCode,
-        MP.companyPhone,
-        A.city AS Apartcity,
+        A.houseNo      AS AparthouseNo,
+        A.streetName   AS ApartstreetName,
+        A.city         AS Apartcity,
         (
-            SELECT COUNT(*)
-            FROM orders O
-            LEFT JOIN processorders PO ON O.id = PO.orderId
-            WHERE O.userId = MP.id
+          SELECT COUNT(*)
+          FROM orders O
+          LEFT JOIN processorders PO ON O.id = PO.orderId
+          WHERE O.userId = MP.id
         ) AS totalOrders
       FROM marketplaceusers MP
-      LEFT JOIN house H ON MP.id = H.customerId AND MP.buildingType = 'House'
-      LEFT JOIN apartment A ON MP.id = A.customerId AND MP.buildingType = 'Apartment'
-      WHERE 
-        MP.buyerType = 'Wholesale' 
-        AND MP.isMarketPlaceUser = 1   
-      `;
-
-    if (searchText) {
-      countSql += `
-    AND (
-      CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
-      OR MP.firstName LIKE ?
-      OR MP.lastName LIKE ?
-      OR MP.phoneNumber LIKE ?
-      OR MP.cusId LIKE ?
-      OR CONCAT(MP.phoneCode, ' - ', MP.phoneNumber) LIKE ?
-      OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?
-      OR CONCAT(MP.phoneCode, MP.phoneNumber) LIKE ?
-      OR REPLACE(CONCAT(MP.phoneCode, ' - ', MP.phoneNumber), ' ', '') LIKE ?
-      OR REPLACE(CONCAT(MP.phoneCode, '-', MP.phoneNumber), ' ', '') LIKE ?
-    )
-  `;
-
-      dataSql += `
-    AND (
-      CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
-      OR MP.firstName LIKE ?
-      OR MP.lastName LIKE ?
-      OR MP.phoneNumber LIKE ?
-      OR MP.cusId LIKE ?
-      OR CONCAT(MP.phoneCode, ' - ', MP.phoneNumber) LIKE ?
-      OR CONCAT(MP.phoneCode, '-', MP.phoneNumber) LIKE ?
-      OR CONCAT(MP.phoneCode, MP.phoneNumber) LIKE ?
-      OR REPLACE(CONCAT(MP.phoneCode, ' - ', MP.phoneNumber), ' ', '') LIKE ?
-      OR REPLACE(CONCAT(MP.phoneCode, '-', MP.phoneNumber), ' ', '') LIKE ?
-    )
-  `;
-
-      const search = `%${searchText}%`;
-      const searchWithoutSpaces = `%${searchText.replace(/\s/g, "")}%`;
-
-      countParms.push(
-        search,
-        search,
-        search,
-        search,
-        search,
-        search,
-        search,
-        searchWithoutSpaces,
-        searchWithoutSpaces,
-        searchWithoutSpaces,
-      );
-
-      dataParms.push(
-        search,
-        search,
-        search,
-        search,
-        search,
-        search,
-        search,
-        searchWithoutSpaces,
-        searchWithoutSpaces,
-        searchWithoutSpaces,
-      );
+      LEFT JOIN house      H ON MP.id = H.customerId AND MP.buildingType = 'House'
+      LEFT JOIN apartment  A ON MP.id = A.customerId AND MP.buildingType = 'Apartment'
+      WHERE
+        MP.buyerType = 'Wholesale'
+        AND MP.isMarketPlaceUser = 1
+    `;
+ 
+    // ── Rating filter ──────────────────────────────────────────────────────────
+    if (ratingFilter) {
+      countSql += ` AND MP.rateofCus = ? `;
+      dataSql  += ` AND MP.rateofCus = ? `;
+      countParms.push(ratingFilter);
+      dataParms.push(ratingFilter);
     }
-
+ 
+    // ── Search filter ──────────────────────────────────────────────────────────
+    if (searchText) {
+      const searchClause = `
+        AND (
+          CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
+          OR MP.firstName    LIKE ?
+          OR MP.lastName     LIKE ?
+          OR MP.phoneNumber  LIKE ?
+          OR MP.cusId        LIKE ?
+          OR CONCAT(MP.phoneCode, ' - ', MP.phoneNumber) LIKE ?
+          OR CONCAT(MP.phoneCode, '-',   MP.phoneNumber) LIKE ?
+          OR CONCAT(MP.phoneCode,        MP.phoneNumber) LIKE ?
+          OR REPLACE(CONCAT(MP.phoneCode, ' - ', MP.phoneNumber), ' ', '') LIKE ?
+          OR REPLACE(CONCAT(MP.phoneCode, '-',   MP.phoneNumber), ' ', '') LIKE ?
+        )
+      `;
+      countSql += searchClause;
+      dataSql  += searchClause;
+ 
+      const search             = `%${searchText}%`;
+      const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
+      const searchArgs = [
+        search, search, search, search, search,
+        search, search,
+        searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces,
+      ];
+ 
+      countParms.push(...searchArgs);
+      dataParms.push(...searchArgs);
+    }
+ 
     dataSql += ` LIMIT ? OFFSET ? `;
-    dataParms.push(limit);
-    dataParms.push(offset);
-
+    dataParms.push(limit, offset);
+ 
     marketPlace.query(countSql, countParms, (countErr, countResults) => {
       if (countErr) {
-        console.log(countErr);
-
-        reject(countErr);
-      } else {
-        marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
-          if (dataErr) {
-            console.log(dataErr);
-
-            reject(dataErr);
-          } else {
-            resolve({
-              total: countResults[0].total,
-              items: dataResults,
-            });
-          }
-        });
+        console.error(countErr);
+        return reject(countErr);
       }
+ 
+      marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error(dataErr);
+          return reject(dataErr);
+        }
+ 
+        resolve({
+          total: countResults[0].total,
+          items: dataResults,
+        });
+      });
+    });
+  });
+};
+ 
+ 
+exports.updateWholesaleCustomerRatingDao = (id, rateofCus) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE marketplaceusers
+      SET rateofCus = ?
+      WHERE id = ? AND buyerType = 'Wholesale'
+    `;
+ 
+    marketPlace.query(sql, [rateofCus, id], (err, result) => {
+      if (err) {
+        console.error(err);
+        return reject(err);
+      }
+      // affectedRows = 0 means no matching customer was found
+      resolve(result.affectedRows > 0);
     });
   });
 };

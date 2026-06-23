@@ -256,6 +256,12 @@ router.get(
   marketPlaceEp.getAllRetailCustomers
 );
 
+ router.patch(
+   '/update-retail-customer-rating/:id',
+   authMiddleware,
+   marketPlaceEp.updateRetailCustomerRating
+ );
+
 router.get(
   "/get-define-package-details/:id",
   authMiddleware,
@@ -279,6 +285,12 @@ router.get(
   authMiddleware,
   marketPlaceEp.getAllWholesaleCustomers
 );
+
+ router.patch(
+   '/update-wholesale-customer-rating/:id',
+   authMiddleware,
+   marketPlaceEp.updateWholesaleCustomerRating
+ );
 
 router.get(
   "/get-user-orders/:userId",

@@ -76,10 +76,15 @@ exports.getAllRetailOrderSchema = Joi.object({
 
 
 exports.getmarketplaceCustomerParamSchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1),
-  limit: Joi.number().integer().min(1).max(100).default(10),
-  searchText: Joi.string().optional(),
+  page:         Joi.number().integer().min(1).default(1),
+  limit:        Joi.number().integer().min(1).default(10),
+  searchText:   Joi.string().allow('').optional(),
+  ratingFilter: Joi.string().valid('VVIP', 'VIP', 'COR', 'NOR', 'VVP').allow('').optional(),
 });
+
+exports.updateCustomerRatingSchema = Joi.object({
+  rateofCus: Joi.string().valid('VVIP','VIP','COR','NOR','VVP'),
+})
 
 exports.getCoupenValidation = Joi.object({
   coupenId: Joi.number().min(0).required(),
