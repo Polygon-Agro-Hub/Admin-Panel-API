@@ -1784,10 +1784,10 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
   console.log("Update Request URL:", fullUrl);
   const { id } = req.params;
   const adminId = req.user.userId;
-  let officerId = null;
+
+  const newlyUploadedUrls = [];
 
   try {
-    // Parse officer data
     if (!req.body.officerData) {
       return res.status(400).json({
         error: "Officer data is required",
@@ -1795,15 +1795,13 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       });
     }
 
-    const officerData = JSON.parse(req.body.officerData);
+    const officerData = req.body.officerData;
     console.log(
       "Updating officer:",
       officerData.firstNameEnglish,
       officerData.lastNameEnglish,
     );
-    officerId = id;
 
-    // Get existing officer data
     const existingOfficer = await DistributionDao.getOfficerById(id);
     if (!existingOfficer) {
       return res.status(404).json({
@@ -1812,7 +1810,6 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       });
     }
 
-    // Parallel validation checks
     const [
       isExistingNIC,
       isExistingEmail,
@@ -1830,7 +1827,6 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
         : Promise.resolve(false),
     ]);
 
-    // Collect validation errors
     const validationErrors = [];
     if (isExistingNIC) validationErrors.push("NIC");
     if (isExistingEmail) validationErrors.push("Email");
@@ -1838,6 +1834,9 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
     if (isExistingPhoneNumber02) validationErrors.push("PhoneNumber02");
 
     if (validationErrors.length > 0) {
+      if (req.body.profileImageUrl && req.body.profileImageUrl !== existingOfficer.image) {
+        await deleteFromS3(req.body.profileImageUrl);
+      }
       return res.status(409).json({
         error: "Validation failed",
         errors: validationErrors,
@@ -1845,31 +1844,16 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       });
     }
 
-    // Process profile image
     let profileImageUrl = existingOfficer.image;
 
-    if (req.body.file) {
-      try {
-        // Delete old image if exists
-        if (existingOfficer.image) {
-          await deleteFromS3(existingOfficer.image);
-        }
-
-        profileImageUrl = await processBase64Image(
-          req.body.file,
-          `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}`,
-          "distributionofficer/image",
-        );
-      } catch (err) {
-        console.error("Error processing profile image:", err);
-        return res.status(400).json({
-          error: "Invalid profile image format",
-          status: false,
-        });
+    if (req.body.profileImageUrl) {
+      if (existingOfficer.image) {
+        await deleteFromS3(existingOfficer.image);
       }
+      profileImageUrl = req.body.profileImageUrl;
+      newlyUploadedUrls.push(profileImageUrl);
     }
 
-    // Update officer details
     await DistributionDao.updateDistributionOfficerDetails(
       id,
       officerData.centerId,
@@ -1907,59 +1891,85 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
 
     console.log("Officer details updated successfully");
 
-    // Handle driver data if job role is Driver
     if (officerData.jobRole === "Driver") {
       try {
         if (!req.body.driverData) {
           throw new Error("Driver data is required for Driver role");
         }
 
-        const driverData = JSON.parse(req.body.driverData);
-
-        // Check if driver record exists
+        const driverData = req.body.driverData;
         const existingDriverData =
           await DistributionDao.getDriverDataByOfficerId(id);
 
-        // Process driver images
-        const imageUrls = await processDriverImagesForUpdate(
-          req,
-          driverData,
-          existingDriverData,
+        const licFrontImageUrl = resolveImageUrl(
+          req.body.licFrontUrl, existingDriverData?.licFrontImg, newlyUploadedUrls,
+        );
+        const licBackImageUrl = resolveImageUrl(
+          req.body.licBackUrl, existingDriverData?.licBackImg, newlyUploadedUrls,
+        );
+        const insFrontImageUrl = resolveImageUrl(
+          req.body.insFrontUrl, existingDriverData?.insFrontImg, newlyUploadedUrls,
+        );
+        const insBackImageUrl = resolveImageUrl(
+          req.body.insBackUrl, existingDriverData?.insBackImg, newlyUploadedUrls,
+        );
+        const vehicleFrontImageUrl = resolveImageUrl(
+          req.body.vehiFrontUrl, existingDriverData?.vehFrontImg, newlyUploadedUrls,
+        );
+        const vehicleBackImageUrl = resolveImageUrl(
+          req.body.vehiBackUrl, existingDriverData?.vehBackImg, newlyUploadedUrls,
+        );
+        const vehicleSideAImageUrl = resolveImageUrl(
+          req.body.vehiSideAUrl, existingDriverData?.vehSideImgA, newlyUploadedUrls,
+        );
+        const vehicleSideBImageUrl = resolveImageUrl(
+          req.body.vehiSideBUrl, existingDriverData?.vehSideImgB, newlyUploadedUrls,
         );
 
+        const oldImagesToDelete = [];
+        if (req.body.licFrontUrl && existingDriverData?.licFrontImg) oldImagesToDelete.push(existingDriverData.licFrontImg);
+        if (req.body.licBackUrl && existingDriverData?.licBackImg) oldImagesToDelete.push(existingDriverData.licBackImg);
+        if (req.body.insFrontUrl && existingDriverData?.insFrontImg) oldImagesToDelete.push(existingDriverData.insFrontImg);
+        if (req.body.insBackUrl && existingDriverData?.insBackImg) oldImagesToDelete.push(existingDriverData.insBackImg);
+        if (req.body.vehiFrontUrl && existingDriverData?.vehFrontImg) oldImagesToDelete.push(existingDriverData.vehFrontImg);
+        if (req.body.vehiBackUrl && existingDriverData?.vehBackImg) oldImagesToDelete.push(existingDriverData.vehBackImg);
+        if (req.body.vehiSideAUrl && existingDriverData?.vehSideImgA) oldImagesToDelete.push(existingDriverData.vehSideImgA);
+        if (req.body.vehiSideBUrl && existingDriverData?.vehSideImgB) oldImagesToDelete.push(existingDriverData.vehSideImgB);
+
+        await Promise.all(oldImagesToDelete.map((url) => deleteFromS3(url)));
+
         if (existingDriverData) {
-          // Update existing driver record
           await DistributionDao.updateVehicleRegisterDao(
             id,
             driverData,
-            imageUrls.licFrontImageUrl,
-            imageUrls.licBackImageUrl,
-            imageUrls.insFrontImageUrl,
-            imageUrls.insBackImageUrl,
-            imageUrls.vehicleFrontImageUrl,
-            imageUrls.vehicleBackImageUrl,
-            imageUrls.vehicleSideAImageUrl,
-            imageUrls.vehicleSideBImageUrl,
+            licFrontImageUrl,
+            licBackImageUrl,
+            insFrontImageUrl,
+            insBackImageUrl,
+            vehicleFrontImageUrl,
+            vehicleBackImageUrl,
+            vehicleSideAImageUrl,
+            vehicleSideBImageUrl,
           );
           console.log("Driver data updated successfully");
         } else {
-          // Create new driver record
           await DistributionDao.vehicleRegisterDao(
             id,
             driverData,
-            imageUrls.licFrontImageUrl,
-            imageUrls.licBackImageUrl,
-            imageUrls.insFrontImageUrl,
-            imageUrls.insBackImageUrl,
-            imageUrls.vehicleFrontImageUrl,
-            imageUrls.vehicleBackImageUrl,
-            imageUrls.vehicleSideAImageUrl,
-            imageUrls.vehicleSideBImageUrl,
+            licFrontImageUrl,
+            licBackImageUrl,
+            insFrontImageUrl,
+            insBackImageUrl,
+            vehicleFrontImageUrl,
+            vehicleBackImageUrl,
+            vehicleSideAImageUrl,
+            vehicleSideBImageUrl,
           );
           console.log("Driver data created successfully");
         }
       } catch (driverError) {
         console.error("Error processing driver data:", driverError);
+        await Promise.all(newlyUploadedUrls.map((url) => deleteFromS3(url)));
         return res.status(400).json({
           error: "Error processing driver information: " + driverError.message,
           status: false,
@@ -1969,12 +1979,10 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       existingOfficer.jobRole === "Driver" &&
       officerData.jobRole !== "Driver"
     ) {
-      // If changing from Driver to another role, delete driver data
       try {
         const existingDriverData =
           await DistributionDao.getDriverDataByOfficerId(id);
         if (existingDriverData) {
-          // Delete images from S3
           const imagesToDelete = [
             existingDriverData.licFrontImg,
             existingDriverData.licBackImg,
@@ -1987,14 +1995,11 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
           ].filter(Boolean);
 
           await Promise.all(imagesToDelete.map((url) => deleteFromS3(url)));
-
-          // Delete driver record
           await DistributionDao.deleteDriverData(id);
           console.log("Driver data deleted as job role changed");
         }
       } catch (deleteError) {
         console.error("Error deleting driver data:", deleteError);
-        // Don't fail the update if driver data deletion fails
       }
     }
 
@@ -2005,6 +2010,8 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
   } catch (error) {
     console.error("Error updating distribution officer:", error);
     console.error("Stack trace:", error.stack);
+
+    await Promise.all(newlyUploadedUrls.map((url) => deleteFromS3(url)));
 
     if (error.isJoi) {
       return res.status(400).json({
@@ -2027,6 +2034,14 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
     });
   }
 };
+
+function resolveImageUrl(newUrl, existingUrl, trackingArray) {
+  if (newUrl) {
+    trackingArray.push(newUrl);
+    return newUrl;
+  }
+  return existingUrl || null;
+}
 
 // Helper function to process driver images for update
 const processDriverImagesForUpdate = async (
