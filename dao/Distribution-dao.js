@@ -950,7 +950,7 @@ exports.generateRegCode = (province, district, city, callback) => {
   // Generate the prefix based on province and district with "P" after province initial
   const prefix =
     province.charAt(0).toUpperCase() +
-    "P" +
+    province.charAt(1).toUpperCase() +
     district.charAt(0).toUpperCase() +
     city.charAt(0).toUpperCase();
 
