@@ -2787,7 +2787,7 @@ exports.thisMonthSalesDao = async () => {
 //     let sql = `
 //       SELECT COUNT(*) AS userCount
 //       FROM marketplaceusers
-//       WHERE isMarketPlaceUser = 1
+//       WHERE isMarketPlaceUser = 1 
 //     `;
 
 //     if (isToday) {
@@ -2895,26 +2895,22 @@ exports.totalMarketOrderCountDao = async () => {
       } else {
         // Handle null/undefined cases
         let last30DaysCount = results[0]?.last_30_days_count || 0;
-        let previous30To60DaysCount =
-          results[0]?.previous_30_to_60_days_count || 0;
-
+        let previous30To60DaysCount = results[0]?.previous_30_to_60_days_count || 0;
+        
         // Calculate percentage change
         let percentage = 0;
         if (previous30To60DaysCount > 0) {
-          percentage =
-            ((last30DaysCount - previous30To60DaysCount) /
-              previous30To60DaysCount) *
-            100;
+          percentage = ((last30DaysCount - previous30To60DaysCount) / previous30To60DaysCount) * 100;
         } else if (last30DaysCount > 0) {
           percentage = 100; // 100% increase from 0
         }
-
+        
         let obj = {
           count: last30DaysCount,
           percentage: Number(percentage.toFixed(2)),
-          previousPeriodCount: previous30To60DaysCount,
+          previousPeriodCount: previous30To60DaysCount
         };
-
+        
         resolve(obj);
       }
     });
@@ -3037,14 +3033,7 @@ exports.pieDataDao = async () => {
       if (err) {
         reject(err);
       } else {
-        const categoryOrder = [
-          "Vegetables",
-          "Spices",
-          "Cereals",
-          "Fruit",
-          "Legumes",
-          "Mushrooms",
-        ];
+        const categoryOrder = ["Vegetables", "Spices", "Cereals", "Fruit", "Legumes", "Mushrooms"];
 
         const resultMap = {};
         results.forEach((item) => {
@@ -3130,7 +3119,7 @@ exports.toDayUserCountDao = async (isToday) => {
         if (isToday) {
           // Simple return for today only
           let obj = {
-            userCount: results[0]?.userCount || 0,
+            userCount: results[0]?.userCount || 0
           };
           resolve(obj);
         } else {
@@ -3140,11 +3129,7 @@ exports.toDayUserCountDao = async (isToday) => {
           if (results[0].previous_30_to_60_days_count === null)
             results[0].previous_30_to_60_days_count = 0;
 
-          let percentage =
-            ((results[0].last_30_days_count -
-              results[0].previous_30_to_60_days_count) /
-              results[0].previous_30_to_60_days_count) *
-            100;
+          let percentage = ((results[0].last_30_days_count - results[0].previous_30_to_60_days_count) / results[0].previous_30_to_60_days_count) * 100;
 
           let obj = {
             userCount: results[0].last_30_days_count,
