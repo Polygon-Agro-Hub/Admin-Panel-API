@@ -1555,11 +1555,7 @@ exports.createDistributionOfficerPersonal = (
   return new Promise(async (resolve, reject) => {
     try {
       // Prepare data for QR code generation
-      const qrData = `
-            {
-                "empId": "${lastId}",
-            }
-            `;
+      const qrData = `{"empId":"${lastId}"}`;
 
       const qrCodeBase64 = await QRCode.toDataURL(qrData);
       const qrCodeBuffer = Buffer.from(
@@ -5038,6 +5034,169 @@ exports.getRecivedDelivaryCashDashbordDao = async (data, comcenId) => {
       } else {
         resolve(results[0]);
       }
+    });
+  });
+};
+
+exports.getDistributionDashboardDao = () => {
+  return new Promise((resolve, reject) => {
+
+    // 1. Total Head Officers
+    const headOfficerSql = `
+      SELECT COUNT(*) AS totalHeadOfficers
+      FROM collectionofficer
+      WHERE jobRole = 'Distribution Centre Head' AND status = 'Approved'
+    `;
+
+    // 2. Total Centres
+    const centresSql = `
+      SELECT COUNT(*) AS totalCentres
+      FROM collectioncenter
+    `;
+
+    // 3. Total Managers
+    const managerSql = `
+      SELECT COUNT(*) AS totalManagers
+      FROM collectionofficer
+      WHERE jobRole = 'Distribution Centre Manager' AND status = 'Approved'
+    `;
+
+    // 4. Total Drivers
+    const driverSql = `
+      SELECT COUNT(*) AS totalDrivers
+      FROM collectionofficer
+      WHERE jobRole = 'Driver' AND status = 'Approved'
+    `;
+
+    // 5. Total Cash Received - Today
+    const cashReceivedTodaySql = `
+      SELECT COALESCE(SUM(amount), 0) AS totalCashReceivedToday
+      FROM market_place.processorders
+      WHERE paymentMethod = 'Cash'
+        AND DATE(deliveredTime) = CURDATE()
+    `;
+
+    // 6. Total Delivered Orders - Today
+    const deliveredTodaySql = `
+      SELECT COUNT(*) AS totalDeliveredToday
+      FROM market_place.processorders
+      WHERE status = 'Delivered'
+        AND DATE(deliveredTime) = CURDATE()
+    `;
+
+    // 7. Total In-Store Pickup Orders - Today
+    const pickupTodaySql = `
+      SELECT COUNT(*) AS totalPickupToday
+      FROM market_place.processorders
+      WHERE status = 'Picked up'
+        AND DATE(deliveredTime) = CURDATE()
+    `;
+
+    // 8. Loss Due to Returned Orders - Today
+    // Join orders (market_place) with processorders for Return Received + Cash,
+    // filtered by driverorders.handOverTime = today (collection_officer db)
+    const returnLossTodaySql = `
+      SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossToday
+      FROM market_place.orders o
+      INNER JOIN market_place.processorders po ON po.orderId = o.id
+      INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
+      WHERE po.status = 'Return Received'
+        AND po.paymentMethod = 'Cash'
+        AND DATE(dor.handOverTime) = CURDATE()
+    `;
+
+    // 9. Total Delivered Orders - This Month
+    const deliveredMonthSql = `
+      SELECT COUNT(*) AS totalDeliveredMonth
+      FROM market_place.processorders
+      WHERE status = 'Delivered'
+        AND MONTH(deliveredTime) = MONTH(CURDATE())
+        AND YEAR(deliveredTime) = YEAR(CURDATE())
+    `;
+
+    // 10. Total In-Store Pickup Orders - This Month
+    const pickupMonthSql = `
+      SELECT COUNT(*) AS totalPickupMonth
+      FROM market_place.processorders
+      WHERE status = 'Picked up'
+        AND MONTH(deliveredTime) = MONTH(CURDATE())
+        AND YEAR(deliveredTime) = YEAR(CURDATE())
+    `;
+
+    // 11. Loss Due to Returned Orders - This Month
+    const returnLossMonthSql = `
+      SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossMonth
+      FROM market_place.orders o
+      INNER JOIN market_place.processorders po ON po.orderId = o.id
+      INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
+      WHERE po.status = 'Return Received'
+        AND po.paymentMethod = 'Cash'
+        AND MONTH(dor.handOverTime) = MONTH(CURDATE())
+        AND YEAR(dor.handOverTime) = YEAR(CURDATE())
+    `;
+
+    // Execute all queries
+    collectionofficer.query(headOfficerSql, (err1, headResult) => {
+      if (err1) return reject(err1);
+
+      collectionofficer.query(centresSql, (err2, centresResult) => {
+        if (err2) return reject(err2);
+
+        collectionofficer.query(managerSql, (err3, managerResult) => {
+          if (err3) return reject(err3);
+
+          collectionofficer.query(driverSql, (err4, driverResult) => {
+            if (err4) return reject(err4);
+
+            marketPlace.query(cashReceivedTodaySql, (err5, cashResult) => {
+              if (err5) return reject(err5);
+
+              marketPlace.query(deliveredTodaySql, (err6, deliveredTodayResult) => {
+                if (err6) return reject(err6);
+
+                marketPlace.query(pickupTodaySql, (err7, pickupTodayResult) => {
+                  if (err7) return reject(err7);
+
+                  marketPlace.query(returnLossTodaySql, (err8, returnLossTodayResult) => {
+                    if (err8) return reject(err8);
+
+                    marketPlace.query(deliveredMonthSql, (err9, deliveredMonthResult) => {
+                      if (err9) return reject(err9);
+
+                      marketPlace.query(pickupMonthSql, (err10, pickupMonthResult) => {
+                        if (err10) return reject(err10);
+
+                        marketPlace.query(returnLossMonthSql, (err11, returnLossMonthResult) => {
+                          if (err11) return reject(err11);
+
+                          resolve({
+                            // Stat Cards
+                            totalHeadOfficers: headResult[0].totalHeadOfficers,
+                            totalCentres: centresResult[0].totalCentres,
+                            totalManagers: managerResult[0].totalManagers,
+                            totalDrivers: driverResult[0].totalDrivers,
+
+                            // Today
+                            totalCashReceivedToday: parseFloat(cashResult[0].totalCashReceivedToday) || 0,
+                            totalDeliveredToday: deliveredTodayResult[0].totalDeliveredToday,
+                            totalPickupToday: pickupTodayResult[0].totalPickupToday,
+                            returnLossToday: parseFloat(returnLossTodayResult[0].returnLossToday) || 0,
+
+                            // This Month
+                            totalDeliveredMonth: deliveredMonthResult[0].totalDeliveredMonth,
+                            totalPickupMonth: pickupMonthResult[0].totalPickupMonth,
+                            returnLossMonth: parseFloat(returnLossMonthResult[0].returnLossMonth) || 0,
+                          });
+                        });
+                      });
+                    });
+                  });
+                });
+              });
+            });
+          });
+        });
+      });
     });
   });
 };

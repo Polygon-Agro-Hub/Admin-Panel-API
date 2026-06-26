@@ -1180,3 +1180,127 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
     });
   });
 };
+
+exports.getDashbordOfficerCountDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count, JobRole
+      FROM feildofficer
+      WHERE status = 'Approved'
+      GROUP BY JobRole
+    `;
+
+    plantcare.query(sql, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+exports.getDashbordServiceCountDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT SUM(count) AS total_count
+      FROM (
+        SELECT COUNT(*) AS count
+        FROM investments.investmentrequest ir
+        WHERE DATE(ir.auditedDate) = CURDATE() AND ir.officerStatus = 'Completed'
+        
+        UNION ALL
+        
+        SELECT COUNT(*) AS count
+        FROM govilinkjobs
+        WHERE DATE(doneDate) = CURDATE() AND status = 'Completed'
+      ) AS subquery;
+    `;
+    
+
+    plantcare.query(sql, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+
+
+exports.getDashbordAuditCountDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM feildaudits 
+      WHERE status = 'Completed' AND DATE(completeDate) = CURDATE()
+    `;
+
+    plantcare.query(sql, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.getDashbordAuditSummaryDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        SUM(CASE 
+          WHEN f.propose = 'Individual' AND DATE(f.sheduleDate) = DATE(f.completeDate) THEN 1 
+          ELSE 0 
+        END) AS individual_same_day,
+        
+        SUM(CASE 
+          WHEN f.propose = 'Individual' AND DATE(f.sheduleDate) != DATE(f.completeDate) THEN 1 
+          ELSE 0 
+        END) AS individual_diff_day,
+        
+        SUM(CASE 
+          WHEN f.propose = 'Cluster' AND DATE(f.sheduleDate) = DATE(f.completeDate) THEN 1 
+          ELSE 0 
+        END) AS cluster_same_day,
+        
+        SUM(CASE 
+          WHEN f.propose = 'Cluster' AND DATE(f.sheduleDate) != DATE(f.completeDate) THEN 1 
+          ELSE 0 
+        END) AS cluster_diff_day,
+        
+        MONTH(CURDATE()) AS current_month
+        
+      FROM feildaudits f
+      WHERE 
+        f.status = 'Completed'
+        AND MONTH(f.completeDate) = MONTH(CURDATE())
+        AND YEAR(f.completeDate) = YEAR(CURDATE())
+    `;
+    plantcare.query(sql, [], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.getDashbordServiceSummaryDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        SUM(CASE 
+          WHEN DATE(g.sheduleDate) = DATE(g.doneDate) THEN 1 
+          ELSE 0 
+        END) AS same_day,
+        
+        SUM(CASE 
+          WHEN DATE(g.sheduleDate) != DATE(g.doneDate) THEN 1 
+          ELSE 0 
+        END) AS diff_day
+        
+      FROM govilinkjobs g
+      WHERE 
+        g.status = 'Completed'
+        AND MONTH(g.sheduleDate) = MONTH(g.doneDate)
+        AND YEAR(g.sheduleDate) = YEAR(g.doneDate)
+    `;
+    plantcare.query(sql, [], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+

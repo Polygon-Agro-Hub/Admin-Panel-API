@@ -1575,6 +1575,7 @@ exports.getAllDistributionManagerList = async (req, res) => {
   }
 };
 
+// shold be check and remove it not used
 exports.getForCreateId = async (req, res) => {
   try {
     const { role } = await DistributionValidation.getRoleShema.validateAsync(
@@ -3297,6 +3298,23 @@ exports.getRecivedCashDashbord = async (req, res) => {
       status: false,
       message: 'Failed to load vehicles',
       error: error.message
+    });
+  }
+};
+
+exports.getDistributionDashboard = async (req, res) => {
+  try {
+    const data = await DistributionDao.getDistributionDashboardDao();
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error("Distribution Dashboard Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch distribution dashboard data",
+      error,
     });
   }
 };

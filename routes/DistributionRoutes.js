@@ -439,5 +439,7 @@ router.get(
   distributionEp.getRecivedCashDashbord
 );
 
+router.get("/get-dashboard",authMiddleware, distributionEp.getDistributionDashboard);
+
 
 module.exports = router;

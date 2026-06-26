@@ -3,7 +3,6 @@ const uploadFileToS3 = require("../middlewares/s3upload");
 const deleteFromS3 = require("../middlewares/s3delete");
 const MarketPriceValidate = require("../validations/MarketPlace-validation");
 
-
 exports.getAllCropCatogory = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
@@ -11,11 +10,9 @@ exports.getAllCropCatogory = async (req, res) => {
   try {
     const result = await MarketPlaceDao.getAllCropNameDAO();
 
-
     return res.status(200).json(result);
   } catch (error) {
     if (error.isJoi) {
-
       return res.status(400).json({ error: error.details[0].message });
     }
 
@@ -26,13 +23,10 @@ exports.getAllCropCatogory = async (req, res) => {
   }
 };
 
-
-
 exports.createMarketProduct = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
-
 
     const product = {
       cropName: req.body.displayName || req.body.cropName,
@@ -48,13 +42,14 @@ exports.createMarketProduct = async (req, res) => {
       varietyId: req.body.varietyId,
       displaytype: req.body.displaytype,
       maxQuantity: req.body.maxQuantity,
+      productTypeId: req.body.productTypeId,
     };
 
     const { exists, varietyExists, nameExists } =
       await MarketPlaceDao.checkMarketProductExistsDao(
         product.varietyId,
         product.cropName,
-        product.category
+        product.category,
       );
 
     if (exists) {
@@ -76,9 +71,7 @@ exports.createMarketProduct = async (req, res) => {
       });
     }
 
-
     const result = await MarketPlaceDao.createMarketProductDao(product);
-
 
     if (result.affectedRows === 0) {
       return res.json({
@@ -113,12 +106,18 @@ exports.getMarketplaceItems = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
-    const { page, limit, search, displayTypeValue, categoryValue, discountFilter } = req.query;
+    const {
+      page,
+      limit,
+      search,
+      displayTypeValue,
+      categoryValue,
+      discountFilter,
+      productTypeId,
+    } = req.query;
     const parsedLimit = parseInt(limit, 10) || 10;
     const parsedPage = parseInt(page, 10) || 1;
     const offset = (parsedPage - 1) * parsedLimit;
-
-
 
     const { total, items } = await MarketPlaceDao.getMarketplaceItems(
       parsedLimit,
@@ -126,10 +125,9 @@ exports.getMarketplaceItems = async (req, res) => {
       search,
       displayTypeValue,
       categoryValue,
-      discountFilter
+      discountFilter,
+      productTypeId,
     );
-
-
 
     res.json({
       items,
@@ -142,11 +140,11 @@ exports.getMarketplaceItems = async (req, res) => {
     });
   }
 };
+
 exports.deleteMarketplaceItem = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
-
 
     const { id } = req.params;
 
@@ -155,7 +153,6 @@ exports.deleteMarketplaceItem = async (req, res) => {
     if (affectedRows === 0) {
       return res.status(404).json({ message: "Marketplace item not found" });
     } else {
-
       return res.status(200).json({ status: true });
     }
   } catch (err) {
@@ -174,11 +171,8 @@ exports.createCoupen = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
-
     const coupen =
       await MarketPriceValidate.CreateCoupenValidation.validateAsync(req.body);
-
-
 
     const existingCoupon = await MarketPlaceDao.getCouponByCodeDao(coupen.code);
     if (existingCoupon) {
@@ -188,9 +182,7 @@ exports.createCoupen = async (req, res) => {
       });
     }
 
-
     const result = await MarketPlaceDao.createCoupenDAO(coupen);
-
 
     return res.status(201).json({
       message: "coupen created successfully",
@@ -199,7 +191,6 @@ exports.createCoupen = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-
       return res
         .status(400)
         .json({ error: err.details[0].message, status: false });
@@ -221,18 +212,16 @@ exports.getAllCoupen = async (req, res) => {
     const { page, limit, status, types, searchText } =
       await MarketPriceValidate.couponQuaryParamSchema.validateAsync(req.query);
 
-
     const offset = (page - 1) * limit;
     const { total, items } = await MarketPlaceDao.getAllCoupenDAO(
       limit,
       offset,
       status,
       types,
-      searchText
+      searchText,
     );
 
     res.json({ total, items });
-
   } catch (error) {
     console.error("Error fetching marketplace items:", error);
     return res.status(500).json({
@@ -246,12 +235,9 @@ exports.deleteCoupenById = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
-
-
     const { id } = await MarketPriceValidate.deleteCoupenSchema.validateAsync(
-      req.params
+      req.params,
     );
-
 
     const affectedRows = await MarketPlaceDao.deleteCoupenById(id);
 
@@ -260,12 +246,10 @@ exports.deleteCoupenById = async (req, res) => {
         .status(404)
         .json({ message: "Coupen not found", status: false });
     } else {
-
       return res.status(200).json({ message: "Coupen Deleted", status: true });
     }
   } catch (err) {
     if (err.isJoi) {
-
       return res.status(400).json({ error: err.details[0].message });
     }
 
@@ -288,14 +272,12 @@ exports.deleteAllCoupen = async (req, res) => {
         .status(404)
         .json({ message: "Coupenes not found", status: false });
     } else {
-
       return res
         .status(200)
         .json({ message: "Coupenes Deleted", status: true });
     }
   } catch (err) {
     if (err.isJoi) {
-
       return res.status(400).json({ error: err.details[0].message });
     }
 
@@ -316,7 +298,6 @@ exports.getAllProductCropCatogory = async (req, res) => {
     return res.status(200).json(result);
   } catch (error) {
     if (error.isJoi) {
-
       return res.status(400).json({ error: error.details[0].message });
     }
 
@@ -333,7 +314,6 @@ exports.createPackage = async (req, res) => {
 
     const package = JSON.parse(req.body.package);
 
-
     let profileImageUrl = null;
 
     if (req.body.file) {
@@ -347,7 +327,7 @@ exports.createPackage = async (req, res) => {
         profileImageUrl = await uploadFileToS3(
           fileBuffer,
           fileName,
-          "marketplacepackages/image"
+          "marketplacepackages/image",
         );
       } catch (err) {
         console.error("Error processing image file:", err);
@@ -358,11 +338,9 @@ exports.createPackage = async (req, res) => {
       }
     }
 
-
-
     const packageId = await MarketPlaceDao.creatPackageDAO(
       package,
-      profileImageUrl
+      profileImageUrl,
     );
 
     if (!packageId || packageId <= 0) {
@@ -376,9 +354,7 @@ exports.createPackage = async (req, res) => {
       const quantities = package.quantities;
 
       for (const [productTypeId, qty] of Object.entries(quantities)) {
-
         if (qty <= 0) continue;
-
 
         const itemData = {
           productTypeId: parseInt(productTypeId),
@@ -422,14 +398,12 @@ exports.getProductById = async (req, res) => {
     console.log("Request URL:", fullUrl);
 
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
-      req.params
+      req.params,
     );
 
     const result = await MarketPlaceDao.getProductById(id);
 
-
     res.json(result);
-
   } catch (error) {
     console.error("Error fetching marketplace items:", error);
     return res.status(500).json({
@@ -443,7 +417,7 @@ exports.editMarketProduct = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
-      req.params
+      req.params,
     );
 
     const product = req.body;
@@ -453,7 +427,7 @@ exports.editMarketProduct = async (req, res) => {
         product.varietyId,
         product.cropName,
         product.category,
-        id
+        id,
       );
 
     if (exists) {
@@ -475,7 +449,6 @@ exports.editMarketProduct = async (req, res) => {
       });
     }
 
-
     const result = await MarketPlaceDao.updateMarketProductDao(req.body, id);
 
     if (result.affectedRows === 0) {
@@ -486,7 +459,6 @@ exports.editMarketProduct = async (req, res) => {
       });
     }
 
-
     res.status(201).json({
       message: "market product updated successfully",
       result: result,
@@ -494,7 +466,6 @@ exports.editMarketProduct = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-
       return res
         .status(400)
         .json({ error: err.details[0].message, status: false });
@@ -512,17 +483,13 @@ exports.getAllMarketplacePackages = async (req, res) => {
   console.log("Request URL:", fullUrl);
 
   try {
-
     const { searchText, date } =
       await MarketPriceValidate.getAllPackageSchema.validateAsync(req.query);
 
-
-
     const packages = await MarketPlaceDao.getAllMarketplacePackagesDAO(
       searchText,
-      date
+      date,
     );
-
 
     return res.status(200).json({
       success: true,
@@ -531,7 +498,6 @@ exports.getAllMarketplacePackages = async (req, res) => {
     });
   } catch (error) {
     if (error.isJoi) {
-
       return res.status(400).json({
         success: false,
         error: error.details[0].message,
@@ -553,7 +519,6 @@ exports.deleteMarketplacePackages = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
-
     const { id } = req.params;
 
     const affectedRows = await MarketPlaceDao.removeMarketplacePckages(id);
@@ -561,7 +526,6 @@ exports.deleteMarketplacePackages = async (req, res) => {
     if (affectedRows === 0) {
       return res.status(404).json({ message: "Marketplace item not found" });
     } else {
-
       return res.status(200).json({ status: true });
     }
   } catch (err) {
@@ -591,24 +555,19 @@ exports.updateMarketplacePackage = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
-
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
-      req.params
+      req.params,
     );
-
 
     const packageData =
       await MarketPriceValidate.UpdatePackageSchema.validateAsync(req.body);
 
-
-
     const result = await MarketPlaceDao.updateMarketplacePackageDAO(
       id,
-      packageData
+      packageData,
     );
 
     if (result.message === "Package updated successfully") {
-
       return res.status(200).json({
         message: "Marketplace package updated successfully",
         result: result,
@@ -623,7 +582,6 @@ exports.updateMarketplacePackage = async (req, res) => {
     }
   } catch (err) {
     if (err.isJoi) {
-
       return res.status(400).json({
         error: err.details[0].message,
         status: false,
@@ -645,11 +603,10 @@ exports.getMarketplacePackageById = async (req, res) => {
     console.log("Request URL:", fullUrl);
 
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
-      req.params
+      req.params,
     );
 
     const resultRows = await MarketPlaceDao.getMarketplacePackageByIdDAO(id);
-
 
     const firstRow = resultRows[0];
 
@@ -676,10 +633,7 @@ exports.getMarketplacePackageById = async (req, res) => {
       packageItems,
     };
 
-
-
     res.json(packageData);
-
   } catch (error) {
     console.error("Error fetching marketplace package:", error);
 
@@ -697,39 +651,31 @@ exports.getMarketplacePackageById = async (req, res) => {
   }
 };
 
-
-
 exports.getMarketplacePackageWithDetailsById = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
-      req.params
+      req.params,
     );
-
 
     const packageData =
       await MarketPlaceDao.getMarketplacePackageByIdWithDetailsDAO(id);
 
-
     const definePackageData =
       await MarketPlaceDao.getDefinePackageItemsByPackageIdDAO(id);
-
 
     const baseTotal =
       packageData.productPrice +
       packageData.packingFee +
       packageData.serviceFee;
 
-
     const productsTotal = packageData.packageDetails.reduce((sum, item) => {
       return sum + (item.productType?.price || 0) * item.qty;
     }, 0);
 
-
     const grandTotal = baseTotal + productsTotal + definePackageData.totalPrice;
-
 
     const formattedResponse = {
       ...packageData,
@@ -759,7 +705,6 @@ exports.getMarketplacePackageWithDetailsById = async (req, res) => {
     };
 
     res.status(200).json(response);
-
   } catch (error) {
     console.error("Error fetching marketplace package:", error.message);
 
@@ -797,8 +742,6 @@ exports.updatePackage = async (req, res) => {
       package = req.body.package;
     }
 
-
-
     let profileImageUrl = package.existingImage || null;
 
     if (req.body.file) {
@@ -812,7 +755,7 @@ exports.updatePackage = async (req, res) => {
         profileImageUrl = await uploadFileToS3(
           fileBuffer,
           fileName,
-          "marketplacepackages/image"
+          "marketplacepackages/image",
         );
       } catch (err) {
         console.error("Error processing image file:", err);
@@ -823,11 +766,10 @@ exports.updatePackage = async (req, res) => {
       }
     }
 
-
     const updatedRows = await MarketPlaceDao.updatePackageDAO(
       package,
       profileImageUrl,
-      package.packageId || req.params.id
+      package.packageId || req.params.id,
     );
 
     if (updatedRows === 0) {
@@ -837,22 +779,19 @@ exports.updatePackage = async (req, res) => {
       });
     }
 
-
     try {
-
       if (typeof MarketPlaceDao.deletePackageDetails === "function") {
         await MarketPlaceDao.deletePackageDetails(
-          package.packageId || req.params.id
+          package.packageId || req.params.id,
         );
       } else {
         throw new Error("deletePackageDetails DAO function not available");
       }
 
-
       for (const item of package.Items) {
         await MarketPlaceDao.creatPackageDetailsDAOEdit(
           item,
-          package.packageId || req.params.id
+          package.packageId || req.params.id,
         );
       }
     } catch (err) {
@@ -966,7 +905,7 @@ exports.uploadBanner = async (req, res) => {
       image = await uploadFileToS3(
         fileBuffer,
         fileName,
-        "marketplacebanners/image"
+        "marketplacebanners/image",
       );
     }
 
@@ -977,7 +916,6 @@ exports.uploadBanner = async (req, res) => {
     };
 
     const result = await MarketPlaceDao.createBanner(bannerData);
-
 
     return res.status(201).json({
       message: result.message,
@@ -1014,7 +952,7 @@ exports.uploadBannerWholesale = async (req, res) => {
       image = await uploadFileToS3(
         fileBuffer,
         fileName,
-        "marketplacebanners/image"
+        "marketplacebanners/image",
       );
     }
 
@@ -1041,13 +979,11 @@ exports.getAllBanners = async (req, res) => {
   try {
     const banners = await MarketPlaceDao.getAllBanners();
 
-
     res.json({
       banners,
     });
   } catch (err) {
     if (err.isJoi) {
-
       return res.status(400).json({ error: err.details[0].message });
     }
     console.error("Error executing query:", err);
@@ -1059,13 +995,11 @@ exports.getAllBannersWholesale = async (req, res) => {
   try {
     const banners = await MarketPlaceDao.getAllBannersWholesale();
 
-
     res.json({
       banners,
     });
   } catch (err) {
     if (err.isJoi) {
-
       return res.status(400).json({ error: err.details[0].message });
     }
     console.error("Error executing query:", err);
@@ -1108,7 +1042,6 @@ exports.deleteBannerRetail = async (req, res) => {
   }
 
   try {
-
     const banner = await MarketPlaceDao.getBannerById(bannerId);
     if (!banner) {
       return res.status(404).json({ error: "banner not found" });
@@ -1116,10 +1049,9 @@ exports.deleteBannerRetail = async (req, res) => {
 
     const orderNumber = banner.indexId;
 
-
     const result = await MarketPlaceDao.deleteBannerRetail(
       bannerId,
-      orderNumber
+      orderNumber,
     );
 
     return res.status(200).json({
@@ -1140,7 +1072,6 @@ exports.deleteBannerWhole = async (req, res) => {
   }
 
   try {
-
     const banner = await MarketPlaceDao.getBannerById(bannerId);
     if (!banner) {
       return res.status(404).json({ error: "banner not found" });
@@ -1148,10 +1079,9 @@ exports.deleteBannerWhole = async (req, res) => {
 
     const orderNumber = banner.indexId;
 
-
     const result = await MarketPlaceDao.deleteBannerWhole(
       bannerId,
-      orderNumber
+      orderNumber,
     );
 
     return res.status(200).json({
@@ -1226,31 +1156,26 @@ exports.editPackage = async (req, res) => {
     const packageItems = package.packageItems;
     const id = req.params.id;
 
-    console.log('id', id)
-
+    console.log("id", id);
 
     let profileImageUrl = null;
 
-
     const exists = await MarketPlaceDao.checkPackageDisplayNameExistsDao(
       package.displayName,
-      id
+      id,
     );
 
     if (exists) {
       return res.json({
         status: false,
-        message: "A package with this display name already exists. Please choose a different name.",
+        message:
+          "A package with this display name already exists. Please choose a different name.",
       });
     }
 
-    console.log('so far good')
-
-
-
+    console.log("so far good");
 
     if (req.body.file) {
-
       const imageUrl = package.imageUrl;
       if (imageUrl) {
         await deleteFromS3(imageUrl);
@@ -1266,7 +1191,7 @@ exports.editPackage = async (req, res) => {
         profileImageUrl = await uploadFileToS3(
           fileBuffer,
           fileName,
-          "marketplacepackages/image"
+          "marketplacepackages/image",
         );
       } catch (err) {
         console.error("Error processing image file:", err);
@@ -1276,16 +1201,12 @@ exports.editPackage = async (req, res) => {
         });
       }
     } else {
-
       profileImageUrl = package.imageUrl;
     }
 
-
-
-
     const packageId = await MarketPlaceDao.creatPackageDAO(
       package,
-      profileImageUrl
+      profileImageUrl,
     );
 
     if (!packageId || packageId <= 0) {
@@ -1301,8 +1222,6 @@ exports.editPackage = async (req, res) => {
         .status(404)
         .json({ status: false, message: "Marketplace item not found" });
     }
-
-
 
     for (let i = 0; i < packageItems.length; i++) {
       if (
@@ -1322,7 +1241,7 @@ exports.editPackage = async (req, res) => {
       message: "Package updated successfully",
       status: true,
       id: id,
-      packageId: packageId
+      packageId: packageId,
     });
   } catch (err) {
     if (err.isJoi) {
@@ -1343,7 +1262,7 @@ exports.editPackage = async (req, res) => {
 exports.getProductTypeById = async (req, res) => {
   try {
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
-      req.params
+      req.params,
     );
 
     const result = await MarketPlaceDao.getProductTypeByIdDao(id);
@@ -1362,7 +1281,7 @@ exports.getProductTypeById = async (req, res) => {
 exports.editProductType = async (req, res) => {
   try {
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
-      req.params
+      req.params,
     );
     const data =
       await MarketPriceValidate.createProductTypeSchema.validateAsync(req.body);
@@ -1388,7 +1307,7 @@ exports.editProductType = async (req, res) => {
 exports.deleteProductType = async (req, res) => {
   try {
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
-      req.params
+      req.params,
     );
     const result = await MarketPlaceDao.DeleteProductTypeByIdDao(id);
 
@@ -1415,7 +1334,7 @@ exports.getAllRetailOrders = async (req, res) => {
   try {
     const { page, limit, status, method, searchItem, formattedDate } =
       await MarketPriceValidate.getAllRetailOrderSchema.validateAsync(
-        req.query
+        req.query,
       );
 
     const offset = (page - 1) * limit;
@@ -1426,7 +1345,7 @@ exports.getAllRetailOrders = async (req, res) => {
       status,
       method,
       searchItem,
-      formattedDate
+      formattedDate,
     );
     res.json({
       items,
@@ -1434,7 +1353,6 @@ exports.getAllRetailOrders = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-
       return res.status(400).json({ error: err.details[0].message });
     }
     console.error("Error executing query:", err);
@@ -1444,13 +1362,11 @@ exports.getAllRetailOrders = async (req, res) => {
 
 exports.getAllDeliveryCharges = async (req, res) => {
   try {
-
-
     const { searchItem, city } = req.query;
 
     const deliveryCharges = await MarketPlaceDao.getAllDeliveryCharges(
       searchItem,
-      city
+      city,
     );
 
     res.json(deliveryCharges);
@@ -1462,7 +1378,7 @@ exports.getAllDeliveryCharges = async (req, res) => {
 
 exports.uploadDeliveryCharges = async (req, res) => {
   try {
-    const userId = req.user.userId
+    const userId = req.user.userId;
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -1470,7 +1386,10 @@ exports.uploadDeliveryCharges = async (req, res) => {
       });
     }
 
-    const result = await MarketPlaceDao.uploadDeliveryCharges(req.file.buffer, userId);
+    const result = await MarketPlaceDao.uploadDeliveryCharges(
+      req.file.buffer,
+      userId,
+    );
 
     return res.status(200).json({
       success: true,
@@ -1496,7 +1415,7 @@ exports.editDeliveryCharge = async (req, res) => {
 
     const deliveryData = req.body;
     const id = req.params.id;
-    const userId = req.user.userId
+    const userId = req.user.userId;
 
     if (!deliveryData.city || !deliveryData.charge) {
       return res.status(400).json({
@@ -1505,11 +1424,10 @@ exports.editDeliveryCharge = async (req, res) => {
       });
     }
 
-
     const results = await MarketPlaceDao.editDeliveryChargeDAO(
       deliveryData,
       id,
-      userId
+      userId,
     );
 
     if (!results || results.affectedRows === 0) {
@@ -1540,7 +1458,6 @@ exports.editDeliveryCharge = async (req, res) => {
   }
 };
 
-
 exports.checkPackageDisplayNameExists = async (req, res) => {
   try {
     const { displayName } = req.query;
@@ -1552,9 +1469,8 @@ exports.checkPackageDisplayNameExists = async (req, res) => {
       });
     }
 
-    const exists = await MarketPlaceDao.checkPackageDisplayNameExistsDao(
-      displayName
-    );
+    const exists =
+      await MarketPlaceDao.checkPackageDisplayNameExistsDao(displayName);
 
     return res.status(200).json({
       exists,
@@ -1573,13 +1489,13 @@ exports.getAllRetailCustomers = async (req, res) => {
   try {
     const { page, limit, searchText } =
       await MarketPriceValidate.getmarketplaceCustomerParamSchema.validateAsync(
-        req.query
+        req.query,
       );
     const offset = (page - 1) * limit;
     const { total, items } = await MarketPlaceDao.getAllRetailCustomersDao(
       limit,
       offset,
-      searchText
+      searchText,
     );
 
     return res.status(200).json({
@@ -1598,9 +1514,7 @@ exports.getAllRetailCustomers = async (req, res) => {
 exports.getOrderDetailsById = async (req, res) => {
   const { id } = req.params;
 
-
   try {
-
     if (!id || isNaN(Number(id))) {
       return res.status(400).json({
         success: false,
@@ -1608,11 +1522,9 @@ exports.getOrderDetailsById = async (req, res) => {
       });
     }
 
-
     const orderDetails = await MarketPlaceDao.getOrderDetailsById(id);
 
     if (!orderDetails) {
-
       return res.status(404).json({
         success: false,
         message: "Order details not found",
@@ -1637,11 +1549,9 @@ exports.getOrderDetailsById = async (req, res) => {
       },
     };
 
-
     res.json(response);
   } catch (err) {
     console.error("[getOrderDetailsById] Error:", err);
-
 
     const statusCode = err.message.includes("Database error") ? 503 : 500;
     const message = err.message.includes("Database error")
@@ -1658,9 +1568,6 @@ exports.getOrderDetailsById = async (req, res) => {
 
 exports.getAllMarketplaceItems = async (req, res) => {
   try {
-
-
-
     const marketplaceItems = await MarketPlaceDao.getAllMarketplaceItems();
 
     if (!marketplaceItems || marketplaceItems.length === 0) {
@@ -1669,7 +1576,6 @@ exports.getAllMarketplaceItems = async (req, res) => {
         message: "No marketplace items found",
       });
     }
-
 
     const itemsByCategory = marketplaceItems.reduce((acc, item) => {
       if (!acc[item.category]) {
@@ -1724,7 +1630,6 @@ exports.createDefinePackageWithItems = async (req, res) => {
 
     const userId = req.user.userId;
 
-
     if (
       !req.body ||
       !req.body.packageData ||
@@ -1740,7 +1645,6 @@ exports.createDefinePackageWithItems = async (req, res) => {
 
     const { packageData, packageItems } = req.body;
 
-
     if (!packageData.packageId || !packageData.price) {
       return res.status(400).json({
         error: "Package data must include packageId and price",
@@ -1755,7 +1659,6 @@ exports.createDefinePackageWithItems = async (req, res) => {
       });
     }
 
-
     for (const item of packageItems) {
       if (!item.productType || !item.productId || !item.qty || !item.price) {
         return res.status(400).json({
@@ -1767,17 +1670,15 @@ exports.createDefinePackageWithItems = async (req, res) => {
     }
 
     try {
-
       const packageResult = await MarketPlaceDao.createDefinePackageDao(
         packageData,
-        userId
+        userId,
       );
       const definePackageId = packageResult.insertId;
 
-
       const itemsResult = await MarketPlaceDao.createDefinePackageItemsDao(
         definePackageId,
-        packageItems
+        packageItems,
       );
 
       res.status(201).json({
@@ -1803,13 +1704,13 @@ exports.getAllWholesaleCustomers = async (req, res) => {
   try {
     const { page, limit, searchText } =
       await MarketPriceValidate.getmarketplaceCustomerParamSchema.validateAsync(
-        req.query
+        req.query,
       );
     const offset = (page - 1) * limit;
     const { total, items } = await MarketPlaceDao.getAllWholesaleCustomersDao(
       limit,
       offset,
-      searchText
+      searchText,
     );
 
     return res.status(200).json({
@@ -1827,14 +1728,12 @@ exports.getAllWholesaleCustomers = async (req, res) => {
 
 exports.getUserOrders = async (req, res) => {
   try {
-
-
     const userId = req.params.userId;
     const statusFilter = req.query.status || "Ordered";
 
     const userOrders = await MarketPlaceDao.getUserOrdersDao(
       parseInt(userId),
-      statusFilter
+      statusFilter,
     );
 
     const ordersByScheduleType = userOrders.reduce((acc, order) => {
@@ -1845,7 +1744,6 @@ exports.getUserOrders = async (req, res) => {
       acc[scheduleType].push(order);
       return acc;
     }, {});
-
 
     const responseData = {
       success: true,
@@ -1865,7 +1763,6 @@ exports.getUserOrders = async (req, res) => {
     res.json(responseData);
   } catch (err) {
     console.error("Error fetching user orders:", err);
-
 
     let statusCode = 500;
     let message = "An error occurred while fetching user orders.";
@@ -1902,13 +1799,9 @@ exports.getCoupen = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
-
     const validatedParams =
       await MarketPriceValidate.getCoupenValidation.validateAsync(req.params);
     const coupenId = validatedParams.coupenId;
-
-
-
 
     const result = await MarketPlaceDao.getCoupenDAO(coupenId);
 
@@ -1919,7 +1812,6 @@ exports.getCoupen = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-
       return res
         .status(400)
         .json({ error: err.details[0].message, status: false });
@@ -1938,10 +1830,8 @@ exports.updateCoupen = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
-
     const coupen =
       await MarketPriceValidate.updateCoupenValidation.validateAsync(req.body);
-
 
     const result = await MarketPlaceDao.updateCoupenDAO(coupen);
 
@@ -1952,7 +1842,6 @@ exports.updateCoupen = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-
       return res
         .status(400)
         .json({ error: err.details[0].message, status: false });
@@ -1973,7 +1862,6 @@ exports.getInvoiceDetails = async (req, res) => {
   try {
     const { processOrderId } = req.params;
 
-
     if (!processOrderId) {
       return res.status(400).json({
         success: false,
@@ -1981,12 +1869,8 @@ exports.getInvoiceDetails = async (req, res) => {
       });
     }
 
-
-    const invoiceDetails = await MarketPlaceDao.getInvoiceDetailsDAO(
-      processOrderId
-    );
-
-
+    const invoiceDetails =
+      await MarketPlaceDao.getInvoiceDetailsDAO(processOrderId);
 
     if (!invoiceDetails) {
       return res.status(404).json({
@@ -1995,7 +1879,6 @@ exports.getInvoiceDetails = async (req, res) => {
       });
     }
 
-
     const [familyPackItems, additionalItems, billingDetails] =
       await Promise.all([
         MarketPlaceDao.getFamilyPackItemsDAO(processOrderId),
@@ -2003,36 +1886,39 @@ exports.getInvoiceDetails = async (req, res) => {
         MarketPlaceDao.getBillingDetailsDAO(invoiceDetails.orderId),
       ]);
 
-
     let pickupCenterDetails = null;
     let deliveryChargeDetails = null;
 
     if (invoiceDetails.deliveryMethod === "Pickup" && invoiceDetails.centerId) {
       pickupCenterDetails = await MarketPlaceDao.getPickupCenterDetailsDAO(
-        invoiceDetails.centerId
+        invoiceDetails.centerId,
       );
     } else if (
       invoiceDetails.deliveryMethod !== "Pickup" &&
       invoiceDetails.city
     ) {
-
       deliveryChargeDetails = await MarketPlaceDao.getDeliveryChargeByCityDAO(
-        invoiceDetails.city
+        invoiceDetails.city,
       );
+
+            // Nullify delivery charge if order has a Free Delivery coupon
+      if (
+        invoiceDetails.isCoupon === 1 &&
+        invoiceDetails.couponType === "Free Delivery"
+      ) {
+        deliveryChargeDetails = null;
+      }
     }
 
-
     const packageDetailsPromises = familyPackItems.map((item) =>
-      MarketPlaceDao.getPackageDetailsDAO(item.packageId)
+      MarketPlaceDao.getPackageDetailsDAO(item.packageId),
     );
     const packageDetails = await Promise.all(packageDetailsPromises);
-
 
     const familyPackItemsWithDetails = familyPackItems.map((item, index) => ({
       ...item,
       packageDetails: packageDetails[index],
     }));
-
 
     const response = {
       invoice: invoiceDetails,
@@ -2045,7 +1931,6 @@ exports.getInvoiceDetails = async (req, res) => {
       deliveryCharge: deliveryChargeDetails,
     };
 
-
     return res.status(200).json({
       success: true,
       message: "Invoice details retrieved successfully",
@@ -2053,7 +1938,6 @@ exports.getInvoiceDetails = async (req, res) => {
     });
   } catch (error) {
     if (error.isJoi) {
-
       return res.status(400).json({
         success: false,
         error: error.details[0].message,
@@ -2076,7 +1960,7 @@ exports.getAllWholesaleOrders = async (req, res) => {
   try {
     const { page, limit, status, method, searchItem, formattedDate } =
       await MarketPriceValidate.getAllRetailOrderSchema.validateAsync(
-        req.query
+        req.query,
       );
 
     const offset = (page - 1) * limit;
@@ -2087,9 +1971,8 @@ exports.getAllWholesaleOrders = async (req, res) => {
       status,
       method,
       searchItem,
-      formattedDate
+      formattedDate,
     );
-
 
     res.json({
       items,
@@ -2097,7 +1980,6 @@ exports.getAllWholesaleOrders = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-
       return res.status(400).json({ error: err.details[0].message });
     }
     console.error("Error executing query:", err);
@@ -2110,11 +1992,9 @@ exports.getMarketplacePackageBeforeDate = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
-
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
-      req.params
+      req.params,
     );
-
 
     const { date } = req.query;
     if (!date) {
@@ -2124,28 +2004,22 @@ exports.getMarketplacePackageBeforeDate = async (req, res) => {
       });
     }
 
-
     const packageData =
       await MarketPlaceDao.getMarketplacePackageByIdWithDetailsDAO(id);
 
-
     const definePackageData =
       await MarketPlaceDao.getDefinePackageItemsBeforeDateDAO(id, date);
-
 
     const baseTotal =
       packageData.productPrice +
       packageData.packingFee +
       packageData.serviceFee;
 
-
     const productsTotal = packageData.packageDetails.reduce((sum, item) => {
       return sum + (item.productType?.price || 0) * item.qty;
     }, 0);
 
-
     const grandTotal = baseTotal + productsTotal + definePackageData.totalPrice;
-
 
     const formattedResponse = {
       ...packageData,
@@ -2173,8 +2047,6 @@ exports.getMarketplacePackageBeforeDate = async (req, res) => {
       message: `Marketplace package as of or before ${date} retrieved successfully`,
       data: formattedResponse,
     });
-
-
   } catch (error) {
     console.error("Error fetching package on or before date:", error.message);
 
@@ -2200,12 +2072,10 @@ exports.marketDashbordDetails = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-
     const todaySalses = await MarketPlaceDao.toDaySalesDao();
     const yesterdaySalses = await MarketPlaceDao.yesterdaySalesDao();
     const thisMonthSales = await MarketPlaceDao.thisMonthSalesDao();
     const newUserCount = await MarketPlaceDao.toDayUserCountDao(true);
-
 
     const salsesAnalize = await MarketPlaceDao.salesAnalyzeDao();
     const totalSales = await MarketPlaceDao.totalMarketOrderCountDao();
@@ -2234,7 +2104,6 @@ exports.marketDashbordDetails = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-
       return res.status(400).json({ error: err.details[0].message });
     }
     console.error("Error executing query:", err);
@@ -2242,15 +2111,15 @@ exports.marketDashbordDetails = async (req, res) => {
   }
 };
 
-
 exports.changePackageStatus = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
-
-    const data = await MarketPriceValidate.changePackageStatusValidation.validateAsync(req.body);
-
+    const data =
+      await MarketPriceValidate.changePackageStatusValidation.validateAsync(
+        req.body,
+      );
 
     const result = await MarketPlaceDao.changePackageStatusDao(data);
     if (result.affectedRows === 0) {
@@ -2266,7 +2135,6 @@ exports.changePackageStatus = async (req, res) => {
     });
   } catch (err) {
     if (err.isJoi) {
-
       return res
         .status(400)
         .json({ error: err.details[0].message, status: false });
@@ -2294,9 +2162,8 @@ exports.getPostInvoiceDetails = async (req, res) => {
       });
     }
 
-    const invoiceDetails = await MarketPlaceDao.getInvoiceDetailsDAO(
-      processOrderId
-    );
+    const invoiceDetails =
+      await MarketPlaceDao.getInvoiceDetailsDAO(processOrderId);
 
     if (!invoiceDetails) {
       return res.status(404).json({
@@ -2317,30 +2184,38 @@ exports.getPostInvoiceDetails = async (req, res) => {
 
     if (invoiceDetails.deliveryMethod === "Pickup" && invoiceDetails.centerId) {
       pickupCenterDetails = await MarketPlaceDao.getPickupCenterDetailsDAO(
-        invoiceDetails.centerId
+        invoiceDetails.centerId,
       );
     } else if (
       invoiceDetails.deliveryMethod !== "Pickup" &&
       invoiceDetails.city
     ) {
       deliveryChargeDetails = await MarketPlaceDao.getDeliveryChargeByCityDAO(
-        invoiceDetails.city
+        invoiceDetails.city,
       );
+
+      // Nullify delivery charge if order has a Free Delivery coupon
+      if (
+        invoiceDetails.isCoupon === 1 &&
+        invoiceDetails.couponType === "Free Delivery"
+      ) {
+        deliveryChargeDetails = null;
+      }
     }
 
     // Get package details for each family pack item
-    const packageDetailsPromises = familyPackItems.map((item) =>
-      MarketPlaceDao.getPosPackageDetailsDAO(processOrderId) // Use processOrderId instead of item.packageId
+    const packageDetailsPromises = familyPackItems.map(
+      (item) => MarketPlaceDao.getPosPackageDetailsDAO(processOrderId), // Use processOrderId instead of item.packageId
     );
     const packageDetailsResults = await Promise.all(packageDetailsPromises);
 
     // Map family pack items with their corresponding package details
     const familyPackItemsWithDetails = familyPackItems.map((item, index) => {
       const packageDetail = packageDetailsResults[index] || [];
-      
+
       // Find the specific package that matches the current item
-      const matchedPackage = packageDetail.find(pkg => 
-        pkg.packageName === item.name
+      const matchedPackage = packageDetail.find(
+        (pkg) => pkg.packageName === item.name,
       );
 
       return {
@@ -2348,7 +2223,7 @@ exports.getPostInvoiceDetails = async (req, res) => {
         packageId: item.packageId,
         name: item.name,
         amount: item.amount,
-        packageDetails: matchedPackage ? matchedPackage.items : []
+        packageDetails: matchedPackage ? matchedPackage.items : [],
       };
     });
 
@@ -2383,5 +2258,38 @@ exports.getPostInvoiceDetails = async (req, res) => {
       details:
         process.env.NODE_ENV === "development" ? error.message : undefined,
     });
+  }
+};
+
+exports.updateProductTypeStatus = async (req, res) => {
+  try {
+    const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
+      req.params
+    );
+    const { isValid } = await MarketPriceValidate.ValidateStatusSchema.validateAsync(
+      req.body
+    );
+    
+    // Get the logged-in username from token
+    const modifyId = req.user.userId; // Make sure your token contains username
+    
+    const result = await MarketPlaceDao.UpdateProductTypeStatusDao(id, isValid, modifyId);
+
+    if (result.affectedRows === 0) {
+      return res.json({
+        message: "Product type status update failed",
+        status: false,
+      });
+    }
+
+    const statusMessage = isValid === 1 ? "activated" : "deactivated";
+    return res.status(200).json({
+      message: `Product type ${statusMessage} successfully`,
+      status: true,
+      modifyId: modifyId // Return the updated modifyId
+    });
+  } catch (error) {
+    console.error("Error updating product type status:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };

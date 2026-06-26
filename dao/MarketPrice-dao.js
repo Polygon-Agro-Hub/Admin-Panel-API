@@ -27,13 +27,14 @@ exports.insertMarketPriceXLSXData = (xlindex, data) => {
     // Step 1: Insert data into the marketprice table
     const marketPriceSQL = `
       INSERT INTO marketprice 
-      (varietyId, xlindex, grade, price) 
+      (varietyId, xlindex, grade, price, averagePrice) 
       VALUES ?`;
 
     const marketPriceValues = data.map((row) => [
       row["Variety Id"],
       xlindex,
       row["Grade"],
+      row["Price"],
       row["Price"]
     ]);
 

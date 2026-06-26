@@ -3127,8 +3127,23 @@ exports.insertUserXLSXData = (data) => {
       const validatedData = [];
       const duplicateData = [];
       const emptyRows = [];
-      const phoneSet = new Set();
-      const nicSet = new Set();
+      // const phoneSet = new Set();
+      // const nicSet = new Set();
+      const phoneCount = new Map();
+      const nicCount = new Map();
+
+      data.forEach((row) => {
+        const phone = String(row["Phone Number"] || "").trim();
+        const nic = String(row["NIC Number"] || "").trim();
+
+        if (phone) {
+          phoneCount.set(phone, (phoneCount.get(phone) || 0) + 1);
+        }
+
+        if (nic) {
+          nicCount.set(nic, (nicCount.get(nic) || 0) + 1);
+        }
+      });
 
       // Process each row
       for (let i = 0; i < data.length; i++) {
@@ -3163,7 +3178,28 @@ exports.insertUserXLSXData = (data) => {
         const nic = String(value["NIC Number"]).trim();
 
         // Check for duplicates within the Excel file
-        if (phoneSet.has(phone) || nicSet.has(nic)) {
+        // if (phoneSet.has(phone) || nicSet.has(nic)) {
+        //   duplicateData.push({
+        //     firstName: value["First Name"],
+        //     lastName: value["Last Name"],
+        //     phoneNumber: phone,
+        //     NICnumber: nic,
+        //     rowNumber: i + 1,
+        //   });
+        // } else {
+        //   phoneSet.add(phone);
+        //   nicSet.add(nic);
+        //   validatedData.push({
+        //     ...value,
+        //     rowNumber: i + 1
+        //   });
+        // }
+
+        // Check duplicates by occurrence count
+        if (
+          phoneCount.get(phone) > 1 ||
+          nicCount.get(nic) > 1
+        ) {
           duplicateData.push({
             firstName: value["First Name"],
             lastName: value["Last Name"],
@@ -3171,14 +3207,14 @@ exports.insertUserXLSXData = (data) => {
             NICnumber: nic,
             rowNumber: i + 1,
           });
-        } else {
-          phoneSet.add(phone);
-          nicSet.add(nic);
-          validatedData.push({
-            ...value,
-            rowNumber: i + 1
-          });
+
+          continue;
         }
+
+        validatedData.push({
+          ...value,
+          rowNumber: i + 1,
+        });
       }
 
       // If no valid data after skipping empties
@@ -3192,6 +3228,22 @@ exports.insertUserXLSXData = (data) => {
           skippedRows: emptyRows.length,
           duplicateRows: duplicateData.length
         });
+        return;
+      }
+
+      if (duplicateData.length > 0) {
+        resolve({
+          message: "Duplicate entries found in Excel.",
+          existingUsers: [],
+          duplicateData,
+          emptyRows,
+          totalRows: data.length,
+          insertedRows: 0,
+          skippedRows: emptyRows.length,
+          duplicateRows: duplicateData.length,
+          processedRows: validatedData.length,
+        });
+
         return;
       }
 
@@ -4597,6 +4649,7 @@ exports.GetAllManagerList = () => {
   });
 };
 
+// shold be check and remove it not used
 exports.getForCreateId = (role) => {
   console.log("role", role);
   return new Promise((resolve, reject) => {
