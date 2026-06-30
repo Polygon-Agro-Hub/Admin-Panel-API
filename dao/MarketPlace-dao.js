@@ -137,7 +137,7 @@ exports.checkMarketEditProductExistsDao = async (
 exports.createMarketProductDao = async (product) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO marketplaceitems (displayName, normalPrice, productTypeId, discountedPrice, promo, unitType, startValue, changeby, tags, category, discount, varietyId, displayType, maxQuantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      "INSERT INTO marketplaceitems (displayName, normalPrice, productTypeId, discountedPrice, promo, unitType, startValue, changeby, tags, category, discount, varietyId, displayType, maxQuantity, comPrice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
       product.cropName,
       product.normalPrice,
@@ -153,6 +153,7 @@ exports.createMarketProductDao = async (product) => {
       product.varietyId,
       product.displaytype || null,
       product.category === "WholeSale" ? product.maxQuantity : null,
+      product.comPrice,
     ];
 
     marketPlace.query(sql, values, (err, results) => {

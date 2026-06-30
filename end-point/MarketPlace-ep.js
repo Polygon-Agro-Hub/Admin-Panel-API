@@ -43,6 +43,7 @@ exports.createMarketProduct = async (req, res) => {
       displaytype: req.body.displaytype,
       maxQuantity: req.body.maxQuantity,
       productTypeId: req.body.productTypeId,
+      comPrice: req.body.comPrice,
     };
 
     const { exists, varietyExists, nameExists } =
