@@ -479,6 +479,7 @@ exports.editMarketProduct = async (req, res) => {
     });
   }
 };
+
 exports.getAllMarketplacePackages = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Request URL:", fullUrl);

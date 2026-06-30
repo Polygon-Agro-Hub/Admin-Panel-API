@@ -186,7 +186,7 @@ exports.getMarketplaceItems = (
                     JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
                     LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id AND pt.isValid = 1`;
 
-    let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.discount, m.startValue, m.maxQuantity, m.promo,
+    let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.comPrice, m.discount, m.startValue, m.maxQuantity, m.promo,
                   m.unitType, m.changeby, m.normalPrice, m.category, m.displayType,
                   cg.cropNameEnglish, cv.varietyNameEnglish,
                   pt.id AS productTypeId, pt.shortCode AS productTypeShortCode
@@ -506,6 +506,7 @@ exports.getProductById = async (id) => {
             PT.typeName AS productTypeName,
             MPI.normalPrice,
             MPI.discountedPrice AS salePrice,
+            MPI.comPrice,
             MPI.promo,
             MPI.unitType,
             MPI.startValue,
@@ -558,7 +559,8 @@ exports.updateMarketProductDao = async (product, id) => {
         discount = ?,
         maxQuantity = ?,
         varietyId = ?,
-        productTypeId = ?
+        productTypeId = ?,
+        comPrice = ?
       WHERE id = ?
     `;
     const values = [
@@ -576,6 +578,7 @@ exports.updateMarketProductDao = async (product, id) => {
       product.category === "WholeSale" ? parseFloat(product.maxQuantity) : null,
       parseInt(product.varietyId) || null,
       parseInt(product.productTypeId) || null,
+      parseFloat(product.comPrice) || 0, 
       parseInt(id),
     ];
 
@@ -589,6 +592,7 @@ exports.updateMarketProductDao = async (product, id) => {
     });
   });
 };
+
 exports.getAllMarketplacePackagesDAO = (searchText, date) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [];
