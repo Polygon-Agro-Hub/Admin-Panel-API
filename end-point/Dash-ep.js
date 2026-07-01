@@ -6,23 +6,73 @@ const deleteFromS3 = require("../middlewares/s3delete");
 
 exports.getAllCustomers = async (req, res) => {
   try {
-    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-    console.log("Request URL:", fullUrl);
-    
-    const { page, limit, searchText } = await ValidateSchema.getAllSalesAgentsSchema.validateAsync(req.query);
-    console.log(page, limit, searchText);
-
-    const { items, total } = await DashDao.getAllSalesCustomers(page, limit, searchText);
-
-    res.json({ items, total });
+    const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    console.log('Request URL:', fullUrl);
+ 
+    const { page, limit, searchText } =
+      await ValidateSchema.getAllSalesAgentsSchema.validateAsync(req.query);
+ 
+    // ratingFilter is optional – validate allowed values manually
+    const VALID_RATINGS = ['VVIP', 'VIP', 'COR', 'NOR', 'VVP'];
+    const ratingFilter  = req.query.ratingFilter ?? '';
+    if (ratingFilter && !VALID_RATINGS.includes(ratingFilter)) {
+      return res.status(400).json({ error: 'Invalid ratingFilter value' });
+    }
+ 
+    console.log(page, limit, searchText, ratingFilter);
+ 
+    const { items, total } = await DashDao.getAllSalesCustomers(
+      page,
+      limit,
+      searchText,
+      ratingFilter,
+    );
+ 
+    return res.json({ items, total });
   } catch (err) {
     if (err.isJoi) {
-      console.error("Validation error:", err.details[0].message);
+      console.error('Validation error:', err.details[0].message);
       return res.status(400).json({ error: err.details[0].message });
     }
+ 
+    console.error('Error fetching customers:', err);
+    return res
+      .status(500)
+      .json({ error: 'An error occurred while fetching customers' });
+  }
+};
 
-    console.error("Error fetching customers:", err);
-    res.status(500).json({ error: "An error occurred while fetching customers" });
+exports.updateDashCustomerRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+ 
+    const VALID_RATINGS = ['VVIP', 'VIP', 'COR', 'NOR', 'VVP'];
+    const { rateofCus } = req.body;
+ 
+    if (!rateofCus || !VALID_RATINGS.includes(rateofCus)) {
+      return res.status(400).json({
+        error: 'Invalid or missing rateofCus value',
+        status: false,
+      });
+    }
+ 
+    const updated = await DashDao.updateDashCustomerRatingDao(id, rateofCus);
+ 
+    if (!updated) {
+      return res
+        .status(404)
+        .json({ error: 'Customer not found', status: false });
+    }
+ 
+    return res
+      .status(200)
+      .json({ message: 'Rating updated successfully', status: true });
+  } catch (err) {
+    console.error('Error updating dash customer rating:', err);
+    return res.status(500).json({
+      error: 'An error occurred while updating customer rating',
+      status: false,
+    });
   }
 };
 

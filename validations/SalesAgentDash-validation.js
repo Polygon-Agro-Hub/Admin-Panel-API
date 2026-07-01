@@ -5,9 +5,11 @@ exports.getAllSalesAgentsSchema = Joi.object({
     limit: Joi.number().integer().min(1).max(100).default(10).optional(),
     date: Joi.string().optional(),
     status: Joi.string().optional(),
-    searchText: Joi.string().optional()
+    searchText: Joi.string().optional(),
+    ratingFilter: Joi.string().valid('VVIP', 'VIP', 'COR', 'NOR', 'VVP').allow('').optional()
 });
 
 exports.deleteSalesAgentSchema = Joi.object({
     id: Joi.number().integer().positive().required()
 });
+

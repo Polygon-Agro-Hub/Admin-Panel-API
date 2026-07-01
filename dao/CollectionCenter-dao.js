@@ -546,6 +546,15 @@ exports.getAllCenterPage = (limit, offset, district, province, searchItem) => {
     let whereClause = " WHERE 1=1";
     const searchParams = [];
 
+    // Add condition to exclude centers with Polygon Holdings Private Limited
+    whereClause += ` AND NOT EXISTS (
+        SELECT 1 
+        FROM companycenter CMC 
+        JOIN company COM ON COM.id = CMC.companyId 
+        WHERE CMC.centerId = C.id 
+        AND COM.companyNameEnglish = 'Polygon Holdings Private Limited'
+    )`;
+
     if (searchItem) {
       const searchQuery = `%${searchItem}%`;
       whereClause += " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";

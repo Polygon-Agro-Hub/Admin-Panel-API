@@ -43,6 +43,7 @@ exports.createMarketProduct = async (req, res) => {
       displaytype: req.body.displaytype,
       maxQuantity: req.body.maxQuantity,
       productTypeId: req.body.productTypeId,
+      comPrice: req.body.comPrice,
     };
 
     const { exists, varietyExists, nameExists } =
@@ -478,6 +479,7 @@ exports.editMarketProduct = async (req, res) => {
     });
   }
 };
+
 exports.getAllMarketplacePackages = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Request URL:", fullUrl);
@@ -1487,25 +1489,52 @@ exports.checkPackageDisplayNameExists = async (req, res) => {
 
 exports.getAllRetailCustomers = async (req, res) => {
   try {
-    const { page, limit, searchText } =
+    const { page, limit, searchText, ratingFilter } =
       await MarketPriceValidate.getmarketplaceCustomerParamSchema.validateAsync(
         req.query,
       );
+ 
     const offset = (page - 1) * limit;
     const { total, items } = await MarketPlaceDao.getAllRetailCustomersDao(
       limit,
       offset,
       searchText,
+      ratingFilter,   // ← new param
     );
-
-    return res.status(200).json({
-      total,
-      items,
-    });
+ 
+    return res.status(200).json({ total, items });
   } catch (err) {
-    console.error("Error checking display name:", err);
+    console.error('Error fetching retail customers:', err);
     return res.status(500).json({
-      error: "An error occurred while checking display name",
+      error: 'An error occurred while fetching retail customers',
+      status: false,
+    });
+  }
+};
+ 
+
+exports.updateRetailCustomerRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rateofCus } =
+      await MarketPriceValidate.updateCustomerRatingSchema.validateAsync(
+        req.body,
+      );
+ 
+    const updated = await MarketPlaceDao.updateRetailCustomerRatingDao(
+      id,
+      rateofCus,
+    );
+ 
+    if (!updated) {
+      return res.status(404).json({ error: 'Customer not found', status: false });
+    }
+ 
+    return res.status(200).json({ message: 'Rating updated successfully', status: true });
+  } catch (err) {
+    console.error('Error updating customer rating:', err);
+    return res.status(500).json({
+      error: 'An error occurred while updating customer rating',
       status: false,
     });
   }
@@ -1702,25 +1731,52 @@ exports.createDefinePackageWithItems = async (req, res) => {
 
 exports.getAllWholesaleCustomers = async (req, res) => {
   try {
-    const { page, limit, searchText } =
+    const { page, limit, searchText, ratingFilter } =
       await MarketPriceValidate.getmarketplaceCustomerParamSchema.validateAsync(
         req.query,
       );
+ 
     const offset = (page - 1) * limit;
     const { total, items } = await MarketPlaceDao.getAllWholesaleCustomersDao(
       limit,
       offset,
       searchText,
+      ratingFilter,  
     );
-
-    return res.status(200).json({
-      total,
-      items,
-    });
+ 
+    return res.status(200).json({ total, items });
   } catch (err) {
-    console.error("Error checking display name:", err);
+    console.error('Error fetching wholesale customers:', err);
     return res.status(500).json({
-      error: "An error occurred while checking display name",
+      error: 'An error occurred while fetching wholesale customers',
+      status: false,
+    });
+  }
+};
+ 
+ 
+exports.updateWholesaleCustomerRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rateofCus } =
+      await MarketPriceValidate.updateCustomerRatingSchema.validateAsync(
+        req.body,
+      );
+ 
+    const updated = await MarketPlaceDao.updateWholesaleCustomerRatingDao(
+      id,
+      rateofCus,
+    );
+ 
+    if (!updated) {
+      return res.status(404).json({ error: 'Customer not found', status: false });
+    }
+ 
+    return res.status(200).json({ message: 'Rating updated successfully', status: true });
+  } catch (err) {
+    console.error('Error updating wholesale customer rating:', err);
+    return res.status(500).json({
+      error: 'An error occurred while updating customer rating',
       status: false,
     });
   }
