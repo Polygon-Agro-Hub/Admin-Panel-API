@@ -769,16 +769,19 @@ exports.getAllMarketplaceItems = (category, userId) => {
         MPI.unitType,
         MPI.startValue,
         MPI.changeby,
-        XL.id AS isExcluded
+        MPI.productTypeId,
+        XL.id AS isExcluded,
+        PL.id AS isPreferred
       FROM marketplaceitems MPI
       LEFT JOIN excludelist XL ON XL.mpItemId =  MPI.id AND XL.userId = ?
+      LEFT JOIN preferlist PL ON PL.mpItemId =  MPI.id AND PL.userId = ?
       WHERE category = 'Retail'
       ORDER BY 
         MPI.displayName
     `;
 
 
-    marketPlace.query(sql, [userId], (err, results) => {
+    marketPlace.query(sql, [userId, userId], (err, results) => {
       if (err) {
         console.error(
           "[getAllMarketplaceItems] Error fetching all marketplace items:",
@@ -796,6 +799,7 @@ exports.getAllMarketplaceItems = (category, userId) => {
       // Structure the data
       const items = results.map((row) => ({
         id: row.id,
+        productTypeId: row.productTypeId,
         varietyId: row.varietyId,
         displayName: row.displayName,
         category: row.category,
@@ -807,6 +811,7 @@ exports.getAllMarketplaceItems = (category, userId) => {
         startValue: row.startValue,
         changeby: row.changeby,
         isExcluded: row.isExcluded === null ? false : true,
+        isPreferred: row.isPreferred === null ? false : true,
 
       }));
 
@@ -1676,7 +1681,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
     const offset = (page - 1) * limit;
 
     console.log(centerId, deliveryDate, search, page, limit);
-    
+
 
     // Build WHERE clause for package items
     let whereClausePackage = ` 
