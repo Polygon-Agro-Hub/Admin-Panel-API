@@ -2144,7 +2144,7 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
       dataParms.push(...searchArgs);
     }
  
-    dataSql += ` LIMIT ? OFFSET ? `;
+    dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
     dataParms.push(limit, offset);
  
     marketPlace.query(countSql, countParms, (countErr, countResults) => {
