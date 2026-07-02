@@ -1923,7 +1923,8 @@ exports.getAllMarketplaceItems = (category) => {
         displayType,
         tags,
         createdAt,
-        maxQuantity
+        maxQuantity,
+        productTypeId
       FROM 
         marketplaceitems
         WHERE category = 'Retail'
@@ -1956,6 +1957,7 @@ exports.getAllMarketplaceItems = (category) => {
         tags: row.tags ? row.tags.split(",") : [],
         createdAt: row.createdAt,
         maxQuantity: row.maxQuantity,
+        productTypeId: row.productTypeId,
       }));
 
       resolve(items);
