@@ -777,7 +777,11 @@ exports.getAllMarketplaceItems = (category, userId) => {
       LEFT JOIN preferlist PL ON PL.mpItemId =  MPI.id AND PL.userId = ?
       WHERE category = 'Retail'
       ORDER BY 
-        MPI.displayName
+      CASE 
+        WHEN PL.id IS NOT NULL THEN 0  -- Preferred items first
+        WHEN XL.id IS NOT NULL THEN 2  -- Excluded items last
+        ELSE 1                         -- Everything else in between
+      END
     `;
 
 
@@ -1374,7 +1378,7 @@ WHERE XL.userId = ?
 
 exports.productCategoryDao = async () => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT * FROM producttypes ORDER BY typeName";
+    const sql = "SELECT * FROM producttypes WHERE isValid = 1 ORDER BY typeName";
     marketPlace.query(sql, (err, results) => {
       if (err) {
         return reject(err);
