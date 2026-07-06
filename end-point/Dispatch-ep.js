@@ -521,8 +521,6 @@ exports.getPackageForDispatch = async (req, res) => {
 
 
     const packageData = await DispatchDao.getPackageForDispatchDao(id);
-    console.log(packageData);
-
     const btype = await DispatchDao.getDispatchOrderTypeDao(orderId);
     const marketplaceItems = await DispatchDao.getAllDispatchMarketplaceItems(
       btype.buyerType,

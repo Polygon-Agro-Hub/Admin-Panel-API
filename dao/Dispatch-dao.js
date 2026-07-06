@@ -2092,16 +2092,22 @@ exports.getAllDispatchMarketplaceItems = (category, userId) => {
         MPI.startValue,
         MPI.changeby,
         XL.id AS isExcluded,
+        PL.id AS isPreferred,
         MPI.productTypeId
       FROM marketplaceitems MPI
       LEFT JOIN excludelist XL ON MPI.id = XL.mpItemId AND XL.userId = ?
+      LEFT JOIN preferlist PL ON PL.mpItemId =  MPI.id AND PL.userId = ?
       WHERE MPI.category = ?
       ORDER BY 
-        MPI.displayName
+        CASE 
+          WHEN PL.id IS NOT NULL THEN 0  -- Preferred items first
+          WHEN XL.id IS NOT NULL THEN 2  -- Excluded items last
+          ELSE 1                         -- Everything else in between
+        END
     `;
 
 
-    marketPlace.query(sql, [userId, category], (err, results) => {
+    marketPlace.query(sql, [userId, userId, category], (err, results) => {
       if (err) {
         console.error(
           "[getAllMarketplaceItems] Error fetching all marketplace items:",
@@ -2124,11 +2130,10 @@ exports.getAllDispatchMarketplaceItems = (category, userId) => {
         startValue: row.startValue,
         changeby: row.changeby,
         isExcluded: row.isExcluded === null ? false : true,
+        isPreferred: row.isPreferred === null ? false : true,
         productTypeId: row.productTypeId,
 
       }));
-
-      console.log(items);
 
       resolve(items);
     });
