@@ -3328,79 +3328,94 @@ exports.getPosPackageDetailsDAO = (orderId) => {
     });
   });
 };
-exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
-  return new Promise((resolve, reject) => {
-    const sql = "UPDATE producttypes SET isValid = ?, modifyId = ? WHERE id = ?";
-    marketPlace.query(sql, [isValid, modifyId, id], (err, results) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve(results);
-    });
-  });
-};
-
 // exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
-//   // Start a transaction
 //   return new Promise((resolve, reject) => {
-//     marketPlace.getConnection((err, connection) => {
+//     const sql = "UPDATE producttypes SET isValid = ?, modifyId = ? WHERE id = ?";
+//     marketPlace.query(sql, [isValid, modifyId, id], (err, results) => {
 //       if (err) {
 //         return reject(err);
 //       }
-
-//       // Begin transaction
-//       connection.beginTransaction((err) => {
-//         if (err) {
-//           connection.release();
-//           return reject(err);
-//         }
-
-//         try {
-//           // Query 1: Update product type status
-//           const sql1 = "UPDATE producttypes SET isValid = ?, modifyId = ? WHERE id = ?";
-          
-//           // Query 2: Update marketplace packages status based on product type
-//           const sql2 = `
-//             UPDATE marketplacepackages mp
-//             LEFT JOIN packagedetails pd ON mp.id = pd.packageId
-//             SET mp.status = 'Disabled'
-//             WHERE pd.productTypeId = ?
-//           `;
-
-//           // Execute first query
-//           connection.query(sql1, [isValid, modifyId, id], (err, result1) => {
-//             if (err) {
-//               return rollbackAndRelease(connection, reject, err);
-//             }
-
-//             // Execute second query
-//             connection.query(sql2, [id], (err, result2) => {
-//               if (err) {
-//                 return rollbackAndRelease(connection, reject, err);
-//               }
-
-//               // Commit transaction if both queries succeed
-//               connection.commit((err) => {
-//                 if (err) {
-//                   return rollbackAndRelease(connection, reject, err);
-//                 }
-
-//                 // Release connection and resolve with results
-//                 connection.release();
-//                 resolve({
-//                   productTypeUpdate: result1,
-//                   packageUpdate: result2
-//                 });
-//               });
-//             });
-//           });
-//         } catch (error) {
-//           rollbackAndRelease(connection, reject, error);
-//         }
-//       });
+//       resolve(results);
 //     });
 //   });
 // };
+
+exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
+  // Start a transaction
+  return new Promise((resolve, reject) => {
+    marketPlace.getConnection((err, connection) => {
+      if (err) {
+        return reject(err);
+      }
+
+      // Begin transaction
+      connection.beginTransaction((err) => {
+        if (err) {
+          connection.release();
+          return reject(err);
+        }
+
+        try {
+          // Query 1: Update product type status
+          const sql1 = "UPDATE producttypes SET isValid = ?, modifyId = ? WHERE id = ?";
+          
+          // Query 2: Update marketplace packages status based on product type (only when isValid = 0)
+          const sql2 = `
+            UPDATE marketplacepackages mp
+            LEFT JOIN packagedetails pd ON mp.id = pd.packageId
+            SET mp.status = 'Disabled'
+            WHERE pd.productTypeId = ?
+          `;
+
+          // Execute first query
+          connection.query(sql1, [isValid, modifyId, id], (err, result1) => {
+            if (err) {
+              return rollbackAndRelease(connection, reject, err);
+            }
+
+            // Check if second query should be executed
+            if (isValid === 0) {
+              // Execute second query only when disabling (isValid = 0)
+              connection.query(sql2, [id], (err, result2) => {
+                if (err) {
+                  return rollbackAndRelease(connection, reject, err);
+                }
+
+                // Commit transaction with both results
+                connection.commit((err) => {
+                  if (err) {
+                    return rollbackAndRelease(connection, reject, err);
+                  }
+
+                  connection.release();
+                  resolve({
+                    productTypeUpdate: result1,
+                    packageUpdate: result2
+                  });
+                });
+              });
+            } else {
+              // Skip second query when enabling (isValid = 1)
+              connection.commit((err) => {
+                if (err) {
+                  return rollbackAndRelease(connection, reject, err);
+                }
+
+                connection.release();
+                resolve({
+                  productTypeUpdate: result1,
+                  packageUpdate: null // No package update performed
+                });
+              });
+            }
+          });
+        } catch (error) {
+          rollbackAndRelease(connection, reject, error);
+        }
+      });
+    });
+  });
+};
 
 // Helper function for rollback and release
 function rollbackAndRelease(connection, reject, error) {
