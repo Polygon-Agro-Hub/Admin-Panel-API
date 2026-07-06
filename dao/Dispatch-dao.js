@@ -2015,6 +2015,7 @@ exports.getPackageForDispatchDao = (orderId) => {
     const sql = `
       SELECT 
         opi.id,
+        pt.id as typeId,
         opi.qty,
         opi.isPacked,
         opi.price,
@@ -2090,7 +2091,8 @@ exports.getAllDispatchMarketplaceItems = (category, userId) => {
         MPI.unitType,
         MPI.startValue,
         MPI.changeby,
-        XL.id AS isExcluded
+        XL.id AS isExcluded,
+        MPI.productTypeId
       FROM marketplaceitems MPI
       LEFT JOIN excludelist XL ON MPI.id = XL.mpItemId AND XL.userId = ?
       WHERE MPI.category = ?
@@ -2122,6 +2124,7 @@ exports.getAllDispatchMarketplaceItems = (category, userId) => {
         startValue: row.startValue,
         changeby: row.changeby,
         isExcluded: row.isExcluded === null ? false : true,
+        productTypeId: row.productTypeId,
 
       }));
 
