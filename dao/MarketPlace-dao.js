@@ -1436,17 +1436,17 @@ exports.getProductTypeByIdDao = async (id) => {
   });
 };
 
-exports.editProductTypesDao = async (data, id) => {
+exports.editProductTypesDao = async (data, id, modifyId) => {
   return new Promise((resolve, reject) => {
     const sql = `
                 UPDATE producttypes 
                 SET 
-                  typeName = ?, shortCode = ?
+                  typeName = ?, shortCode = ?, modifyId = ?
                 WHERE id = ?
               `;
     marketPlace.query(
       sql,
-      [data.typeName, data.shortCode, id],
+      [data.typeName, data.shortCode, modifyId, id],
       (err, results) => {
         if (err) {
           return reject(err);
