@@ -1870,7 +1870,7 @@ exports.getMarketPlaceCustomePackagesDao = (page, limit, packageStatus, date, se
     let whereClause = ` 
     WHERE 
       o.orderApp = 'Marketplace' 
-      AND op.id IS NULL
+      AND op.id IS NULL AND po.status != 'Ordered'
      `;
     const params = [];
     const countParams = [];
