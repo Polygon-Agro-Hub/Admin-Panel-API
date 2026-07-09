@@ -1700,18 +1700,125 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
   });
 };
 
+// exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => {
+//   return new Promise((resolve, reject) => {
+//     let countParms = [];
+//     let dataParms  = [];
+ 
+//     let countSql = `
+//       SELECT COUNT(*) AS total
+//       FROM marketplaceusers MP
+//       WHERE MP.buyerType = 'Retail'
+//         AND MP.isMarketPlaceUser = 1
+//     `;
+ 
+//     let dataSql = `
+//       SELECT
+//         MP.id,
+//         MP.title,
+//         MP.firstName,
+//         MP.lastName,
+//         MP.phoneCode,
+//         MP.phoneNumber,
+//         MP.cusId,
+//         MP.email,
+//         MP.created_at,
+//         MP.buildingType,
+//         MP.rateofCus,
+//         H.houseNo,
+//         H.streetName,
+//         H.city,
+//         A.buildingNo,
+//         A.buildingName,
+//         A.unitNo,
+//         A.floorNo,
+//         A.houseNo    AS AparthouseNo,
+//         A.streetName AS ApartstreetName,
+//         A.city       AS Apartcity,
+//         (
+//           SELECT COUNT(*)
+//           FROM orders O
+//           LEFT JOIN processorders PO ON O.id = PO.orderId
+//           WHERE O.userId = MP.id
+//         ) AS totalOrders
+//       FROM marketplaceusers MP
+//       LEFT JOIN house      H ON MP.id = H.customerId AND MP.buildingType = 'House'
+//       LEFT JOIN apartment  A ON MP.id = A.customerId AND MP.buildingType = 'Apartment'
+//       WHERE MP.buyerType = 'Retail'
+//         AND MP.isMarketPlaceUser = 1
+//     `;
+ 
+//     // ── Optional: free-text search ──────────────────────────
+//     if (searchText) {
+//       const searchClause = `
+//         AND (
+//           CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
+//           OR MP.firstName   LIKE ?
+//           OR MP.lastName    LIKE ?
+//           OR MP.phoneNumber LIKE ?
+//           OR MP.cusId       LIKE ?
+//           OR CONCAT(MP.phoneCode, ' - ', MP.phoneNumber) LIKE ?
+//           OR CONCAT(MP.phoneCode, '-',   MP.phoneNumber) LIKE ?
+//           OR CONCAT(MP.phoneCode,        MP.phoneNumber) LIKE ?
+//           OR REPLACE(CONCAT(MP.phoneCode, ' - ', MP.phoneNumber), ' ', '') LIKE ?
+//           OR REPLACE(CONCAT(MP.phoneCode, '-',   MP.phoneNumber), ' ', '') LIKE ?
+//         )
+//       `;
+//       countSql += searchClause;
+//       dataSql  += searchClause;
+ 
+//       const search             = `%${searchText}%`;
+//       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
+//       const searchParms = [
+//         search, search, search, search, search,
+//         search, search,
+//         searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces,
+//       ];
+//       countParms.push(...searchParms);
+//       dataParms.push(...searchParms);
+//     }
+ 
+//     // ── Optional: rating filter ─────────────────────────────
+//     const VALID_RATINGS = ['VVIP', 'VIP', 'COR', 'NOR', 'VVP'];
+//     if (ratingFilter && VALID_RATINGS.includes(ratingFilter)) {
+//       countSql += ` AND MP.rateofCus = ? `;
+//       dataSql  += ` AND MP.rateofCus = ? `;
+//       countParms.push(ratingFilter);
+//       dataParms.push(ratingFilter);
+//     }
+ 
+//     // ── Ordering + pagination ───────────────────────────────
+//     dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
+//     dataParms.push(limit, offset);
+ 
+//     // ── Execute ─────────────────────────────────────────────
+//     marketPlace.query(countSql, countParms, (countErr, countResults) => {
+//       if (countErr) return reject(countErr);
+ 
+//       marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
+//         if (dataErr) return reject(dataErr);
+ 
+//         resolve({
+//           total: countResults[0].total,
+//           items: dataResults,
+//         });
+//       });
+//     });
+//   });
+// };
+
 exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => {
   return new Promise((resolve, reject) => {
     let countParms = [];
     let dataParms  = [];
- 
+
     let countSql = `
       SELECT COUNT(*) AS total
       FROM marketplaceusers MP
       WHERE MP.buyerType = 'Retail'
         AND MP.isMarketPlaceUser = 1
     `;
- 
+
     let dataSql = `
       SELECT
         MP.id,
@@ -1723,18 +1830,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
         MP.cusId,
         MP.email,
         MP.created_at,
-        MP.buildingType,
         MP.rateofCus,
-        H.houseNo,
-        H.streetName,
-        H.city,
-        A.buildingNo,
-        A.buildingName,
-        A.unitNo,
-        A.floorNo,
-        A.houseNo    AS AparthouseNo,
-        A.streetName AS ApartstreetName,
-        A.city       AS Apartcity,
         (
           SELECT COUNT(*)
           FROM orders O
@@ -1742,12 +1838,10 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
           WHERE O.userId = MP.id
         ) AS totalOrders
       FROM marketplaceusers MP
-      LEFT JOIN house      H ON MP.id = H.customerId AND MP.buildingType = 'House'
-      LEFT JOIN apartment  A ON MP.id = A.customerId AND MP.buildingType = 'Apartment'
       WHERE MP.buyerType = 'Retail'
         AND MP.isMarketPlaceUser = 1
     `;
- 
+
     // ── Optional: free-text search ──────────────────────────
     if (searchText) {
       const searchClause = `
@@ -1766,7 +1860,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
       `;
       countSql += searchClause;
       dataSql  += searchClause;
- 
+
       const search             = `%${searchText}%`;
       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
       const searchParms = [
@@ -1777,7 +1871,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
       countParms.push(...searchParms);
       dataParms.push(...searchParms);
     }
- 
+
     // ── Optional: rating filter ─────────────────────────────
     const VALID_RATINGS = ['VVIP', 'VIP', 'COR', 'NOR', 'VVP'];
     if (ratingFilter && VALID_RATINGS.includes(ratingFilter)) {
@@ -1786,18 +1880,18 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
       countParms.push(ratingFilter);
       dataParms.push(ratingFilter);
     }
- 
+
     // ── Ordering + pagination ───────────────────────────────
     dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
     dataParms.push(limit, offset);
- 
+
     // ── Execute ─────────────────────────────────────────────
     marketPlace.query(countSql, countParms, (countErr, countResults) => {
       if (countErr) return reject(countErr);
- 
+
       marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
         if (dataErr) return reject(dataErr);
- 
+
         resolve({
           total: countResults[0].total,
           items: dataResults,
@@ -1806,7 +1900,6 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
     });
   });
 };
-
 
 exports.updateRetailCustomerRatingDao = (customerId, rateofCus) => {
   return new Promise((resolve, reject) => {
