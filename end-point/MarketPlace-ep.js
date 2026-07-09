@@ -1285,9 +1285,15 @@ exports.editProductType = async (req, res) => {
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
       req.params,
     );
+
+    const modifyId = req.user.userId;
+    console.log('Extracted modifyId:', modifyId);
     const data =
       await MarketPriceValidate.createProductTypeSchema.validateAsync(req.body);
-    const result = await MarketPlaceDao.editProductTypesDao(data, id);
+    
+    const result = await MarketPlaceDao.editProductTypesDao(data, id, modifyId);
+
+    
 
     if (result.affectedRows === 0) {
       return res.json({
