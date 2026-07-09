@@ -422,6 +422,7 @@ exports.editMarketProduct = async (req, res) => {
     );
 
     const product = req.body;
+    const modifyBy = req.user?.userId;
 
     const { exists, varietyExists, nameExists } =
       await MarketPlaceDao.checkMarketEditProductExistsDao(
@@ -450,7 +451,7 @@ exports.editMarketProduct = async (req, res) => {
       });
     }
 
-    const result = await MarketPlaceDao.updateMarketProductDao(req.body, id);
+    const result = await MarketPlaceDao.updateMarketProductDao(req.body, id, modifyBy);
 
     if (result.affectedRows === 0) {
       return res.json({

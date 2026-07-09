@@ -184,15 +184,17 @@ exports.getMarketplaceItems = (
                     FROM marketplaceitems m
                     JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
                     JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+                    LEFT JOIN agro_world_admin.adminusers au ON m.modifyBy = au.id
                     LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id AND pt.isValid = 1`;
 
     let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.comPrice, m.discount, m.startValue, m.maxQuantity, m.promo,
-                  m.unitType, m.changeby, m.normalPrice, m.category, m.displayType,
+                  m.unitType, m.changeby, m.normalPrice, m.category, m.displayType, au.userName AS modifyBy,
                   cg.cropNameEnglish, cv.varietyNameEnglish,
                   pt.id AS productTypeId, pt.shortCode AS productTypeShortCode
                   FROM marketplaceitems m
                   JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
                   JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+                  LEFT JOIN agro_world_admin.adminusers au ON m.modifyBy = au.id
                   LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id AND pt.isValid = 1`;
 
     if (searchItem) {
@@ -542,7 +544,7 @@ exports.getProductById = async (id) => {
   });
 };
 
-exports.updateMarketProductDao = async (product, id) => {
+exports.updateMarketProductDao = async (product, id, modifyBy) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE marketplaceitems SET  
@@ -560,7 +562,8 @@ exports.updateMarketProductDao = async (product, id) => {
         maxQuantity = ?,
         varietyId = ?,
         productTypeId = ?,
-        comPrice = ?
+        comPrice = ?,
+        modifyBy = ?
       WHERE id = ?
     `;
     const values = [
@@ -578,7 +581,8 @@ exports.updateMarketProductDao = async (product, id) => {
       product.category === "WholeSale" ? parseFloat(product.maxQuantity) : null,
       parseInt(product.varietyId) || null,
       parseInt(product.productTypeId) || null,
-      parseFloat(product.comPrice) || 0, 
+      parseFloat(product.comPrice) || 0,
+      modifyBy || null, 
       parseInt(id),
     ];
 
