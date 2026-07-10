@@ -2758,7 +2758,8 @@ exports.getAllWholesaleOrderDetails = (
         o.fullTotal AS amount, 
         po.invNo, po.status,
         po.qrCode,
-        o.createdAt AS orderdDate 
+        o.createdAt AS orderdDate,
+        mu.companyName
       FROM market_place.orders o
       LEFT JOIN market_place.processorders po ON o.id = po.orderId
       LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
