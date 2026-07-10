@@ -3507,7 +3507,7 @@ exports.getPosPackageDetailsDAO = (orderId) => {
                 'typeName', pt.typeName,             
                 'productName', mpi.displayName,
                 'unit', mpi.unitType,   
-                'price', opi.price,                  
+                'price', mpi.discountedPrice,                   
                 'qty', opi.qty                       
             )                                        
         ) AS items                                   
