@@ -1234,8 +1234,8 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
       `;
 
     if (dateFilter) {
-      dataSql += ` AND DATE(o.sheduleDate) = ? `;
-      countSql += ` AND DATE(o.sheduleDate) = ? `;
+      dataSql += ` AND DATE((SELECT ADDTIME(MAX(opi.createdAt), '05:30:00') FROM orderpackageitems opi WHERE opi.orderPackageId = op.id)) = ? `;
+      countSql += ` AND DATE((SELECT ADDTIME(MAX(opi.createdAt), '05:30:00') FROM orderpackageitems opi WHERE opi.orderPackageId = op.id)) = ? `;
       params.push(dateFilter);
       countParams.push(dateFilter);
     }

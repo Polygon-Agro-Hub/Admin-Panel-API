@@ -1946,7 +1946,7 @@ WITH additional_items_counts AS (
     SELECT 
         orderId,
         COUNT(*) AS totalAdditionalItems,
-        SUM(normalPrice) AS price,
+        SUM(price) AS price,
         SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
     FROM orderadditionalitems
     GROUP BY orderId
@@ -1965,7 +1965,7 @@ ${whereClause}
           SELECT 
               orderId,
               COUNT(*) AS totalAdditionalItems,
-              SUM(normalPrice) AS price,
+              SUM(price) AS price,
               SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
               CASE
                   WHEN COUNT(*) = 0 THEN 'Unknown'
