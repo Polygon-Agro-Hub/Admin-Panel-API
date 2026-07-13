@@ -244,4 +244,10 @@ router.get(
 
 router.get('/govicare-investment-users', authMiddleware, financeController.getGocicareAllInvestmentUsers);
 
+router.get(
+  "/get-all-transactions",
+  authMiddleware,
+  financeController.getAllTransactionsEp
+);
+
 module.exports = router;

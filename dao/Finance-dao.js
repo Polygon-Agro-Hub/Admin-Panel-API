@@ -2734,3 +2734,104 @@ exports.getAllFinanceDashboardDataDao = () => {
     });
   });
 };
+
+
+exports.GetAllTransactionsDAO = (
+  page,
+  limit,
+  status,
+  date,
+  searchItem,
+) => {
+  return new Promise((resolve, reject) => {
+    const Sqlparams = [];
+    const Counterparams = [];
+    const offset = (page - 1) * limit;
+
+    // SQL to count total records - Added missing JOINs
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM govi_shop.govishops gs
+      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
+      WHERE gs.approvedStatus != 'Approved' AND gs.isAvailable = 1
+    `;
+
+    // SQL to fetch paginated data
+    let sql = `
+      SELECT 
+        gs.id, 
+        gs.shopName,
+        gs.shopType,
+        gs.email,
+        gs.phone,
+        gs.updatedAt AS updatedAt,
+        gs.logo,
+        gs.isActive,
+        gs.approvedStatus,
+        CASE 
+          WHEN gs.updatedAt IS NOT NULL THEN 'edit'
+          ELSE 'create'
+        END AS actionStatus,
+        so.ownerName,
+        so.shopPhone As ownerPhone
+      FROM govi_shop.govishops gs
+      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
+      WHERE gs.approvedStatus != 'Approved' AND gs.isAvailable = 1
+    `;
+
+    // Add filter for status
+    if (approval) {
+      countSql += " AND gs.approvedStatus = ? ";
+      sql += " AND gs.approvedStatus = ? ";
+      Sqlparams.push(approval);
+      Counterparams.push(approval);
+    }
+
+    // Fixed category filter to use the correct alias
+    if (bussinessType) {
+      countSql += " AND gs.shopType = ? ";
+      sql += " AND gs.shopType = ? ";
+      Sqlparams.push(bussinessType);
+      Counterparams.push(bussinessType);
+    }
+
+    // Add search functionality
+    if (searchItem) {
+      countSql += `
+        AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )
+      `;
+      sql += `
+        AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )
+      `;
+      const searchQuery = `%${searchItem}%`;
+      Sqlparams.push(searchQuery, searchQuery);
+      Counterparams.push(searchQuery, searchQuery);
+    }
+
+    // Add pagination
+    sql += " ORDER BY gs.shopName ASC LIMIT ? OFFSET ?";
+    Sqlparams.push(parseInt(limit), parseInt(offset));
+
+    // Execute count query to get total records
+    collectionofficer.query(
+      countSql,
+      Counterparams,
+      (countErr, countResults) => {
+        if (countErr) {
+          return reject(countErr);
+        }
+
+        const total = countResults[0]?.total || 0;
+
+        // Execute main query to get paginated results
+        collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
+          if (dataErr) {
+            return reject(dataErr);
+          }
+
+          resolve({ results, total });
+        });
+      },
+    );
+  });
+};
