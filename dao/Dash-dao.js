@@ -544,17 +544,118 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
   }
 };
 
+// const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
+//   return new Promise((resolve, reject) => {
+//     const offset = (page - 1) * limit;
+ 
+//     let countSql = `
+//       SELECT COUNT(*) AS total
+//       FROM   marketplaceusers  CUS
+//       INNER JOIN salesagent    SA  ON CUS.salesAgent = SA.id
+//       WHERE  CUS.isDashUser = 1
+//     `;
+ 
+//     let dataSql = `
+//       SELECT
+//         CUS.id,
+//         CUS.cusId,
+//         CUS.phoneNumber,
+//         CUS.title,
+//         CUS.firstName,
+//         CUS.lastName,
+//         CUS.buildingType,
+//         CUS.email,
+//         CUS.rateofCus,
+//         SA.empId,
+//         SA.firstName  AS salesAgentFirstName,
+//         SA.lastName   AS salesAgentLastName,
+//         CUS.created_at,
+//         (SELECT COUNT(*) FROM orders WHERE userId = CUS.id) AS totOrders,
+//         -- House details
+//         H.houseNo     AS houseHouseNo,
+//         H.streetName  AS houseStreetName,
+//         H.city        AS houseCity,
+//         -- Apartment details
+//         A.buildingNo  AS apartmentBuildingNo,
+//         A.buildingName AS apartmentBuildingName,
+//         A.unitNo      AS apartmentUnitNo,
+//         A.houseNo     AS apartmentHouseNo,
+//         A.streetName  AS apartmentStreetName,
+//         A.city        AS apartmentCity,
+//         A.floorNo     AS apartmentFloorNo
+//       FROM   marketplaceusers  CUS
+//       INNER JOIN salesagent    SA  ON CUS.salesAgent = SA.id
+//       LEFT  JOIN house         H   ON CUS.id = H.customerId  AND CUS.buildingType = 'House'
+//       LEFT  JOIN apartment     A   ON CUS.id = A.customerId  AND CUS.buildingType = 'Apartment'
+//       WHERE  CUS.isDashUser = 1
+//     `;
+ 
+//     const countParams = [];
+//     const dataParams  = [];
+ 
+//     // ── Free-text search ──────────────────────────────────────────────────────
+//     if (searchText) {
+//       const searchCondition = `
+//         AND (
+//           CUS.firstName   LIKE ?
+//           OR CUS.lastName  LIKE ?
+//           OR CUS.phoneNumber LIKE ?
+//           OR CUS.cusId     LIKE ?
+//           OR SA.empId      LIKE ?
+//         )
+//       `;
+//       const v = `%${searchText}%`;
+//       countSql += searchCondition;
+//       dataSql  += searchCondition;
+//       countParams.push(v, v, v, v, v);
+//       dataParams .push(v, v, v, v, v);
+//     }
+ 
+//     // ── Rating filter ─────────────────────────────────────────────────────────
+//     if (ratingFilter) {
+//       const ratingCondition = ` AND CUS.rateofCus = ? `;
+//       countSql += ratingCondition;
+//       dataSql  += ratingCondition;
+//       countParams.push(ratingFilter);
+//       dataParams .push(ratingFilter);
+//     }
+ 
+//     dataSql += ' LIMIT ? OFFSET ?';
+//     dataParams.push(limit, offset);
+ 
+//     // ── Execute count ─────────────────────────────────────────────────────────
+//     marketPlace.query(countSql, countParams, (countErr, countResults) => {
+//       if (countErr) {
+//         console.error('Error in count query:', countErr);
+//         return reject(countErr);
+//       }
+ 
+//       const total = countResults[0].total;
+ 
+//       // ── Execute data ────────────────────────────────────────────────────────
+//       marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+//         if (dataErr) {
+//           console.error('Error in data query:', dataErr);
+//           return reject(dataErr);
+//         }
+ 
+//         resolve({ items: dataResults, total });
+//       });
+//     });
+//   });
+// };
+ 
 const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
- 
+
     let countSql = `
       SELECT COUNT(*) AS total
       FROM   marketplaceusers  CUS
       INNER JOIN salesagent    SA  ON CUS.salesAgent = SA.id
       WHERE  CUS.isDashUser = 1
     `;
- 
+
     let dataSql = `
       SELECT
         CUS.id,
@@ -563,36 +664,21 @@ const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
         CUS.title,
         CUS.firstName,
         CUS.lastName,
-        CUS.buildingType,
         CUS.email,
         CUS.rateofCus,
         SA.empId,
         SA.firstName  AS salesAgentFirstName,
         SA.lastName   AS salesAgentLastName,
         CUS.created_at,
-        (SELECT COUNT(*) FROM orders WHERE userId = CUS.id) AS totOrders,
-        -- House details
-        H.houseNo     AS houseHouseNo,
-        H.streetName  AS houseStreetName,
-        H.city        AS houseCity,
-        -- Apartment details
-        A.buildingNo  AS apartmentBuildingNo,
-        A.buildingName AS apartmentBuildingName,
-        A.unitNo      AS apartmentUnitNo,
-        A.houseNo     AS apartmentHouseNo,
-        A.streetName  AS apartmentStreetName,
-        A.city        AS apartmentCity,
-        A.floorNo     AS apartmentFloorNo
+        (SELECT COUNT(*) FROM orders WHERE userId = CUS.id) AS totOrders
       FROM   marketplaceusers  CUS
       INNER JOIN salesagent    SA  ON CUS.salesAgent = SA.id
-      LEFT  JOIN house         H   ON CUS.id = H.customerId  AND CUS.buildingType = 'House'
-      LEFT  JOIN apartment     A   ON CUS.id = A.customerId  AND CUS.buildingType = 'Apartment'
       WHERE  CUS.isDashUser = 1
     `;
- 
+
     const countParams = [];
     const dataParams  = [];
- 
+
     // ── Free-text search ──────────────────────────────────────────────────────
     if (searchText) {
       const searchCondition = `
@@ -610,7 +696,7 @@ const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
       countParams.push(v, v, v, v, v);
       dataParams .push(v, v, v, v, v);
     }
- 
+
     // ── Rating filter ─────────────────────────────────────────────────────────
     if (ratingFilter) {
       const ratingCondition = ` AND CUS.rateofCus = ? `;
@@ -619,32 +705,31 @@ const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
       countParams.push(ratingFilter);
       dataParams .push(ratingFilter);
     }
- 
+
     dataSql += ' LIMIT ? OFFSET ?';
     dataParams.push(limit, offset);
- 
+
     // ── Execute count ─────────────────────────────────────────────────────────
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error('Error in count query:', countErr);
         return reject(countErr);
       }
- 
+
       const total = countResults[0].total;
- 
+
       // ── Execute data ────────────────────────────────────────────────────────
       marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           console.error('Error in data query:', dataErr);
           return reject(dataErr);
         }
- 
+
         resolve({ items: dataResults, total });
       });
     });
   });
 };
- 
 
 const updateDashCustomerRatingDao = (id, rateofCus) => {
   return new Promise((resolve, reject) => {

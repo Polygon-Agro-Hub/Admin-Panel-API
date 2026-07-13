@@ -184,15 +184,17 @@ exports.getMarketplaceItems = (
                     FROM marketplaceitems m
                     JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
                     JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+                    LEFT JOIN agro_world_admin.adminusers au ON m.modifyBy = au.id
                     LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id AND pt.isValid = 1`;
 
     let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.comPrice, m.discount, m.startValue, m.maxQuantity, m.promo,
-                  m.unitType, m.changeby, m.normalPrice, m.category, m.displayType,
+                  m.unitType, m.changeby, m.normalPrice, m.category, m.displayType, au.userName AS modifyBy,
                   cg.cropNameEnglish, cv.varietyNameEnglish,
                   pt.id AS productTypeId, pt.shortCode AS productTypeShortCode
                   FROM marketplaceitems m
                   JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
                   JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+                  LEFT JOIN agro_world_admin.adminusers au ON m.modifyBy = au.id
                   LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id AND pt.isValid = 1`;
 
     if (searchItem) {
@@ -542,7 +544,7 @@ exports.getProductById = async (id) => {
   });
 };
 
-exports.updateMarketProductDao = async (product, id) => {
+exports.updateMarketProductDao = async (product, id, modifyBy) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE marketplaceitems SET  
@@ -560,7 +562,8 @@ exports.updateMarketProductDao = async (product, id) => {
         maxQuantity = ?,
         varietyId = ?,
         productTypeId = ?,
-        comPrice = ?
+        comPrice = ?,
+        modifyBy = ?
       WHERE id = ?
     `;
     const values = [
@@ -578,7 +581,8 @@ exports.updateMarketProductDao = async (product, id) => {
       product.category === "WholeSale" ? parseFloat(product.maxQuantity) : null,
       parseInt(product.varietyId) || null,
       parseInt(product.productTypeId) || null,
-      parseFloat(product.comPrice) || 0, 
+      parseFloat(product.comPrice) || 0,
+      modifyBy || null, 
       parseInt(id),
     ];
 
@@ -1436,17 +1440,17 @@ exports.getProductTypeByIdDao = async (id) => {
   });
 };
 
-exports.editProductTypesDao = async (data, id) => {
+exports.editProductTypesDao = async (data, id, modifyId) => {
   return new Promise((resolve, reject) => {
     const sql = `
                 UPDATE producttypes 
                 SET 
-                  typeName = ?, shortCode = ?
+                  typeName = ?, shortCode = ?, modifyId = ?
                 WHERE id = ?
               `;
     marketPlace.query(
       sql,
-      [data.typeName, data.shortCode, id],
+      [data.typeName, data.shortCode, modifyId, id],
       (err, results) => {
         if (err) {
           return reject(err);
@@ -1700,18 +1704,125 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
   });
 };
 
+// exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => {
+//   return new Promise((resolve, reject) => {
+//     let countParms = [];
+//     let dataParms  = [];
+ 
+//     let countSql = `
+//       SELECT COUNT(*) AS total
+//       FROM marketplaceusers MP
+//       WHERE MP.buyerType = 'Retail'
+//         AND MP.isMarketPlaceUser = 1
+//     `;
+ 
+//     let dataSql = `
+//       SELECT
+//         MP.id,
+//         MP.title,
+//         MP.firstName,
+//         MP.lastName,
+//         MP.phoneCode,
+//         MP.phoneNumber,
+//         MP.cusId,
+//         MP.email,
+//         MP.created_at,
+//         MP.buildingType,
+//         MP.rateofCus,
+//         H.houseNo,
+//         H.streetName,
+//         H.city,
+//         A.buildingNo,
+//         A.buildingName,
+//         A.unitNo,
+//         A.floorNo,
+//         A.houseNo    AS AparthouseNo,
+//         A.streetName AS ApartstreetName,
+//         A.city       AS Apartcity,
+//         (
+//           SELECT COUNT(*)
+//           FROM orders O
+//           LEFT JOIN processorders PO ON O.id = PO.orderId
+//           WHERE O.userId = MP.id
+//         ) AS totalOrders
+//       FROM marketplaceusers MP
+//       LEFT JOIN house      H ON MP.id = H.customerId AND MP.buildingType = 'House'
+//       LEFT JOIN apartment  A ON MP.id = A.customerId AND MP.buildingType = 'Apartment'
+//       WHERE MP.buyerType = 'Retail'
+//         AND MP.isMarketPlaceUser = 1
+//     `;
+ 
+//     // ── Optional: free-text search ──────────────────────────
+//     if (searchText) {
+//       const searchClause = `
+//         AND (
+//           CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
+//           OR MP.firstName   LIKE ?
+//           OR MP.lastName    LIKE ?
+//           OR MP.phoneNumber LIKE ?
+//           OR MP.cusId       LIKE ?
+//           OR CONCAT(MP.phoneCode, ' - ', MP.phoneNumber) LIKE ?
+//           OR CONCAT(MP.phoneCode, '-',   MP.phoneNumber) LIKE ?
+//           OR CONCAT(MP.phoneCode,        MP.phoneNumber) LIKE ?
+//           OR REPLACE(CONCAT(MP.phoneCode, ' - ', MP.phoneNumber), ' ', '') LIKE ?
+//           OR REPLACE(CONCAT(MP.phoneCode, '-',   MP.phoneNumber), ' ', '') LIKE ?
+//         )
+//       `;
+//       countSql += searchClause;
+//       dataSql  += searchClause;
+ 
+//       const search             = `%${searchText}%`;
+//       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
+//       const searchParms = [
+//         search, search, search, search, search,
+//         search, search,
+//         searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces,
+//       ];
+//       countParms.push(...searchParms);
+//       dataParms.push(...searchParms);
+//     }
+ 
+//     // ── Optional: rating filter ─────────────────────────────
+//     const VALID_RATINGS = ['VVIP', 'VIP', 'COR', 'NOR', 'VVP'];
+//     if (ratingFilter && VALID_RATINGS.includes(ratingFilter)) {
+//       countSql += ` AND MP.rateofCus = ? `;
+//       dataSql  += ` AND MP.rateofCus = ? `;
+//       countParms.push(ratingFilter);
+//       dataParms.push(ratingFilter);
+//     }
+ 
+//     // ── Ordering + pagination ───────────────────────────────
+//     dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
+//     dataParms.push(limit, offset);
+ 
+//     // ── Execute ─────────────────────────────────────────────
+//     marketPlace.query(countSql, countParms, (countErr, countResults) => {
+//       if (countErr) return reject(countErr);
+ 
+//       marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
+//         if (dataErr) return reject(dataErr);
+ 
+//         resolve({
+//           total: countResults[0].total,
+//           items: dataResults,
+//         });
+//       });
+//     });
+//   });
+// };
+
 exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => {
   return new Promise((resolve, reject) => {
     let countParms = [];
     let dataParms  = [];
- 
+
     let countSql = `
       SELECT COUNT(*) AS total
       FROM marketplaceusers MP
       WHERE MP.buyerType = 'Retail'
         AND MP.isMarketPlaceUser = 1
     `;
- 
+
     let dataSql = `
       SELECT
         MP.id,
@@ -1723,18 +1834,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
         MP.cusId,
         MP.email,
         MP.created_at,
-        MP.buildingType,
         MP.rateofCus,
-        H.houseNo,
-        H.streetName,
-        H.city,
-        A.buildingNo,
-        A.buildingName,
-        A.unitNo,
-        A.floorNo,
-        A.houseNo    AS AparthouseNo,
-        A.streetName AS ApartstreetName,
-        A.city       AS Apartcity,
         (
           SELECT COUNT(*)
           FROM orders O
@@ -1742,12 +1842,10 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
           WHERE O.userId = MP.id
         ) AS totalOrders
       FROM marketplaceusers MP
-      LEFT JOIN house      H ON MP.id = H.customerId AND MP.buildingType = 'House'
-      LEFT JOIN apartment  A ON MP.id = A.customerId AND MP.buildingType = 'Apartment'
       WHERE MP.buyerType = 'Retail'
         AND MP.isMarketPlaceUser = 1
     `;
- 
+
     // ── Optional: free-text search ──────────────────────────
     if (searchText) {
       const searchClause = `
@@ -1766,7 +1864,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
       `;
       countSql += searchClause;
       dataSql  += searchClause;
- 
+
       const search             = `%${searchText}%`;
       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
       const searchParms = [
@@ -1777,7 +1875,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
       countParms.push(...searchParms);
       dataParms.push(...searchParms);
     }
- 
+
     // ── Optional: rating filter ─────────────────────────────
     const VALID_RATINGS = ['VVIP', 'VIP', 'COR', 'NOR', 'VVP'];
     if (ratingFilter && VALID_RATINGS.includes(ratingFilter)) {
@@ -1786,18 +1884,18 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
       countParms.push(ratingFilter);
       dataParms.push(ratingFilter);
     }
- 
+
     // ── Ordering + pagination ───────────────────────────────
     dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
     dataParms.push(limit, offset);
- 
+
     // ── Execute ─────────────────────────────────────────────
     marketPlace.query(countSql, countParms, (countErr, countResults) => {
       if (countErr) return reject(countErr);
- 
+
       marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
         if (dataErr) return reject(dataErr);
- 
+
         resolve({
           total: countResults[0].total,
           items: dataResults,
@@ -1806,7 +1904,6 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
     });
   });
 };
-
 
 exports.updateRetailCustomerRatingDao = (customerId, rateofCus) => {
   return new Promise((resolve, reject) => {
@@ -2052,11 +2149,127 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
   });
 };
 
+// exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) => {
+//   return new Promise((resolve, reject) => {
+//     let countParms = [];
+//     let dataParms  = [];
+ 
+//     let countSql = `
+//       SELECT COUNT(*) AS total
+//       FROM marketplaceusers MP
+//       WHERE
+//         MP.buyerType = 'Wholesale'
+//         AND MP.isMarketPlaceUser = 1
+//     `;
+ 
+//     let dataSql = `
+//       SELECT
+//         MP.id,
+//         MP.title,
+//         MP.firstName,
+//         MP.lastName,
+//         MP.phoneCode,
+//         MP.phoneNumber,
+//         MP.cusId,
+//         MP.email,
+//         MP.created_at,
+//         MP.buildingType,
+//         MP.companyName,
+//         MP.companyPhoneCode,
+//         MP.companyPhone,
+//         MP.rateofCus,
+//         H.houseNo,
+//         H.streetName,
+//         H.city,
+//         A.buildingNo,
+//         A.buildingName,
+//         A.unitNo,
+//         A.floorNo,
+//         A.houseNo      AS AparthouseNo,
+//         A.streetName   AS ApartstreetName,
+//         A.city         AS Apartcity,
+//         (
+//           SELECT COUNT(*)
+//           FROM orders O
+//           LEFT JOIN processorders PO ON O.id = PO.orderId
+//           WHERE O.userId = MP.id
+//         ) AS totalOrders
+//       FROM marketplaceusers MP
+//       LEFT JOIN house      H ON MP.id = H.customerId AND MP.buildingType = 'House'
+//       LEFT JOIN apartment  A ON MP.id = A.customerId AND MP.buildingType = 'Apartment'
+//       WHERE
+//         MP.buyerType = 'Wholesale'
+//         AND MP.isMarketPlaceUser = 1
+//     `;
+ 
+//     // ── Rating filter ──────────────────────────────────────────────────────────
+//     if (ratingFilter) {
+//       countSql += ` AND MP.rateofCus = ? `;
+//       dataSql  += ` AND MP.rateofCus = ? `;
+//       countParms.push(ratingFilter);
+//       dataParms.push(ratingFilter);
+//     }
+ 
+//     // ── Search filter ──────────────────────────────────────────────────────────
+//     if (searchText) {
+//       const searchClause = `
+//         AND (
+//           CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
+//           OR MP.firstName    LIKE ?
+//           OR MP.lastName     LIKE ?
+//           OR MP.phoneNumber  LIKE ?
+//           OR MP.cusId        LIKE ?
+//           OR CONCAT(MP.phoneCode, ' - ', MP.phoneNumber) LIKE ?
+//           OR CONCAT(MP.phoneCode, '-',   MP.phoneNumber) LIKE ?
+//           OR CONCAT(MP.phoneCode,        MP.phoneNumber) LIKE ?
+//           OR REPLACE(CONCAT(MP.phoneCode, ' - ', MP.phoneNumber), ' ', '') LIKE ?
+//           OR REPLACE(CONCAT(MP.phoneCode, '-',   MP.phoneNumber), ' ', '') LIKE ?
+//         )
+//       `;
+//       countSql += searchClause;
+//       dataSql  += searchClause;
+ 
+//       const search             = `%${searchText}%`;
+//       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
+//       const searchArgs = [
+//         search, search, search, search, search,
+//         search, search,
+//         searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces,
+//       ];
+ 
+//       countParms.push(...searchArgs);
+//       dataParms.push(...searchArgs);
+//     }
+ 
+//     dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
+//     dataParms.push(limit, offset);
+ 
+//     marketPlace.query(countSql, countParms, (countErr, countResults) => {
+//       if (countErr) {
+//         console.error(countErr);
+//         return reject(countErr);
+//       }
+ 
+//       marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
+//         if (dataErr) {
+//           console.error(dataErr);
+//           return reject(dataErr);
+//         }
+ 
+//         resolve({
+//           total: countResults[0].total,
+//           items: dataResults,
+//         });
+//       });
+//     });
+//   });
+// };
+ 
 exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) => {
   return new Promise((resolve, reject) => {
     let countParms = [];
     let dataParms  = [];
- 
+
     let countSql = `
       SELECT COUNT(*) AS total
       FROM marketplaceusers MP
@@ -2064,7 +2277,7 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
         MP.buyerType = 'Wholesale'
         AND MP.isMarketPlaceUser = 1
     `;
- 
+
     let dataSql = `
       SELECT
         MP.id,
@@ -2076,21 +2289,10 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
         MP.cusId,
         MP.email,
         MP.created_at,
-        MP.buildingType,
         MP.companyName,
         MP.companyPhoneCode,
         MP.companyPhone,
         MP.rateofCus,
-        H.houseNo,
-        H.streetName,
-        H.city,
-        A.buildingNo,
-        A.buildingName,
-        A.unitNo,
-        A.floorNo,
-        A.houseNo      AS AparthouseNo,
-        A.streetName   AS ApartstreetName,
-        A.city         AS Apartcity,
         (
           SELECT COUNT(*)
           FROM orders O
@@ -2098,13 +2300,11 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
           WHERE O.userId = MP.id
         ) AS totalOrders
       FROM marketplaceusers MP
-      LEFT JOIN house      H ON MP.id = H.customerId AND MP.buildingType = 'House'
-      LEFT JOIN apartment  A ON MP.id = A.customerId AND MP.buildingType = 'Apartment'
       WHERE
         MP.buyerType = 'Wholesale'
         AND MP.isMarketPlaceUser = 1
     `;
- 
+
     // ── Rating filter ──────────────────────────────────────────────────────────
     if (ratingFilter) {
       countSql += ` AND MP.rateofCus = ? `;
@@ -2112,7 +2312,7 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
       countParms.push(ratingFilter);
       dataParms.push(ratingFilter);
     }
- 
+
     // ── Search filter ──────────────────────────────────────────────────────────
     if (searchText) {
       const searchClause = `
@@ -2131,7 +2331,7 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
       `;
       countSql += searchClause;
       dataSql  += searchClause;
- 
+
       const search             = `%${searchText}%`;
       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
       const searchArgs = [
@@ -2139,26 +2339,26 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
         search, search,
         searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces,
       ];
- 
+
       countParms.push(...searchArgs);
       dataParms.push(...searchArgs);
     }
- 
+
     dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
     dataParms.push(limit, offset);
- 
+
     marketPlace.query(countSql, countParms, (countErr, countResults) => {
       if (countErr) {
         console.error(countErr);
         return reject(countErr);
       }
- 
+
       marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
         if (dataErr) {
           console.error(dataErr);
           return reject(dataErr);
         }
- 
+
         resolve({
           total: countResults[0].total,
           items: dataResults,
@@ -2167,7 +2367,6 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
     });
   });
 };
- 
  
 exports.updateWholesaleCustomerRatingDao = (id, rateofCus) => {
   return new Promise((resolve, reject) => {
@@ -2559,7 +2758,8 @@ exports.getAllWholesaleOrderDetails = (
         o.fullTotal AS amount, 
         po.invNo, po.status,
         po.qrCode,
-        o.createdAt AS orderdDate 
+        o.createdAt AS orderdDate,
+        mu.companyName
       FROM market_place.orders o
       LEFT JOIN market_place.processorders po ON o.id = po.orderId
       LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
@@ -3292,7 +3492,7 @@ exports.getPosPackageDetailsDAO = (orderId) => {
                 'typeName', pt.typeName,             
                 'productName', mpi.displayName,
                 'unit', mpi.unitType,   
-                'price', opi.price,                  
+                'price', mpi.discountedPrice,                   
                 'qty', opi.qty                       
             )                                        
         ) AS items                                   
