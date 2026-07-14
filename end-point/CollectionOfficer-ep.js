@@ -1620,26 +1620,35 @@ exports.getDriveCategoryById = async (req, res) => {
 exports.addDriveCategory = async (req, res) => {
   try {
     const { catName, payout } = req.body;
-    
-    // Validation
+
     if (!catName || !payout) {
       return res.status(400).json({
         status: false,
         error: 'Category name and payout are required'
       });
     }
-    
-    // Get the logged-in user ID from the token
-    const updatedBy = req.user ? req.user.id : 1;
-    
+
+    const trimmedName = catName.trim();
+
+    // Check for duplicate
+    const existing = await collectionofficerDao.getDriveCategoryByName(trimmedName);
+    if (existing) {
+      return res.status(409).json({
+        status: false,
+        error: 'A driver category with this name already exists'
+      });
+    }
+
+    const updatedBy = req.user.id;
+
     const data = {
-      catName: catName.trim(),
+      catName: trimmedName,
       payout: parseFloat(payout),
       updatedBy: updatedBy
     };
-    
+
     const result = await collectionofficerDao.addDriveCategory(data);
-    
+
     res.status(201).json({
       status: true,
       message: 'Driver category added successfully',
@@ -1654,7 +1663,6 @@ exports.addDriveCategory = async (req, res) => {
   }
 };
 
-// Update drive category
 exports.updateDriveCategory = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1682,10 +1690,21 @@ exports.updateDriveCategory = async (req, res) => {
       });
     }
 
+    const trimmedName = catName.trim();
+
+    // Check for duplicate, excluding the current record
+    const duplicate = await collectionofficerDao.getDriveCategoryByName(trimmedName, id);
+    if (duplicate) {
+      return res.status(409).json({
+        status: false,
+        error: 'A driver category with this name already exists'
+      });
+    }
+
     const updatedBy = req.user.userId;
 
     const data = {
-      catName: catName.trim(),
+      catName: trimmedName,
       payout: parseFloat(payout),
       updatedBy: updatedBy
     };

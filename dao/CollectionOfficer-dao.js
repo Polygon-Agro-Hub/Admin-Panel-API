@@ -2684,3 +2684,22 @@ exports.updateDriveCategory = (id, data) => {
     });
   });
 };
+
+exports.getDriveCategoryByName = (catName, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = "SELECT id, catName, payout FROM drivercategory WHERE LOWER(catName) = LOWER(?)";
+    const params = [catName];
+
+    if (excludeId) {
+      sql += " AND id != ?";
+      params.push(excludeId);
+    }
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
