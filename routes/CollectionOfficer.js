@@ -358,4 +358,10 @@ router.put(
   authMiddleware,
   CollectionOfficerEp.disclaimDriver
 );
+
+router.get(
+  "/driver/get-all-drive-categories",
+  authMiddleware,
+  CollectionOfficerEp.getAllDriveCategories
+);
 module.exports = router;

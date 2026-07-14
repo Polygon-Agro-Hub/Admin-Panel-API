@@ -1565,5 +1565,24 @@ exports.disclaimDriver = async (req, res) => {
   }
 };
 
+exports.getAllDriveCategories = async (req, res) => {
+  try {
+    const { search } = req.query; // Get search param from query string
+    const results = await collectionofficerDao.getAllDriveCategories(search);
 
+    if (results.length === 0) {
+      return res.status(200).json({ 
+        result: [], 
+        status: true,
+      });
+    }
 
+    res.status(200).json({ result: results, status: true });
+  } catch (err) {
+    console.error("Error executing query:", err);
+    res.status(500).json({ 
+      status: false, 
+      error: "An error occurred while fetching drive categories." 
+    });
+  }
+};

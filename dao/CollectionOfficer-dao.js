@@ -2605,3 +2605,22 @@ exports.disclaimDriverDetailsDao = (id) => {
     });
   });
 };
+
+exports.getAllDriveCategories = (search = '') => {
+  return new Promise((resolve, reject) => {
+    let sql = "SELECT id, catName, payout, updatedBy, updatedAt FROM drivercategory";
+    const params = [];
+    
+    if (search && search.trim() !== '') {
+      sql += " WHERE catName LIKE ?";
+      params.push(`%${search.trim()}%`);
+    }
+    
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
