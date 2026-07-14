@@ -364,4 +364,22 @@ router.get(
   authMiddleware,
   CollectionOfficerEp.getAllDriveCategories
 );
+
+router.get(
+  "/driver/get-drive-category/:id",
+  authMiddleware,
+  CollectionOfficerEp.getDriveCategoryById
+);
+
+router.post(
+  "/driver/add-drive-category",
+  authMiddleware,
+  CollectionOfficerEp.addDriveCategory
+);
+
+router.put(
+  "/driver/update-drive-category/:id",
+  authMiddleware,
+  CollectionOfficerEp.updateDriveCategory
+);
 module.exports = router;

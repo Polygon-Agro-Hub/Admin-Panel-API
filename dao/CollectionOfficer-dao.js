@@ -2624,3 +2624,63 @@ exports.getAllDriveCategories = (search = '') => {
     });
   });
 };
+
+exports.getDriveCategoryById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT id, catName, payout FROM drivercategory WHERE id = ?";
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.addDriveCategory = (data) => {
+  return new Promise((resolve, reject) => {
+    const { catName, payout, updatedBy } = data;
+    const sql = "INSERT INTO drivercategory (catName, payout, updatedAt, createdAt) VALUES (?, ?, ?, NOW())";
+    const params = [catName, payout, updatedBy];
+    
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve({
+        id: results.insertId,
+        catName: catName,
+        payout: payout,
+        updatedBy: updatedBy,
+        updatedAt: new Date(),
+        createdAt: new Date()
+      });
+    });
+  });
+};
+
+exports.updateDriveCategory = (id, data) => {
+  return new Promise((resolve, reject) => {
+    const { catName, payout, updatedBy } = data;
+    const sql = "UPDATE drivercategory SET catName = ?, payout = ?, updatedBy = ?, updatedAt = NOW() WHERE id = ?";
+    const params = [catName, payout, updatedBy, id];
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.affectedRows === 0) {
+        return reject(new Error('Category not found'));
+      }
+
+      resolve({
+        id: id,
+        catName: catName,
+        payout: payout,
+        updatedBy: updatedBy,
+        updatedAt: new Date()
+      });
+    });
+  });
+};

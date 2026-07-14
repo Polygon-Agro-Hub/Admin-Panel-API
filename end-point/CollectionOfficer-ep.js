@@ -1586,3 +1586,128 @@ exports.getAllDriveCategories = async (req, res) => {
     });
   }
 };
+
+exports.getDriveCategoryById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ 
+        status: false, 
+        error: "Category ID is required" 
+      });
+    }
+    
+    const result = await collectionofficerDao.getDriveCategoryById(id);
+    
+    if (!result) {
+      return res.status(404).json({ 
+        status: false, 
+        error: "Driver category not found" 
+      });
+    }
+    
+    res.status(200).json({ result: result, status: true });
+  } catch (err) {
+    console.error("Error executing query:", err);
+    res.status(500).json({ 
+      status: false, 
+      error: "An error occurred while fetching the driver category." 
+    });
+  }
+};
+
+exports.addDriveCategory = async (req, res) => {
+  try {
+    const { catName, payout } = req.body;
+    
+    // Validation
+    if (!catName || !payout) {
+      return res.status(400).json({
+        status: false,
+        error: 'Category name and payout are required'
+      });
+    }
+    
+    // Get the logged-in user ID from the token
+    const updatedBy = req.user ? req.user.id : 1;
+    
+    const data = {
+      catName: catName.trim(),
+      payout: parseFloat(payout),
+      updatedBy: updatedBy
+    };
+    
+    const result = await collectionofficerDao.addDriveCategory(data);
+    
+    res.status(201).json({
+      status: true,
+      message: 'Driver category added successfully',
+      result: result
+    });
+  } catch (err) {
+    console.error('Error adding drive category:', err);
+    res.status(500).json({
+      status: false,
+      error: 'An error occurred while adding the driver category.'
+    });
+  }
+};
+
+// Update drive category
+exports.updateDriveCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { catName, payout } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        status: false,
+        error: 'Category ID is required'
+      });
+    }
+
+    if (!catName || !payout) {
+      return res.status(400).json({
+        status: false,
+        error: 'Category name and payout are required'
+      });
+    }
+
+    const existingCategory = await collectionofficerDao.getDriveCategoryById(id);
+    if (!existingCategory) {
+      return res.status(404).json({
+        status: false,
+        error: 'Driver category not found'
+      });
+    }
+
+    const updatedBy = req.user.userId;
+
+    const data = {
+      catName: catName.trim(),
+      payout: parseFloat(payout),
+      updatedBy: updatedBy
+    };
+
+    const result = await collectionofficerDao.updateDriveCategory(id, data);
+
+    res.status(200).json({
+      status: true,
+      message: 'Driver category updated successfully',
+      result: result
+    });
+  } catch (err) {
+    console.error('Error updating drive category:', err);
+    if (err.message === 'Category not found') {
+      return res.status(404).json({
+        status: false,
+        error: 'Driver category not found'
+      });
+    }
+    res.status(500).json({
+      status: false,
+      error: 'An error occurred while updating the driver category.'
+    });
+  }
+};
