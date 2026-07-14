@@ -2608,7 +2608,7 @@ exports.disclaimDriverDetailsDao = (id) => {
 
 exports.getAllDriveCategories = (search = '') => {
   return new Promise((resolve, reject) => {
-    let sql = "SELECT id, catName, payout, updatedBy, updatedAt FROM drivercategory";
+    let sql = "SELECT dc.id, dc.catName, dc.payout, au.userName, dc.updatedAt FROM drivercategory dc LEFT JOIN agro_world_admin.adminusers au ON au.id = dc.updatedBy";
     const params = [];
     
     if (search && search.trim() !== '') {
