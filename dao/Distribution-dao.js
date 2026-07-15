@@ -2178,6 +2178,7 @@ exports.updateDistributionOfficerDetails = (
   centerId,
   companyId,
   irmId,
+  driverCatId,
   firstNameEnglish,
   lastNameEnglish,
   firstNameSinhala,
@@ -2210,7 +2211,7 @@ exports.updateDistributionOfficerDetails = (
   return new Promise((resolve, reject) => {
     let sql = `
              UPDATE collectionofficer
-                SET distributedCenterId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
+                SET distributedCenterId = ?, companyId = ?, irmId = ?, driverCatId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
                     firstNameTamil = ?, lastNameTamil = ?, jobRole = ?, empId = ?, empType = ?, phoneCode01 = ?, phoneNumber01 = ?, phoneCode02 = ?, phoneNumber02 = ?,
                     nic = ?, email = ?, houseNumber = ?, streetName = ?, city = ?, district = ?, province = ?, country = ?, languages = ?,
                     accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?,  adminModifyBy = ?, status = 'Not Approved', officerModiyBy = NULL
@@ -2219,6 +2220,7 @@ exports.updateDistributionOfficerDetails = (
       centerId,
       companyId,
       irmId || null,
+      driverCatId || null,
       firstNameEnglish,
       lastNameEnglish,
       firstNameSinhala,

@@ -1868,6 +1868,7 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       officerData.centerId,
       officerData.companyId,
       officerData.irmId,
+      officerData.driverCatId,
       officerData.firstNameEnglish,
       officerData.lastNameEnglish,
       officerData.firstNameSinhala,
