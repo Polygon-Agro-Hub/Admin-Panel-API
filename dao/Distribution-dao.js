@@ -1577,11 +1577,11 @@ exports.createDistributionOfficerPersonal = (
 
       const sql = `
                 INSERT INTO collectionofficer (
-                    distributedCenterId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
+                    distributedCenterId, companyId ,irmId ,driverCatId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
                     lastNameSinhala, lastNameTamil, jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
                     languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                          ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?, 'Not Approved')
             `;
@@ -1593,6 +1593,7 @@ exports.createDistributionOfficerPersonal = (
           officerData.centerId,
           officerData.companyId,
           officerData.irmId,
+          officerData.driverCatId,
           officerData.firstNameEnglish,
           officerData.firstNameSinhala,
           officerData.firstNameTamil,
