@@ -1409,9 +1409,10 @@ exports.getAllDrivers = async (req, res) => {
         req.query
       );
 
-    const { page, limit, centerStatus, status, nic, centerId } = validatedQuery;
+    const { page, limit, centerStatus, status, nic, centerId, driverCatId } =
+      validatedQuery;
 
-    console.log(centerStatus, status)
+    console.log(centerStatus, status);
 
     // Call the DAO to get all collection officers
     const result = await collectionofficerDao.getAllDrivers(
@@ -1420,13 +1421,21 @@ exports.getAllDrivers = async (req, res) => {
       nic,
       centerStatus,
       status,
-      centerId
+      centerId,
+      driverCatId
     );
+
+    // Call the DAO to get all driver category slaves
+    const driverCategories =
+      await collectionofficerDao.getAllDriveCategoriesSlave();
 
     console.log(result);
 
     console.log("Successfully fetched collection officers");
-    return res.status(200).json(result);
+    return res.status(200).json({
+      ...result,
+      driverCategories,
+    });
   } catch (error) {
     if (error.isJoi) {
       // Handle validation error

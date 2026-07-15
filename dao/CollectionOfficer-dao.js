@@ -2377,7 +2377,8 @@ exports.getAllDrivers = (
   searchNIC,
   centerStatus,
   status,
-  centerId
+  centerId,
+  driverCatId
 ) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
@@ -2389,6 +2390,7 @@ exports.getAllDrivers = (
             LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
+            LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
             WHERE coff.jobRole = 'Driver' AND cm.id = 2
         `;
 
@@ -2405,6 +2407,9 @@ exports.getAllDrivers = (
                 coff.phoneCode01,
                 coff.phoneNumber01,
                 coff.nic,
+                coff.driverCatId,
+                dcs.slvCatName,
+                dcs.slvPayout,
                 -- Show officer name instead of ID for officerModiyBy
                 CASE 
                     WHEN coff.officerModiyBy IS NOT NULL THEN CONCAT(coff_modify.firstNameEnglish, ' ', coff_modify.lastNameEnglish)
@@ -2433,6 +2438,7 @@ exports.getAllDrivers = (
             LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
+            LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
             WHERE coff.jobRole = 'Driver' AND cm.id = 2
         `;
 
@@ -2471,6 +2477,13 @@ exports.getAllDrivers = (
       dataParams.push(centerId);
     }
 
+    if (driverCatId) {
+      countSql += " AND coff.driverCatId = ?";
+      dataSql += " AND coff.driverCatId = ?";
+      countParams.push(driverCatId);
+      dataParams.push(driverCatId);
+    }
+
     if (searchNIC) {
       const searchCondition = `
                 AND (
@@ -2482,6 +2495,7 @@ exports.getAllDrivers = (
                     OR coff.district LIKE ?
                     OR coff.empId LIKE ?
                     OR dc.centerName LIKE ?
+                    OR dcs.slvCatName LIKE ?
                 )
             `;
       countSql += searchCondition;
@@ -2495,9 +2509,11 @@ exports.getAllDrivers = (
         searchValue,
         searchValue,
         searchValue,
+        searchValue,
         searchValue
       );
       dataParams.push(
+        searchValue,
         searchValue,
         searchValue,
         searchValue,
@@ -2700,6 +2716,26 @@ exports.getDriveCategoryByName = (catName, excludeId = null) => {
         return reject(err);
       }
       resolve(results[0]);
+    });
+  });
+};
+
+exports.getAllDriveCategoriesSlave = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id, 
+        catId, 
+        slvCatName
+      FROM drivercategoryslave
+      ORDER BY slvCatName ASC
+    `;
+
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
     });
   });
 };
