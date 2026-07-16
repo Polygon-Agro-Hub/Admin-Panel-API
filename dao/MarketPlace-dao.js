@@ -430,7 +430,16 @@ exports.getAllProductCropCatogoryDAO = () => {
 exports.creatPackageDAO = async (data, profileImageUrl) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO marketplacepackages (displayName, status, productPrice, packingFee, serviceFee, image, description) VALUES (?, ?, ?, ?, ?, ?, ?)";
+      "INSERT INTO marketplacepackages (displayName, status, productPrice, packingFee, serviceFee, image, description, packageType, startDate, endDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    // Convert ISO datetime strings to MySQL-compatible 'YYYY-MM-DD' format
+    const formatDate = (value) => {
+      if (!value) return null;
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return null;
+      return d.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+    };
+
     const values = [
       data.displayName,
       data.status,
@@ -439,6 +448,9 @@ exports.creatPackageDAO = async (data, profileImageUrl) => {
       data.serviceFee,
       profileImageUrl,
       data.description,
+      data.packageType,
+      formatDate(data.startDate),
+      formatDate(data.endDate),
     ];
 
     marketPlace.query(sql, values, (err, results) => {
@@ -852,6 +864,7 @@ exports.getMarketplacePackageByIdDAO = async (id) => {
     const sql = `
       SELECT 
         mpp.id, mpp.displayName, mpp.image, mpp.status, mpp.description, 
+        mpp.packageType, mpp.startDate, mpp.endDate,
         mpp.productPrice, mpp.packingFee, mpp.serviceFee
       FROM market_place.marketplacepackages mpp
       WHERE mpp.id = ?;
