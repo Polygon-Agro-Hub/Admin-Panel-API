@@ -855,6 +855,7 @@ exports.getMarketplacePackageByIdDAO = async (id) => {
     const sql = `
       SELECT 
         mpp.id, mpp.displayName, mpp.image, mpp.status, mpp.description, 
+        mpp.packageType, mpp.startDate, mpp.endDate,
         mpp.productPrice, mpp.packingFee, mpp.serviceFee
       FROM market_place.marketplacepackages mpp
       WHERE mpp.id = ?;
