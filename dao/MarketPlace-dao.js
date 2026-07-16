@@ -606,6 +606,9 @@ exports.getAllMarketplacePackagesDAO = (searchText, date) => {
         MP.displayName,
         (MP.productPrice + MP.packingFee + MP.serviceFee) AS total,
         MP.status,
+        MP.packageType,
+        MP.startDate,
+        MP.endDate,
         DP.defineDate,
         AU.userName AS adminUser
       FROM marketplacepackages MP
@@ -658,6 +661,9 @@ exports.getAllMarketplacePackagesDAO = (searchText, date) => {
           defineDate,
           adminUser,
           created_at,
+          packageType,
+          startDate,
+          endDate,
         } = pkg;
 
         if (!groupedData[status]) {
@@ -676,6 +682,9 @@ exports.getAllMarketplacePackagesDAO = (searchText, date) => {
           defineDate,
           adminUser,
           createdAt: created_at,
+          packageType,
+          startDate,
+          endDate,
         });
       });
 
@@ -2006,27 +2015,28 @@ exports.getAllMarketplaceItems = (category) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-        id,
-        varietyId,
-        displayName,
-        category,
-        normalPrice,
-        discountedPrice,
-        discount,
-        promo,
-        unitType,
-        startValue,
-        changeby,
-        displayType,
-        tags,
-        createdAt,
-        maxQuantity,
-        productTypeId
-      FROM 
-        marketplaceitems
-        WHERE category = 'Retail'
-      ORDER BY 
-        createdAt DESC
+        mpi.id,
+        mpi.varietyId,
+        mpi.displayName,
+        mpi.category,
+        mpi.normalPrice,
+        mpi.discountedPrice,
+        mpi.discount,
+        mpi.promo,
+        mpi.unitType,
+        mpi.startValue,
+        mpi.changeby,
+        mpi.displayType,
+        mpi.tags,
+        mpi.createdAt,
+        mpi.maxQuantity,
+        mpi.productTypeId,
+        mpi.isEnable,
+        pt.isValid  
+      FROM marketplaceitems mpi
+      LEFT JOIN producttypes pt ON mpi.productTypeId = pt.id  
+      WHERE mpi.category = 'Retail'
+      ORDER BY createdAt DESC
     `;
 
     marketPlace.query(sql, [category], (err, results) => {
@@ -2055,6 +2065,8 @@ exports.getAllMarketplaceItems = (category) => {
         createdAt: row.createdAt,
         maxQuantity: row.maxQuantity,
         productTypeId: row.productTypeId,
+        isValid: row.isValid,
+        isEnable: row.isEnable,
       }));
 
       resolve(items);
