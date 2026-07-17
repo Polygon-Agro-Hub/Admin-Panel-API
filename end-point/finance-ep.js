@@ -2029,7 +2029,7 @@ exports.getAllTransactionsEp = async (req, res) => {
     // Dummy data
     const results = [
       {
-        id: 1,
+        id: 5,
         transactionId: "TXN-20260713-001",
         driverId: "DRV001",
         name: "John Doe",
@@ -2042,7 +2042,7 @@ exports.getAllTransactionsEp = async (req, res) => {
         updatedAt: new Date("2026-07-13T10:15:00Z"),
       },
       {
-        id: 2,
+        id: 6,
         transactionId: "TXN-20260713-002",
         driverId: "DRV002",
         name: "Jane Smith",
@@ -2070,6 +2070,76 @@ exports.getAllTransactionsEp = async (req, res) => {
     console.error("Error fetching transactions:", err);
     res.status(500).json({
       error: "An error occurred while fetching transactions",
+    });
+  }
+};
+
+exports.getViewTransactionDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Transaction ID is required" });
+    }
+
+    const document = await financeDao.getTransactionDocumentByIdDao(id);
+
+    if (!document) {
+      return res.status(404).json({ error: "Transaction document not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: document,
+    });
+  } catch (err) {
+    console.error("Error fetching transaction document:", err);
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while fetching transaction document",
+    });
+  }
+};
+
+exports.updateTransactionStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { transStatus, rejectReason } = req.body;
+
+    const updatedBy = req.user.userId; 
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction Id is required",
+      });
+    }
+
+    if (!["Approved", "Rejected"].includes(transStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid transaction status",
+      });
+    }
+
+    await financeDao.updateTransactionStatusDao({
+      id,
+      transStatus,
+      rejectReason,
+      updatedBy,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Transaction status updated successfully",
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
     });
   }
 };
