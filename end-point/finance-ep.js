@@ -12,7 +12,8 @@ const {
   getInvestmentIdSchema,
   getAgentCommitionsShema,
   getAllInvestmentUsersSchema,
-  getAllTransactionsSchema
+  getAllTransactionsSchema,
+  IdParamSchema
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
@@ -2018,45 +2019,43 @@ exports.getAllTransactionsEp = async (req, res) => {
     const { page, limit, status, date, searchItem } =
       await getAllTransactionsSchema.validateAsync(req.query);
 
-    // const { results, total } = await financeDao.GetAllTransactionsDAO(
-    //       page,
-    //       limit,
-    //       status,
-    //       date,
-    //       searchItem,
-    //     );
+    const { results, total } = await financeDao.GetAllTransactionsDAO(
+          page,
+          limit,
+          status,
+          date,
+          searchItem,
+        );
 
     // Dummy data
-    const results = [
-      {
-        id: 1,
-        transactionId: "TXN-20260713-001",
-        driverId: "DRV001",
-        name: "John Doe",
-        phoneNumber: "0771234567",
-        status: "To Review",
-        amount: 2500.0,
-        document: "receipt_001.pdf",
-        submittedAt: new Date("2026-07-13T09:30:00Z"),
-        updatedBy: "Admin",
-        updatedAt: new Date("2026-07-13T10:15:00Z"),
-      },
-      {
-        id: 2,
-        transactionId: "TXN-20260713-002",
-        driverId: "DRV002",
-        name: "Jane Smith",
-        phoneNumber: "0719876543",
-        status: "Rejected",
-        amount: 5200.5,
-        document: "receipt_002.pdf",
-        submittedAt: new Date("2026-07-12T14:45:00Z"),
-        updatedBy: "Manager",
-        updatedAt: new Date("2026-07-13T08:20:00Z"),
-      },
-    ];
-
-    const total = results.length;
+    // const results = [
+    //   {
+    //     id: 1,
+    //     transactionId: "TXN-20260713-001",
+    //     driverId: "DRV001",
+    //     name: "John Doe",
+    //     phoneNumber: "0771234567",
+    //     status: "To Review",
+    //     amount: 2500.0,
+    //     document: "receipt_001.pdf",
+    //     submittedAt: new Date("2026-07-13T09:30:00Z"),
+    //     updatedBy: "Admin",
+    //     updatedAt: new Date("2026-07-13T10:15:00Z"),
+    //   },
+    //   {
+    //     id: 2,
+    //     transactionId: "TXN-20260713-002",
+    //     driverId: "DRV002",
+    //     name: "Jane Smith",
+    //     phoneNumber: "0719876543",
+    //     status: "Rejected",
+    //     amount: 5200.5,
+    //     document: "receipt_002.pdf",
+    //     submittedAt: new Date("2026-07-12T14:45:00Z"),
+    //     updatedBy: "Manager",
+    //     updatedAt: new Date("2026-07-13T08:20:00Z"),
+    //   },
+    // ];
 
     console.log("results", results);
 
@@ -2071,5 +2070,27 @@ exports.getAllTransactionsEp = async (req, res) => {
     res.status(500).json({
       error: "An error occurred while fetching transactions",
     });
+  }
+};
+
+exports.getAllTransactionOrdersEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = await IdParamSchema.validateAsync(req.params);
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: "transaction id required" });
+    }
+
+    const { orders, totalToReceive } = await financeDao.getTransactionOrdersDao(id);
+
+    console.log('orders', orders)
+
+    return res.status(200).json({ orders: orders, total: totalToReceive });
+
+  } catch (error) {
+    console.error("Update Govi Shop User Status Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

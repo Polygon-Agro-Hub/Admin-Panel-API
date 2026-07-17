@@ -250,4 +250,10 @@ router.get(
   financeController.getAllTransactionsEp
 );
 
+router.get(
+  "/get-all-transaction-orders/:id",
+  authMiddleware,
+  financeController.getAllTransactionOrdersEp,
+);
+
 module.exports = router;
