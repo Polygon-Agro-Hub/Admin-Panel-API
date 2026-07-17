@@ -705,7 +705,7 @@ exports.getAllMarketplacePackagesDAO = (searchText, date) => {
   });
 };
 
-exports.getMarketplacePackagesByDateDAO = (date) => {
+exports.getMarketplacePackagesByDateDAO = (date, packageType) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [];
 
@@ -713,6 +713,7 @@ exports.getMarketplacePackagesByDateDAO = (date) => {
       SELECT
         MP.id,
         MP.displayName,
+        MP.packageType,
         (MP.productPrice + MP.packingFee + MP.serviceFee) AS total,
         MP.status,
         (
@@ -741,10 +742,16 @@ exports.getMarketplacePackagesByDateDAO = (date) => {
         ORDER BY DP.createdAt DESC
         LIMIT 1
       ) = ?
-      ORDER BY MP.status ASC, MP.displayName ASC
     `;
 
     sqlParams.push(date); // format: 'YYYY-MM-DD'
+
+    if (packageType) {
+      sql += ` AND MP.packageType = ? `;
+      sqlParams.push(packageType);
+    }
+
+    sql += ` ORDER BY MP.status ASC, MP.displayName ASC `;
 
     marketPlace.query(sql, sqlParams, (err, results) => {
       if (err) return reject(err);
@@ -756,6 +763,7 @@ exports.getMarketplacePackagesByDateDAO = (date) => {
           status,
           id,
           displayName,
+          packageType,
           image,
           description,
           total,
@@ -776,6 +784,7 @@ exports.getMarketplacePackagesByDateDAO = (date) => {
         groupedData[status].packages.push({
           id,
           displayName,
+          packageType,
           image,
           description,
           total,

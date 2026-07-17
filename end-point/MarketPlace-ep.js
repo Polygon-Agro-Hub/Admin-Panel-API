@@ -544,8 +544,16 @@ exports.deleteMarketplacePackages = async (req, res) => {
 
 exports.getMarketplacePackagesByDate = async (req, res) => {
   try {
-    const { date } = req.query;
-    const data = await MarketPlaceDao.getMarketplacePackagesByDateDAO(date);
+    const { date, packageType } = req.query;
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: "date query parameter is required (format: YYYY-MM-DD)",
+      });
+    }
+
+    const data = await MarketPlaceDao.getMarketplacePackagesByDateDAO(date, packageType);
     res.status(200).json({ success: true, data });
   } catch (error) {
     console.error("Error in getMarketplacePackagesByDate:", error);
