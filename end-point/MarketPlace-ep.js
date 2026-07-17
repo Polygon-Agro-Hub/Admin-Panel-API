@@ -544,8 +544,16 @@ exports.deleteMarketplacePackages = async (req, res) => {
 
 exports.getMarketplacePackagesByDate = async (req, res) => {
   try {
-    const { date } = req.query;
-    const data = await MarketPlaceDao.getMarketplacePackagesByDateDAO(date);
+    const { date, packageType } = req.query;
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: "date query parameter is required (format: YYYY-MM-DD)",
+      });
+    }
+
+    const data = await MarketPlaceDao.getMarketplacePackagesByDateDAO(date, packageType);
     res.status(200).json({ success: true, data });
   } catch (error) {
     console.error("Error in getMarketplacePackagesByDate:", error);
@@ -625,6 +633,9 @@ exports.getMarketplacePackageById = async (req, res) => {
       displayName: firstRow.displayName,
       status: firstRow.status || "Enabled",
       description: firstRow.description,
+      packageType: firstRow.packageType,
+      startDate: firstRow.startDate,
+      endDate: firstRow.endDate,
       productPrice,
       packageFee: packingFee,
       serviceFee,
@@ -2354,5 +2365,44 @@ exports.updateProductTypeStatus = async (req, res) => {
   } catch (error) {
     console.error("Error updating product type status:", error);
     return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+exports.toggleProductStatus = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { id } = req.params;
+    const isEnable = Number(req.body.isEnable);
+    const modifyBy = req.user.userId;
+
+    if (!id) {
+      return res.status(400).json({
+        error: "Product id is required",
+      });
+    }
+
+    if (isEnable !== 0 && isEnable !== 1) {
+      return res.status(400).json({
+        error: "isEnable must be 0 or 1",
+      });
+    }
+
+    await MarketPlaceDao.toggleItemStatus(id, isEnable, modifyBy);
+
+    // Cascade: if the product is being disabled, disable its packages too
+    if (isEnable === 0) {
+      await MarketPlaceDao.disablePackagesByProductId(id);
+    }
+
+    res.json({
+      message: "Status updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating product status:", error);
+    return res.status(500).json({
+      error: "An error occurred while updating product status",
+    });
   }
 };

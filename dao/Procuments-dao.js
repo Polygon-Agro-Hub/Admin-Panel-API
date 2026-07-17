@@ -770,6 +770,7 @@ exports.getAllMarketplaceItems = (category, userId) => {
         MPI.startValue,
         MPI.changeby,
         MPI.productTypeId,
+        MPI.isEnable,
         XL.id AS isExcluded,
         PL.id AS isPreferred
       FROM marketplaceitems MPI
@@ -778,10 +779,11 @@ exports.getAllMarketplaceItems = (category, userId) => {
       WHERE category = 'Retail'
       ORDER BY 
       CASE 
-        WHEN PL.id IS NOT NULL THEN 0  -- Preferred items first
-        WHEN XL.id IS NOT NULL THEN 2  -- Excluded items last
-        ELSE 1                         -- Everything else in between
-      END
+        WHEN MPI.isEnable = 0 THEN 4       -- Disabled items last (check this FIRST)
+        WHEN PL.id IS NOT NULL THEN 1      -- Preferred items first
+        WHEN XL.id IS NOT NULL THEN 3      -- Excluded items third
+        ELSE 2                             -- Normal items second
+    END ASC;
     `;
 
 
@@ -814,6 +816,7 @@ exports.getAllMarketplaceItems = (category, userId) => {
         unitType: row.unitType,
         startValue: row.startValue,
         changeby: row.changeby,
+        isDisable:row.isEnable === 0 ? true : false,
         isExcluded: row.isExcluded === null ? false : true,
         isPreferred: row.isPreferred === null ? false : true,
 
