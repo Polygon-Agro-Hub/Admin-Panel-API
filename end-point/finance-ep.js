@@ -2027,36 +2027,6 @@ exports.getAllTransactionsEp = async (req, res) => {
           searchItem,
         );
 
-    // Dummy data
-    // const results = [
-    //   {
-    //     id: 1,
-    //     transactionId: "TXN-20260713-001",
-    //     driverId: "DRV001",
-    //     name: "John Doe",
-    //     phoneNumber: "0771234567",
-    //     status: "To Review",
-    //     amount: 2500.0,
-    //     document: "receipt_001.pdf",
-    //     submittedAt: new Date("2026-07-13T09:30:00Z"),
-    //     updatedBy: "Admin",
-    //     updatedAt: new Date("2026-07-13T10:15:00Z"),
-    //   },
-    //   {
-    //     id: 2,
-    //     transactionId: "TXN-20260713-002",
-    //     driverId: "DRV002",
-    //     name: "Jane Smith",
-    //     phoneNumber: "0719876543",
-    //     status: "Rejected",
-    //     amount: 5200.5,
-    //     document: "receipt_002.pdf",
-    //     submittedAt: new Date("2026-07-12T14:45:00Z"),
-    //     updatedBy: "Manager",
-    //     updatedAt: new Date("2026-07-13T08:20:00Z"),
-    //   },
-    // ];
-
     console.log("results", results);
 
     res.json({ results, total });
