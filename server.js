@@ -172,7 +172,7 @@ app.use(BASE_PATH + '/api/upload', upload);
 app.use("/uploads", express.static("uploads"));
 
 app.get(BASE_PATH + "/test", (req, res) => {
-  res.send(`Test route is working 4/28`);
+  res.send(new Date().toLocaleString());
   console.log("test route is working");
 });
 
