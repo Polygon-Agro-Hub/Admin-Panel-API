@@ -141,6 +141,7 @@ exports.getAllDriversSchema = Joi.object({
     status: Joi.string().optional(),
     nic: Joi.string().allow('').optional(), 
     centerId: Joi.number().optional(),
+    driverCatId: Joi.number().integer().optional(),
 });
 
 exports.getAllManagersSchema = Joi.object({

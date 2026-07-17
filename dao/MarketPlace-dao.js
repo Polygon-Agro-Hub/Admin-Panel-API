@@ -188,7 +188,7 @@ exports.getMarketplaceItems = (
                     LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id AND pt.isValid = 1`;
 
     let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.comPrice, m.discount, m.startValue, m.maxQuantity, m.promo,
-                  m.unitType, m.changeby, m.normalPrice, m.category, m.displayType, au.userName AS modifyBy,
+                  m.unitType, m.changeby, m.normalPrice, m.category, m.displayType, m.isEnable, au.userName AS modifyBy,
                   cg.cropNameEnglish, cv.varietyNameEnglish,
                   pt.id AS productTypeId, pt.shortCode AS productTypeShortCode
                   FROM marketplaceitems m
@@ -430,7 +430,16 @@ exports.getAllProductCropCatogoryDAO = () => {
 exports.creatPackageDAO = async (data, profileImageUrl) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO marketplacepackages (displayName, status, productPrice, packingFee, serviceFee, image, description) VALUES (?, ?, ?, ?, ?, ?, ?)";
+      "INSERT INTO marketplacepackages (displayName, status, productPrice, packingFee, serviceFee, image, description, packageType, startDate, endDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    // Convert ISO datetime strings to MySQL-compatible 'YYYY-MM-DD' format
+    const formatDate = (value) => {
+      if (!value) return null;
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return null;
+      return d.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+    };
+
     const values = [
       data.displayName,
       data.status,
@@ -439,6 +448,9 @@ exports.creatPackageDAO = async (data, profileImageUrl) => {
       data.serviceFee,
       profileImageUrl,
       data.description,
+      data.packageType,
+      formatDate(data.startDate),
+      formatDate(data.endDate),
     ];
 
     marketPlace.query(sql, values, (err, results) => {
@@ -606,6 +618,9 @@ exports.getAllMarketplacePackagesDAO = (searchText, date) => {
         MP.displayName,
         (MP.productPrice + MP.packingFee + MP.serviceFee) AS total,
         MP.status,
+        MP.packageType,
+        MP.startDate,
+        MP.endDate,
         DP.defineDate,
         AU.userName AS adminUser
       FROM marketplacepackages MP
@@ -658,6 +673,9 @@ exports.getAllMarketplacePackagesDAO = (searchText, date) => {
           defineDate,
           adminUser,
           created_at,
+          packageType,
+          startDate,
+          endDate,
         } = pkg;
 
         if (!groupedData[status]) {
@@ -676,6 +694,9 @@ exports.getAllMarketplacePackagesDAO = (searchText, date) => {
           defineDate,
           adminUser,
           createdAt: created_at,
+          packageType,
+          startDate,
+          endDate,
         });
       });
 
@@ -684,7 +705,7 @@ exports.getAllMarketplacePackagesDAO = (searchText, date) => {
   });
 };
 
-exports.getMarketplacePackagesByDateDAO = (date) => {
+exports.getMarketplacePackagesByDateDAO = (date, packageType) => {
   return new Promise((resolve, reject) => {
     const sqlParams = [];
 
@@ -692,6 +713,7 @@ exports.getMarketplacePackagesByDateDAO = (date) => {
       SELECT
         MP.id,
         MP.displayName,
+        MP.packageType,
         (MP.productPrice + MP.packingFee + MP.serviceFee) AS total,
         MP.status,
         (
@@ -720,10 +742,16 @@ exports.getMarketplacePackagesByDateDAO = (date) => {
         ORDER BY DP.createdAt DESC
         LIMIT 1
       ) = ?
-      ORDER BY MP.status ASC, MP.displayName ASC
     `;
 
     sqlParams.push(date); // format: 'YYYY-MM-DD'
+
+    if (packageType) {
+      sql += ` AND MP.packageType = ? `;
+      sqlParams.push(packageType);
+    }
+
+    sql += ` ORDER BY MP.status ASC, MP.displayName ASC `;
 
     marketPlace.query(sql, sqlParams, (err, results) => {
       if (err) return reject(err);
@@ -735,6 +763,7 @@ exports.getMarketplacePackagesByDateDAO = (date) => {
           status,
           id,
           displayName,
+          packageType,
           image,
           description,
           total,
@@ -755,6 +784,7 @@ exports.getMarketplacePackagesByDateDAO = (date) => {
         groupedData[status].packages.push({
           id,
           displayName,
+          packageType,
           image,
           description,
           total,
@@ -843,6 +873,7 @@ exports.getMarketplacePackageByIdDAO = async (id) => {
     const sql = `
       SELECT 
         mpp.id, mpp.displayName, mpp.image, mpp.status, mpp.description, 
+        mpp.packageType, mpp.startDate, mpp.endDate,
         mpp.productPrice, mpp.packingFee, mpp.serviceFee
       FROM market_place.marketplacepackages mpp
       WHERE mpp.id = ?;
@@ -2006,27 +2037,28 @@ exports.getAllMarketplaceItems = (category) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-        id,
-        varietyId,
-        displayName,
-        category,
-        normalPrice,
-        discountedPrice,
-        discount,
-        promo,
-        unitType,
-        startValue,
-        changeby,
-        displayType,
-        tags,
-        createdAt,
-        maxQuantity,
-        productTypeId
-      FROM 
-        marketplaceitems
-        WHERE category = 'Retail'
-      ORDER BY 
-        createdAt DESC
+        mpi.id,
+        mpi.varietyId,
+        mpi.displayName,
+        mpi.category,
+        mpi.normalPrice,
+        mpi.discountedPrice,
+        mpi.discount,
+        mpi.promo,
+        mpi.unitType,
+        mpi.startValue,
+        mpi.changeby,
+        mpi.displayType,
+        mpi.tags,
+        mpi.createdAt,
+        mpi.maxQuantity,
+        mpi.productTypeId,
+        mpi.isEnable,
+        pt.isValid  
+      FROM marketplaceitems mpi
+      LEFT JOIN producttypes pt ON mpi.productTypeId = pt.id  
+      WHERE mpi.category = 'Retail'
+      ORDER BY createdAt DESC
     `;
 
     marketPlace.query(sql, [category], (err, results) => {
@@ -2055,6 +2087,8 @@ exports.getAllMarketplaceItems = (category) => {
         createdAt: row.createdAt,
         maxQuantity: row.maxQuantity,
         productTypeId: row.productTypeId,
+        isValid: row.isValid,
+        isEnable: row.isEnable,
       }));
 
       resolve(items);
@@ -3598,6 +3632,31 @@ exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
           rollbackAndRelease(connection, reject, error);
         }
       });
+    });
+  });
+};
+
+exports.toggleItemStatus = (id, isEnable, modifyBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `UPDATE marketplaceitems SET isEnable = ?, modifyBy = ? WHERE id = ?`;
+    marketPlace.query(sql, [isEnable, modifyBy, id], (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+  });
+};
+
+exports.disablePackagesByProductId = (productId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `UPDATE marketplacepackages p
+                 INNER JOIN definepackage dp ON dp.packageId = p.id
+                 INNER JOIN definepackageitems dpi ON dp.id = dpi.definePackageId
+                 SET p.status = 'Disabled'
+                 WHERE dpi.productId = ?`;
+
+    marketPlace.query(sql, [productId], (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
     });
   });
 };

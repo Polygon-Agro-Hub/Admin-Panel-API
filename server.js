@@ -47,6 +47,10 @@ const upload = require("./routes/upload.router");
 
 const heathRoutes = require("./routes/heathRoutes");
 const DashRoutes = require("./routes/Dash");
+
+// Import the cron job function
+const { pickupOrdersReturnCornjob } = require('./corn-jobs/pickupOrdersReturnCornjob');
+
 require("dotenv").config();
 const cors = require("cors");
 const bodyParser = require('body-parser');
@@ -134,6 +138,9 @@ goviShop.getConnection((err, connection) => {
   connection.release();
 });
 
+//corn jobs
+// pickupOrdersReturnCornjob();
+
 // Add base path for all routes
 const BASE_PATH = "/agro-api/admin-api";
 
@@ -165,11 +172,12 @@ app.use(BASE_PATH + '/api/upload', upload);
 app.use("/uploads", express.static("uploads"));
 
 app.get(BASE_PATH + "/test", (req, res) => {
-  res.send(`Test route is working 4/28`);
+  res.send(new Date().toLocaleString());
   console.log("test route is working");
 });
 
 app.listen(port, () => {
+    console.log(`⏰ Time: ${new Date().toLocaleString()}`);
   console.log(`Server running on http://localhost:${port}`);
 });
 

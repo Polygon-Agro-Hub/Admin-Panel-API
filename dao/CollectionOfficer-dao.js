@@ -2377,7 +2377,8 @@ exports.getAllDrivers = (
   searchNIC,
   centerStatus,
   status,
-  centerId
+  centerId,
+  driverCatId
 ) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
@@ -2389,6 +2390,7 @@ exports.getAllDrivers = (
             LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
+            LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
             WHERE coff.jobRole = 'Driver' AND cm.id = 2
         `;
 
@@ -2405,6 +2407,9 @@ exports.getAllDrivers = (
                 coff.phoneCode01,
                 coff.phoneNumber01,
                 coff.nic,
+                coff.driverCatId,
+                dcs.slvCatName,
+                dcs.slvPayout,
                 -- Show officer name instead of ID for officerModiyBy
                 CASE 
                     WHEN coff.officerModiyBy IS NOT NULL THEN CONCAT(coff_modify.firstNameEnglish, ' ', coff_modify.lastNameEnglish)
@@ -2433,6 +2438,7 @@ exports.getAllDrivers = (
             LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
+            LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
             WHERE coff.jobRole = 'Driver' AND cm.id = 2
         `;
 
@@ -2471,6 +2477,13 @@ exports.getAllDrivers = (
       dataParams.push(centerId);
     }
 
+    if (driverCatId) {
+      countSql += " AND coff.driverCatId = ?";
+      dataSql += " AND coff.driverCatId = ?";
+      countParams.push(driverCatId);
+      dataParams.push(driverCatId);
+    }
+
     if (searchNIC) {
       const searchCondition = `
                 AND (
@@ -2482,6 +2495,7 @@ exports.getAllDrivers = (
                     OR coff.district LIKE ?
                     OR coff.empId LIKE ?
                     OR dc.centerName LIKE ?
+                    OR dcs.slvCatName LIKE ?
                 )
             `;
       countSql += searchCondition;
@@ -2495,9 +2509,11 @@ exports.getAllDrivers = (
         searchValue,
         searchValue,
         searchValue,
+        searchValue,
         searchValue
       );
       dataParams.push(
+        searchValue,
         searchValue,
         searchValue,
         searchValue,
@@ -2598,6 +2614,124 @@ exports.disclaimDriverDetailsDao = (id) => {
           WHERE id = ?
       `;
     collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getAllDriveCategories = (search = '') => {
+  return new Promise((resolve, reject) => {
+    let sql = "SELECT dc.id, dc.catName, dc.payout, au.userName, dc.updatedAt FROM drivercategory dc LEFT JOIN agro_world_admin.adminusers au ON au.id = dc.updatedBy";
+    const params = [];
+    
+    if (search && search.trim() !== '') {
+      sql += " WHERE catName LIKE ?";
+      params.push(`%${search.trim()}%`);
+    }
+    
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getDriveCategoryById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT id, catName, payout FROM drivercategory WHERE id = ?";
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.addDriveCategory = (data) => {
+  return new Promise((resolve, reject) => {
+    const { catName, payout, updatedBy } = data;
+    const sql = "INSERT INTO drivercategory (catName, payout, updatedAt, createdAt) VALUES (?, ?, ?, NOW())";
+    const params = [catName, payout, updatedBy];
+    
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve({
+        id: results.insertId,
+        catName: catName,
+        payout: payout,
+        updatedBy: updatedBy,
+        updatedAt: new Date(),
+        createdAt: new Date()
+      });
+    });
+  });
+};
+
+exports.updateDriveCategory = (id, data) => {
+  return new Promise((resolve, reject) => {
+    const { catName, payout, updatedBy } = data;
+    const sql = "UPDATE drivercategory SET catName = ?, payout = ?, updatedBy = ?, updatedAt = NOW() WHERE id = ?";
+    const params = [catName, payout, updatedBy, id];
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.affectedRows === 0) {
+        return reject(new Error('Category not found'));
+      }
+
+      resolve({
+        id: id,
+        catName: catName,
+        payout: payout,
+        updatedBy: updatedBy,
+        updatedAt: new Date()
+      });
+    });
+  });
+};
+
+exports.getDriveCategoryByName = (catName, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = "SELECT id, catName, payout FROM drivercategory WHERE LOWER(catName) = LOWER(?)";
+    const params = [catName];
+
+    if (excludeId) {
+      sql += " AND id != ?";
+      params.push(excludeId);
+    }
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.getAllDriveCategoriesSlave = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id, 
+        catId, 
+        slvCatName
+      FROM drivercategoryslave
+      ORDER BY slvCatName ASC
+    `;
+
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }

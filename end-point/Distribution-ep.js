@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs/dist/bcrypt");
 const DistributionDao = require("../dao/Distribution-dao");
+const collectionofficerDao = require("../dao/CollectionOfficer-dao");
 const uploadFileToS3 = require("../middlewares/s3upload");
 const DistributionValidation = require("../validations/distribution-validation");
 const deleteFromS3 = require("../middlewares/s3delete");
@@ -383,8 +384,16 @@ exports.getAllCompanyList = async (req, res) => {
         .json({ message: "No news items found", data: result });
     }
 
+    const driverCategories =
+      await collectionofficerDao.getAllDriveCategoriesSlave();
+
     console.log("Successfully retrieved all collection centre");
-    res.json(result);
+    console.log("Successfully fetched driver categories");
+
+    return res.status(200).json({
+      companies: result,
+      driverCategories,
+    });
   } catch (err) {
     if (err.isJoi) {
       // Validation error
@@ -1859,6 +1868,7 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       officerData.centerId,
       officerData.companyId,
       officerData.irmId,
+      officerData.driverCatId,
       officerData.firstNameEnglish,
       officerData.lastNameEnglish,
       officerData.firstNameSinhala,
