@@ -2359,3 +2359,42 @@ exports.updateProductTypeStatus = async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 };
+
+exports.toggleProductStatus = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { id } = req.params;
+    const isEnable = Number(req.body.isEnable);
+    const modifyBy = req.user.userId;
+
+    if (!id) {
+      return res.status(400).json({
+        error: "Product id is required",
+      });
+    }
+
+    if (isEnable !== 0 && isEnable !== 1) {
+      return res.status(400).json({
+        error: "isEnable must be 0 or 1",
+      });
+    }
+
+    await MarketPlaceDao.toggleItemStatus(id, isEnable, modifyBy);
+
+    // Cascade: if the product is being disabled, disable its packages too
+    if (isEnable === 0) {
+      await MarketPlaceDao.disablePackagesByProductId(id);
+    }
+
+    res.json({
+      message: "Status updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating product status:", error);
+    return res.status(500).json({
+      error: "An error occurred while updating product status",
+    });
+  }
+};

@@ -188,7 +188,7 @@ exports.getMarketplaceItems = (
                     LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id AND pt.isValid = 1`;
 
     let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.comPrice, m.discount, m.startValue, m.maxQuantity, m.promo,
-                  m.unitType, m.changeby, m.normalPrice, m.category, m.displayType, au.userName AS modifyBy,
+                  m.unitType, m.changeby, m.normalPrice, m.category, m.displayType, m.isEnable, au.userName AS modifyBy,
                   cg.cropNameEnglish, cv.varietyNameEnglish,
                   pt.id AS productTypeId, pt.shortCode AS productTypeShortCode
                   FROM marketplaceitems m
@@ -3638,6 +3638,31 @@ exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
           rollbackAndRelease(connection, reject, error);
         }
       });
+    });
+  });
+};
+
+exports.toggleItemStatus = (id, isEnable, modifyBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `UPDATE marketplaceitems SET isEnable = ?, modifyBy = ? WHERE id = ?`;
+    marketPlace.query(sql, [isEnable, modifyBy, id], (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+  });
+};
+
+exports.disablePackagesByProductId = (productId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `UPDATE marketplacepackages p
+                 INNER JOIN definepackage dp ON dp.packageId = p.id
+                 INNER JOIN definepackageitems dpi ON dp.id = dpi.definePackageId
+                 SET p.status = 'Disabled'
+                 WHERE dpi.productId = ?`;
+
+    marketPlace.query(sql, [productId], (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
     });
   });
 };

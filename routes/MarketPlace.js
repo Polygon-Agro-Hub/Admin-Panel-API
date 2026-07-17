@@ -345,4 +345,10 @@ router.patch(
   marketPlaceEp.updateProductTypeStatus
 );
 
+router.patch(
+  "/toggle-status/:id",
+  authMiddleware,
+  marketPlaceEp.toggleProductStatus,
+);
+
 module.exports = router;
