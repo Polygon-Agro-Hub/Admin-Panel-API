@@ -2840,65 +2840,63 @@ exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
     // SQL to count total records - Added missing JOINs
     let countSql = `
       SELECT COUNT(*) AS total
-      FROM govi_shop.govishops gs
-      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
-      WHERE gs.approvedStatus != 'Approved' AND gs.isAvailable = 1
+      FROM collection_officer.driverordertransaction dt
+      LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
+      LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
     `;
 
     // SQL to fetch paginated data
     let sql = `
       SELECT 
-        gs.id, 
-        gs.shopName,
-        gs.shopType,
-        gs.email,
-        gs.phone,
-        gs.updatedAt AS updatedAt,
-        gs.logo,
-        gs.isActive,
-        gs.approvedStatus,
-        CASE 
-          WHEN gs.updatedAt IS NOT NULL THEN 'edit'
-          ELSE 'create'
-        END AS actionStatus,
-        so.ownerName,
-        so.shopPhone As ownerPhone
-      FROM govi_shop.govishops gs
-      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
-      WHERE gs.approvedStatus != 'Approved' AND gs.isAvailable = 1
+        dt.id, 
+        dt.transCode AS transactionId,
+        dt.transStatus AS status,
+        CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS name,
+        co.empId AS driverId,
+        co.phoneNumber01 AS phoneNumber,
+        dt.transAmount AS amount,
+        dt.paySlip AS document,
+        dt.createdAt AS submittedAt,
+        au.userName AS updatedBy,
+        dt.updatedAt
+      FROM collection_officer.driverordertransaction dt
+      LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
+      LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
+      LEFT JOIN agro_world_admin.adminusers au ON dt.updatedBy = au.id
+      WHERE 1 = 1
     `;
 
     // Add filter for status
-    if (approval) {
-      countSql += " AND gs.approvedStatus = ? ";
-      sql += " AND gs.approvedStatus = ? ";
-      Sqlparams.push(approval);
-      Counterparams.push(approval);
+    if (status) {
+      countSql += " AND dt.transStatus = ? ";
+      sql += " AND dt.transStatus = ? ";
+      Sqlparams.push(status);
+      Counterparams.push(status);
     }
 
     // Fixed category filter to use the correct alias
-    if (bussinessType) {
-      countSql += " AND gs.shopType = ? ";
-      sql += " AND gs.shopType = ? ";
-      Sqlparams.push(bussinessType);
-      Counterparams.push(bussinessType);
+    if (date) {
+      countSql += " AND DATE(dt.createdAt) = ? ";
+      sql += " AND DATE(dt.createdAt) = ? ";
+      Sqlparams.push(date);
+      Counterparams.push(date);
     }
 
     // Add search functionality
     if (searchItem) {
       countSql += `
-        AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )
+        AND ( dt.transCode LIKE ? OR co.empId LIKE ? OR CONCAT('0', co.phoneNumber01) LIKE ? )
       `;
       sql += `
-        AND ( gs.shopName LIKE ? OR gs.phone LIKE ? )
+        AND ( dt.transCode LIKE ? OR co.empId LIKE ? OR CONCAT('0', co.phoneNumber01) LIKE ? )
       `;
       const searchQuery = `%${searchItem}%`;
-      Sqlparams.push(searchQuery, searchQuery);
-      Counterparams.push(searchQuery, searchQuery);
+      Sqlparams.push(searchQuery, searchQuery, searchQuery);
+      Counterparams.push(searchQuery, searchQuery, searchQuery);
     }
 
     // Add pagination
-    sql += " ORDER BY gs.shopName ASC LIMIT ? OFFSET ?";
+    sql += " ORDER BY dt.createdAt ASC LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
     // Execute count query to get total records
@@ -2924,6 +2922,7 @@ exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
     );
   });
 };
+
 
 exports.getTransactionDocumentByIdDao = (id) => {
   return new Promise((resolve, reject) => {
@@ -3074,6 +3073,48 @@ exports.updateTransactionStatusDao = (data) => {
           );
         });
       });
+    });
+  });
+};
+
+exports.getTransactionOrdersDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        do.id AS driverOrdId,
+        po.invNo,
+        po.amount,
+        do.earnPrice,
+        dt.createdAt AS submittedAt
+      FROM collection_officer.driverordertransaction dt
+      LEFT JOIN collection_officer.driverordermain dom 
+        ON dt.drvOrderMainId = dom.id
+      LEFT JOIN collection_officer.driverorders do 
+        ON dom.id = do.drvOrderMainId
+      LEFT JOIN market_place.processorders po 
+        ON do.orderId = po.id
+      WHERE dt.id = ?
+    `;
+
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        const orders = results.map(order => ({
+          ...order,
+          toReceive: order.amount - order.earnPrice
+        }));
+
+        const totalToReceive = orders.reduce(
+          (total, order) => total + order.toReceive,
+          0
+        );
+
+        resolve({
+          orders,
+          totalToReceive
+        });
+      }
     });
   });
 };

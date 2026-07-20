@@ -13,7 +13,7 @@ const pickupOrdersReturnCornjob = () => {
   console.log('⏰ Initializing cron jobs...');
 
   // ✅ CRON JOB: Enable marketplace items every day at 9:30 PM
-  cron.schedule('39 14 * * *', async () => {
+  cron.schedule('00 16 * * *', async () => {
     console.log('🔄 Running scheduled job: Enabling marketplace items...');
     console.log(`⏰ Time: ${new Date().toLocaleString()}`);
 

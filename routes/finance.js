@@ -251,6 +251,12 @@ router.get(
 );
 
 router.get(
+  "/get-all-transaction-orders/:id",
+  authMiddleware,
+  financeController.getAllTransactionOrdersEp,
+);
+
+router.get(
   "/view-transaction-document/:id",
   authMiddleware,
   financeController.getViewTransactionDocument
