@@ -1400,6 +1400,9 @@ exports.getAllRetailOrderDetails = (
         po.invNo, 
         po.status,
         po.qrCode,
+        po.paymentMethod,
+        po.creditPaid,
+        po.moneyPaid,
         o.createdAt AS orderdDate 
       FROM market_place.orders o
       LEFT JOIN market_place.processorders po ON o.id = po.orderId
@@ -2792,6 +2795,9 @@ exports.getAllWholesaleOrderDetails = (
         o.fullTotal AS amount, 
         po.invNo, po.status,
         po.qrCode,
+        po.paymentMethod,
+        po.creditPaid,
+        po.moneyPaid,
         o.createdAt AS orderdDate,
         mu.companyName
       FROM market_place.orders o
