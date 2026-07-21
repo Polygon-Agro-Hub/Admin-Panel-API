@@ -2498,12 +2498,15 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         o.phonecode1,
         o.phone1,
         o.isCoupon,
-      o.couponType,
-      o.couponValue,
+        o.couponType,
+        o.couponValue,
         po.invNo AS invoiceNumber,
         po.paymentMethod AS paymentMethod,
         o.fullTotal AS grandTotal,
         mu.email AS userEmail,
+        po.isPaid,
+        po.creditPaid,
+        po.moneyPaid,
         CASE
           WHEN o.buildingType = 'House' THEN oh.houseNo
           WHEN o.buildingType = 'Apartment' THEN oa.houseNo
