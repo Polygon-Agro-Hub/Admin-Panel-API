@@ -110,7 +110,7 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
         GROUP BY 
           cg.id
         ORDER BY 
-          cg.createdAt DESC
+          cg.cropNameEnglish ASC
         LIMIT ? OFFSET ?
       `;
     dataParams.push(limit, offset);
