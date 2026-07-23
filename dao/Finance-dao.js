@@ -3094,6 +3094,8 @@ exports.getTransactionOrdersDao = (id) => {
       LEFT JOIN market_place.processorders po 
         ON do.orderId = po.id
       WHERE dt.id = ?
+      AND po.status = 'Delivered'
+      AND dt.transStatus = 'Approved';
     `;
 
     goviShop.query(sql, [id], (err, results) => {
