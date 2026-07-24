@@ -1272,13 +1272,18 @@ exports.deleteBannerWhole = async (feedbackId, orderNumber) => {
 
 exports.createProductTypesDao = async (data) => {
   return new Promise((resolve, reject) => {
-    const sql = "INSERT INTO producttypes (typeName, shortCode) VALUES (?, ?)";
-    marketPlace.query(sql, [data.typeName, data.shortCode], (err, results) => {
-      if (err) {
-        return reject(err);
+    const sql =
+      "INSERT INTO producttypes (typeName, shortCode, isValid) VALUES (?, ?, ?)";
+    marketPlace.query(
+      sql,
+      [data.typeName, data.shortCode, 0],
+      (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(results);
       }
-      resolve(results);
-    });
+    );
   });
 };
 
