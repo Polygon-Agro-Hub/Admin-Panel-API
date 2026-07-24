@@ -110,7 +110,7 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
         GROUP BY 
           cg.id
         ORDER BY 
-          cg.createdAt DESC
+          cg.cropNameEnglish ASC
         LIMIT ? OFFSET ?
       `;
     dataParams.push(limit, offset);
@@ -561,7 +561,7 @@ exports.getAllCropCalendars = (limit, offset, searchText, category) => {
     limit = parseInt(limit, 10) || 10;
     offset = parseInt(offset, 10) || 0;
 
-    dataSql += " ORDER BY cropcalender.createdAt DESC";
+    dataSql += "ORDER BY cropgroup.cropNameEnglish ASC";
     const dataParams = [...params, limit, offset];
 
     plantcare.query(countSql, params, (countErr, countResults) => {

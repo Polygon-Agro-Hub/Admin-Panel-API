@@ -291,7 +291,7 @@ async function SendEmail(email, ownerName) {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "PolygonAgro (Pvt) Ltd - GoViShop Supplier Account Has Been Deleted",
+      subject: "Polygon Holdings (Pvt) Ltd - GoViShop Supplier Account Has Been Deleted",
       text: `Dear ${ownerName},\n\nDetails are attached in the PDF.`,
       attachments: [
         {
@@ -2015,7 +2015,7 @@ async function deleteShopEmail(email, ownerName, shopName) {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "PolygonAgro (Pvt) Ltd - GoViShop Has Been Deleted",
+      subject: "Polygon Holdings (Pvt) Ltd - GoViShop Has Been Deleted",
       text: `Dear ${ownerName},\n\nDetails are attached in the PDF.`,
       attachments: [
         {

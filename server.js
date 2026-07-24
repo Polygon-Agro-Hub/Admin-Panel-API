@@ -139,7 +139,7 @@ goviShop.getConnection((err, connection) => {
 });
 
 //corn jobs
-// pickupOrdersReturnCornjob();
+pickupOrdersReturnCornjob();
 
 // Add base path for all routes
 const BASE_PATH = "/agro-api/admin-api";
