@@ -1484,12 +1484,12 @@ exports.editProductTypesDao = async (data, id, modifyId) => {
     const sql = `
                 UPDATE producttypes 
                 SET 
-                  typeName = ?, shortCode = ?, modifyId = ?
+                  typeName = ?, shortCode = ?, modifyId = ?, isValid = ?
                 WHERE id = ?
               `;
     marketPlace.query(
       sql,
-      [data.typeName, data.shortCode, modifyId, id],
+      [data.typeName, data.shortCode, modifyId, 0, id],
       (err, results) => {
         if (err) {
           return reject(err);
