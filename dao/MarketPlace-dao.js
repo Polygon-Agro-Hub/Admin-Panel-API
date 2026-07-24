@@ -575,7 +575,8 @@ exports.updateMarketProductDao = async (product, id, modifyBy) => {
         varietyId = ?,
         productTypeId = ?,
         comPrice = ?,
-        modifyBy = ?
+        modifyBy = ?,
+        isEnable = ?
       WHERE id = ?
     `;
     const values = [
@@ -594,7 +595,8 @@ exports.updateMarketProductDao = async (product, id, modifyBy) => {
       parseInt(product.varietyId) || null,
       parseInt(product.productTypeId) || null,
       parseFloat(product.comPrice) || 0,
-      modifyBy || null, 
+      modifyBy || null,
+      0, // isEnable forced to 0 on every update
       parseInt(id),
     ];
 
