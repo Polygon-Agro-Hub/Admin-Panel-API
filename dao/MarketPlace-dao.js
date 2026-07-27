@@ -442,7 +442,7 @@ exports.creatPackageDAO = async (data, profileImageUrl) => {
 
     const values = [
       data.displayName,
-      data.status,
+      'Disabled', // status always defaults to Disabled on creation
       data.productPrice,
       data.packageFee,
       data.serviceFee,
