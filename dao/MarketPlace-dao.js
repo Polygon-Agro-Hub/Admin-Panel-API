@@ -2938,7 +2938,7 @@ exports.getDefinePackageItemsByPackageIdDAO = async (packageId) => {
         const totalPrice = items.reduce((sum, item) => {
           const price = parseFloat(item.price) || 0;
           const qty = parseInt(item.qty) || 1;
-          return sum + price * qty;
+           return sum + price;
         }, 0);
 
         resolve({ createdAt: packageCreatedAt, items, totalPrice });
