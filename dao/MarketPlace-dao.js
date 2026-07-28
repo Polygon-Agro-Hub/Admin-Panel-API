@@ -442,7 +442,7 @@ exports.creatPackageDAO = async (data, profileImageUrl) => {
 
     const values = [
       data.displayName,
-      data.status,
+      'Disabled', // status always defaults to Disabled on creation
       data.productPrice,
       data.packageFee,
       data.serviceFee,
@@ -575,7 +575,8 @@ exports.updateMarketProductDao = async (product, id, modifyBy) => {
         varietyId = ?,
         productTypeId = ?,
         comPrice = ?,
-        modifyBy = ?
+        modifyBy = ?,
+        isEnable = ?
       WHERE id = ?
     `;
     const values = [
@@ -594,7 +595,8 @@ exports.updateMarketProductDao = async (product, id, modifyBy) => {
       parseInt(product.varietyId) || null,
       parseInt(product.productTypeId) || null,
       parseFloat(product.comPrice) || 0,
-      modifyBy || null, 
+      modifyBy || null,
+      0, // isEnable forced to 0 on every update
       parseInt(id),
     ];
 
@@ -1272,13 +1274,18 @@ exports.deleteBannerWhole = async (feedbackId, orderNumber) => {
 
 exports.createProductTypesDao = async (data) => {
   return new Promise((resolve, reject) => {
-    const sql = "INSERT INTO producttypes (typeName, shortCode) VALUES (?, ?)";
-    marketPlace.query(sql, [data.typeName, data.shortCode], (err, results) => {
-      if (err) {
-        return reject(err);
+    const sql =
+      "INSERT INTO producttypes (typeName, shortCode, isValid) VALUES (?, ?, ?)";
+    marketPlace.query(
+      sql,
+      [data.typeName, data.shortCode, 0],
+      (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(results);
       }
-      resolve(results);
-    });
+    );
   });
 };
 
@@ -1479,12 +1486,12 @@ exports.editProductTypesDao = async (data, id, modifyId) => {
     const sql = `
                 UPDATE producttypes 
                 SET 
-                  typeName = ?, shortCode = ?, modifyId = ?
+                  typeName = ?, shortCode = ?, modifyId = ?, isValid = ?
                 WHERE id = ?
               `;
     marketPlace.query(
       sql,
-      [data.typeName, data.shortCode, modifyId, id],
+      [data.typeName, data.shortCode, modifyId, 0, id],
       (err, results) => {
         if (err) {
           return reject(err);
@@ -2931,7 +2938,7 @@ exports.getDefinePackageItemsByPackageIdDAO = async (packageId) => {
         const totalPrice = items.reduce((sum, item) => {
           const price = parseFloat(item.price) || 0;
           const qty = parseInt(item.qty) || 1;
-          return sum + price * qty;
+           return sum + price;
         }, 0);
 
         resolve({ createdAt: packageCreatedAt, items, totalPrice });

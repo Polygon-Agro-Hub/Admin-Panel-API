@@ -300,7 +300,7 @@ exports.assignOfficerToJobDAO = (jobId, officerId, assignedBy) => {
           UPDATE govilinkjobs 
           SET 
             assignBy = ?,
-            status = 'Pending',
+            status = 'Assigned',
             assignDate = NOW()
           WHERE id = ?
         `;
