@@ -2184,13 +2184,10 @@ exports.addNewTask = async (req, res) => {
     const taskIdArr = await adminDao.getAllTaskIdDao(cropId);
     console.log("Task array:", taskIdArr);
 
-    for (let i = 0; i < taskIdArr.length; i++) {
+     for (let i = 0; i < taskIdArr.length; i++) {
       const existingTask = taskIdArr[i];
 
-      if (existingTask.taskIndex > indexId) {
-        console.log(
-          `Updating task ${existingTask.id}, current taskIndex: ${existingTask.taskIndex}`
-        );
+      if (existingTask.taskIndex >= indexId) {
         await adminDao.shiftUpTaskIndexDao(
           existingTask.id,
           existingTask.taskIndex + 1
@@ -2200,18 +2197,14 @@ exports.addNewTask = async (req, res) => {
 
     const addedTaskResult = await adminDao.addNewTaskDao(
       task,
-      indexId + 1,
+      indexId,
       cropId
     );
 
     if (addedTaskResult.insertId > 0) {
-      res
-        .status(201)
-        .json({ status: true, message: "Succcesfull Task Added!" });
+      res.status(201).json({ status: true, message: "Succcesfull Task Added!" });
     } else {
-      res
-        .status(500)
-        .json({ status: false, message: "Issue Occor in Task Adding!" });
+      res.status(500).json({ status: false, message: "Issue Occor in Task Adding!" });
     }
   } catch (error) {
     console.error("Error adding task:", error);

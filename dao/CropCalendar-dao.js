@@ -561,7 +561,7 @@ exports.getAllCropCalendars = (limit, offset, searchText, category) => {
     limit = parseInt(limit, 10) || 10;
     offset = parseInt(offset, 10) || 0;
 
-    dataSql += "ORDER BY cropgroup.cropNameEnglish ASC";
+    dataSql += "ORDER BY cropgroup.cropNameEnglish, cropvariety.varietyNameEnglish";
     const dataParams = [...params, limit, offset];
 
     plantcare.query(countSql, params, (countErr, countResults) => {
