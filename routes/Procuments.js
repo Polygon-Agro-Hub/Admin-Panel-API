@@ -160,4 +160,22 @@ router.get(
   ProcumentsEP.getShortageDetails
 );
 
+router.get(
+  "/shortage-details/:id",
+  authMiddleware,
+  ProcumentsEP.getShortageDetailsById
+);
+
+router.post(
+  "/assign-shortage/:id",
+  authMiddleware,
+  ProcumentsEP.assignShortage
+);
+
+router.get(
+  "/shortage-assigned-details/:id",
+  authMiddleware,
+  ProcumentsEP.getShortageAssignedDetails
+);
+
 module.exports = router;
