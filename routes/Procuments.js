@@ -205,4 +205,10 @@ router.put(
   ProcumentsEP.finalizeShortageAssigned
 );
 
+router.get(
+  "/get-all-shortage-details",
+  authMiddleware,
+  ProcumentsEP.getAllShortageAssignedDetails
+);
+
 module.exports = router;

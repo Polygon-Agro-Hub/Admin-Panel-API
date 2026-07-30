@@ -2441,3 +2441,62 @@ exports.finalizeShortageAssignedDao = (shortageAssignedId, comCenId, ceilling, f
     );
   });
 };
+
+exports.getAllShortageAssignedDetails = (date) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        sa.id,
+        sa.shortageassigned,
+        sa.comCenId,
+        cc.centerName,
+        cc.regCode,
+        sa.assignOfficerId,
+        sa.qty AS assignedQty,
+        sa.ceilling,
+        sa.status,
+        sa.assignedBy,
+        assignedByUser.userName AS assignedByName,
+        sa.finalizedBy,
+        finalizedByUser.userName AS finalizedByName,
+        sa.finalizeAt,
+        sa.createdAt AS assignedCreatedAt,
+        s.id AS shortageId,
+        s.mpItemId,
+        (s.shortageQty - IFNULL((
+          SELECT SUM(sa2.qty)
+          FROM collection_officer.shortageassigned sa2
+          WHERE sa2.shortageassigned = s.id
+        ), 0)) AS shortageQty,
+        s.buyPrice,
+        s.createdAt AS shortageCreatedAt,
+        mi.displayName,
+        cv.image
+      FROM collection_officer.shortage s
+LEFT JOIN collection_officer.shortageassigned sa ON sa.shortageassigned = s.id
+LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
+LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
+LEFT JOIN collection_officer.distributedcenter cc ON cc.id = sa.comCenId
+LEFT JOIN agro_world_admin.adminusers assignedByUser ON assignedByUser.id = sa.assignedBy
+LEFT JOIN agro_world_admin.adminusers finalizedByUser ON finalizedByUser.id = sa.finalizedBy
+WHERE 1 = 1
+    `;
+
+    const params = [];
+
+    if (date) {
+      sql += ` AND DATE(s.createdAt) = ? `;
+      params.push(date);
+    }
+
+    sql += ` ORDER BY sa.createdAt DESC `;
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        console.error('Error fetching shortage assigned details:', err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

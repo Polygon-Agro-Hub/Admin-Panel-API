@@ -992,3 +992,33 @@ exports.finalizeShortageAssigned = async (req, res) => {
     });
   }
 };
+
+exports.getAllShortageAssignedDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { date } = req.query;
+    console.log('date', date);
+
+    const shortageAssignedDetails = await procumentDao.getAllShortageAssignedDetails(date);
+
+    console.log('shortageAssignedDetails', shortageAssignedDetails);
+
+    if (!shortageAssignedDetails) {
+      return res.status(404).json({
+        success: false,
+        message: "Shortage assigned details not found",
+      });
+    }
+
+    res.json(shortageAssignedDetails);
+  } catch (err) {
+    console.error("Error fetching shortage assigned details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching shortage assigned details",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
