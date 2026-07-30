@@ -2299,3 +2299,143 @@ exports.getShortageAssignedDetails = (shortageassigned) => {
     });
   });
 };
+
+exports.getDistributionCentersForShortageDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        dcc.id AS comCenId,
+        dc.regCode,
+        dc.city,
+        dc.province
+      FROM collection_officer.distributedcompanycenter dcc
+      JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
+      ORDER BY dc.regCode ASC
+    `;
+ 
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error("Error fetching distribution centers for shortage:", err);
+        return reject(err);
+      }
+ 
+      const centers = results.map((row) => {
+        const parts = [row.regCode, row.city, row.province].filter(Boolean);
+        const label = parts.join(" - ");
+        return {
+          comCenId: row.comCenId,
+          value: row.regCode,
+          label,
+          fullName: label,
+        };
+      });
+ 
+      resolve(centers);
+    });
+  });
+};
+ 
+// ---------------------------------------------------------------------------
+// "To Finalize" list -> shortageassigned (status = Pending) joined to
+// shortage / marketplaceitems / cropvariety / adminusers
+// ---------------------------------------------------------------------------
+exports.getShortageToFinalizeDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        sa.id AS shortageAssignedId,
+        sa.qty AS shortageKg,
+        sa.ceilling AS ceilingPercent,
+        sa.status,
+        sa.comCenId,
+        s.buyPrice AS marketPricePerKg,
+        mpi.id AS mpItemId,
+        mpi.displayName AS itemName,
+        cv.image AS imageUrl,
+        au.userName AS assignedBy
+      FROM collection_officer.shortageassigned sa
+      JOIN collection_officer.shortage s ON sa.shortageassigned = s.id
+      JOIN market_place.marketplaceitems mpi ON s.mpItemId = mpi.id
+      LEFT JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
+      LEFT JOIN agro_world_admin.adminusers au ON sa.assignedBy = au.id
+      WHERE sa.status = 'Pending'
+      ORDER BY sa.createdAt DESC
+    `;
+ 
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error("Error fetching shortage to-finalize list:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+ 
+// ---------------------------------------------------------------------------
+// "Finalized" list -> shortageassigned (status = Finalize), also resolves
+// the distribution centre that was picked when it was finalized.
+// ---------------------------------------------------------------------------
+exports.getShortageFinalizedDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        sa.id AS shortageAssignedId,
+        sa.qty AS shortageKg,
+        sa.ceilling AS ceilingPercent,
+        sa.status,
+        sa.comCenId,
+        s.buyPrice AS marketPricePerKg,
+        mpi.id AS mpItemId,
+        mpi.displayName AS itemName,
+        cv.image AS imageUrl,
+        au.userName AS assignedBy,
+        dc.regCode,
+        dc.city,
+        dc.province
+      FROM collection_officer.shortageassigned sa
+      JOIN collection_officer.shortage s ON sa.shortageassigned = s.id
+      JOIN market_place.marketplaceitems mpi ON s.mpItemId = mpi.id
+      LEFT JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
+      LEFT JOIN agro_world_admin.adminusers au ON sa.assignedBy = au.id
+      LEFT JOIN collection_officer.distributedcompanycenter dcc ON sa.comCenId = dcc.id
+      LEFT JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
+      WHERE sa.status = 'Finalize'
+      ORDER BY sa.createdAt DESC
+    `;
+ 
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error("Error fetching finalized shortage list:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+ 
+// ---------------------------------------------------------------------------
+// Finalize action -> fills comCenId, ceilling, status, finalizedBy
+// Only updates rows that are still Pending (idempotency / race-safety).
+// ---------------------------------------------------------------------------
+exports.finalizeShortageAssignedDao = (shortageAssignedId, comCenId, ceilling, finalizedBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE collection_officer.shortageassigned
+      SET comCenId = ?, ceilling = ?, status = 'Finalize', finalizedBy = ?
+      WHERE id = ? AND status = 'Pending'
+    `;
+ 
+    collectionofficer.query(
+      sql,
+      [comCenId, ceilling, finalizedBy, shortageAssignedId],
+      (err, results) => {
+        if (err) {
+          console.error("Error finalizing shortage assignment:", err);
+          return reject(err);
+        }
+        resolve(results);
+      }
+    );
+  });
+};
