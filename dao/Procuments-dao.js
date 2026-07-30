@@ -2233,9 +2233,10 @@ exports.getShortageToFinalizeDao = () => {
       LEFT JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
       LEFT JOIN agro_world_admin.adminusers au ON sa.assignedBy = au.id
       WHERE sa.status = 'Pending'
+        AND DATE(sa.createdAt) = CURDATE()
       ORDER BY sa.createdAt DESC
     `;
- 
+
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         console.error("Error fetching shortage to-finalize list:", err);
@@ -2245,7 +2246,7 @@ exports.getShortageToFinalizeDao = () => {
     });
   });
 };
- 
+
 // ---------------------------------------------------------------------------
 // "Finalized" list -> shortageassigned (status = Finalize), also resolves
 // the distribution centre that was picked when it was finalized.
@@ -2275,9 +2276,10 @@ exports.getShortageFinalizedDao = () => {
       LEFT JOIN collection_officer.distributedcompanycenter dcc ON sa.comCenId = dcc.id
       LEFT JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
       WHERE sa.status = 'Finalize'
+        AND DATE(sa.createdAt) = CURDATE()
       ORDER BY sa.createdAt DESC
     `;
- 
+
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         console.error("Error fetching finalized shortage list:", err);
