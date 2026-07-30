@@ -2173,3 +2173,34 @@ exports.getAllDistributionCenters = () => {
     });
   });
 };
+
+exports.getShortageDetails = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        s.id,
+        s.mpItemId,
+        s.shortageQty,
+        s.buyPrice,
+        s.createdAt,
+        IFNULL((
+          SELECT SUM(sa.qty)
+          FROM collection_officer.shortageassigned sa
+          WHERE sa.shortageassigned = s.id
+        ), 0) AS totalAssignedQty,
+        mi.displayName,
+        cv.image
+      FROM collection_officer.shortage s
+      LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
+      LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
+      ORDER BY s.createdAt DESC
+    `;
+    plantcare.query(sql, (err, results) => {
+      if (err) {
+        console.error('Error fetching shortage details:', err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

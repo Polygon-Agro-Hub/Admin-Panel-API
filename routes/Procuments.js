@@ -154,4 +154,10 @@ router.get(
   ProcumentsEP.testFunc
 );
 
+router.get(
+  "/shortage-details",
+  authMiddleware,
+  ProcumentsEP.getShortageDetails
+);
+
 module.exports = router;

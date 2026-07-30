@@ -752,3 +752,30 @@ exports.getAllDistributionCenters = async (req, res) => {
     });
   }
 };
+
+exports.getShortageDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const shortageDetails = await procumentDao.getShortageDetails();
+
+    console.log('shortageDetails', shortageDetails);
+
+    if (!shortageDetails) {
+      return res.status(404).json({
+        success: false,
+        message: "Shortage details not found",
+      });
+    }
+
+    res.json(shortageDetails);
+  } catch (err) {
+    console.error("Error fetching shortage details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching shortage details",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
