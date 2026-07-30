@@ -752,3 +752,123 @@ exports.getAllDistributionCenters = async (req, res) => {
     });
   }
 };
+
+
+exports.getShortageDistributionCenters = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+ 
+  try {
+    const centers = await procumentDao.getDistributionCentersForShortageDao();
+    res.json({ success: true, data: centers });
+  } catch (err) {
+    console.error("Error fetching distribution centers:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching distribution centers.",
+    });
+  }
+};
+ 
+exports.getShortageToFinalize = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+ 
+  try {
+    const [toFinalize, centers] = await Promise.all([
+      procumentDao.getShortageToFinalizeDao(),
+      procumentDao.getDistributionCentersForShortageDao(),
+    ]);
+ 
+    // Every "to finalize" row gets the same dropdown of available centres
+    const items = toFinalize.map((item) => ({
+      ...item,
+      distributionCenters: centers,
+      selectedDC: null,
+    }));
+ 
+    res.json({ success: true, data: items });
+  } catch (err) {
+    console.error("Error fetching shortage to-finalize list:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching shortage data.",
+    });
+  }
+};
+ 
+exports.getShortageFinalized = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+ 
+  try {
+    const finalized = await procumentDao.getShortageFinalizedDao();
+ 
+    const items = finalized.map((item) => {
+      const parts = [item.regCode, item.city, item.province].filter(Boolean);
+      const label = parts.join(" - ");
+ 
+      return {
+        ...item,
+        selectedDC: item.comCenId
+          ? {
+              comCenId: item.comCenId,
+              value: item.regCode,
+              label,
+              fullName: label,
+            }
+          : null,
+      };
+    });
+ 
+    res.json({ success: true, data: items });
+  } catch (err) {
+    console.error("Error fetching finalized shortage list:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching finalized shortage data.",
+    });
+  }
+};
+ 
+exports.finalizeShortageAssigned = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+ 
+  try {
+    const { shortageAssignedId, comCenId, ceilingPercent } = req.body;
+    const finalizedBy = req.user.userId; // logged-in admin, set by auth middleware
+ 
+    if (!shortageAssignedId || !comCenId) {
+      return res.status(400).json({
+        success: false,
+        message: "shortageAssignedId and comCenId are required",
+      });
+    }
+ 
+    const result = await procumentDao.finalizeShortageAssignedDao(
+      shortageAssignedId,
+      comCenId,
+      ceilingPercent,
+      finalizedBy
+    );
+ 
+    if (!result.affectedRows) {
+      return res.status(404).json({
+        success: false,
+        message: "Shortage assignment not found or already finalized",
+      });
+    }
+ 
+    res.json({
+      success: true,
+      message: "Shortage assignment finalized successfully",
+    });
+  } catch (err) {
+    console.error("Error finalizing shortage assignment:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while finalizing the shortage assignment.",
+    });
+  }
+};
