@@ -2173,3 +2173,129 @@ exports.getAllDistributionCenters = () => {
     });
   });
 };
+
+exports.getShortageDetails = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        s.id,
+        s.mpItemId,
+        s.shortageQty,
+        s.buyPrice,
+        s.createdAt,
+        IFNULL((
+          SELECT SUM(sa.qty)
+          FROM collection_officer.shortageassigned sa
+          WHERE sa.shortageassigned = s.id
+        ), 0) AS totalAssignedQty,
+        mi.displayName,
+        cv.image
+      FROM collection_officer.shortage s
+      LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
+      LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
+      ORDER BY s.createdAt DESC
+    `;
+    plantcare.query(sql, (err, results) => {
+      if (err) {
+        console.error('Error fetching shortage details:', err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getShortageDetailsById = (id) => {
+  return new Promise((resolve, reject) => {
+    if (!id) {
+      return resolve(null);
+    }
+    const sql = `
+      SELECT 
+        (s.shortageQty - IFNULL((
+          SELECT SUM(sa.qty)
+          FROM collection_officer.shortageassigned sa
+          WHERE sa.shortageassigned = s.id
+        ), 0)) AS shortageQty,
+        s.buyPrice,
+        mi.displayName,
+        cv.image
+      FROM collection_officer.shortage s
+      LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
+      LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
+      WHERE s.id = ?
+    `;
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        console.error('Error fetching shortage details by id:', err);
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.getAllCenters = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        dcc.id,
+        dcc.companyId,
+        dcc.centerId,
+        dc.regCode,
+        dc.centerName
+      FROM distributedcompanycenter dcc
+      LEFT JOIN distributedcenter dc ON dc.id = dcc.centerId
+      ORDER BY dc.centerName ASC
+    `;
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error('Error fetching all centers:', err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.assignShortage = (shortageassigned, comCenId, qty, ceilling, assignedBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO shortageassigned 
+        (shortageassigned, comCenId, qty, ceilling, assignedBy)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    collectionofficer.query(sql, [shortageassigned, comCenId, qty, ceilling, assignedBy], (err, results) => {
+      if (err) {
+        console.error('Error inserting shortage assigned:', err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getShortageAssignedDetails = (shortageassigned) => {
+  return new Promise((resolve, reject) => {
+    if (!shortageassigned) {
+      return resolve([]);
+    }
+    const sql = `
+      SELECT 
+        id,
+        shortageassigned,
+        comCenId,
+        qty,
+        ceilling
+      FROM shortageassigned
+      WHERE shortageassigned = ?
+    `;
+    collectionofficer.query(sql, [shortageassigned], (err, results) => {
+      if (err) {
+        console.error('Error fetching shortage assigned details:', err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

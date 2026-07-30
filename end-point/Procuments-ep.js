@@ -752,3 +752,123 @@ exports.getAllDistributionCenters = async (req, res) => {
     });
   }
 };
+
+exports.getShortageDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const shortageDetails = await procumentDao.getShortageDetails();
+
+    console.log('shortageDetails', shortageDetails);
+
+    if (!shortageDetails) {
+      return res.status(404).json({
+        success: false,
+        message: "Shortage details not found",
+      });
+    }
+
+    res.json(shortageDetails);
+  } catch (err) {
+    console.error("Error fetching shortage details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching shortage details",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
+exports.getShortageDetailsById = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const id = req.params.id;
+    console.log('id', id);
+
+    const shortageDetail = await procumentDao.getShortageDetailsById(id);
+    const centers = await procumentDao.getAllCenters();
+
+    console.log('shortageDetail', shortageDetail);
+    console.log('centers', centers);
+
+    if (!shortageDetail) {
+      return res.status(404).json({
+        success: false,
+        message: "Shortage details not found",
+      });
+    }
+
+    res.json({
+      ...shortageDetail,
+      centers,
+    });
+  } catch (err) {
+    console.error("Error fetching shortage details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching shortage details",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
+exports.assignShortage = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const shortageassigned = req.params.id;
+    const { comCenId, qty, ceilling } = req.body;
+    const assignedBy = req.user.userId;
+
+    const result = await procumentDao.assignShortage(shortageassigned, comCenId, qty, ceilling, assignedBy);
+
+    console.log('result', result);
+
+    res.json({
+      success: true,
+      message: "Shortage assigned successfully",
+      insertId: result.insertId,
+    });
+  } catch (err) {
+    console.error("Error assigning shortage:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while assigning shortage",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
+exports.getShortageAssignedDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const shortageassigned = req.params.id;
+    console.log('shortageassigned', shortageassigned);
+
+    const shortageAssignedDetails = await procumentDao.getShortageAssignedDetails(shortageassigned);
+
+    console.log('shortageAssignedDetails', shortageAssignedDetails);
+
+    if (!shortageAssignedDetails) {
+      return res.status(404).json({
+        success: false,
+        message: "Shortage assigned details not found",
+      });
+    }
+
+    res.json(shortageAssignedDetails);
+  } catch (err) {
+    console.error("Error fetching shortage assigned details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching shortage assigned details",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
