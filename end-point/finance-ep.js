@@ -13,7 +13,8 @@ const {
   getAgentCommitionsShema,
   getAllInvestmentUsersSchema,
   getAllTransactionsSchema,
-  IdParamSchema
+  IdParamSchema,
+  getAllShortageSubmissionsSchema,
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
@@ -2132,5 +2133,116 @@ exports.updateTransactionStatus = async (req, res) => {
       success: false,
       message: "Internal Server Error",
     });
+  }
+};
+
+exports.getAllShortageSubmissionEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { page, limit, status, purchasedAt, searchItem } =
+      await getAllShortageSubmissionsSchema.validateAsync(req.query);
+
+    const { results, total } = await financeDao.getAllShortageSubmissionsDAO(
+      page,
+      limit,
+      status,
+      purchasedAt,
+      searchItem
+    );
+
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({
+        error: err.details[0].message,
+      });
+    }
+
+    console.error(err);
+    res.status(500).json({
+      error: "An error occurred while fetching submissions",
+    });
+  }
+};
+
+exports.ViewSubmissionDocumentEp = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Submission Id is required",
+      });
+    }
+
+    const result = await financeDao.getViewSubmissionDocumentDao(id);
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Submission not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      result: result[0],
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+exports.updateSubmissionStatusEp = async (req, res) => {
+  try {
+
+    const { id } = req.params;
+    const { reqStatus } = req.body;
+
+    const finalizedBy = req.user.userId;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Submission Id is required",
+      });
+    }
+
+    if (!["Completed"].includes(reqStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status",
+      });
+    }
+
+    await financeDao.updateSubmissionStatusDao({
+      id,
+      reqStatus,
+      finalizedBy,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Submission completed successfully",
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+
   }
 };

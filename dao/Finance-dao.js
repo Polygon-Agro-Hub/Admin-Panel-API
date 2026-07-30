@@ -2923,7 +2923,6 @@ exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
   });
 };
 
-
 exports.getTransactionDocumentByIdDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -3021,41 +3020,36 @@ exports.updateTransactionStatusDao = (data) => {
                 WHERE id = ?
               `;
 
-              connection.query(getDriverIdSql, [drvOrderMainId], (err, driverResult) => {
-                if (err) {
-                  return connection.rollback(() => {
-                    connection.release();
-                    reject(err);
-                  });
-                }
+              connection.query(
+                getDriverIdSql,
+                [drvOrderMainId],
+                (err, driverResult) => {
+                  if (err) {
+                    return connection.rollback(() => {
+                      connection.release();
+                      reject(err);
+                    });
+                  }
 
-                if (driverResult.length === 0) {
-                  return connection.rollback(() => {
-                    connection.release();
-                    reject(new Error("Driver order main record not found"));
-                  });
-                }
+                  if (driverResult.length === 0) {
+                    return connection.rollback(() => {
+                      connection.release();
+                      reject(new Error("Driver order main record not found"));
+                    });
+                  }
 
-                const driverId = driverResult[0].driverId;
-                const isHandOver = transStatus === "Approved" ? 1 : 0;
+                  const driverId = driverResult[0].driverId;
+                  const isHandOver = transStatus === "Approved" ? 1 : 0;
 
-                const insertMainSql = `
+                  const insertMainSql = `
                   INSERT INTO driverordermain (driverId, isHandOver, createdAt)
                   VALUES (?, ?, NOW())
                 `;
 
-                connection.query(
-                  insertMainSql,
-                  [driverId, isHandOver],
-                  (err) => {
-                    if (err) {
-                      return connection.rollback(() => {
-                        connection.release();
-                        reject(err);
-                      });
-                    }
-
-                    connection.commit((err) => {
+                  connection.query(
+                    insertMainSql,
+                    [driverId, isHandOver],
+                    (err) => {
                       if (err) {
                         return connection.rollback(() => {
                           connection.release();
@@ -3063,12 +3057,21 @@ exports.updateTransactionStatusDao = (data) => {
                         });
                       }
 
-                      connection.release();
-                      resolve(true);
-                    });
-                  },
-                );
-              });
+                      connection.commit((err) => {
+                        if (err) {
+                          return connection.rollback(() => {
+                            connection.release();
+                            reject(err);
+                          });
+                        }
+
+                        connection.release();
+                        resolve(true);
+                      });
+                    },
+                  );
+                },
+              );
             },
           );
         });
@@ -3102,21 +3105,270 @@ exports.getTransactionOrdersDao = (id) => {
       if (err) {
         reject(err);
       } else {
-        const orders = results.map(order => ({
+        const orders = results.map((order) => ({
           ...order,
-          toReceive: order.amount - order.earnPrice
+          toReceive: order.amount - order.earnPrice,
         }));
 
         const totalToReceive = orders.reduce(
           (total, order) => total + order.toReceive,
-          0
+          0,
         );
 
         resolve({
           orders,
-          totalToReceive
+          totalToReceive,
         });
       }
+    });
+  });
+};
+
+exports.getAllShortageSubmissionsDAO = (
+  page,
+  limit,
+  status,
+  purchasedAt,
+  searchItem,
+) => {
+  return new Promise((resolve, reject) => {
+    const sqlParams = [];
+    const countParams = [];
+
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM shortageassigned sa
+      LEFT JOIN shortage s ON sa.shortageassigned = s.id
+      LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
+      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
+      LEFT JOIN distributedcenter dc ON co.distributedCenterId = dc.id
+      LEFT JOIN agro_world_admin.adminusers au ON sa.finalizedBy = au.id
+      WHERE 1 = 1
+    `;
+
+    let sql = `
+      SELECT
+        cg.cropNameEnglish AS product,
+        cg.image,
+        sp.id,
+        sp.prchQty,
+        sp.reqStatus,
+        sp.createdAt AS purchasedAt,
+        co.empId,
+        CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS officerName,
+        co.phoneCode01,
+        co.phoneNumber01,
+        dc.regCode,
+        au.userName AS finalizedBy,
+        sa.finalizeAt
+      FROM shortageassigned sa
+      LEFT JOIN shortage s ON sa.shortageassigned = s.id
+      LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
+      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
+      LEFT JOIN distributedcenter dc ON co.distributedCenterId = dc.id
+      LEFT JOIN agro_world_admin.adminusers au ON sa.finalizedBy = au.id
+      WHERE 1 = 1
+    `;
+
+    // Status Filter
+    if (status) {
+      sql += ` AND sp.reqStatus = ? `;
+      countSql += ` AND sp.reqStatus = ? `;
+
+      sqlParams.push(status);
+      countParams.push(status);
+    }
+
+    // Purchased Date Filter
+    if (purchasedAt) {
+      sql += ` AND DATE(sp.createdAt) = ? `;
+      countSql += ` AND DATE(sp.createdAt) = ? `;
+
+      sqlParams.push(purchasedAt);
+      countParams.push(purchasedAt);
+    }
+
+    // Search
+    if (searchItem) {
+      const search = `%${searchItem}%`;
+
+      sql += `
+        AND (
+          cg.cropNameEnglish LIKE ?
+          OR co.empId LIKE ?
+          OR CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) LIKE ?
+          OR dc.regCode LIKE ?
+        )
+      `;
+
+      countSql += `
+        AND (
+          cg.cropNameEnglish LIKE ?
+          OR co.empId LIKE ?
+          OR CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) LIKE ?
+          OR dc.regCode LIKE ?
+        )
+      `;
+
+      sqlParams.push(search, search, search, search);
+      countParams.push(search, search, search, search);
+    }
+
+    sql += `
+      ORDER BY sp.createdAt DESC, sp.id DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    sqlParams.push(parseInt(limit), parseInt(offset));
+
+    collectionofficer.query(countSql, countParams, (countErr, countResult) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResult[0].total;
+
+      collectionofficer.query(sql, sqlParams, (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+
+        resolve({
+          results,
+          total,
+        });
+      });
+    });
+  });
+};
+
+exports.getViewSubmissionDocumentDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        cg.cropNameEnglish AS product,
+        sp.id,
+        sp.prchQty,
+        sp.prchPrice,
+        sp.reqStatus,
+        co.empId,
+        co.phoneCode01,
+        co.phoneNumber01,
+        sp.slip
+      FROM shortageassigned sa
+      LEFT JOIN shortage s ON sa.shortageassigned = s.id
+      LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
+      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
+      WHERE sp.id = ?;
+    `;
+
+    collectionofficer.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+
+      resolve(result);
+    });
+  });
+};
+
+exports.updateSubmissionStatusDao = (data) => {
+  return new Promise((resolve, reject) => {
+    const { id, reqStatus, finalizedBy } = data;
+
+    collectionofficer.getConnection((err, connection) => {
+      if (err) return reject(err);
+
+      connection.beginTransaction((err) => {
+        if (err) {
+          connection.release();
+          return reject(err);
+        }
+
+        const getAssignSql = `
+          SELECT srtAssignId
+          FROM shortagepurchase
+          WHERE id = ?
+        `;
+
+        connection.query(getAssignSql, [id], (err, result) => {
+          if (err) {
+            return connection.rollback(() => {
+              connection.release();
+              reject(err);
+            });
+          }
+
+          if (result.length === 0) {
+            return connection.rollback(() => {
+              connection.release();
+              reject(new Error("Submission not found"));
+            });
+          }
+
+          const assignId = result[0].srtAssignId;
+
+          const updatePurchaseSql = `
+            UPDATE shortagepurchase
+            SET reqStatus = ?
+            WHERE id = ?
+          `;
+
+          connection.query(updatePurchaseSql, [reqStatus, id], (err) => {
+            if (err) {
+              return connection.rollback(() => {
+                connection.release();
+                reject(err);
+              });
+            }
+
+            const updateAssignedSql = `
+                UPDATE shortageassigned
+                SET
+                  status = 'Finalize',
+                  finalizedBy = ?,
+                  finalizeAt = NOW()
+                WHERE id = ?
+              `;
+
+            connection.query(
+              updateAssignedSql,
+              [finalizedBy, assignId],
+              (err) => {
+                if (err) {
+                  return connection.rollback(() => {
+                    connection.release();
+                    reject(err);
+                  });
+                }
+
+                connection.commit((err) => {
+                  if (err) {
+                    return connection.rollback(() => {
+                      connection.release();
+                      reject(err);
+                    });
+                  }
+
+                  connection.release();
+                  resolve(true);
+                });
+              },
+            );
+          });
+        });
+      });
     });
   });
 };
