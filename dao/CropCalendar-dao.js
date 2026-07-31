@@ -250,11 +250,11 @@ exports.insertXLSXData = (cropId, data) => {
       "Task description (English)": Joi.string().required(),
       "Task description (Sinhala)": Joi.string().required(),
       "Task description (Tamil)": Joi.string().required(),
-      "Image Link": Joi.string(),
-      "Video Link English": Joi.string(),
-      "Video Link Sinhala": Joi.string(),
-      "Video Link Tamil": Joi.string(),
-      "Required Images": Joi.number(),
+      "Image Link": Joi.string().required(),
+      "Video Link English": Joi.string().required(),
+      "Video Link Sinhala": Joi.string().required(),
+      "Video Link Tamil": Joi.string().required(),
+      "Required Images": Joi.number().required(),
     }).required();
 
     const validatedData = [];
