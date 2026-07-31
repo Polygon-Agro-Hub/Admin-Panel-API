@@ -155,6 +155,15 @@ const getAllTransactionsSchema = Joi.object({
   searchItem: Joi.string().optional(),
 });
 
+const getAllShortageSubmissionsSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).default(10).optional(),
+  status: Joi.string()
+    .valid("Pending", "Completed")
+    .optional(),
+  purchasedAt: Joi.string().optional(),
+  searchItem: Joi.string().allow("").optional(),
+});
 
 module.exports = {
   createAgentCommissionSchema,
@@ -170,5 +179,6 @@ module.exports = {
   getAgentCommitionsShema,
   IdParamSchema,
   getAllInvestmentUsersSchema,
-  getAllTransactionsSchema
+  getAllTransactionsSchema,
+  getAllShortageSubmissionsSchema
 };
