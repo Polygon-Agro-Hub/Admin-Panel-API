@@ -3249,44 +3249,62 @@ exports.insertUserXLSXData = (data) => {
 
       // Database check for existing users
       const phones = validatedData.map((row) => {
-        const phone = String(row["Phone Number"]).trim();
+      const phone = String(row["Phone Number"]).trim();
         return phone.startsWith("+") ? phone : `+${phone}`;
       });
-      
+
       const nics = validatedData.map((row) => String(row["NIC Number"]).trim());
 
       const existingUsers = await new Promise((resolve, reject) => {
-        const sql = `
-          SELECT firstName, lastName, phoneNumber, NICnumber 
-          FROM users 
-          WHERE phoneNumber IN (?) OR NICnumber IN (?)
-        `;
-        plantcare.query(sql, [phones, nics], (err, results) => {
-          if (err) reject(err);
-          else resolve(results);
-        });
+      const sql = `
+        SELECT firstName, lastName, phoneNumber, NICnumber 
+        FROM users 
+        WHERE phoneNumber IN (?) OR NICnumber IN (?)
+      `;
+      plantcare.query(sql, [phones, nics], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
       });
+    });
 
-      // Filter new users
-      const existingPhones = new Set(
-        existingUsers.map((user) => user.phoneNumber)
-      );
-      const existingNICs = new Set(existingUsers.map((user) => user.NICnumber));
+    // Build fast lookup sets from DB results
+    const existingPhoneSet = new Set(existingUsers.map((u) => u.phoneNumber));
+    const existingNICSet = new Set(existingUsers.map((u) => u.NICnumber));
 
-      const newUsers = validatedData.filter((user) => {
-        const phone = String(user["Phone Number"]).trim();
-        const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
-        const nic = String(user["NIC Number"]).trim();
-        return !existingPhones.has(formattedPhone) && !existingNICs.has(nic);
+    // Compare EACH uploaded row independently against phone/NIC sets
+    const newUsers = [];
+    const existingUsersReport = [];
+
+    validatedData.forEach((row) => {
+      const rawPhone = String(row["Phone Number"]).trim();
+      const formattedPhone = rawPhone.startsWith("+") ? rawPhone : `+${rawPhone}`;
+      const nic = String(row["NIC Number"]).trim();
+
+      const phoneExists = existingPhoneSet.has(formattedPhone);
+      const nicExists = existingNICSet.has(nic);
+
+    if (phoneExists || nicExists) {
+      existingUsersReport.push({
+        firstName: row["First Name"],
+        lastName: row["Last Name"],
+        phoneNumber: formattedPhone,
+        NICnumber: nic,
+        phoneExists,   // <-- true only if THIS row's phone matched DB
+        nicExists,     // <-- true only if THIS row's NIC matched DB
+        rowNumber: row.rowNumber,
       });
+    } else {
+      newUsers.push(row);
+    }
+  });
 
-      let insertedRows = 0;
-      if (newUsers.length > 0) {
-        const sql = `
-          INSERT INTO users 
-          (firstName, lastName, phoneNumber, NICnumber, membership, district) 
-          VALUES ?
-        `;
+    let insertedRows = 0;
+    if (newUsers.length > 0) {
+      const sql = `
+        INSERT INTO users 
+        (firstName, lastName, phoneNumber, NICnumber, membership, district) 
+        VALUES ?
+      `;
         // const values = newUsers.map((row) => [
         //   row["First Name"],
         //   row["Last Name"],
@@ -3298,39 +3316,39 @@ exports.insertUserXLSXData = (data) => {
         //   row["District"],
         // ]);
 
-        const values = newUsers.map((row) => [
-          row["First Name"],
-          row["Last Name"],
-          normalizeSLMobile(row["Phone Number"]),
-          String(row["NIC Number"]).trim(),
-          row["Membership"],
-          row["District"],
-        ]);
+      const values = newUsers.map((row) => [
+        row["First Name"],
+        row["Last Name"],
+        normalizeSLMobile(row["Phone Number"]),
+        String(row["NIC Number"]).trim(),
+        row["Membership"],
+        row["District"],
+      ]);
 
-        await new Promise((resolve, reject) => {
-          plantcare.query(sql, [values], (err, result) => {
-            if (err) reject(err);
-            else {
-              insertedRows = result.affectedRows || newUsers.length;
-              resolve(result);
-            }
-          });
-        });
-      }
-
-      resolve({
-        message: newUsers.length > 0 
-          ? "Data inserted successfully. Some users already exist or were duplicates." 
-          : "No new users inserted. All users already exist in database or were duplicates.",
-        existingUsers,
-        duplicateData, // Duplicates within Excel
-        emptyRows, // Empty rows that were skipped
-        totalRows: data.length,
-        insertedRows: insertedRows,
-        skippedRows: emptyRows.length,
-        duplicateRows: duplicateData.length,
-        processedRows: validatedData.length
+    await new Promise((resolve, reject) => {
+      plantcare.query(sql, [values], (err, result) => {
+        if (err) reject(err);
+        else {
+          insertedRows = result.affectedRows || newUsers.length;
+          resolve(result);
+        }
       });
+    });
+  }
+
+    resolve({
+      message: newUsers.length > 0
+        ? "Data inserted successfully. Some users already exist or were duplicates."
+        : "No new users inserted. All users already exist in database or were duplicates.",
+      existingUsers: existingUsersReport, 
+      duplicateData,
+      emptyRows,
+      totalRows: data.length,
+      insertedRows: insertedRows,
+      skippedRows: emptyRows.length,
+      duplicateRows: duplicateData.length,
+      processedRows: validatedData.length
+    });
     } catch (error) {
       reject(error);
     }
