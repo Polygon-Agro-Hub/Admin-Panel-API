@@ -2843,6 +2843,7 @@ exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
       FROM collection_officer.driverordertransaction dt
       LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
       LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
+      WHERE 1 = 1
     `;
 
     // SQL to fetch paginated data
