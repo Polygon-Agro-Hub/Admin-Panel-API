@@ -1,28 +1,30 @@
 require("dotenv").config();
 
-console.log("Environment Variables:");
-console.log("----------------------");
-console.log("PORT:", process.env.PORT);
-console.log("DB_HOST:", process.env.DB_HOST);
-console.log("DB_USER:", process.env.DB_USER);
-console.log("DB_PASSWORD:", process.env.DB_PASSWORD);
-console.log("DB_NAME_AD:", process.env.DB_NAME_AD);
-console.log("DB_NAME_PC:", process.env.DB_NAME_PC);
-console.log("DB_NAME_CO:", process.env.DB_NAME_CO);
-console.log("DB_NAME_MP:", process.env.DB_NAME_MP);
-console.log("DB_NAME_DS:", process.env.DB_NAME_DS);
-console.log("AUTHOR:", process.env.AUTHOR);
-console.log("MARKETPRICE:", process.env.MARKETPRICE);
-console.log("JWT_SECRET:", process.env.JWT_SECRET);
-console.log("EMAIL_USER:", process.env.EMAIL_USER);
-console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
+// console.log("Environment Variables:");
+// console.log("----------------------");
+// console.log("PORT:", process.env.PORT);
+// console.log("DB_HOST:", process.env.DB_HOST);
+// console.log("DB_USER:", process.env.DB_USER);
+// console.log("DB_PASSWORD:", process.env.DB_PASSWORD);
+// console.log("DB_NAME_AD:", process.env.DB_NAME_AD);
+// console.log("DB_NAME_PC:", process.env.DB_NAME_PC);
+// console.log("DB_NAME_CO:", process.env.DB_NAME_CO);
+// console.log("DB_NAME_MP:", process.env.DB_NAME_MP);
+// console.log("DB_NAME_DS:", process.env.DB_NAME_DS);
+// console.log("AUTHOR:", process.env.AUTHOR);
+// console.log("MARKETPRICE:", process.env.MARKETPRICE);
+// console.log("JWT_SECRET:", process.env.JWT_SECRET);
+// console.log("EMAIL_USER:", process.env.EMAIL_USER);
+// console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
 // console.log('AWS_ACCESS_KEY_ID:', process.env.AWS_ACCESS_KEY_ID);
 // console.log('AWS_SECRET_ACCESS_KEY:', process.env.AWS_SECRET_ACCESS_KEY);
 // console.log('AWS_REGION:', process.env.AWS_REGION);
 // console.log('AWS_S3_BUCKET_NAME:', process.env.AWS_S3_BUCKET_NAME);
-console.log("----------------------");
+// console.log("----------------------");
 
 const express = require('express');
+const http = require("http");
+const { Server } = require("socket.io");
 const { admin, plantcare, collectionofficer, marketPlace, investment, goviShop } = require('./startup/database');
 const routes = require('./routes/Admin');
 const collectionOfficerRoutes = require('./routes/CollectionOfficer');
@@ -55,14 +57,49 @@ require("dotenv").config();
 const cors = require("cors");
 const bodyParser = require('body-parser');
 
+// Add base path for all routes
+const BASE_PATH = "/agro-api/admin-api";
+
 const app = express();
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  path: `${BASE_PATH}/socket.io`,
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+io.on("connection", (socket) => {
+  console.log("⚡ Client connected to Socket.IO:", socket.id);
+
+  socket.on("join_row", (rowId) => {
+    socket.join(`row_${rowId}`);
+    console.log(`Socket ${socket.id} joined room row_${rowId}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔌 Client disconnected from Socket.IO:", socket.id);
+  });
+});
+
+// Attach io instance to express app
+app.set("io", io);
+
+
 const port = process.env.PORT || 3000;
 
+
+
+// Enable CORS for all routes
 app.use(
   cors({
-    origin: "*",
+    origin: "*", // For development. Use specific origins in production
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
   })
-); // Enable CORS for all routes
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -139,10 +176,10 @@ goviShop.getConnection((err, connection) => {
 });
 
 //corn jobs
-pickupOrdersReturnCornjob();
+// pickupOrdersReturnCornjob();
 
-// Add base path for all routes
-const BASE_PATH = "/agro-api/admin-api";
+
+
 
 app.use("", heathRoutes);
 // app.use(cors());
@@ -176,9 +213,13 @@ app.get(BASE_PATH + "/test", (req, res) => {
   console.log("test route is working");
 });
 
-app.listen(port, () => {
-    console.log(`⏰ Time: ${new Date().toLocaleString()}`);
+// Attach io and mainApp to server instance
+server.io = io;
+server.app = app;
+
+server.listen(port, () => {
+  console.log(`⏰ Time: ${new Date().toLocaleString()}`);
   console.log(`Server running on http://localhost:${port}`);
 });
 
-module.exports = app;
+module.exports = server;
