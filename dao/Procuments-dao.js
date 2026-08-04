@@ -2424,7 +2424,7 @@ exports.finalizeShortageAssignedDao = (shortageAssignedId, comCenId, ceilling, f
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE collection_officer.shortageassigned
-      SET comCenId = ?, ceilling = ?, status = 'Finalize', finalizedBy = ?
+      SET comCenId = ?, ceilling = ?, status = 'Finalize', finalizedBy = ?, finalizeAt = NOW()
       WHERE id = ? AND status = 'Pending'
     `;
  
