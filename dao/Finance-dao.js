@@ -2876,12 +2876,12 @@ exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
     }
 
     // Fixed category filter to use the correct alias
-    // if (date) {
-    //   countSql += " AND DATE(dt.createdAt) = ? ";
-    //   sql += " AND DATE(dt.createdAt) = ? ";
-    //   Sqlparams.push(date);
-    //   Counterparams.push(date);
-    // }
+    if (date) {
+      countSql += " AND DATE(dt.createdAt) = ? ";
+      sql += " AND DATE(dt.createdAt) = ? ";
+      Sqlparams.push(date);
+      Counterparams.push(date);
+    }
 
     // Add search functionality
     if (searchItem) {
