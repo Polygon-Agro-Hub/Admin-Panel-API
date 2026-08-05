@@ -440,4 +440,9 @@ router.get(
   AdminEp.getFiealdOfficerComplainById
 );
 
+router.get('/block-words', authMiddleware, AdminEp.getAllBlockWords);
+router.post('/block-words', authMiddleware, AdminEp.addBlockWord);
+router.delete('/block-words/:id', authMiddleware, AdminEp.deleteBlockWord);
+router.delete('/block-words', authMiddleware, AdminEp.deleteMultipleBlockWords);
+
 module.exports = router;

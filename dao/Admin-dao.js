@@ -5360,3 +5360,107 @@ exports.getCultivationForPensionDao = (id) => {
     });
   });
 };
+
+exports.getAllBlockWords = (limit, offset, search) => {
+  return new Promise((resolve, reject) => {
+    let countSql = "SELECT COUNT(*) as total FROM blockwords";
+    let dataSql = "SELECT id, word, createdAt FROM blockwords";
+    let params = [];
+    let countParams = [];
+
+    if (search && search.trim()) {
+      const whereClause = " WHERE word LIKE ?";
+      countSql += whereClause;
+      dataSql += whereClause;
+      const searchQuery = `%${search.trim()}%`;
+      params.push(searchQuery);
+      countParams.push(searchQuery);
+    }
+
+    // Order by word (for A-Z / Z-A sorting)
+    dataSql += " ORDER BY word ASC LIMIT ? OFFSET ?";
+    params.push(parseInt(limit), parseInt(offset));
+
+    // Get total count
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResults[0]?.total || 0;
+
+      // Get paginated data
+      plantcare.query(dataSql, params, (dataErr, dataResults) => {
+        if (dataErr) {
+          return reject(dataErr);
+        }
+
+        resolve({
+          total: total,
+          items: dataResults
+        });
+      });
+    });
+  });
+};
+
+// Add a new block word
+exports.addBlockWord = (word) => {
+  return new Promise((resolve, reject) => {
+    // Check if word already exists (case insensitive)
+    const checkSql = "SELECT COUNT(*) as count FROM blockwords WHERE LOWER(word) = LOWER(?)";
+    plantcare.query(checkSql, [word.trim()], (checkErr, checkResults) => {
+      if (checkErr) {
+        return reject(checkErr);
+      }
+
+      if (checkResults[0].count > 0) {
+        return reject(new Error("Word already exists in block list"));
+      }
+
+      const sql = "INSERT INTO blockwords (word) VALUES (?)";
+      plantcare.query(sql, [word.trim()], (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(results);
+      });
+    });
+  });
+};
+
+// Delete a block word by ID
+exports.deleteBlockWord = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "DELETE FROM blockwords WHERE id = ?";
+    plantcare.query(sql, [parseInt(id)], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      if (results.affectedRows === 0) {
+        return reject(new Error("Block word not found"));
+      }
+      resolve(results);
+    });
+  });
+};
+
+// Delete multiple block words by IDs (for bulk delete)
+exports.deleteMultipleBlockWords = (ids) => {
+  return new Promise((resolve, reject) => {
+    if (!ids || ids.length === 0) {
+      return reject(new Error("No IDs provided"));
+    }
+
+    const numericIds = ids.map(id => parseInt(id));
+    const placeholders = numericIds.map(() => '?').join(',');
+    const sql = `DELETE FROM blockwords WHERE id IN (${placeholders})`;
+    
+    plantcare.query(sql, numericIds, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
