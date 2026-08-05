@@ -3068,7 +3068,7 @@ exports.getTransactionOrdersDao = (id) => {
       LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
       LEFT JOIN collection_officer.driverorders do ON dom.id = do.drvOrderMainId
       LEFT JOIN market_place.processorders po ON do.orderId = po.id
-      WHERE dt.id = ? AND po.status = 'Delivered' AND dt.transStatus = 'Approved' AND po.paymentMethod = 'Cash' AND po.isPaid = 1;
+      WHERE dt.id = ? AND po.status = 'Delivered' AND po.paymentMethod = 'Cash' AND po.isPaid = 1;
     `;
 
     goviShop.query(sql, [id], (err, results) => {
