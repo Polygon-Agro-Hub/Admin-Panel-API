@@ -3060,8 +3060,9 @@ exports.getTransactionOrdersDao = (id) => {
     const sql = `
       SELECT 
         do.id AS driverOrdId,
+        po.id,
         po.invNo,
-        po.amount,
+        po.moneyPaid AS amount,
         do.earnPrice,
         dt.createdAt AS submittedAt
       FROM collection_officer.driverordertransaction dt
@@ -3117,7 +3118,7 @@ exports.getAllShortageSubmissionsDAO = (
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
       LEFT JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      LEFT JOIN agro_world_admin.adminusers au ON sa.finalizedBy = au.id
+      LEFT JOIN agro_world_admin.adminusers au ON sp.markBy = au.id
       WHERE 1 = 1
     `;
 
@@ -3135,7 +3136,7 @@ exports.getAllShortageSubmissionsDAO = (
         co.phoneNumber01,
         dc.regCode,
         au.userName AS finalizedBy,
-        sa.finalizeAt
+        sp.markAt AS finalizeAt
       FROM shortageassigned sa
       LEFT JOIN shortage s ON sa.shortageassigned = s.id
       LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
@@ -3144,7 +3145,7 @@ exports.getAllShortageSubmissionsDAO = (
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
       LEFT JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      LEFT JOIN agro_world_admin.adminusers au ON sa.finalizedBy = au.id
+      LEFT JOIN agro_world_admin.adminusers au ON sp.markBy = au.id
       WHERE 1 = 1
     `;
 
@@ -3253,92 +3254,19 @@ exports.getViewSubmissionDocumentDao = (id) => {
   });
 };
 
-exports.updateSubmissionStatusDao = (data) => {
+exports.updateSubmissionStatusDao = (id, markedBy) => {
   return new Promise((resolve, reject) => {
-    const { id, reqStatus, finalizedBy } = data;
+    const sql = `
+      UPDATE shortagepurchase sp
+      SET sp.reqStatus = 'Completed', sp.markAt = NOW(), sp.markBy = ?
+      WHERE sp.id = ?
+    `;
 
-    collectionofficer.getConnection((err, connection) => {
-      if (err) return reject(err);
-
-      connection.beginTransaction((err) => {
-        if (err) {
-          connection.release();
-          return reject(err);
-        }
-
-        const getAssignSql = `
-          SELECT srtAssignId
-          FROM shortagepurchase
-          WHERE id = ?
-        `;
-
-        connection.query(getAssignSql, [id], (err, result) => {
-          if (err) {
-            return connection.rollback(() => {
-              connection.release();
-              reject(err);
-            });
-          }
-
-          if (result.length === 0) {
-            return connection.rollback(() => {
-              connection.release();
-              reject(new Error("Submission not found"));
-            });
-          }
-
-          const assignId = result[0].srtAssignId;
-
-          const updatePurchaseSql = `
-            UPDATE shortagepurchase
-            SET reqStatus = ?
-            WHERE id = ?
-          `;
-
-          connection.query(updatePurchaseSql, [reqStatus, id], (err) => {
-            if (err) {
-              return connection.rollback(() => {
-                connection.release();
-                reject(err);
-              });
-            }
-
-            const updateAssignedSql = `
-                UPDATE shortageassigned
-                SET
-                  status = 'Finalize',
-                  finalizedBy = ?,
-                  finalizeAt = NOW()
-                WHERE id = ?
-              `;
-
-            connection.query(
-              updateAssignedSql,
-              [finalizedBy, assignId],
-              (err) => {
-                if (err) {
-                  return connection.rollback(() => {
-                    connection.release();
-                    reject(err);
-                  });
-                }
-
-                connection.commit((err) => {
-                  if (err) {
-                    return connection.rollback(() => {
-                      connection.release();
-                      reject(err);
-                    });
-                  }
-
-                  connection.release();
-                  resolve(true);
-                });
-              },
-            );
-          });
-        });
-      });
+    collectionofficer.query(sql, [markedBy, id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
     });
   });
 };
