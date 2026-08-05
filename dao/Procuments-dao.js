@@ -2424,7 +2424,7 @@ exports.finalizeShortageAssignedDao = (shortageAssignedId, comCenId, ceilling, f
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE collection_officer.shortageassigned
-      SET comCenId = ?, ceilling = ?, status = 'Finalize', finalizedBy = ?
+      SET comCenId = ?, ceilling = ?, status = 'Finalize', finalizedBy = ?, finalizeAt = NOW()
       WHERE id = ? AND status = 'Pending'
     `;
  
@@ -2473,13 +2473,14 @@ exports.getAllShortageAssignedDetails = (date) => {
         mi.displayName,
         cv.image
       FROM collection_officer.shortage s
-LEFT JOIN collection_officer.shortageassigned sa ON sa.shortageassigned = s.id
-LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
-LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
-LEFT JOIN collection_officer.distributedcenter cc ON cc.id = sa.comCenId
-LEFT JOIN agro_world_admin.adminusers assignedByUser ON assignedByUser.id = sa.assignedBy
-LEFT JOIN agro_world_admin.adminusers finalizedByUser ON finalizedByUser.id = sa.finalizedBy
-WHERE 1 = 1
+      LEFT JOIN collection_officer.shortageassigned sa ON sa.shortageassigned = s.id
+      LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
+      LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
+      LEFT JOIN collection_officer.distributedcompanycenter dcc ON sa.comCenId = dcc.id
+      LEFT JOIN collection_officer.distributedcenter cc ON cc.id = dcc.centerId
+      LEFT JOIN agro_world_admin.adminusers assignedByUser ON assignedByUser.id = sa.assignedBy
+      LEFT JOIN agro_world_admin.adminusers finalizedByUser ON finalizedByUser.id = sa.finalizedBy
+      WHERE 1 = 1
     `;
 
     const params = [];

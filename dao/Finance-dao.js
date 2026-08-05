@@ -2735,7 +2735,7 @@ exports.getAllFinanceDashboardDataDao = () => {
                                 if (err10)
                                   return reject(
                                     "Error in returned orders loss query: " +
-                                      err10,
+                                    err10,
                                   );
 
                                 goviShop.query(
@@ -2744,7 +2744,7 @@ exports.getAllFinanceDashboardDataDao = () => {
                                     if (err11)
                                       return reject(
                                         "Error in GoViShop premium income query: " +
-                                          err11,
+                                        err11,
                                       );
 
                                     marketPlace.query(
@@ -2753,7 +2753,7 @@ exports.getAllFinanceDashboardDataDao = () => {
                                         if (err12)
                                           return reject(
                                             "Error in GoViShop order commission query: " +
-                                              err12,
+                                            err12,
                                           );
 
                                         resolve({
@@ -2843,6 +2843,7 @@ exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
       FROM collection_officer.driverordertransaction dt
       LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
       LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
+      WHERE 1 = 1
     `;
 
     // SQL to fetch paginated data
@@ -3014,16 +3015,18 @@ exports.updateTransactionStatusDao = (data) => {
                 });
               }
 
-              const getDriverIdSql = `
-                SELECT driverId
-                FROM driverordermain
-                WHERE id = ?
-              `;
+              const isHandOver = transStatus === "Approved" ? 1 : 0;
+
+              const updateMainSql = `
+                  UPDATE driverordermain
+                  SET isHandOver = ?
+                  WHERE id = ?
+                `;
 
               connection.query(
-                getDriverIdSql,
-                [drvOrderMainId],
-                (err, driverResult) => {
+                updateMainSql,
+                [isHandOver, drvOrderMainId],
+                (err) => {
                   if (err) {
                     return connection.rollback(() => {
                       connection.release();
@@ -3031,45 +3034,17 @@ exports.updateTransactionStatusDao = (data) => {
                     });
                   }
 
-                  if (driverResult.length === 0) {
-                    return connection.rollback(() => {
-                      connection.release();
-                      reject(new Error("Driver order main record not found"));
-                    });
-                  }
-
-                  const driverId = driverResult[0].driverId;
-                  const isHandOver = transStatus === "Approved" ? 1 : 0;
-
-                  const insertMainSql = `
-                  INSERT INTO driverordermain (driverId, isHandOver, createdAt)
-                  VALUES (?, ?, NOW())
-                `;
-
-                  connection.query(
-                    insertMainSql,
-                    [driverId, isHandOver],
-                    (err) => {
-                      if (err) {
-                        return connection.rollback(() => {
-                          connection.release();
-                          reject(err);
-                        });
-                      }
-
-                      connection.commit((err) => {
-                        if (err) {
-                          return connection.rollback(() => {
-                            connection.release();
-                            reject(err);
-                          });
-                        }
-
+                  connection.commit((err) => {
+                    if (err) {
+                      return connection.rollback(() => {
                         connection.release();
-                        resolve(true);
+                        reject(err);
                       });
-                    },
-                  );
+                    }
+
+                    connection.release();
+                    resolve(true);
+                  });
                 },
               );
             },
@@ -3090,15 +3065,10 @@ exports.getTransactionOrdersDao = (id) => {
         do.earnPrice,
         dt.createdAt AS submittedAt
       FROM collection_officer.driverordertransaction dt
-      LEFT JOIN collection_officer.driverordermain dom 
-        ON dt.drvOrderMainId = dom.id
-      LEFT JOIN collection_officer.driverorders do 
-        ON dom.id = do.drvOrderMainId
-      LEFT JOIN market_place.processorders po 
-        ON do.orderId = po.id
-      WHERE dt.id = ?
-      AND po.status = 'Delivered'
-      AND dt.transStatus = 'Approved';
+      LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
+      LEFT JOIN collection_officer.driverorders do ON dom.id = do.drvOrderMainId
+      LEFT JOIN market_place.processorders po ON do.orderId = po.id
+      WHERE dt.id = ? AND po.status = 'Delivered' AND dt.transStatus = 'Approved' AND po.paymentMethod = 'Cash' AND po.isPaid = 1;
     `;
 
     goviShop.query(sql, [id], (err, results) => {
