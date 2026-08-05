@@ -1302,10 +1302,10 @@ exports.editProductType = async (req, res) => {
     console.log('Extracted modifyId:', modifyId);
     const data =
       await MarketPriceValidate.createProductTypeSchema.validateAsync(req.body);
-    
+
     const result = await MarketPlaceDao.editProductTypesDao(data, id, modifyId);
 
-    
+
 
     if (result.affectedRows === 0) {
       return res.json({
@@ -1511,7 +1511,7 @@ exports.getAllRetailCustomers = async (req, res) => {
       await MarketPriceValidate.getmarketplaceCustomerParamSchema.validateAsync(
         req.query,
       );
- 
+
     const offset = (page - 1) * limit;
     const { total, items } = await MarketPlaceDao.getAllRetailCustomersDao(
       limit,
@@ -1519,7 +1519,7 @@ exports.getAllRetailCustomers = async (req, res) => {
       searchText,
       ratingFilter,   // ← new param
     );
- 
+
     return res.status(200).json({ total, items });
   } catch (err) {
     console.error('Error fetching retail customers:', err);
@@ -1529,7 +1529,7 @@ exports.getAllRetailCustomers = async (req, res) => {
     });
   }
 };
- 
+
 
 exports.updateRetailCustomerRating = async (req, res) => {
   try {
@@ -1538,16 +1538,16 @@ exports.updateRetailCustomerRating = async (req, res) => {
       await MarketPriceValidate.updateCustomerRatingSchema.validateAsync(
         req.body,
       );
- 
+
     const updated = await MarketPlaceDao.updateRetailCustomerRatingDao(
       id,
       rateofCus,
     );
- 
+
     if (!updated) {
       return res.status(404).json({ error: 'Customer not found', status: false });
     }
- 
+
     return res.status(200).json({ message: 'Rating updated successfully', status: true });
   } catch (err) {
     console.error('Error updating customer rating:', err);
@@ -1753,15 +1753,15 @@ exports.getAllWholesaleCustomers = async (req, res) => {
       await MarketPriceValidate.getmarketplaceCustomerParamSchema.validateAsync(
         req.query,
       );
- 
+
     const offset = (page - 1) * limit;
     const { total, items } = await MarketPlaceDao.getAllWholesaleCustomersDao(
       limit,
       offset,
       searchText,
-      ratingFilter,  
+      ratingFilter,
     );
- 
+
     return res.status(200).json({ total, items });
   } catch (err) {
     console.error('Error fetching wholesale customers:', err);
@@ -1771,8 +1771,8 @@ exports.getAllWholesaleCustomers = async (req, res) => {
     });
   }
 };
- 
- 
+
+
 exports.updateWholesaleCustomerRating = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1780,16 +1780,16 @@ exports.updateWholesaleCustomerRating = async (req, res) => {
       await MarketPriceValidate.updateCustomerRatingSchema.validateAsync(
         req.body,
       );
- 
+
     const updated = await MarketPlaceDao.updateWholesaleCustomerRatingDao(
       id,
       rateofCus,
     );
- 
+
     if (!updated) {
       return res.status(404).json({ error: 'Customer not found', status: false });
     }
- 
+
     return res.status(200).json({ message: 'Rating updated successfully', status: true });
   } catch (err) {
     console.error('Error updating wholesale customer rating:', err);
@@ -1975,7 +1975,7 @@ exports.getInvoiceDetails = async (req, res) => {
         invoiceDetails.city,
       );
 
-            // Nullify delivery charge if order has a Free Delivery coupon
+      // Nullify delivery charge if order has a Free Delivery coupon
       if (
         invoiceDetails.isCoupon === 1 &&
         invoiceDetails.couponType === "Free Delivery"
@@ -2343,13 +2343,16 @@ exports.updateProductTypeStatus = async (req, res) => {
     const { isValid } = await MarketPriceValidate.ValidateStatusSchema.validateAsync(
       req.body
     );
-    
+
+    console.log(`Updating product type status for ID: ${id} to isValid: ${isValid}`);
+
     // Get the logged-in username from token
     const modifyId = req.user.userId; // Make sure your token contains username
-    
-    const result = await MarketPlaceDao.UpdateProductTypeStatusDao(id, isValid, modifyId);
 
-    if (result.affectedRows === 0) {
+    const result = await MarketPlaceDao.UpdateProductTypeStatusDao(id, isValid, modifyId);
+    console.log(result);
+
+    if (result.status !== true) {
       return res.json({
         message: "Product type status update failed",
         status: false,
