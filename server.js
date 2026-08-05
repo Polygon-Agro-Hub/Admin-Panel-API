@@ -62,30 +62,30 @@ const BASE_PATH = "/agro-api/admin-api";
 
 const app = express();
 
-const server = http.createServer(app);
-const io = new Server(server, {
-  path: `${BASE_PATH}/socket.io`,
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
+// const server = http.createServer(app);
+// const io = new Server(server, {
+//   path: `${BASE_PATH}/socket.io`,
+//   cors: {
+//     origin: "*",
+//     methods: ["GET", "POST"]
+//   }
+// });
 
-io.on("connection", (socket) => {
-  console.log("⚡ Client connected to Socket.IO:", socket.id);
+// io.on("connection", (socket) => {
+//   console.log("⚡ Client connected to Socket.IO:", socket.id);
 
-  socket.on("join_row", (rowId) => {
-    socket.join(`row_${rowId}`);
-    console.log(`Socket ${socket.id} joined room row_${rowId}`);
-  });
+//   socket.on("join_row", (rowId) => {
+//     socket.join(`row_${rowId}`);
+//     console.log(`Socket ${socket.id} joined room row_${rowId}`);
+//   });
 
-  socket.on("disconnect", () => {
-    console.log("🔌 Client disconnected from Socket.IO:", socket.id);
-  });
-});
+//   socket.on("disconnect", () => {
+//     console.log("🔌 Client disconnected from Socket.IO:", socket.id);
+//   });
+// });
 
 // Attach io instance to express app
-app.set("io", io);
+// app.set("io", io);
 
 
 const port = process.env.PORT || 3000;
@@ -176,7 +176,7 @@ goviShop.getConnection((err, connection) => {
 });
 
 //corn jobs
-// pickupOrdersReturnCornjob();
+pickupOrdersReturnCornjob();
 
 
 
@@ -214,12 +214,12 @@ app.get(BASE_PATH + "/test", (req, res) => {
 });
 
 // Attach io and mainApp to server instance
-server.io = io;
-server.app = app;
+// server.io = io;
+// server.app = app;
 
-server.listen(port, () => {
+app.listen(port, () => {
   console.log(`⏰ Time: ${new Date().toLocaleString()}`);
   console.log(`Server running on http://localhost:${port}`);
 });
 
-module.exports = server;
+module.exports = app;
