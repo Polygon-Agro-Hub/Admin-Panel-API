@@ -2208,7 +2208,7 @@ exports.updateSubmissionStatusEp = async (req, res) => {
     const { id } = req.params;
     const { reqStatus } = req.body;
 
-    const finalizedBy = req.user.userId;
+    const markedBy = req.user.userId;
 
     if (!id) {
       return res.status(400).json({
@@ -2224,11 +2224,7 @@ exports.updateSubmissionStatusEp = async (req, res) => {
       });
     }
 
-    await financeDao.updateSubmissionStatusDao({
-      id,
-      reqStatus,
-      finalizedBy,
-    });
+    await financeDao.updateSubmissionStatusDao(id, markedBy);
 
     return res.status(200).json({
       success: true,
