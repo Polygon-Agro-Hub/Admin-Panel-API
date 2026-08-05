@@ -185,17 +185,18 @@ exports.getMarketplaceItems = (
                     JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
                     JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
                     LEFT JOIN agro_world_admin.adminusers au ON m.modifyBy = au.id
-                    LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id AND pt.isValid = 1`;
+                    LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id`;
 
     let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.comPrice, m.discount, m.startValue, m.maxQuantity, m.promo,
                   m.unitType, m.changeby, m.normalPrice, m.category, m.displayType, m.isEnable, au.userName AS modifyBy,
                   cg.cropNameEnglish, cv.varietyNameEnglish,
-                  pt.id AS productTypeId, pt.shortCode AS productTypeShortCode
+                  pt.id AS productTypeId, pt.shortCode AS productTypeShortCode,
+                  pt.isValid AS productTypeIsValid
                   FROM marketplaceitems m
                   JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
                   JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
                   LEFT JOIN agro_world_admin.adminusers au ON m.modifyBy = au.id
-                  LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id AND pt.isValid = 1`;
+                  LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id `;
 
     if (searchItem) {
       whereConditions.push(
@@ -1749,14 +1750,14 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
 //   return new Promise((resolve, reject) => {
 //     let countParms = [];
 //     let dataParms  = [];
- 
+
 //     let countSql = `
 //       SELECT COUNT(*) AS total
 //       FROM marketplaceusers MP
 //       WHERE MP.buyerType = 'Retail'
 //         AND MP.isMarketPlaceUser = 1
 //     `;
- 
+
 //     let dataSql = `
 //       SELECT
 //         MP.id,
@@ -1792,7 +1793,7 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
 //       WHERE MP.buyerType = 'Retail'
 //         AND MP.isMarketPlaceUser = 1
 //     `;
- 
+
 //     // ── Optional: free-text search ──────────────────────────
 //     if (searchText) {
 //       const searchClause = `
@@ -1811,7 +1812,7 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
 //       `;
 //       countSql += searchClause;
 //       dataSql  += searchClause;
- 
+
 //       const search             = `%${searchText}%`;
 //       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
 //       const searchParms = [
@@ -1822,7 +1823,7 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
 //       countParms.push(...searchParms);
 //       dataParms.push(...searchParms);
 //     }
- 
+
 //     // ── Optional: rating filter ─────────────────────────────
 //     const VALID_RATINGS = ['VVIP', 'VIP', 'COR', 'NOR', 'VVP'];
 //     if (ratingFilter && VALID_RATINGS.includes(ratingFilter)) {
@@ -1831,18 +1832,18 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
 //       countParms.push(ratingFilter);
 //       dataParms.push(ratingFilter);
 //     }
- 
+
 //     // ── Ordering + pagination ───────────────────────────────
 //     dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
 //     dataParms.push(limit, offset);
- 
+
 //     // ── Execute ─────────────────────────────────────────────
 //     marketPlace.query(countSql, countParms, (countErr, countResults) => {
 //       if (countErr) return reject(countErr);
- 
+
 //       marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
 //         if (dataErr) return reject(dataErr);
- 
+
 //         resolve({
 //           total: countResults[0].total,
 //           items: dataResults,
@@ -1855,7 +1856,7 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
 exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => {
   return new Promise((resolve, reject) => {
     let countParms = [];
-    let dataParms  = [];
+    let dataParms = [];
 
     let countSql = `
       SELECT COUNT(*) AS total
@@ -1904,9 +1905,9 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
         )
       `;
       countSql += searchClause;
-      dataSql  += searchClause;
+      dataSql += searchClause;
 
-      const search             = `%${searchText}%`;
+      const search = `%${searchText}%`;
       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
       const searchParms = [
         search, search, search, search, search,
@@ -1921,7 +1922,7 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
     const VALID_RATINGS = ['VVIP', 'VIP', 'COR', 'NOR', 'VVP'];
     if (ratingFilter && VALID_RATINGS.includes(ratingFilter)) {
       countSql += ` AND MP.rateofCus = ? `;
-      dataSql  += ` AND MP.rateofCus = ? `;
+      dataSql += ` AND MP.rateofCus = ? `;
       countParms.push(ratingFilter);
       dataParms.push(ratingFilter);
     }
@@ -1955,7 +1956,7 @@ exports.updateRetailCustomerRatingDao = (customerId, rateofCus) => {
         AND buyerType = 'Retail'
         AND isMarketPlaceUser = 1
     `;
- 
+
     marketPlace.query(sql, [rateofCus, customerId], (err, result) => {
       if (err) return reject(err);
       resolve(result.affectedRows > 0);
@@ -2197,7 +2198,7 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
 //   return new Promise((resolve, reject) => {
 //     let countParms = [];
 //     let dataParms  = [];
- 
+
 //     let countSql = `
 //       SELECT COUNT(*) AS total
 //       FROM marketplaceusers MP
@@ -2205,7 +2206,7 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
 //         MP.buyerType = 'Wholesale'
 //         AND MP.isMarketPlaceUser = 1
 //     `;
- 
+
 //     let dataSql = `
 //       SELECT
 //         MP.id,
@@ -2245,7 +2246,7 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
 //         MP.buyerType = 'Wholesale'
 //         AND MP.isMarketPlaceUser = 1
 //     `;
- 
+
 //     // ── Rating filter ──────────────────────────────────────────────────────────
 //     if (ratingFilter) {
 //       countSql += ` AND MP.rateofCus = ? `;
@@ -2253,7 +2254,7 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
 //       countParms.push(ratingFilter);
 //       dataParms.push(ratingFilter);
 //     }
- 
+
 //     // ── Search filter ──────────────────────────────────────────────────────────
 //     if (searchText) {
 //       const searchClause = `
@@ -2272,7 +2273,7 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
 //       `;
 //       countSql += searchClause;
 //       dataSql  += searchClause;
- 
+
 //       const search             = `%${searchText}%`;
 //       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
 //       const searchArgs = [
@@ -2280,26 +2281,26 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
 //         search, search,
 //         searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces,
 //       ];
- 
+
 //       countParms.push(...searchArgs);
 //       dataParms.push(...searchArgs);
 //     }
- 
+
 //     dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
 //     dataParms.push(limit, offset);
- 
+
 //     marketPlace.query(countSql, countParms, (countErr, countResults) => {
 //       if (countErr) {
 //         console.error(countErr);
 //         return reject(countErr);
 //       }
- 
+
 //       marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
 //         if (dataErr) {
 //           console.error(dataErr);
 //           return reject(dataErr);
 //         }
- 
+
 //         resolve({
 //           total: countResults[0].total,
 //           items: dataResults,
@@ -2308,11 +2309,11 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
 //     });
 //   });
 // };
- 
+
 exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) => {
   return new Promise((resolve, reject) => {
     let countParms = [];
-    let dataParms  = [];
+    let dataParms = [];
 
     let countSql = `
       SELECT COUNT(*) AS total
@@ -2352,7 +2353,7 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
     // ── Rating filter ──────────────────────────────────────────────────────────
     if (ratingFilter) {
       countSql += ` AND MP.rateofCus = ? `;
-      dataSql  += ` AND MP.rateofCus = ? `;
+      dataSql += ` AND MP.rateofCus = ? `;
       countParms.push(ratingFilter);
       dataParms.push(ratingFilter);
     }
@@ -2374,9 +2375,9 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
         )
       `;
       countSql += searchClause;
-      dataSql  += searchClause;
+      dataSql += searchClause;
 
-      const search             = `%${searchText}%`;
+      const search = `%${searchText}%`;
       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
       const searchArgs = [
         search, search, search, search, search,
@@ -2411,7 +2412,7 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
     });
   });
 };
- 
+
 exports.updateWholesaleCustomerRatingDao = (id, rateofCus) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -2419,7 +2420,7 @@ exports.updateWholesaleCustomerRatingDao = (id, rateofCus) => {
       SET rateofCus = ?
       WHERE id = ? AND buyerType = 'Wholesale'
     `;
- 
+
     marketPlace.query(sql, [rateofCus, id], (err, result) => {
       if (err) {
         console.error(err);
@@ -2938,7 +2939,7 @@ exports.getDefinePackageItemsByPackageIdDAO = async (packageId) => {
         const totalPrice = items.reduce((sum, item) => {
           const price = parseFloat(item.price) || 0;
           const qty = parseInt(item.qty) || 1;
-           return sum + price;
+          return sum + price;
         }, 0);
 
         resolve({ createdAt: packageCreatedAt, items, totalPrice });
@@ -3608,13 +3609,19 @@ exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
         try {
           // Query 1: Update product type status
           const sql1 = "UPDATE producttypes SET isValid = ?, modifyId = ? WHERE id = ?";
-          
+
           // Query 2: Update marketplace packages status based on product type (only when isValid = 0)
           const sql2 = `
             UPDATE marketplacepackages mp
             LEFT JOIN packagedetails pd ON mp.id = pd.packageId
             SET mp.status = 'Disabled'
             WHERE pd.productTypeId = ?
+          `;
+
+          const sql3 = `
+            UPDATE marketplaceitems mpi
+            SET mpi.isEnable = 0
+            WHERE mpi.productTypeId = ?
           `;
 
           // Execute first query
@@ -3637,10 +3644,30 @@ exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
                     return rollbackAndRelease(connection, reject, err);
                   }
 
-                  connection.release();
-                  resolve({
-                    productTypeUpdate: result1,
-                    packageUpdate: result2
+                  // connection.release();
+                  // resolve({
+                  //   productTypeUpdate: result1,
+                  //   packageUpdate: result2
+                  // });
+                  connection.query(sql3, [id], (err, result3) => {
+                    if (err) {
+                      return rollbackAndRelease(connection, reject, err);
+                    }
+
+                    // Commit transaction with both results
+                    connection.commit((err) => {
+                      if (err) {
+                        return rollbackAndRelease(connection, reject, err);
+                      }
+
+                      connection.release();
+                      resolve({
+                        status: true,
+                        productTypeUpdate: result1,
+                        packageUpdate: result2,
+                        productItemUpdate: result3
+                      });
+                    });
                   });
                 });
               });
@@ -3653,6 +3680,7 @@ exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
 
                 connection.release();
                 resolve({
+                  status: true,
                   productTypeUpdate: result1,
                   packageUpdate: null // No package update performed
                 });
