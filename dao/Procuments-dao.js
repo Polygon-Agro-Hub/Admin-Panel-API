@@ -2193,6 +2193,7 @@ exports.getShortageDetails = () => {
       FROM collection_officer.shortage s
       LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
       LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
+      WHERE DATE(s.createdAt) = CURDATE()
       ORDER BY s.createdAt DESC
     `;
     plantcare.query(sql, (err, results) => {
