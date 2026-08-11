@@ -474,3 +474,20 @@ exports.IdParamShema = Joi.object({
   id: Joi.number().integer().required() 
 });
 
+exports.getAllBlockWordsSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(18),
+  search: Joi.string().trim().allow('').default('')
+});
+
+exports.addBlockWordSchema = Joi.object({
+  word: Joi.string().trim().min(1).max(255).required()
+});
+
+exports.deleteBlockWordSchema = Joi.object({
+  id: Joi.number().integer().positive().required()
+});
+
+exports.deleteMultipleBlockWordsSchema = Joi.object({
+  ids: Joi.array().items(Joi.number().integer().positive()).min(1).required()
+});

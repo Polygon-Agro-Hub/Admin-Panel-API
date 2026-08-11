@@ -2193,6 +2193,7 @@ exports.getShortageDetails = () => {
       FROM collection_officer.shortage s
       LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
       LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
+      WHERE DATE(s.createdAt) = CURDATE()
       ORDER BY s.createdAt DESC
     `;
     plantcare.query(sql, (err, results) => {
@@ -2352,12 +2353,14 @@ exports.getShortageToFinalizeDao = () => {
         mpi.id AS mpItemId,
         mpi.displayName AS itemName,
         cv.image AS imageUrl,
-        au.userName AS assignedBy
+        au.userName AS assignedBy,
+        CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS assignOfficerBy
       FROM collection_officer.shortageassigned sa
       JOIN collection_officer.shortage s ON sa.shortageassigned = s.id
       JOIN market_place.marketplaceitems mpi ON s.mpItemId = mpi.id
       LEFT JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
       LEFT JOIN agro_world_admin.adminusers au ON sa.assignedBy = au.id
+      LEFT JOIN collection_officer.collectionofficer co ON sa.assignedOfficerBy = co.id
       WHERE sa.status = 'Pending'
         AND DATE(sa.createdAt) = CURDATE()
       ORDER BY sa.createdAt DESC
@@ -2391,6 +2394,7 @@ exports.getShortageFinalizedDao = () => {
         mpi.displayName AS itemName,
         cv.image AS imageUrl,
         au.userName AS assignedBy,
+         CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS assignOfficerBy,
         dc.regCode,
         dc.city,
         dc.province
@@ -2401,6 +2405,7 @@ exports.getShortageFinalizedDao = () => {
       LEFT JOIN agro_world_admin.adminusers au ON sa.assignedBy = au.id
       LEFT JOIN collection_officer.distributedcompanycenter dcc ON sa.comCenId = dcc.id
       LEFT JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
+      LEFT JOIN collection_officer.collectionofficer co ON sa.assignedOfficerBy = co.id
       WHERE sa.status = 'Finalize'
         AND DATE(sa.createdAt) = CURDATE()
       ORDER BY sa.createdAt DESC

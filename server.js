@@ -96,7 +96,7 @@ const port = process.env.PORT || 3000;
 app.use(
   cors({
     origin: "*", // For development. Use specific origins in production
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true
   })
 );
