@@ -27,11 +27,11 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
           queryParams.push(date);
           break;
         case "toCollectionCenter":
-          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 2 DAY)) = ?`;
+          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
           queryParams.push(date);
           break;
         case "toDispatchCenter":
-          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
+          whereSql += ` AND DATE(o.sheduleDate) = ?`;
           queryParams.push(date);
           break;
       }
@@ -110,8 +110,8 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         ROUND(SUM(items.quantity), 3) AS quantity,
         cg.cropNameEnglish,
         cv.varietyNameEnglish,
-        MAX(DATE_SUB(items.sheduleDate, INTERVAL 2 DAY)) AS toCollectionCentre,
-        MAX(DATE_SUB(items.sheduleDate, INTERVAL 1 DAY)) AS toDispatchCenter
+        MAX(DATE_SUB(items.sheduleDate, INTERVAL 1 DAY)) AS toCollectionCentre,
+        MAX(items.sheduleDate) AS toDispatchCenter
       FROM (${itemsSubquery}) items
       JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
@@ -189,11 +189,11 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
           queryParams.push(date);
           break;
         case "toCollectionCenter":
-          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 2 DAY)) = ?`;
+          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
           queryParams.push(date);
           break;
         case "toDispatchCenter":
-          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
+          whereSql += ` AND DATE(o.sheduleDate) = ?`;
           queryParams.push(date);
           break;
       }
@@ -221,8 +221,8 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
         oai.unit,
         cg.cropNameEnglish, 
         cv.varietyNameEnglish,
-        DATE_SUB(o.sheduleDate, INTERVAL 2 DAY) AS toCollectionCenter,
-        DATE_SUB(o.sheduleDate, INTERVAL 1 DAY) AS toDispatchCenter
+        DATE_SUB(o.sheduleDate, INTERVAL 1 DAY) AS toCollectionCenter,
+        o.sheduleDate AS toDispatchCenter
       ${baseJoinSql}
       ${whereSql}
       ORDER BY o.createdAt DESC, cg.cropNameEnglish ASC, cv.varietyNameEnglish ASC
