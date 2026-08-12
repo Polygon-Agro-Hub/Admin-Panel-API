@@ -3249,44 +3249,62 @@ exports.insertUserXLSXData = (data) => {
 
       // Database check for existing users
       const phones = validatedData.map((row) => {
-        const phone = String(row["Phone Number"]).trim();
+      const phone = String(row["Phone Number"]).trim();
         return phone.startsWith("+") ? phone : `+${phone}`;
       });
-      
+
       const nics = validatedData.map((row) => String(row["NIC Number"]).trim());
 
       const existingUsers = await new Promise((resolve, reject) => {
-        const sql = `
-          SELECT firstName, lastName, phoneNumber, NICnumber 
-          FROM users 
-          WHERE phoneNumber IN (?) OR NICnumber IN (?)
-        `;
-        plantcare.query(sql, [phones, nics], (err, results) => {
-          if (err) reject(err);
-          else resolve(results);
-        });
+      const sql = `
+        SELECT firstName, lastName, phoneNumber, NICnumber 
+        FROM users 
+        WHERE phoneNumber IN (?) OR NICnumber IN (?)
+      `;
+      plantcare.query(sql, [phones, nics], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
       });
+    });
 
-      // Filter new users
-      const existingPhones = new Set(
-        existingUsers.map((user) => user.phoneNumber)
-      );
-      const existingNICs = new Set(existingUsers.map((user) => user.NICnumber));
+    // Build fast lookup sets from DB results
+    const existingPhoneSet = new Set(existingUsers.map((u) => u.phoneNumber));
+    const existingNICSet = new Set(existingUsers.map((u) => u.NICnumber));
 
-      const newUsers = validatedData.filter((user) => {
-        const phone = String(user["Phone Number"]).trim();
-        const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
-        const nic = String(user["NIC Number"]).trim();
-        return !existingPhones.has(formattedPhone) && !existingNICs.has(nic);
+    // Compare EACH uploaded row independently against phone/NIC sets
+    const newUsers = [];
+    const existingUsersReport = [];
+
+    validatedData.forEach((row) => {
+      const rawPhone = String(row["Phone Number"]).trim();
+      const formattedPhone = rawPhone.startsWith("+") ? rawPhone : `+${rawPhone}`;
+      const nic = String(row["NIC Number"]).trim();
+
+      const phoneExists = existingPhoneSet.has(formattedPhone);
+      const nicExists = existingNICSet.has(nic);
+
+    if (phoneExists || nicExists) {
+      existingUsersReport.push({
+        firstName: row["First Name"],
+        lastName: row["Last Name"],
+        phoneNumber: formattedPhone,
+        NICnumber: nic,
+        phoneExists,   // <-- true only if THIS row's phone matched DB
+        nicExists,     // <-- true only if THIS row's NIC matched DB
+        rowNumber: row.rowNumber,
       });
+    } else {
+      newUsers.push(row);
+    }
+  });
 
-      let insertedRows = 0;
-      if (newUsers.length > 0) {
-        const sql = `
-          INSERT INTO users 
-          (firstName, lastName, phoneNumber, NICnumber, membership, district) 
-          VALUES ?
-        `;
+    let insertedRows = 0;
+    if (newUsers.length > 0) {
+      const sql = `
+        INSERT INTO users 
+        (firstName, lastName, phoneNumber, NICnumber, membership, district) 
+        VALUES ?
+      `;
         // const values = newUsers.map((row) => [
         //   row["First Name"],
         //   row["Last Name"],
@@ -3298,39 +3316,39 @@ exports.insertUserXLSXData = (data) => {
         //   row["District"],
         // ]);
 
-        const values = newUsers.map((row) => [
-          row["First Name"],
-          row["Last Name"],
-          normalizeSLMobile(row["Phone Number"]),
-          String(row["NIC Number"]).trim(),
-          row["Membership"],
-          row["District"],
-        ]);
+      const values = newUsers.map((row) => [
+        row["First Name"],
+        row["Last Name"],
+        normalizeSLMobile(row["Phone Number"]),
+        String(row["NIC Number"]).trim(),
+        row["Membership"],
+        row["District"],
+      ]);
 
-        await new Promise((resolve, reject) => {
-          plantcare.query(sql, [values], (err, result) => {
-            if (err) reject(err);
-            else {
-              insertedRows = result.affectedRows || newUsers.length;
-              resolve(result);
-            }
-          });
-        });
-      }
-
-      resolve({
-        message: newUsers.length > 0 
-          ? "Data inserted successfully. Some users already exist or were duplicates." 
-          : "No new users inserted. All users already exist in database or were duplicates.",
-        existingUsers,
-        duplicateData, // Duplicates within Excel
-        emptyRows, // Empty rows that were skipped
-        totalRows: data.length,
-        insertedRows: insertedRows,
-        skippedRows: emptyRows.length,
-        duplicateRows: duplicateData.length,
-        processedRows: validatedData.length
+    await new Promise((resolve, reject) => {
+      plantcare.query(sql, [values], (err, result) => {
+        if (err) reject(err);
+        else {
+          insertedRows = result.affectedRows || newUsers.length;
+          resolve(result);
+        }
       });
+    });
+  }
+
+    resolve({
+      message: newUsers.length > 0
+        ? "Data inserted successfully. Some users already exist or were duplicates."
+        : "No new users inserted. All users already exist in database or were duplicates.",
+      existingUsers: existingUsersReport, 
+      duplicateData,
+      emptyRows,
+      totalRows: data.length,
+      insertedRows: insertedRows,
+      skippedRows: emptyRows.length,
+      duplicateRows: duplicateData.length,
+      processedRows: validatedData.length
+    });
     } catch (error) {
       reject(error);
     }
@@ -5335,6 +5353,110 @@ exports.getCultivationForPensionDao = (id) => {
     `;
 
     plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getAllBlockWords = (limit, offset, search) => {
+  return new Promise((resolve, reject) => {
+    let countSql = "SELECT COUNT(*) as total FROM blockwords";
+    let dataSql = "SELECT id, word, createdAt FROM blockwords";
+    let params = [];
+    let countParams = [];
+
+    if (search && search.trim()) {
+      const whereClause = " WHERE word LIKE ?";
+      countSql += whereClause;
+      dataSql += whereClause;
+      const searchQuery = `%${search.trim()}%`;
+      params.push(searchQuery);
+      countParams.push(searchQuery);
+    }
+
+    // Order by word (for A-Z / Z-A sorting)
+    dataSql += " ORDER BY word ASC LIMIT ? OFFSET ?";
+    params.push(parseInt(limit), parseInt(offset));
+
+    // Get total count
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResults[0]?.total || 0;
+
+      // Get paginated data
+      plantcare.query(dataSql, params, (dataErr, dataResults) => {
+        if (dataErr) {
+          return reject(dataErr);
+        }
+
+        resolve({
+          total: total,
+          items: dataResults
+        });
+      });
+    });
+  });
+};
+
+// Add a new block word
+exports.addBlockWord = (word) => {
+  return new Promise((resolve, reject) => {
+    // Check if word already exists (case insensitive)
+    const checkSql = "SELECT COUNT(*) as count FROM blockwords WHERE LOWER(word) = LOWER(?)";
+    plantcare.query(checkSql, [word.trim()], (checkErr, checkResults) => {
+      if (checkErr) {
+        return reject(checkErr);
+      }
+
+      if (checkResults[0].count > 0) {
+        return reject(new Error("Word already exists in block list"));
+      }
+
+      const sql = "INSERT INTO blockwords (word) VALUES (?)";
+      plantcare.query(sql, [word.trim()], (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(results);
+      });
+    });
+  });
+};
+
+// Delete a block word by ID
+exports.deleteBlockWord = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "DELETE FROM blockwords WHERE id = ?";
+    plantcare.query(sql, [parseInt(id)], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      if (results.affectedRows === 0) {
+        return reject(new Error("Block word not found"));
+      }
+      resolve(results);
+    });
+  });
+};
+
+// Delete multiple block words by IDs (for bulk delete)
+exports.deleteMultipleBlockWords = (ids) => {
+  return new Promise((resolve, reject) => {
+    if (!ids || ids.length === 0) {
+      return reject(new Error("No IDs provided"));
+    }
+
+    const numericIds = ids.map(id => parseInt(id));
+    const placeholders = numericIds.map(() => '?').join(',');
+    const sql = `DELETE FROM blockwords WHERE id IN (${placeholders})`;
+    
+    plantcare.query(sql, numericIds, (err, results) => {
       if (err) {
         return reject(err);
       }

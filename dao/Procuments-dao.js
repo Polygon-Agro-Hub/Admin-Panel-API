@@ -769,16 +769,25 @@ exports.getAllMarketplaceItems = (category, userId) => {
         MPI.unitType,
         MPI.startValue,
         MPI.changeby,
-        XL.id AS isExcluded
+        MPI.productTypeId,
+        MPI.isEnable,
+        XL.id AS isExcluded,
+        PL.id AS isPreferred
       FROM marketplaceitems MPI
       LEFT JOIN excludelist XL ON XL.mpItemId =  MPI.id AND XL.userId = ?
+      LEFT JOIN preferlist PL ON PL.mpItemId =  MPI.id AND PL.userId = ?
       WHERE category = 'Retail'
       ORDER BY 
-        MPI.displayName
+      CASE 
+        WHEN MPI.isEnable = 0 THEN 4       -- Disabled items last (check this FIRST)
+        WHEN PL.id IS NOT NULL THEN 1      -- Preferred items first
+        WHEN XL.id IS NOT NULL THEN 3      -- Excluded items third
+        ELSE 2                             -- Normal items second
+    END ASC;
     `;
 
 
-    marketPlace.query(sql, [userId], (err, results) => {
+    marketPlace.query(sql, [userId, userId], (err, results) => {
       if (err) {
         console.error(
           "[getAllMarketplaceItems] Error fetching all marketplace items:",
@@ -796,6 +805,7 @@ exports.getAllMarketplaceItems = (category, userId) => {
       // Structure the data
       const items = results.map((row) => ({
         id: row.id,
+        productTypeId: row.productTypeId,
         varietyId: row.varietyId,
         displayName: row.displayName,
         category: row.category,
@@ -806,7 +816,9 @@ exports.getAllMarketplaceItems = (category, userId) => {
         unitType: row.unitType,
         startValue: row.startValue,
         changeby: row.changeby,
+        isDisable:row.isEnable === 0 ? true : false,
         isExcluded: row.isExcluded === null ? false : true,
+        isPreferred: row.isPreferred === null ? false : true,
 
       }));
 
@@ -1206,7 +1218,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
           po.invNo,
           po.status,
           po.createdAt,
-          (SELECT ADDTIME(MAX(opi.createdAt), '05:30:00') FROM orderpackageitems opi WHERE opi.orderPackageId = op.id) AS processCreatedAt,
+          (SELECT MAX(opi.createdAt) FROM orderpackageitems opi WHERE opi.orderPackageId = op.id) AS processCreatedAt,
           op.packingStatus,
           au.userName
         FROM processorders po
@@ -1225,8 +1237,8 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
       `;
 
     if (dateFilter) {
-      dataSql += ` AND DATE(o.sheduleDate) = ? `;
-      countSql += ` AND DATE(o.sheduleDate) = ? `;
+      dataSql += ` AND DATE((SELECT ADDTIME(MAX(opi.createdAt), '05:30:00') FROM orderpackageitems opi WHERE opi.orderPackageId = op.id)) = ? `;
+      countSql += ` AND DATE((SELECT ADDTIME(MAX(opi.createdAt), '05:30:00') FROM orderpackageitems opi WHERE opi.orderPackageId = op.id)) = ? `;
       params.push(dateFilter);
       countParams.push(dateFilter);
     }
@@ -1369,7 +1381,7 @@ WHERE XL.userId = ?
 
 exports.productCategoryDao = async () => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT * FROM producttypes ORDER BY typeName";
+    const sql = "SELECT * FROM producttypes WHERE isValid = 1 ORDER BY typeName";
     marketPlace.query(sql, (err, results) => {
       if (err) {
         return reject(err);
@@ -1676,7 +1688,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
     const offset = (page - 1) * limit;
 
     console.log(centerId, deliveryDate, search, page, limit);
-    
+
 
     // Build WHERE clause for package items
     let whereClausePackage = ` 
@@ -2157,6 +2169,339 @@ exports.getAllDistributionCenters = () => {
         return reject(err);
       }
 
+      resolve(results);
+    });
+  });
+};
+
+exports.getShortageDetails = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        s.id,
+        s.mpItemId,
+        s.shortageQty,
+        s.buyPrice,
+        s.createdAt,
+        IFNULL((
+          SELECT SUM(sa.qty)
+          FROM collection_officer.shortageassigned sa
+          WHERE sa.shortageassigned = s.id
+        ), 0) AS totalAssignedQty,
+        mi.displayName,
+        cv.image
+      FROM collection_officer.shortage s
+      LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
+      LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
+      WHERE DATE(s.createdAt) = CURDATE()
+      ORDER BY s.createdAt DESC
+    `;
+    plantcare.query(sql, (err, results) => {
+      if (err) {
+        console.error('Error fetching shortage details:', err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getShortageDetailsById = (id) => {
+  return new Promise((resolve, reject) => {
+    if (!id) {
+      return resolve(null);
+    }
+    const sql = `
+      SELECT 
+        (s.shortageQty - IFNULL((
+          SELECT SUM(sa.qty)
+          FROM collection_officer.shortageassigned sa
+          WHERE sa.shortageassigned = s.id
+        ), 0)) AS shortageQty,
+        s.buyPrice,
+        mi.displayName,
+        cv.image
+      FROM collection_officer.shortage s
+      LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
+      LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
+      WHERE s.id = ?
+    `;
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        console.error('Error fetching shortage details by id:', err);
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.getAllCenters = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        dcc.id,
+        dcc.companyId,
+        dcc.centerId,
+        dc.regCode,
+        dc.centerName
+      FROM distributedcompanycenter dcc
+      LEFT JOIN distributedcenter dc ON dc.id = dcc.centerId
+      ORDER BY dc.centerName ASC
+    `;
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error('Error fetching all centers:', err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.assignShortage = (shortageassigned, comCenId, qty, ceilling, assignedBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO shortageassigned 
+        (shortageassigned, comCenId, qty, ceilling, assignedBy)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    collectionofficer.query(sql, [shortageassigned, comCenId, qty, ceilling, assignedBy], (err, results) => {
+      if (err) {
+        console.error('Error inserting shortage assigned:', err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getShortageAssignedDetails = (shortageassigned) => {
+  return new Promise((resolve, reject) => {
+    if (!shortageassigned) {
+      return resolve([]);
+    }
+    const sql = `
+      SELECT 
+        id,
+        shortageassigned,
+        comCenId,
+        qty,
+        ceilling
+      FROM shortageassigned
+      WHERE shortageassigned = ?
+    `;
+    collectionofficer.query(sql, [shortageassigned], (err, results) => {
+      if (err) {
+        console.error('Error fetching shortage assigned details:', err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getDistributionCentersForShortageDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        dcc.id AS comCenId,
+        dc.regCode,
+        dc.city,
+        dc.province
+      FROM collection_officer.distributedcompanycenter dcc
+      JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
+      ORDER BY dc.regCode ASC
+    `;
+ 
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error("Error fetching distribution centers for shortage:", err);
+        return reject(err);
+      }
+ 
+      const centers = results.map((row) => {
+        const parts = [row.regCode, row.city, row.province].filter(Boolean);
+        const label = parts.join(" - ");
+        return {
+          comCenId: row.comCenId,
+          value: row.regCode,
+          label,
+          fullName: label,
+        };
+      });
+ 
+      resolve(centers);
+    });
+  });
+};
+ 
+// ---------------------------------------------------------------------------
+// "To Finalize" list -> shortageassigned (status = Pending) joined to
+// shortage / marketplaceitems / cropvariety / adminusers
+// ---------------------------------------------------------------------------
+exports.getShortageToFinalizeDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        sa.id AS shortageAssignedId,
+        sa.qty AS shortageKg,
+        sa.ceilling AS ceilingPercent,
+        sa.status,
+        sa.comCenId,
+        s.buyPrice AS marketPricePerKg,
+        mpi.id AS mpItemId,
+        mpi.displayName AS itemName,
+        cv.image AS imageUrl,
+        au.userName AS assignedBy,
+        CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS assignOfficerBy
+      FROM collection_officer.shortageassigned sa
+      JOIN collection_officer.shortage s ON sa.shortageassigned = s.id
+      JOIN market_place.marketplaceitems mpi ON s.mpItemId = mpi.id
+      LEFT JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
+      LEFT JOIN agro_world_admin.adminusers au ON sa.assignedBy = au.id
+      LEFT JOIN collection_officer.collectionofficer co ON sa.assignedOfficerBy = co.id
+      WHERE sa.status = 'Pending'
+        AND DATE(sa.createdAt) = CURDATE()
+      ORDER BY sa.createdAt DESC
+    `;
+
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error("Error fetching shortage to-finalize list:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+// ---------------------------------------------------------------------------
+// "Finalized" list -> shortageassigned (status = Finalize), also resolves
+// the distribution centre that was picked when it was finalized.
+// ---------------------------------------------------------------------------
+exports.getShortageFinalizedDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        sa.id AS shortageAssignedId,
+        sa.qty AS shortageKg,
+        sa.ceilling AS ceilingPercent,
+        sa.status,
+        sa.comCenId,
+        s.buyPrice AS marketPricePerKg,
+        mpi.id AS mpItemId,
+        mpi.displayName AS itemName,
+        cv.image AS imageUrl,
+        au.userName AS assignedBy,
+         CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS assignOfficerBy,
+        dc.regCode,
+        dc.city,
+        dc.province
+      FROM collection_officer.shortageassigned sa
+      JOIN collection_officer.shortage s ON sa.shortageassigned = s.id
+      JOIN market_place.marketplaceitems mpi ON s.mpItemId = mpi.id
+      LEFT JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
+      LEFT JOIN agro_world_admin.adminusers au ON sa.assignedBy = au.id
+      LEFT JOIN collection_officer.distributedcompanycenter dcc ON sa.comCenId = dcc.id
+      LEFT JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
+      LEFT JOIN collection_officer.collectionofficer co ON sa.assignedOfficerBy = co.id
+      WHERE sa.status = 'Finalize'
+        AND DATE(sa.createdAt) = CURDATE()
+      ORDER BY sa.createdAt DESC
+    `;
+
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error("Error fetching finalized shortage list:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+ 
+// ---------------------------------------------------------------------------
+// Finalize action -> fills comCenId, ceilling, status, finalizedBy
+// Only updates rows that are still Pending (idempotency / race-safety).
+// ---------------------------------------------------------------------------
+exports.finalizeShortageAssignedDao = (shortageAssignedId, comCenId, ceilling, finalizedBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE collection_officer.shortageassigned
+      SET comCenId = ?, ceilling = ?, status = 'Finalize', finalizedBy = ?, finalizeAt = NOW()
+      WHERE id = ? AND status = 'Pending'
+    `;
+ 
+    collectionofficer.query(
+      sql,
+      [comCenId, ceilling, finalizedBy, shortageAssignedId],
+      (err, results) => {
+        if (err) {
+          console.error("Error finalizing shortage assignment:", err);
+          return reject(err);
+        }
+        resolve(results);
+      }
+    );
+  });
+};
+
+exports.getAllShortageAssignedDetails = (date) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        sa.id,
+        sa.shortageassigned,
+        sa.comCenId,
+        cc.centerName,
+        cc.regCode,
+        sa.assignOfficerId,
+        sa.qty AS assignedQty,
+        sa.ceilling,
+        sa.status,
+        sa.assignedBy,
+        assignedByUser.userName AS assignedByName,
+        sa.finalizedBy,
+        finalizedByUser.userName AS finalizedByName,
+        sa.finalizeAt,
+        sa.createdAt AS assignedCreatedAt,
+        s.id AS shortageId,
+        s.mpItemId,
+        (s.shortageQty - IFNULL((
+          SELECT SUM(sa2.qty)
+          FROM collection_officer.shortageassigned sa2
+          WHERE sa2.shortageassigned = s.id
+        ), 0)) AS shortageQty,
+        s.buyPrice,
+        s.createdAt AS shortageCreatedAt,
+        mi.displayName,
+        cv.image
+      FROM collection_officer.shortage s
+      LEFT JOIN collection_officer.shortageassigned sa ON sa.shortageassigned = s.id
+      LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
+      LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
+      LEFT JOIN collection_officer.distributedcompanycenter dcc ON sa.comCenId = dcc.id
+      LEFT JOIN collection_officer.distributedcenter cc ON cc.id = dcc.centerId
+      LEFT JOIN agro_world_admin.adminusers assignedByUser ON assignedByUser.id = sa.assignedBy
+      LEFT JOIN agro_world_admin.adminusers finalizedByUser ON finalizedByUser.id = sa.finalizedBy
+      WHERE 1 = 1
+    `;
+
+    const params = [];
+
+    if (date) {
+      sql += ` AND DATE(s.createdAt) = ? `;
+      params.push(date);
+    }
+
+    sql += ` ORDER BY sa.createdAt DESC `;
+
+    plantcare.query(sql, params, (err, results) => {
+      if (err) {
+        console.error('Error fetching shortage assigned details:', err);
+        return reject(err);
+      }
       resolve(results);
     });
   });

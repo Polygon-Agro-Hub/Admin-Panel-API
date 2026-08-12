@@ -244,4 +244,32 @@ router.get(
 
 router.get('/govicare-investment-users', authMiddleware, financeController.getGocicareAllInvestmentUsers);
 
+router.get(
+  "/get-all-transactions",
+  authMiddleware,
+  financeController.getAllTransactionsEp
+);
+
+router.get(
+  "/get-all-transaction-orders/:id",
+  authMiddleware,
+  financeController.getAllTransactionOrdersEp,
+);
+
+router.get(
+  "/view-transaction-document/:id",
+  authMiddleware,
+  financeController.getViewTransactionDocument
+);
+
+router.put(
+  "/update-transaction-status/:id",
+  authMiddleware,
+  financeController.updateTransactionStatus
+);
+
+router.get("/get-all-shortage-submission",authMiddleware, financeController.getAllShortageSubmissionEp);
+router.get("/view-submission-document/:id",authMiddleware, financeController.ViewSubmissionDocumentEp);
+router.put("/update-submission-status/:id",authMiddleware, financeController.updateSubmissionStatusEp);
+
 module.exports = router;

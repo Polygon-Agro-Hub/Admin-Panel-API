@@ -423,7 +423,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     doc
       .fontSize(20)
       .fillColor("#071a51")
-      .text("Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation", {
+      .text("Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation", {
         align: "center",
       });
 
@@ -450,7 +450,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     doc
       .fontSize(12)
       .text(
-        "You have successfully created an account with PolygonAgro (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
+        "You have successfully created an account with Polygon Holdings (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
         {
           align: "justify",
         }
@@ -480,8 +480,8 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
 
     doc.moveDown();
     doc.fontSize(12).text(`Best Regards,`);
-    doc.fontSize(12).text(`The PolygonAgro Team`);
-    doc.fontSize(12).text(`PolygonAgro (Pvt) Ltd. | All rights reserved.`);
+    doc.fontSize(12).text(`The Polygon Holdings Team`);
+    doc.fontSize(12).text(`Polygon Holdings (Pvt) Ltd. | All rights reserved.`);
     doc.moveDown();
     doc.fontSize(12).text(`Address: No:14,`);
     doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
@@ -525,7 +525,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
+      subject: "Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation",
       text: `Dear ${firstName},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {
@@ -544,99 +544,208 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
   }
 };
 
-const getAllSalesCustomers = (page, limit, searchText) => {
+// const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
+//   return new Promise((resolve, reject) => {
+//     const offset = (page - 1) * limit;
+ 
+//     let countSql = `
+//       SELECT COUNT(*) AS total
+//       FROM   marketplaceusers  CUS
+//       INNER JOIN salesagent    SA  ON CUS.salesAgent = SA.id
+//       WHERE  CUS.isDashUser = 1
+//     `;
+ 
+//     let dataSql = `
+//       SELECT
+//         CUS.id,
+//         CUS.cusId,
+//         CUS.phoneNumber,
+//         CUS.title,
+//         CUS.firstName,
+//         CUS.lastName,
+//         CUS.buildingType,
+//         CUS.email,
+//         CUS.rateofCus,
+//         SA.empId,
+//         SA.firstName  AS salesAgentFirstName,
+//         SA.lastName   AS salesAgentLastName,
+//         CUS.created_at,
+//         (SELECT COUNT(*) FROM orders WHERE userId = CUS.id) AS totOrders,
+//         -- House details
+//         H.houseNo     AS houseHouseNo,
+//         H.streetName  AS houseStreetName,
+//         H.city        AS houseCity,
+//         -- Apartment details
+//         A.buildingNo  AS apartmentBuildingNo,
+//         A.buildingName AS apartmentBuildingName,
+//         A.unitNo      AS apartmentUnitNo,
+//         A.houseNo     AS apartmentHouseNo,
+//         A.streetName  AS apartmentStreetName,
+//         A.city        AS apartmentCity,
+//         A.floorNo     AS apartmentFloorNo
+//       FROM   marketplaceusers  CUS
+//       INNER JOIN salesagent    SA  ON CUS.salesAgent = SA.id
+//       LEFT  JOIN house         H   ON CUS.id = H.customerId  AND CUS.buildingType = 'House'
+//       LEFT  JOIN apartment     A   ON CUS.id = A.customerId  AND CUS.buildingType = 'Apartment'
+//       WHERE  CUS.isDashUser = 1
+//     `;
+ 
+//     const countParams = [];
+//     const dataParams  = [];
+ 
+//     // ── Free-text search ──────────────────────────────────────────────────────
+//     if (searchText) {
+//       const searchCondition = `
+//         AND (
+//           CUS.firstName   LIKE ?
+//           OR CUS.lastName  LIKE ?
+//           OR CUS.phoneNumber LIKE ?
+//           OR CUS.cusId     LIKE ?
+//           OR SA.empId      LIKE ?
+//         )
+//       `;
+//       const v = `%${searchText}%`;
+//       countSql += searchCondition;
+//       dataSql  += searchCondition;
+//       countParams.push(v, v, v, v, v);
+//       dataParams .push(v, v, v, v, v);
+//     }
+ 
+//     // ── Rating filter ─────────────────────────────────────────────────────────
+//     if (ratingFilter) {
+//       const ratingCondition = ` AND CUS.rateofCus = ? `;
+//       countSql += ratingCondition;
+//       dataSql  += ratingCondition;
+//       countParams.push(ratingFilter);
+//       dataParams .push(ratingFilter);
+//     }
+ 
+//     dataSql += ' LIMIT ? OFFSET ?';
+//     dataParams.push(limit, offset);
+ 
+//     // ── Execute count ─────────────────────────────────────────────────────────
+//     marketPlace.query(countSql, countParams, (countErr, countResults) => {
+//       if (countErr) {
+//         console.error('Error in count query:', countErr);
+//         return reject(countErr);
+//       }
+ 
+//       const total = countResults[0].total;
+ 
+//       // ── Execute data ────────────────────────────────────────────────────────
+//       marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+//         if (dataErr) {
+//           console.error('Error in data query:', dataErr);
+//           return reject(dataErr);
+//         }
+ 
+//         resolve({ items: dataResults, total });
+//       });
+//     });
+//   });
+// };
+ 
+const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
     let countSql = `
-              SELECT 
-                COUNT(*) AS total
-              FROM 
-                  marketplaceusers CUS
-              INNER JOIN 
-                  salesagent SA ON CUS.salesAgent = SA.id AND CUS.isDashUser = 1
-        `;
+      SELECT COUNT(*) AS total
+      FROM   marketplaceusers  CUS
+      INNER JOIN salesagent    SA  ON CUS.salesAgent = SA.id
+      WHERE  CUS.isDashUser = 1
+    `;
 
     let dataSql = `
-            SELECT 
-              CUS.id,
-              CUS.cusId,
-              CUS.phoneNumber, 
-              CUS.title,
-              CUS.firstName, 
-              CUS.lastName, 
-              CUS.buildingType,
-              CUS.email,
-              SA.empId,
-              SA.firstName AS salesAgentFirstName,
-              SA.lastName AS salesAgentLastName,
-              CUS.created_at,
-              (SELECT COUNT(*) FROM orders WHERE userId = CUS.id) AS totOrders,
-              -- House details
-              H.houseNo AS houseHouseNo,
-              H.streetName AS houseStreetName,
-              H.city AS houseCity,
-              -- Apartment details
-              A.buildingNo AS apartmentBuildingNo,
-              A.buildingName AS apartmentBuildingName,
-              A.unitNo AS apartmentUnitNo,
-              A.houseNo AS apartmentHouseNo,
-              A.streetName AS apartmentStreetName,
-              A.city AS apartmentCity,
-              A.floorNo AS apartmentFloorNo
-            FROM 
-                marketplaceusers CUS
-            INNER JOIN 
-                salesagent SA ON CUS.salesAgent = SA.id
-            LEFT JOIN 
-                house H ON CUS.id = H.customerId AND CUS.buildingType = 'House'
-            LEFT JOIN 
-                apartment A ON CUS.id = A.customerId AND CUS.buildingType = 'Apartment'
-            WHERE
-                 CUS.isDashUser = 1
-        `;
+      SELECT
+        CUS.id,
+        CUS.cusId,
+        CUS.phoneNumber,
+        CUS.title,
+        CUS.firstName,
+        CUS.lastName,
+        CUS.email,
+        CUS.rateofCus,
+        SA.empId,
+        SA.firstName  AS salesAgentFirstName,
+        SA.lastName   AS salesAgentLastName,
+        CUS.created_at,
+        (SELECT COUNT(*) FROM orders WHERE userId = CUS.id) AS totOrders
+      FROM   marketplaceusers  CUS
+      INNER JOIN salesagent    SA  ON CUS.salesAgent = SA.id
+      WHERE  CUS.isDashUser = 1
+    `;
 
     const countParams = [];
-    const dataParams = [];
+    const dataParams  = [];
 
+    // ── Free-text search ──────────────────────────────────────────────────────
     if (searchText) {
       const searchCondition = `
-    AND (
-      CUS.firstName LIKE ?
-      OR CUS.lastName LIKE ?
-      OR CUS.phoneNumber LIKE ?
-      OR CUS.cusId LIKE ?
-      OR SA.empId LIKE ?
-    )
-  `;
+        AND (
+          CUS.firstName   LIKE ?
+          OR CUS.lastName  LIKE ?
+          OR CUS.phoneNumber LIKE ?
+          OR CUS.cusId     LIKE ?
+          OR SA.empId      LIKE ?
+        )
+      `;
+      const v = `%${searchText}%`;
       countSql += searchCondition;
-      dataSql += searchCondition;
-      const searchValue = `%${searchText}%`;
-      countParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
-      dataParams.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+      dataSql  += searchCondition;
+      countParams.push(v, v, v, v, v);
+      dataParams .push(v, v, v, v, v);
     }
 
-    dataSql += " LIMIT ? OFFSET ?";
+    // ── Rating filter ─────────────────────────────────────────────────────────
+    if (ratingFilter) {
+      const ratingCondition = ` AND CUS.rateofCus = ? `;
+      countSql += ratingCondition;
+      dataSql  += ratingCondition;
+      countParams.push(ratingFilter);
+      dataParams .push(ratingFilter);
+    }
+
+    dataSql += ' LIMIT ? OFFSET ?';
     dataParams.push(limit, offset);
 
-    // Execute count query
+    // ── Execute count ─────────────────────────────────────────────────────────
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
-        console.error("Error in count query:", countErr);
+        console.error('Error in count query:', countErr);
         return reject(countErr);
       }
 
       const total = countResults[0].total;
 
-      // Execute data query
+      // ── Execute data ────────────────────────────────────────────────────────
       marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
-          console.error("Error in data query:", dataErr);
+          console.error('Error in data query:', dataErr);
           return reject(dataErr);
         }
 
         resolve({ items: dataResults, total });
       });
+    });
+  });
+};
+
+const updateDashCustomerRatingDao = (id, rateofCus) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE marketplaceusers
+      SET    rateofCus = ?
+      WHERE  id        = ?
+        AND  isDashUser = 1
+    `;
+ 
+    marketPlace.query(sql, [rateofCus, id], (err, result) => {
+      if (err) {
+        console.error('Error updating dash customer rating:', err);
+        return reject(err);
+      }
+      resolve(result.affectedRows > 0);
     });
   });
 };
@@ -1184,4 +1293,5 @@ module.exports = {
   getUserOrdersDao,
   genarateNewSalesAgentIdDao,
   createSalesTarget,
+  updateDashCustomerRatingDao,
 };

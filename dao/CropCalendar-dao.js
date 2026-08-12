@@ -110,7 +110,7 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
         GROUP BY 
           cg.id
         ORDER BY 
-          cg.createdAt DESC
+          cg.cropNameEnglish ASC
         LIMIT ? OFFSET ?
       `;
     dataParams.push(limit, offset);
@@ -235,6 +235,45 @@ exports.createCropCallender = async (
 
 exports.insertXLSXData = (cropId, data) => {
   return new Promise((resolve, reject) => {
+    if (!data || data.length === 0) {
+      return reject(new Error("No data found in the uploaded file"));
+    }
+
+    const requiredColumns = [
+      "Task index",
+      "Day",
+      "Task type (English)",
+      "Task type (Sinhala)",
+      "Task type (Tamil)",
+      "Task Category (English)",
+      "Task Category (Sinhala)",
+      "Task Category (Tamil)",
+      "Task (English)",
+      "Task (Sinhala)",
+      "Task (Tamil)",
+      "Task description (English)",
+      "Task description (Sinhala)",
+      "Task description (Tamil)",
+      "Image Link",
+      "Video Link English",
+      "Video Link Sinhala",
+      "Video Link Tamil",
+      "Required Images",
+    ];
+
+    const headerKeys = Object.keys(data[0]);
+    const missingColumns = requiredColumns.filter(
+      (col) => !headerKeys.includes(col)
+    );
+
+    if (missingColumns.length > 0) {
+      return reject(
+        new Error(
+          `Missing required column(s) in the uploaded file: ${missingColumns.join(", ")}`
+        )
+      );
+    }
+
     const schema = Joi.object({
       "Task index": Joi.number().required(),
       Day: Joi.number().integer().required(),
@@ -250,11 +289,11 @@ exports.insertXLSXData = (cropId, data) => {
       "Task description (English)": Joi.string().required(),
       "Task description (Sinhala)": Joi.string().required(),
       "Task description (Tamil)": Joi.string().required(),
-      "Image Link": Joi.string(),
-      "Video Link English": Joi.string(),
-      "Video Link Sinhala": Joi.string(),
-      "Video Link Tamil": Joi.string(),
-      "Required Images": Joi.number(),
+      "Image Link": Joi.string().allow('', null),
+      "Video Link English": Joi.string().allow('', null),
+      "Video Link Sinhala": Joi.string().allow('', null),
+      "Video Link Tamil": Joi.string().allow('', null),
+      "Required Images": Joi.number().required(),
     }).required();
 
     const validatedData = [];
@@ -263,8 +302,8 @@ exports.insertXLSXData = (cropId, data) => {
       if (error) {
         return reject(
           new Error(
-            `Validation error in row ${i + 1}: ${error.details[0].message}`,
-          ),
+            `Validation error in row ${i + 1}: ${error.details[0].message}`
+          )
         );
       }
       validatedData.push(value);
@@ -294,10 +333,10 @@ exports.insertXLSXData = (cropId, data) => {
       row["Task description (English)"],
       row["Task description (Sinhala)"],
       row["Task description (Tamil)"],
-      row["Image Link"],
-      row["Video Link English"],
-      row["Video Link Sinhala"],
-      row["Video Link Tamil"],
+      row["Image Link"] ?? null,
+      row["Video Link English"] ?? null,
+      row["Video Link Sinhala"] ?? null,
+      row["Video Link Tamil"] ?? null,
       row["Required Images"],
     ]);
 
@@ -561,7 +600,7 @@ exports.getAllCropCalendars = (limit, offset, searchText, category) => {
     limit = parseInt(limit, 10) || 10;
     offset = parseInt(offset, 10) || 0;
 
-    dataSql += " ORDER BY cropcalender.createdAt DESC";
+    dataSql += "ORDER BY cropgroup.cropNameEnglish, cropvariety.varietyNameEnglish";
     const dataParams = [...params, limit, offset];
 
     plantcare.query(countSql, params, (countErr, countResults) => {

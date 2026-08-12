@@ -950,7 +950,7 @@ exports.generateRegCode = (province, district, city, callback) => {
   // Generate the prefix based on province and district with "P" after province initial
   const prefix =
     province.charAt(0).toUpperCase() +
-    "P" +
+    province.charAt(1).toUpperCase() +
     district.charAt(0).toUpperCase() +
     city.charAt(0).toUpperCase();
 
@@ -1344,7 +1344,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(20)
       .fillColor("#071a51")
-      .text("Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation", {
+      .text("Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation", {
         align: "center",
       });
 
@@ -1371,7 +1371,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(12)
       .text(
-        "You have successfully created an account with PolygonAgro (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
+        "You have successfully created an account with Polygon Holdings (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
         {
           align: "justify",
         }
@@ -1401,8 +1401,8 @@ exports.SendGeneratedPasswordDao = async (
 
     doc.moveDown();
     doc.fontSize(12).text(`Best Regards,`);
-    doc.fontSize(12).text(`The PolygonAgro Team`);
-    doc.fontSize(12).text(`PolygonAgro (Pvt) Ltd. | All rights reserved.`);
+    doc.fontSize(12).text(`The Polygon Holdings Team`);
+    doc.fontSize(12).text(`Polygon Holdings (Pvt) Ltd. | All rights reserved.`);
     doc.moveDown();
     doc.fontSize(12).text(`Address: No:14,`);
     doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
@@ -1447,7 +1447,7 @@ exports.SendGeneratedPasswordDao = async (
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
+      subject: "Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation",
       text: `Dear ${firstNameEnglish},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {
@@ -1577,11 +1577,11 @@ exports.createDistributionOfficerPersonal = (
 
       const sql = `
                 INSERT INTO collectionofficer (
-                    distributedCenterId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
+                    distributedCenterId, companyId ,irmId ,driverCatId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
                     lastNameSinhala, lastNameTamil, jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
                     languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                          ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?, 'Not Approved')
             `;
@@ -1593,6 +1593,7 @@ exports.createDistributionOfficerPersonal = (
           officerData.centerId,
           officerData.companyId,
           officerData.irmId,
+          officerData.driverCatId,
           officerData.firstNameEnglish,
           officerData.firstNameSinhala,
           officerData.firstNameTamil,
@@ -2177,6 +2178,7 @@ exports.updateDistributionOfficerDetails = (
   centerId,
   companyId,
   irmId,
+  driverCatId,
   firstNameEnglish,
   lastNameEnglish,
   firstNameSinhala,
@@ -2209,7 +2211,7 @@ exports.updateDistributionOfficerDetails = (
   return new Promise((resolve, reject) => {
     let sql = `
              UPDATE collectionofficer
-                SET distributedCenterId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
+                SET distributedCenterId = ?, companyId = ?, irmId = ?, driverCatId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
                     firstNameTamil = ?, lastNameTamil = ?, jobRole = ?, empId = ?, empType = ?, phoneCode01 = ?, phoneNumber01 = ?, phoneCode02 = ?, phoneNumber02 = ?,
                     nic = ?, email = ?, houseNumber = ?, streetName = ?, city = ?, district = ?, province = ?, country = ?, languages = ?,
                     accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?,  adminModifyBy = ?, status = 'Not Approved', officerModiyBy = NULL
@@ -2218,6 +2220,7 @@ exports.updateDistributionOfficerDetails = (
       centerId,
       companyId,
       irmId || null,
+      driverCatId || null,
       firstNameEnglish,
       lastNameEnglish,
       firstNameSinhala,

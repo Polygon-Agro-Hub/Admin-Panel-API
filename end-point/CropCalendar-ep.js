@@ -410,6 +410,12 @@ exports.uploadXLSX = async (req, res) => {
       rowsAffected,
     });
   } catch (error) {
+    try {
+      await cropCalendarDao.deleteCropCalender(req.params.id);
+    } catch (deleteErr) {
+      console.error("Failed to rollback crop calendar record:", deleteErr);
+    }
+
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message });
     }

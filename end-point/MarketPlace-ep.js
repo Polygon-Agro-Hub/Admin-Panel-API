@@ -43,6 +43,7 @@ exports.createMarketProduct = async (req, res) => {
       displaytype: req.body.displaytype,
       maxQuantity: req.body.maxQuantity,
       productTypeId: req.body.productTypeId,
+      comPrice: req.body.comPrice,
     };
 
     const { exists, varietyExists, nameExists } =
@@ -421,6 +422,7 @@ exports.editMarketProduct = async (req, res) => {
     );
 
     const product = req.body;
+    const modifyBy = req.user?.userId;
 
     const { exists, varietyExists, nameExists } =
       await MarketPlaceDao.checkMarketEditProductExistsDao(
@@ -449,7 +451,7 @@ exports.editMarketProduct = async (req, res) => {
       });
     }
 
-    const result = await MarketPlaceDao.updateMarketProductDao(req.body, id);
+    const result = await MarketPlaceDao.updateMarketProductDao(req.body, id, modifyBy);
 
     if (result.affectedRows === 0) {
       return res.json({
@@ -478,6 +480,7 @@ exports.editMarketProduct = async (req, res) => {
     });
   }
 };
+
 exports.getAllMarketplacePackages = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Request URL:", fullUrl);
@@ -541,8 +544,16 @@ exports.deleteMarketplacePackages = async (req, res) => {
 
 exports.getMarketplacePackagesByDate = async (req, res) => {
   try {
-    const { date } = req.query;
-    const data = await MarketPlaceDao.getMarketplacePackagesByDateDAO(date);
+    const { date, packageType } = req.query;
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: "date query parameter is required (format: YYYY-MM-DD)",
+      });
+    }
+
+    const data = await MarketPlaceDao.getMarketplacePackagesByDateDAO(date, packageType);
     res.status(200).json({ success: true, data });
   } catch (error) {
     console.error("Error in getMarketplacePackagesByDate:", error);
@@ -622,6 +633,9 @@ exports.getMarketplacePackageById = async (req, res) => {
       displayName: firstRow.displayName,
       status: firstRow.status || "Enabled",
       description: firstRow.description,
+      packageType: firstRow.packageType,
+      startDate: firstRow.startDate,
+      endDate: firstRow.endDate,
       productPrice,
       packageFee: packingFee,
       serviceFee,
@@ -1283,9 +1297,15 @@ exports.editProductType = async (req, res) => {
     const { id } = await MarketPriceValidate.IdparamsSchema.validateAsync(
       req.params,
     );
+
+    const modifyId = req.user.userId;
+    console.log('Extracted modifyId:', modifyId);
     const data =
       await MarketPriceValidate.createProductTypeSchema.validateAsync(req.body);
-    const result = await MarketPlaceDao.editProductTypesDao(data, id);
+
+    const result = await MarketPlaceDao.editProductTypesDao(data, id, modifyId);
+
+
 
     if (result.affectedRows === 0) {
       return res.json({
@@ -1487,25 +1507,52 @@ exports.checkPackageDisplayNameExists = async (req, res) => {
 
 exports.getAllRetailCustomers = async (req, res) => {
   try {
-    const { page, limit, searchText } =
+    const { page, limit, searchText, ratingFilter } =
       await MarketPriceValidate.getmarketplaceCustomerParamSchema.validateAsync(
         req.query,
       );
+
     const offset = (page - 1) * limit;
     const { total, items } = await MarketPlaceDao.getAllRetailCustomersDao(
       limit,
       offset,
       searchText,
+      ratingFilter,   // ← new param
     );
 
-    return res.status(200).json({
-      total,
-      items,
-    });
+    return res.status(200).json({ total, items });
   } catch (err) {
-    console.error("Error checking display name:", err);
+    console.error('Error fetching retail customers:', err);
     return res.status(500).json({
-      error: "An error occurred while checking display name",
+      error: 'An error occurred while fetching retail customers',
+      status: false,
+    });
+  }
+};
+
+
+exports.updateRetailCustomerRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rateofCus } =
+      await MarketPriceValidate.updateCustomerRatingSchema.validateAsync(
+        req.body,
+      );
+
+    const updated = await MarketPlaceDao.updateRetailCustomerRatingDao(
+      id,
+      rateofCus,
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Customer not found', status: false });
+    }
+
+    return res.status(200).json({ message: 'Rating updated successfully', status: true });
+  } catch (err) {
+    console.error('Error updating customer rating:', err);
+    return res.status(500).json({
+      error: 'An error occurred while updating customer rating',
       status: false,
     });
   }
@@ -1702,25 +1749,52 @@ exports.createDefinePackageWithItems = async (req, res) => {
 
 exports.getAllWholesaleCustomers = async (req, res) => {
   try {
-    const { page, limit, searchText } =
+    const { page, limit, searchText, ratingFilter } =
       await MarketPriceValidate.getmarketplaceCustomerParamSchema.validateAsync(
         req.query,
       );
+
     const offset = (page - 1) * limit;
     const { total, items } = await MarketPlaceDao.getAllWholesaleCustomersDao(
       limit,
       offset,
       searchText,
+      ratingFilter,
     );
 
-    return res.status(200).json({
-      total,
-      items,
-    });
+    return res.status(200).json({ total, items });
   } catch (err) {
-    console.error("Error checking display name:", err);
+    console.error('Error fetching wholesale customers:', err);
     return res.status(500).json({
-      error: "An error occurred while checking display name",
+      error: 'An error occurred while fetching wholesale customers',
+      status: false,
+    });
+  }
+};
+
+
+exports.updateWholesaleCustomerRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rateofCus } =
+      await MarketPriceValidate.updateCustomerRatingSchema.validateAsync(
+        req.body,
+      );
+
+    const updated = await MarketPlaceDao.updateWholesaleCustomerRatingDao(
+      id,
+      rateofCus,
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Customer not found', status: false });
+    }
+
+    return res.status(200).json({ message: 'Rating updated successfully', status: true });
+  } catch (err) {
+    console.error('Error updating wholesale customer rating:', err);
+    return res.status(500).json({
+      error: 'An error occurred while updating customer rating',
       status: false,
     });
   }
@@ -1901,7 +1975,7 @@ exports.getInvoiceDetails = async (req, res) => {
         invoiceDetails.city,
       );
 
-            // Nullify delivery charge if order has a Free Delivery coupon
+      // Nullify delivery charge if order has a Free Delivery coupon
       if (
         invoiceDetails.isCoupon === 1 &&
         invoiceDetails.couponType === "Free Delivery"
@@ -2269,13 +2343,16 @@ exports.updateProductTypeStatus = async (req, res) => {
     const { isValid } = await MarketPriceValidate.ValidateStatusSchema.validateAsync(
       req.body
     );
-    
+
+    console.log(`Updating product type status for ID: ${id} to isValid: ${isValid}`);
+
     // Get the logged-in username from token
     const modifyId = req.user.userId; // Make sure your token contains username
-    
-    const result = await MarketPlaceDao.UpdateProductTypeStatusDao(id, isValid, modifyId);
 
-    if (result.affectedRows === 0) {
+    const result = await MarketPlaceDao.UpdateProductTypeStatusDao(id, isValid, modifyId);
+    console.log(result);
+
+    if (result.status !== true) {
       return res.json({
         message: "Product type status update failed",
         status: false,
@@ -2291,5 +2368,44 @@ exports.updateProductTypeStatus = async (req, res) => {
   } catch (error) {
     console.error("Error updating product type status:", error);
     return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+exports.toggleProductStatus = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { id } = req.params;
+    const isEnable = Number(req.body.isEnable);
+    const modifyBy = req.user.userId;
+
+    if (!id) {
+      return res.status(400).json({
+        error: "Product id is required",
+      });
+    }
+
+    if (isEnable !== 0 && isEnable !== 1) {
+      return res.status(400).json({
+        error: "isEnable must be 0 or 1",
+      });
+    }
+
+    await MarketPlaceDao.toggleItemStatus(id, isEnable, modifyBy);
+
+    // Cascade: if the product is being disabled, disable its packages too
+    if (isEnable === 0) {
+      await MarketPlaceDao.disablePackagesByProductId(id);
+    }
+
+    res.json({
+      message: "Status updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating product status:", error);
+    return res.status(500).json({
+      error: "An error occurred while updating product status",
+    });
   }
 };

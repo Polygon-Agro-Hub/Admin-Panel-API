@@ -1654,19 +1654,38 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
           GROUP BY orderId
       ),
       package_item_counts AS (
-          SELECT 
-              op.orderId,
-              COUNT(*) AS totalItems,
-              SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems
-          FROM orderpackageitems opi
-          JOIN orderpackage op ON opi.orderPackageId = op.id
-          GROUP BY op.orderId
-      ),
+    SELECT
+        op.orderId,
+        SUM(op.qty * item_counts.itemCount) AS totalItems,
+        SUM(op.qty * item_counts.packedItemCount) AS packedItems
+    FROM orderpackage op
+    JOIN (
+        SELECT
+            orderPackageId,
+            COUNT(*) AS itemCount,
+            SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedItemCount
+        FROM orderpackageitems
+        GROUP BY orderPackageId
+    ) item_counts
+        ON item_counts.orderPackageId = op.id
+    GROUP BY op.orderId
+),
+
+package_price AS (
+    SELECT
+        op.orderId,
+        SUM(mp.productPrice * op.qty) AS packagePrice
+    FROM orderpackage op
+    JOIN marketplacepackages mp
+        ON mp.id = op.packageId
+    GROUP BY op.orderId
+),
       additional_items_counts AS (
           SELECT 
               orderId,
               COUNT(*) AS totalAdditionalItems,
               SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
+              SUM(price) AS totalAdditionalPrice,
               CASE
                   WHEN COUNT(*) = 0 THEN 'Unknown'
                   WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
@@ -1684,12 +1703,13 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
           po.id AS processOrderId,
           po.invNo,
           o.sheduleDate,
-          COUNT(DISTINCT op.id) AS packageCount,
-          SUM(DISTINCT mpi.productPrice * op.qty) AS packagePrice,
+          COALESCE(SUM(op.qty), 0) AS packageCount,
+          COALESCE(CAST(pp.packagePrice AS DOUBLE), 0) AS packagePrice,
           COALESCE(pic.totalItems, 0) AS totPackageItems,
           COALESCE(pic.packedItems, 0) AS packPackageItems,
           COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
           COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
+          COALESCE(CAST(aic.totalAdditionalPrice AS DOUBLE), 0) AS additionalItemsPrice,
           pfs.finalPackageStatus as packageStatus,
           COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
           au.userName AS adminPackBy,
@@ -1715,8 +1735,14 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
       LEFT JOIN orderpackage op ON op.orderId = po.id 
       LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
       LEFT JOIN package_final_status pfs ON pfs.orderId = po.id
-      LEFT JOIN package_item_counts pic ON pic.orderId = po.id
-      LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      LEFT JOIN package_item_counts pic
+    ON pic.orderId = po.id
+
+LEFT JOIN package_price pp
+    ON pp.orderId = po.id
+
+LEFT JOIN additional_items_counts aic
+    ON aic.orderId = o.id
       LEFT JOIN agro_world_admin.adminusers au ON po.adminPackby = au.id
       LEFT JOIN collection_officer.collectionofficer cof ON po.packBy = cof.id
       ${dataWhereClause}
@@ -1731,10 +1757,12 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
           aic.totalAdditionalItems,
           aic.packedAdditionalItems,
           aic.additionalItemsStatus,
+          aic.totalAdditionalPrice,
           pfs.pendingPackages,
           pfs.openedPackages,
           pfs.completedPackages,
-          pfs.totalPackages
+          pfs.totalPackages,
+          pp.packagePrice
       ORDER BY po.createdAt DESC
       LIMIT ? OFFSET ?
       `;
@@ -1742,9 +1770,9 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
     
     dataParams.push(parseInt(limit), parseInt(offset));
 
-    console.log('Executing Count Query...');
-    console.log('Count SQL:', countSql);
-    console.log('Count Params:', countParams);
+    // console.log('Executing Count Query...');
+    // console.log('Count SQL:', countSql);
+    // console.log('Count Params:', countParams);
     
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
@@ -1754,9 +1782,9 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
 
       const total = countResults[0]?.total || 0;
 
-      console.log('Executing Data Query...');
-      console.log('Data SQL:', dataSql);
-      console.log('Data Params:', dataParams);
+      // console.log('Executing Data Query...');
+      // console.log('Data SQL:', dataSql);
+      // console.log('Data Params:', dataParams);
       
       marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
@@ -1835,7 +1863,7 @@ exports.getMarketPlacePremadePackagesAdditionalItemsDao = (orderId) => {
     const sql = `
       SELECT 
         po.id AS orderId,
-        SUM(oai.normalPrice) AS price,
+        SUM(oai.price) AS price,
         COUNT(*) AS totCount,
         SUM(CASE WHEN oai.isPacked = 1 THEN 1 ELSE 0 END) AS packCount,
         CASE
@@ -1870,7 +1898,7 @@ exports.getMarketPlaceCustomePackagesDao = (page, limit, packageStatus, date, se
     let whereClause = ` 
     WHERE 
       o.orderApp = 'Marketplace' 
-      AND op.id IS NULL
+      AND op.id IS NULL AND po.status != 'Ordered'
      `;
     const params = [];
     const countParams = [];
@@ -1918,7 +1946,7 @@ WITH additional_items_counts AS (
     SELECT 
         orderId,
         COUNT(*) AS totalAdditionalItems,
-        SUM(normalPrice) AS price,
+        SUM(price) AS price,
         SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
     FROM orderadditionalitems
     GROUP BY orderId
@@ -1937,7 +1965,7 @@ ${whereClause}
           SELECT 
               orderId,
               COUNT(*) AS totalAdditionalItems,
-              SUM(normalPrice) AS price,
+              SUM(price) AS price,
               SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
               CASE
                   WHEN COUNT(*) = 0 THEN 'Unknown'
@@ -2015,6 +2043,7 @@ exports.getPackageForDispatchDao = (orderId) => {
     const sql = `
       SELECT 
         opi.id,
+        pt.id as typeId,
         opi.qty,
         opi.isPacked,
         opi.price,
@@ -2090,16 +2119,23 @@ exports.getAllDispatchMarketplaceItems = (category, userId) => {
         MPI.unitType,
         MPI.startValue,
         MPI.changeby,
-        XL.id AS isExcluded
+        XL.id AS isExcluded,
+        PL.id AS isPreferred,
+        MPI.productTypeId
       FROM marketplaceitems MPI
       LEFT JOIN excludelist XL ON MPI.id = XL.mpItemId AND XL.userId = ?
+      LEFT JOIN preferlist PL ON PL.mpItemId =  MPI.id AND PL.userId = ?
       WHERE MPI.category = ?
       ORDER BY 
-        MPI.displayName
+        CASE 
+          WHEN PL.id IS NOT NULL THEN 0  -- Preferred items first
+          WHEN XL.id IS NOT NULL THEN 2  -- Excluded items last
+          ELSE 1                         -- Everything else in between
+        END
     `;
 
 
-    marketPlace.query(sql, [userId, category], (err, results) => {
+    marketPlace.query(sql, [userId, userId, category], (err, results) => {
       if (err) {
         console.error(
           "[getAllMarketplaceItems] Error fetching all marketplace items:",
@@ -2122,10 +2158,10 @@ exports.getAllDispatchMarketplaceItems = (category, userId) => {
         startValue: row.startValue,
         changeby: row.changeby,
         isExcluded: row.isExcluded === null ? false : true,
+        isPreferred: row.isPreferred === null ? false : true,
+        productTypeId: row.productTypeId,
 
       }));
-
-      console.log(items);
 
       resolve(items);
     });

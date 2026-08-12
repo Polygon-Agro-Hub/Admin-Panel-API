@@ -12,6 +12,9 @@ const {
   getInvestmentIdSchema,
   getAgentCommitionsShema,
   getAllInvestmentUsersSchema,
+  getAllTransactionsSchema,
+  IdParamSchema,
+  getAllShortageSubmissionsSchema,
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
@@ -2006,5 +2009,236 @@ exports.getFinanceMainDashboard = async (req, res) => {
       message: "An error occurred while fetching finance dashboard data",
       error: error,
     });
+  }
+};
+
+exports.getAllTransactionsEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { page, limit, status, date, searchItem } =
+      await getAllTransactionsSchema.validateAsync(req.query);
+
+    const { results, total } = await financeDao.GetAllTransactionsDAO(
+          page,
+          limit,
+          status,
+          date,
+          searchItem,
+        );
+
+    console.log("results", results);
+
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching transactions:", err);
+    res.status(500).json({
+      error: "An error occurred while fetching transactions",
+    });
+  }
+};
+
+exports.getAllTransactionOrdersEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = await IdParamSchema.validateAsync(req.params);
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: "transaction id required" });
+    }
+
+    const { orders, totalToReceive } = await financeDao.getTransactionOrdersDao(id);
+
+    console.log('orders', orders)
+
+    return res.status(200).json({ orders: orders, total: totalToReceive });
+
+  } catch (error) {
+    console.error("Update Govi Shop User Status Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+exports.getViewTransactionDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Transaction ID is required" });
+    }
+
+    const document = await financeDao.getTransactionDocumentByIdDao(id);
+
+    if (!document) {
+      return res.status(404).json({ error: "Transaction document not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: document,
+    });
+  } catch (err) {
+    console.error("Error fetching transaction document:", err);
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while fetching transaction document",
+    });
+  }
+};
+
+exports.updateTransactionStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { transStatus, rejectReason } = req.body;
+
+    const updatedBy = req.user.userId; 
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction Id is required",
+      });
+    }
+
+    if (!["Approved", "Rejected"].includes(transStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid transaction status",
+      });
+    }
+
+    await financeDao.updateTransactionStatusDao({
+      id,
+      transStatus,
+      rejectReason,
+      updatedBy,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Transaction status updated successfully",
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+exports.getAllShortageSubmissionEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { page, limit, status, purchasedAt, searchItem } =
+      await getAllShortageSubmissionsSchema.validateAsync(req.query);
+
+    const { results, total } = await financeDao.getAllShortageSubmissionsDAO(
+      page,
+      limit,
+      status,
+      purchasedAt,
+      searchItem
+    );
+
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({
+        error: err.details[0].message,
+      });
+    }
+
+    console.error(err);
+    res.status(500).json({
+      error: "An error occurred while fetching submissions",
+    });
+  }
+};
+
+exports.ViewSubmissionDocumentEp = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Submission Id is required",
+      });
+    }
+
+    const result = await financeDao.getViewSubmissionDocumentDao(id);
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Submission not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      result: result[0],
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+exports.updateSubmissionStatusEp = async (req, res) => {
+  try {
+
+    const { id } = req.params;
+    const { reqStatus } = req.body;
+
+    const markedBy = req.user.userId;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Submission Id is required",
+      });
+    }
+
+    if (!["Completed"].includes(reqStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status",
+      });
+    }
+
+    await financeDao.updateSubmissionStatusDao(id, markedBy);
+
+    return res.status(200).json({
+      success: true,
+      message: "Submission completed successfully",
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+
   }
 };

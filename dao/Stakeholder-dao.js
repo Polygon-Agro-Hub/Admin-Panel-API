@@ -393,7 +393,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(20)
       .fillColor("#071a51")
-      .text("Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation", {
+      .text("Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation", {
         align: "center",
       });
 
@@ -410,7 +410,7 @@ exports.SendGeneratedPasswordDao = async (
       )
       .moveDown()
       .text(
-        "You have successfully created an account with PolygonAgro (Pvt) Ltd. Our platform provides agricultural support, guidance, and digital tools to help you grow and succeed.",
+        "You have successfully created an account with Polygon Holdings (Pvt) Ltd. Our platform provides agricultural support, guidance, and digital tools to help you grow and succeed.",
         { align: "justify" }
       )
       .moveDown()
@@ -423,8 +423,8 @@ exports.SendGeneratedPasswordDao = async (
       )
       .moveDown()
       .text("Best Regards,")
-      .text("The PolygonAgro Team")
-      .text("PolygonAgro (Pvt) Ltd. | All rights reserved.")
+      .text("The Polygon Holdings Team")
+      .text("Polygon Holdings (Pvt) Ltd. | All rights reserved.")
       .moveDown()
       .text("Address: No:14, Sir Baron Jayathilake Mawatha, Colombo 01.")
       .text("Email: polygonagro.inf@gmail.com");
@@ -450,7 +450,7 @@ exports.SendGeneratedPasswordDao = async (
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
+      subject: "Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation",
       text: `Dear ${firstName},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {

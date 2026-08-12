@@ -2184,13 +2184,10 @@ exports.addNewTask = async (req, res) => {
     const taskIdArr = await adminDao.getAllTaskIdDao(cropId);
     console.log("Task array:", taskIdArr);
 
-    for (let i = 0; i < taskIdArr.length; i++) {
+     for (let i = 0; i < taskIdArr.length; i++) {
       const existingTask = taskIdArr[i];
 
-      if (existingTask.taskIndex > indexId) {
-        console.log(
-          `Updating task ${existingTask.id}, current taskIndex: ${existingTask.taskIndex}`
-        );
+      if (existingTask.taskIndex >= indexId) {
         await adminDao.shiftUpTaskIndexDao(
           existingTask.id,
           existingTask.taskIndex + 1
@@ -2200,18 +2197,14 @@ exports.addNewTask = async (req, res) => {
 
     const addedTaskResult = await adminDao.addNewTaskDao(
       task,
-      indexId + 1,
+      indexId,
       cropId
     );
 
     if (addedTaskResult.insertId > 0) {
-      res
-        .status(201)
-        .json({ status: true, message: "Succcesfull Task Added!" });
+      res.status(201).json({ status: true, message: "Succcesfull Task Added!" });
     } else {
-      res
-        .status(500)
-        .json({ status: false, message: "Issue Occor in Task Adding!" });
+      res.status(500).json({ status: false, message: "Issue Occor in Task Adding!" });
     }
   } catch (error) {
     console.error("Error adding task:", error);
@@ -4047,5 +4040,143 @@ exports.getFiealdOfficerComplainById = async (req, res) => {
     res
       .status(500)
       .json({ error: "An error occurred while fetching center complains" });
+  }
+};
+
+exports.getAllBlockWords = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { page = 1, limit = 18, search = '' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const result = await adminDao.getAllBlockWords(
+      parseInt(limit),
+      offset,
+      search
+    );
+
+    console.log("Successfully fetched block words");
+    res.json({
+      status: true,
+      ...result
+    });
+  } catch (err) {
+    console.error("Error fetching block words:", err);
+    res.status(500).json({
+      status: false,
+      error: "An error occurred while fetching block words"
+    });
+  }
+};
+
+// Add a new block word
+exports.addBlockWord = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { word } = req.body;
+
+    if (!word || !word.trim()) {
+      return res.status(400).json({
+        status: false,
+        error: "Word is required"
+      });
+    }
+
+    const result = await adminDao.addBlockWord(word.trim());
+
+    console.log("Block word added successfully");
+    res.json({
+      status: true,
+      message: "Block word added successfully",
+      id: result.insertId
+    });
+  } catch (err) {
+    console.error("Error adding block word:", err);
+    
+    if (err.message === "Word already exists in block list") {
+      return res.status(409).json({
+        status: false,
+        error: "Word already exists in block list"
+      });
+    }
+
+    res.status(500).json({
+      status: false,
+      error: "An error occurred while adding block word"
+    });
+  }
+};
+
+// Delete a block word
+exports.deleteBlockWord = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        status: false,
+        error: "ID is required"
+      });
+    }
+
+    const result = await adminDao.deleteBlockWord(parseInt(id));
+
+    console.log("Block word deleted successfully");
+    res.json({
+      status: true,
+      message: "Block word deleted successfully"
+    });
+  } catch (err) {
+    console.error("Error deleting block word:", err);
+    
+    if (err.message === "Block word not found") {
+      return res.status(404).json({
+        status: false,
+        error: "Block word not found"
+      });
+    }
+
+    res.status(500).json({
+      status: false,
+      error: "An error occurred while deleting block word"
+    });
+  }
+};
+
+// Delete multiple block words
+exports.deleteMultipleBlockWords = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        status: false,
+        error: "IDs array is required"
+      });
+    }
+
+    const result = await adminDao.deleteMultipleBlockWords(ids);
+
+    console.log("Block words deleted successfully");
+    res.json({
+      status: true,
+      message: `${result.affectedRows} block word(s) deleted successfully`
+    });
+  } catch (err) {
+    console.error("Error deleting block words:", err);
+    res.status(500).json({
+      status: false,
+      error: "An error occurred while deleting block words"
+    });
   }
 };
