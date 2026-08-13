@@ -1207,7 +1207,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     const countParams = [];
 
     let dataSql = `
-        SELECT DISTINCT
+        SELECT
           po.id AS processOrderId,
           (SELECT SUM(mp.productPrice * op2.qty)
            FROM orderpackage op2
@@ -1218,27 +1218,52 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
           po.invNo,
           po.status,
           po.createdAt,
-          (SELECT MAX(opi.createdAt) FROM orderpackageitems opi WHERE opi.orderPackageId = op.id) AS processCreatedAt,
-          op.packingStatus,
+          (SELECT MAX(opi.createdAt)
+           FROM orderpackageitems opi
+           JOIN orderpackage op3 ON opi.orderPackageId = op3.id
+           WHERE op3.orderId = po.id AND op3.packingStatus = 'Dispatch'
+          ) AS processCreatedAt,
+          (SELECT op4.packingStatus
+           FROM orderpackage op4
+           WHERE op4.orderId = po.id AND op4.packingStatus = 'Dispatch'
+           LIMIT 1) AS packingStatus,
           au.userName
         FROM processorders po
         JOIN orders o ON po.orderId = o.id
-        JOIN orderpackage op ON op.orderId = po.id
         LEFT JOIN agro_world_admin.adminusers au ON po.dispatchOfficer = au.id
-        WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
+        WHERE po.status = 'Processing'
+          AND EXISTS (
+            SELECT 1 FROM orderpackage op
+            WHERE op.orderId = po.id AND op.packingStatus = 'Dispatch'
+          )
       `;
 
     let countSql = `
-      SELECT COUNT(DISTINCT po.id) AS total
+      SELECT COUNT(*) AS total
       FROM processorders po
       JOIN orders o ON po.orderId = o.id
-      JOIN orderpackage op ON op.orderId = po.id
-      WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
+      WHERE po.status = 'Processing'
+        AND EXISTS (
+          SELECT 1 FROM orderpackage op
+          WHERE op.orderId = po.id AND op.packingStatus = 'Dispatch'
+        )
       `;
 
     if (dateFilter) {
-      dataSql += ` AND DATE((SELECT ADDTIME(MAX(opi.createdAt), '05:30:00') FROM orderpackageitems opi WHERE opi.orderPackageId = op.id)) = ? `;
-      countSql += ` AND DATE((SELECT ADDTIME(MAX(opi.createdAt), '05:30:00') FROM orderpackageitems opi WHERE opi.orderPackageId = op.id)) = ? `;
+      dataSql += ` AND DATE(ADDTIME(
+        (SELECT MAX(opi.createdAt)
+         FROM orderpackageitems opi
+         JOIN orderpackage op3 ON opi.orderPackageId = op3.id
+         WHERE op3.orderId = po.id AND op3.packingStatus = 'Dispatch'),
+        '05:30:00'
+      )) = ? `;
+      countSql += ` AND DATE(ADDTIME(
+        (SELECT MAX(opi.createdAt)
+         FROM orderpackageitems opi
+         JOIN orderpackage op3 ON opi.orderPackageId = op3.id
+         WHERE op3.orderId = po.id AND op3.packingStatus = 'Dispatch'),
+        '05:30:00'
+      )) = ? `;
       params.push(dateFilter);
       countParams.push(dateFilter);
     }
@@ -1254,8 +1279,6 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     dataSql += ` ORDER BY po.createdAt DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), parseInt(offset));
 
-    console.log("Executing Count Query...");
-
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Count query error:", countErr);
@@ -1264,7 +1287,6 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
 
       const total = countResults[0]?.total || 0;
 
-      console.log("Executing Data Query...");
       marketPlace.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Data query error:", dataErr);
