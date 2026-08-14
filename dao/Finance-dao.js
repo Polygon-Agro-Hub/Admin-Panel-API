@@ -3304,8 +3304,9 @@ exports.getAllCOPTransactionsDAO = (
         CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS officerName,
         co.phoneCode01,
         co.phoneNumber01,
-        pt.approvedBy AS finalizedBy,
+       au.userName AS finalizedBy,
         pt.approvedAt AS finalizeAt,
+        pt.officerId,
         po.orderId,
         po.signature,
         po.handOverPrice,
@@ -3383,6 +3384,30 @@ exports.getAllCOPTransactionsDAO = (
           total,
         });
       });
+    });
+  });
+};
+
+exports.getPickupHandOverSummaryDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        po.orderId,
+        pro.invNo,
+        po.handOverPrice,
+        pt.officerId,
+        pt.createdAt AS subbmittedAt,
+        SUM(po.handOverPrice) OVER (PARTITION BY pt.officerId) AS totalHandOverPrice
+      FROM pickuptransaction pt
+      LEFT JOIN pickuporders po ON pt.id = po.transId
+      LEFT JOIN market_place.processorders pro ON po.orderId = pro.orderId
+      WHERE pt.id = ?;
+    `;
+    collectionofficer.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
     });
   });
 };

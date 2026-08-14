@@ -2274,3 +2274,38 @@ exports.getAllCOPTransactionsEp = async (req, res) => {
     });
   }
 };
+
+exports.getPickupHandOverSummaryEp = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Id is required",
+      });
+    }
+
+    const result = await financeDao.getPickupHandOverSummaryDao(id);
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No hand over records found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      result: result,
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
