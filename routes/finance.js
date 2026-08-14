@@ -272,4 +272,7 @@ router.get("/get-all-shortage-submission",authMiddleware, financeController.getA
 router.get("/view-submission-document/:id",authMiddleware, financeController.ViewSubmissionDocumentEp);
 router.put("/update-submission-status/:id",authMiddleware, financeController.updateSubmissionStatusEp);
 
+router.get("/view-cop-transaction-document/:id",authMiddleware, financeController.viewCopTransactionDocumentEp);
+router.put("/update-cop-transaction-status/:id",authMiddleware, financeController.updateCopTransactionStatusEp);
+
 module.exports = router;

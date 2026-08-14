@@ -3270,3 +3270,51 @@ exports.updateSubmissionStatusDao = (id, markedBy) => {
     });
   });
 };
+
+exports.viewCopTransactionDocumentDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+	      co.empId,
+	      CONCAT(co.firstNameEnglish,' ',co.lastNameEnglish) AS officerName,
+	      co.phoneCode01,
+        co.phoneNumber01,
+	      po.handOverPrice,
+	      pt.transactionStatus,
+	      pt.slip
+      FROM pickuptransaction pt
+      LEFT JOIN collectionofficer co ON pt.officerId = co.id
+      LEFT JOIN pickuporders po ON pt.id = po.transId 
+      WHERE pt.id = ?
+    `;
+
+    collectionofficer.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+
+      resolve(result);
+    });
+  });
+};
+
+exports.updateCopTransactionStatusDao = ({ id, updatedBy }) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE pickuptransaction
+      SET
+        transactionStatus = 'Completed',
+        approvedBy = ?,
+        approvedAt = NOW()
+      WHERE id = ?
+    `;
+
+    collectionofficer.query(sql, [updatedBy, id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+
+      resolve(result);
+    });
+  });
+};
