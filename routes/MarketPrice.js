@@ -104,18 +104,21 @@ const getCropVarietyData = () => {
         {
           'Crop Name': item.cropName,
           'Variety Name': item.varietyName,
+          'Variety Id': item.varietyId,
           Grade: 'A',
           Price: '',
         },
         {
           'Crop Name': item.cropName,
           'Variety Name': item.varietyName,
+          'Variety Id': item.varietyId,
           Grade: 'B',
           Price: '',
         },
         {
           'Crop Name': item.cropName,
           'Variety Name': item.varietyName,
+          'Variety Id': item.varietyId,
           Grade: 'C',
           Price: '',
         },
