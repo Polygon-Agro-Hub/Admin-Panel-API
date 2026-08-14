@@ -15,6 +15,7 @@ const {
   getAllTransactionsSchema,
   IdParamSchema,
   getAllShortageSubmissionsSchema,
+  getAllCOPTransactionsSchema
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
@@ -2240,6 +2241,72 @@ exports.updateSubmissionStatusEp = async (req, res) => {
       message: "Internal Server Error",
     });
 
+  }
+};
+
+exports.getAllCOPTransactionsEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { page, limit, status, purchasedAt, searchItem } =
+      await getAllCOPTransactionsSchema.validateAsync(req.query);
+
+    const { results, total } = await financeDao.getAllCOPTransactionsDAO(
+      page,
+      limit,
+      status,
+      purchasedAt,
+      searchItem
+    );
+
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({
+        error: err.details[0].message,
+      });
+    }
+
+    console.error(err);
+    res.status(500).json({
+      error: "An error occurred while fetching transactions",
+    });
+  }
+};
+
+exports.getPickupHandOverSummaryEp = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Id is required",
+      });
+    }
+
+    const result = await financeDao.getPickupHandOverSummaryDao(id);
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No hand over records found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      result: result,
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
   }
 };
 

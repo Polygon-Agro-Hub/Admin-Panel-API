@@ -271,6 +271,8 @@ router.put(
 router.get("/get-all-shortage-submission",authMiddleware, financeController.getAllShortageSubmissionEp);
 router.get("/view-submission-document/:id",authMiddleware, financeController.ViewSubmissionDocumentEp);
 router.put("/update-submission-status/:id",authMiddleware, financeController.updateSubmissionStatusEp);
+router.get("/get-all-cop-transactions", authMiddleware, financeController.getAllCOPTransactionsEp);
+router.get("/pickup-handover-summary/:id", authMiddleware, financeController.getPickupHandOverSummaryEp);
 
 router.get("/view-cop-transaction-document/:id",authMiddleware, financeController.viewCopTransactionDocumentEp);
 router.put("/update-cop-transaction-status/:id",authMiddleware, financeController.updateCopTransactionStatusEp);

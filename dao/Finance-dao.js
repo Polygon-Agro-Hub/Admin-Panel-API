@@ -3271,6 +3271,146 @@ exports.updateSubmissionStatusDao = (id, markedBy) => {
   });
 };
 
+exports.getAllCOPTransactionsDAO = (
+  page,
+  limit,
+  status,
+  purchasedAt,
+  searchItem,
+) => {
+  return new Promise((resolve, reject) => {
+    const sqlParams = [];
+    const countParams = [];
+
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM pickuptransaction pt
+      LEFT JOIN pickuporders po ON po.transId = pt.transactionId
+      LEFT JOIN collectionofficer co ON pt.officerId = co.id
+      LEFT JOIN agro_world_admin.adminusers au ON pt.approvedBy = au.id
+      WHERE 1 = 1
+    `;
+
+    let sql = `
+      SELECT
+        pt.id,
+        pt.transactionId,
+        pt.slip,
+        pt.transactionStatus,
+        pt.createdAt AS purchasedAt,
+        co.empId,
+        CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS officerName,
+        co.phoneCode01,
+        co.phoneNumber01,
+       au.userName AS finalizedBy,
+        pt.approvedAt AS finalizeAt,
+        pt.officerId,
+        po.orderId,
+        po.signature,
+        po.handOverPrice,
+        po.handOverTime
+      FROM pickuptransaction pt
+      LEFT JOIN pickuporders po ON po.transId = pt.transactionId
+      LEFT JOIN collectionofficer co ON pt.officerId = co.id
+      LEFT JOIN agro_world_admin.adminusers au ON pt.approvedBy = au.id
+      WHERE 1 = 1
+    `;
+
+    // Status Filter
+    if (status) {
+      sql += ` AND pt.transactionStatus = ? `;
+      countSql += ` AND pt.transactionStatus = ? `;
+
+      sqlParams.push(status);
+      countParams.push(status);
+    }
+
+    // Purchased Date Filter
+    if (purchasedAt) {
+      sql += ` AND DATE(pt.createdAt) = ? `;
+      countSql += ` AND DATE(pt.createdAt) = ? `;
+
+      sqlParams.push(purchasedAt);
+      countParams.push(purchasedAt);
+    }
+
+    // Search
+    if (searchItem) {
+      const search = `%${searchItem}%`;
+
+      sql += `
+        AND (
+          co.empId LIKE ?
+          OR CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) LIKE ?
+          OR pt.transactionId LIKE ?
+        )
+      `;
+
+      countSql += `
+        AND (
+          co.empId LIKE ?
+          OR CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) LIKE ?
+          OR pt.transactionId LIKE ?
+        )
+      `;
+
+      sqlParams.push(search, search, search);
+      countParams.push(search, search, search);
+    }
+
+    sql += `
+      ORDER BY pt.createdAt DESC, pt.id DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    sqlParams.push(parseInt(limit), parseInt(offset));
+
+    collectionofficer.query(countSql, countParams, (countErr, countResult) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResult[0].total;
+
+      collectionofficer.query(sql, sqlParams, (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+
+        resolve({
+          results,
+          total,
+        });
+      });
+    });
+  });
+};
+
+exports.getPickupHandOverSummaryDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        po.orderId,
+        pro.invNo,
+        po.handOverPrice,
+        pt.createdAt AS subbmittedAt,
+        SUM(po.handOverPrice) OVER (PARTITION BY pt.officerId) AS totalHandOverPrice
+      FROM pickuptransaction pt
+      LEFT JOIN pickuporders po ON pt.id = po.transId
+      LEFT JOIN market_place.processorders pro ON po.orderId = pro.orderId
+      WHERE pt.id = ?;
+    `;
+    collectionofficer.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
+};
+
 exports.viewCopTransactionDocumentDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
