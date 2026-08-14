@@ -6,121 +6,239 @@ const TargetValidate = require("../validations/Target-validation");
 //   console.log(fullUrl);
 
 //   try {
-//     const companyId = req.user.companyId;
-//     const { id, date } =
+//     const companyId = 1;
+//     const { id } =
 //       await TargetValidate.getSavedCenterCropsSchema.validateAsync(req.params);
-//     const { searchText } =
+//     const { page, date, searchText } =
 //       await TargetValidate.getSavedCenterCropsQuaryParam.validateAsync(
 //         req.query
 //       );
-//     // const { page, limit, searchText } = await TargetValidate.getCenterCropsSchema.validateAsync(req.query);
-//     console.log(id, date);
+
+//     if (date === null) {
+//        date = ''
+//     }
+
+//     console.log('ep', 'id', id,'date', date, 'searchText', searchText);
 
 //     const companyCenterId = await TargetDAO.getCompanyCenterIDDao(
 //       companyId,
 //       id
 //     );
 //     if (companyCenterId === null) {
-//       res.json({ items: [], message: "No center found" });
+//       return res.json({
+//         status: false,
+//         items: [],
+//         message: `No center found for companyId: ${companyId} and centerId: ${id}`,
+//       }); // Add return here
 //     }
 
 //     const status = true;
-//     const result = await TargetDAO.getSavedCenterCropsDao(
+//     const preresult = await TargetDAO.getSavedCenterCropsDao(
 //       companyCenterId,
 //       date,
 //       status,
 //       searchText
 //     );
-//     // console.log(items, total);
 
-//     return res.status(200).json({ result, companyCenterId });
+//     console.log('preresult', preresult)
+
+//     const assignBy = preresult.latestAssignBy;
+
+//     let officerData = null;
+//     let officerName = null;
+      
+//     if (assignBy) {
+//       officerData = await TargetDAO.getOfficerData(assignBy);
+    
+//       if (officerData && officerData.length > 0) {
+//         officerName = officerData[0].firstNameEnglish || null;
+//       }
+//     }
+    
+//     console.log("Officer Data:", officerData);
+//     console.log("Officer Name:", officerName);
+
+
+//     const result = {
+//       data: preresult.data,
+//       isNew: preresult.isNew
+//     };
+
+//     return res.status(200).json({ result, companyCenterId, officerName });
 //   } catch (error) {
 //     if (error.isJoi) {
-//       return res.status(400).json({ error: error.details[0].message });
+//       return res.status(400).json({ error: error.details[0].message }); // Add return here
 //     }
 //     console.error("Error fetching collection officers:", error);
 
 //     return res
 //       .status(500)
-//       .json({ error: "An error occurred while fetching collection officers" });
+//       .json({ error: "An error occurred while fetching collection officers" }); // Add return here
 //   }
 // };
 
 exports.getSavedCenterCrops = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log(fullUrl);
-
   try {
     const companyId = 1;
-    const { id } =
-      await TargetValidate.getSavedCenterCropsSchema.validateAsync(req.params);
-    const { page, date, searchText } =
-      await TargetValidate.getSavedCenterCropsQuaryParam.validateAsync(
-        req.query
-      );
-
-    if (date === null) {
-       date = ''
-    }
-
-    console.log('ep', 'id', id,'date', date, 'searchText', searchText);
-
-    const companyCenterId = await TargetDAO.getCompanyCenterIDDao(
-      companyId,
-      id
-    );
+    console.log('user', req.user)
+    const { id } = await TargetValidate.getSavedCenterCropsSchema.validateAsync(req.params);
+    const { searchText, date } = await TargetValidate.getSavedCenterCropsQuaryParam.validateAsync(req.query);
+    console.log('searchText', searchText)
+    const companyCenterId = await TargetDAO.getCompanyCenterIDDao(companyId, id);
     if (companyCenterId === null) {
-      return res.json({
-        status: false,
-        items: [],
-        message: `No center found for companyId: ${companyId} and centerId: ${id}`,
-      }); // Add return here
+      return res.json({ items: [], message: "No center found" });
     }
 
-    const status = true;
-    const preresult = await TargetDAO.getSavedCenterCropsDao(
-      companyCenterId,
-      date,
-      status,
-      searchText
-    );
+const originalDate = date; // original date string
 
-    console.log('preresult', preresult)
+const modifiedDate = new Date(date);
+modifiedDate.setDate(modifiedDate.getDate() + 1);
 
-    const assignBy = preresult.latestAssignBy;
+const plusTwoDate = modifiedDate.toISOString().split('T')[0];
 
-    let officerData = null;
-    let officerName = null;
-      
-    if (assignBy) {
-      officerData = await TargetDAO.getOfficerData(assignBy);
-    
-      if (officerData && officerData.length > 0) {
-        officerName = officerData[0].firstNameEnglish || null;
-      }
+console.log(originalDate); // 2026-08-09
+console.log(plusTwoDate);  // 2026-08-11
+
+    const [centerCrops, requestedItems, assignedRows, centerAssignedMap] = await Promise.all([
+      TargetDAO.getCenterCropsDao(companyCenterId),
+      TargetDAO.getAllRequestedItemsDao(plusTwoDate),
+      TargetDAO.getVarietyTargetBacklogDao(originalDate),
+      TargetDAO.getCenterAssignedTargetsDao(companyCenterId, originalDate)
+    ]);
+
+    let productMap = aggregateRequestedItemsByVariety(requestedItems);
+
+
+    if (searchText && searchText.trim() !== '') {
+  const searchLower = searchText.trim().toLowerCase();
+
+  productMap = Object.fromEntries(
+    Object.entries(productMap).filter(([key, product]) =>
+      (product.cropNameEnglish && product.cropNameEnglish.toLowerCase().includes(searchLower)) ||
+      (product.varietyNameEnglish && product.varietyNameEnglish.toLowerCase().includes(searchLower))
+    )
+  );
+}
+
+    console.log('productMap2', productMap)
+    // console.log('requestedItems', requestedItems)
+
+    // Demand already claimed by any center (any grade) for this date, so the
+    // "not assigned" suggestion below doesn't double-count other centers' targets.
+    const assignedTotals = {};
+    for (const row of assignedRows) {
+      assignedTotals[row.varietyId] = parseFloat(row.assignedTarget) || 0;
     }
-    
-    console.log("Officer Data:", officerData);
-    console.log("Officer Name:", officerName);
 
+    const products = Object.values(productMap);
 
-    const result = {
-      data: preresult.data,
-      isNew: preresult.isNew
+    const centerCropIds = new Set(centerCrops.map(crop => crop.id));
+
+    const filteredProducts = products
+  .filter(product => centerCropIds.has(product.varietyId))
+  .map(product => {
+    // Use 102% of the original quantity for calculations
+    const calculatedQty = Number((product.qty * 1.02).toFixed(3));
+
+const remainingQty = Number(
+  Math.max(
+    0,
+    calculatedQty - (assignedTotals[product.varietyId] || 0)
+  ).toFixed(3)
+);
+
+    const assigned = centerAssignedMap[product.varietyId];
+
+    if (assigned) {
+      return {
+        ...product,
+        ...assigned,
+        qty: Number((product.qty * 1.02).toFixed(3)), // Keep the original quantity
+        remaining: remainingQty,
+        isNew: false
+      };
+    }
+
+    if (remainingQty <= 0) {
+      return null;
+    }
+
+    return {
+      ...product,
+      qty: Number((product.qty * 1.02).toFixed(3)), // Keep the original quantity
+      targetA: remainingQty,
+      targetB: 0,
+      targetC: 0,
+      idA: null,
+      idB: null,
+      idC: null,
+      remaining: remainingQty,
+      isNew: true
     };
+  })
+  .filter(Boolean);
 
-    return res.status(200).json({ result, companyCenterId, officerName });
+    filteredProducts.sort((a, b) => {
+      const cropCompare = (a.cropNameEnglish || '').localeCompare(b.cropNameEnglish || '');
+      if (cropCompare !== 0) return cropCompare;
+      return (a.varietyNameEnglish || '').localeCompare(b.varietyNameEnglish || '');
+    });
+
+      console.log('filteredProducts', filteredProducts)
+
+    return res.status(200).json({ products: filteredProducts, companyCenterId });
   } catch (error) {
     if (error.isJoi) {
-      return res.status(400).json({ error: error.details[0].message }); // Add return here
+      return res.status(400).json({ error: error.details[0].message });
     }
     console.error("Error fetching collection officers:", error);
 
-    return res
-      .status(500)
-      .json({ error: "An error occurred while fetching collection officers" }); // Add return here
+
+    return res.status(500).json({ error: "An error occurred while fetching collection officers" });
   }
 };
+
+function aggregateRequestedItemsByVariety(items) {
+  const varietyMap = {};
+
+  const addToMap = (item, qty) => {
+    if (item.unitType?.toLowerCase() === "g") {
+      qty /= 1000;
+    }
+
+    if (!varietyMap[item.varietyId]) {
+      varietyMap[item.varietyId] = {
+        productId: item.productId,
+        varietyId: item.varietyId,
+        productName: item.productName,
+        qty: 0,
+        unitType: "Kg",
+        varietyNameEnglish: item.varietyNameEnglish,
+        cropNameEnglish: item.cropNameEnglish
+      };
+    }
+
+    varietyMap[item.varietyId].qty += qty;
+  };
+
+  for (const order of items) {
+    if (order.packageDetails) {
+      order.packageDetails.forEach(pkg => {
+        const packageQty = pkg.packageQty || 1;
+        pkg.items?.forEach(item => addToMap(item, item.qty * packageQty));
+      });
+    }
+
+    if (order.additionalItems) {
+      order.additionalItems.forEach(item => addToMap(item, item.qty));
+    }
+  }
+
+  return varietyMap;
+}
+
+
 exports.updateTargetQty = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
