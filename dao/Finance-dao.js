@@ -3395,7 +3395,6 @@ exports.getPickupHandOverSummaryDao = (id) => {
         po.orderId,
         pro.invNo,
         po.handOverPrice,
-        pt.officerId,
         pt.createdAt AS subbmittedAt,
         SUM(po.handOverPrice) OVER (PARTITION BY pt.officerId) AS totalHandOverPrice
       FROM pickuptransaction pt
