@@ -618,6 +618,21 @@ exports.getOfficerById = async (req, res) => {
   }
 };
 
+exports.getLastEmpIdByRole = async (req, res) => {
+  try {
+    const { role } = req.params
+
+    const results = await collectionofficerDao.getLastEmpIdByRoleDao(role);
+
+    res.status(200).json({ result: results, status: true });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
 
 exports.updateCollectionOfficerDetails = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -645,6 +660,9 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
       const isExistingPhoneNumber02 = await collectionofficerDao.checkPhoneNumberExist(officerData.phoneNumber02, id);
       if (isExistingPhoneNumber02) validationErrors.push('PhoneNumber02');
     }
+
+    const isExistingEmpId = await collectionofficerDao.checkEmpIdExist(officerData.empId, id);
+    if (isExistingEmpId) validationErrors.push('EmpId');
 
     // If any validation errors, send all at once
     if (validationErrors.length > 0) {

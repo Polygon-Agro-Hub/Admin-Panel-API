@@ -87,6 +87,41 @@ exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
   });
 };
 
+exports.getLastEmpIdByRoleDao = (role) => {
+  console.log("role", role);
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT empId FROM collectionofficer WHERE empId LIKE ? ORDER BY empId DESC LIMIT 1";
+
+    collectionofficer.query(sql, [`${role}%`], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      let newEmpId;
+
+      if (results.length > 0) {
+        const numericPart = parseInt(results[0].empId.substring(3), 10);
+        const incrementedValue = numericPart + 1;
+        newEmpId = `${role}${incrementedValue.toString().padStart(5, "0")}`;
+      } else {
+        newEmpId = `${role}00001`;
+      }
+
+      resolve({ empId: newEmpId });
+    });
+  });
+};
+
+exports.checkEmpIdExist = (empId, excludeId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `SELECT id FROM collectionofficer WHERE empId = ? AND id != ?`;
+    collectionofficer.query(sql, [empId, excludeId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.length > 0);
+    });
+  });
+};
 
 exports.createCollectionOfficerPersonal = (
   officerData,
