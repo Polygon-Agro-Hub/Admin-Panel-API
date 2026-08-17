@@ -565,7 +565,7 @@ exports.getCenterAssignedTargetsDao = (companyCenterId, date) => {
     return new Promise((resolve, reject) => {
         const dateParam = new Date(date).toISOString().split('T')[0];
         const sql = `
-                SELECT id, grade, target, varietyId
+                SELECT id, grade, target, varietyId, assignBy
                 FROM dailytarget
                 WHERE companyCenterId = ? AND DATE(date) = ?
         `;
@@ -601,7 +601,10 @@ exports.getCenterAssignedTargetsDao = (companyCenterId, date) => {
                 }
             });
 
-            resolve(grouped);
+            // assignBy is the same for every row assigned in one batch, so just take it from the first row.
+            const assignBy = results.length > 0 ? results[0].assignBy : null;
+
+            resolve({ grouped, assignBy });
         });
     });
 };

@@ -100,12 +100,14 @@ const plusTwoDate = modifiedDate.toISOString().split('T')[0];
 console.log(originalDate); // 2026-08-09
 console.log(plusTwoDate);  // 2026-08-11
 
-    const [centerCrops, requestedItems, assignedRows, centerAssignedMap] = await Promise.all([
+    const [centerCrops, requestedItems, assignedRows, centerAssignedResult] = await Promise.all([
       TargetDAO.getCenterCropsDao(companyCenterId),
       TargetDAO.getAllRequestedItemsDao(plusTwoDate),
       TargetDAO.getVarietyTargetBacklogDao(originalDate),
       TargetDAO.getCenterAssignedTargetsDao(companyCenterId, originalDate)
     ]);
+
+    const { grouped: centerAssignedMap, assignBy } = centerAssignedResult;
 
     let productMap = aggregateRequestedItemsByVariety(requestedItems);
 
@@ -187,7 +189,7 @@ const remainingQty = Number(
 
       console.log('filteredProducts', filteredProducts)
 
-    return res.status(200).json({ products: filteredProducts, companyCenterId });
+    return res.status(200).json({ products: filteredProducts, companyCenterId, assignBy });
   } catch (error) {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message });
@@ -296,7 +298,8 @@ exports.addNewCenterTarget = async (req, res) => {
   console.log(fullUrl);
   try {
     // const { id, qty, date, companyCenterId, grade, varietyId } = await TargetValidate.updateTargetQtySchema.validateAsync(req.body);
-    // console.log(req.body);
+    console.log(req.user);
+    userId = req.userId
     const companyCenterId = req.body.companyCenterId;
     const date = req.body.date;
     const cropsData = req.body.crop;
