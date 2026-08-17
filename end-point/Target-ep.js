@@ -107,7 +107,7 @@ console.log(plusTwoDate);  // 2026-08-11
       TargetDAO.getCenterAssignedTargetsDao(companyCenterId, originalDate)
     ]);
 
-    const { grouped: centerAssignedMap, assignBy } = centerAssignedResult;
+    const { grouped: centerAssignedMap, officerName } = centerAssignedResult;
 
     let productMap = aggregateRequestedItemsByVariety(requestedItems);
 
@@ -189,7 +189,7 @@ const remainingQty = Number(
 
       console.log('filteredProducts', filteredProducts)
 
-    return res.status(200).json({ products: filteredProducts, companyCenterId, assignBy });
+    return res.status(200).json({ products: filteredProducts, companyCenterId, officerName });
   } catch (error) {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message });

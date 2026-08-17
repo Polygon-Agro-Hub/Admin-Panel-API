@@ -565,8 +565,9 @@ exports.getCenterAssignedTargetsDao = (companyCenterId, date) => {
     return new Promise((resolve, reject) => {
         const dateParam = new Date(date).toISOString().split('T')[0];
         const sql = `
-                SELECT id, grade, target, varietyId, assignBy
-                FROM dailytarget
+                SELECT dt.id, dt.grade, dt.target, dt.varietyId, co.firstNameEnglish, co.lastNameEnglish
+                FROM dailytarget dt
+                LEFT JOIN collectionofficer co ON dt.assignBy = co.id
                 WHERE companyCenterId = ? AND DATE(date) = ?
         `;
 
@@ -601,10 +602,12 @@ exports.getCenterAssignedTargetsDao = (companyCenterId, date) => {
                 }
             });
 
-            // assignBy is the same for every row assigned in one batch, so just take it from the first row.
-            const assignBy = results.length > 0 ? results[0].assignBy : null;
+            // The assigning officer is the same for every row assigned in one batch, so just take it from the first row.
+            const officerName = results.length > 0
+                ? [results[0].firstNameEnglish, results[0].lastNameEnglish].filter(Boolean).join(' ') || null
+                : null;
 
-            resolve({ grouped, assignBy });
+            resolve({ grouped, officerName });
         });
     });
 };
