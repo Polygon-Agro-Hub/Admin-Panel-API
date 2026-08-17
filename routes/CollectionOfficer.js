@@ -88,6 +88,8 @@ router.get(
   CollectionOfficerEp.getOfficerById
 );
 
+router.get("/check-last-emp-id/:role", authMiddleware, CollectionOfficerEp.getLastEmpIdByRole);
+
 router.put(
   "/update-officer-details/:id",
   authMiddleware,

@@ -1752,6 +1752,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         oa.city as apartmentCity,
         opi.productId,
         mpi.displayName AS productName,
+        NULL AS unit,
         SUM(opi.qty * op.qty) AS totalQty
       FROM market_place.processorders po
       INNER JOIN market_place.orders o ON po.orderId = o.id
@@ -1777,6 +1778,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         oa.city as apartmentCity,
         oai.productId,
         mpi.displayName AS productName,
+        oai.unit AS unit,
         SUM(oai.qty) AS totalQty
       FROM market_place.processorders po
       INNER JOIN market_place.orders o ON po.orderId = o.id
@@ -1787,7 +1789,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
       LEFT JOIN plant_care.cropvariety v ON mpi.varietyId = v.id
       LEFT JOIN plant_care.cropgroup c ON v.cropGroupId = c.id
       ${whereClauseAdditional}
-      GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, oai.productId, mpi.displayName
+      GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, oai.productId, mpi.displayName, oai.unit
     `;
 
     console.log('=== DEBUG SQL ===');
@@ -1888,10 +1890,13 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
             console.log('Created new product map entry with key:', key);
           }
 
-          // Add quantity (convert to number)
-          const qtyToAdd = parseFloat(row.totalQty) || 0;
+          // Add quantity (convert to number, normalize grams -> kg)
+          const rawQty = parseFloat(row.totalQty) || 0;
+          const unit = row.unit ? row.unit.toString().trim().toLowerCase() : 'kg';
+          const qtyToAdd = (unit === 'g' || unit === 'gram' || unit === 'grams') ? rawQty / 1000 : rawQty;
+
           productMap[key].quantity += qtyToAdd;
-          console.log('Added quantity:', qtyToAdd, ', New total:', productMap[key].quantity);
+          console.log('Added quantity:', qtyToAdd, '(unit:', unit, '), New total:', productMap[key].quantity);
         }
 
         console.log('===================');
