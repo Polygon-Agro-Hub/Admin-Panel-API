@@ -512,3 +512,205 @@ exports.getOfficerTargetDao = (userId, status, search) => {
         });
     });
 };
+
+
+exports.getCenterCropsDao = (id) => {
+    return new Promise((resolve, reject) => {
+        const sql = `
+
+                SELECT cv.id, cv.varietyNameEnglish
+                FROM collection_officer.centercrops cc
+                INNER JOIN plant_care.cropvariety cv
+                    ON cc.varietyId = cv.id
+                WHERE cc.companyCenterId = ?
+
+        `;
+
+        collectionofficer.query(sql, [id], (err, results) => {
+            if (err) {
+                return reject(err);
+            }
+            resolve(results);
+        });
+    });
+};
+
+// Aggregates yesterday's dailytarget across ALL company centers, per varietyId,
+// so the caller can work out what was left unassigned/uncompleted from that day.
+exports.getVarietyTargetBacklogDao = (date) => {
+    return new Promise((resolve, reject) => {
+        const dateParam = new Date(date).toISOString().split('T')[0];
+        const sql = `
+                SELECT
+                    varietyId,
+                    SUM(target) AS assignedTarget,
+                    SUM(complete) AS completedAmount
+                FROM dailytarget
+                WHERE DATE(date) = ?
+                GROUP BY varietyId
+        `;
+
+        collectionofficer.query(sql, [dateParam], (err, results) => {
+            if (err) {
+                return reject(err);
+            }
+            resolve(results);
+        });
+    });
+};
+
+// This center's own dailytarget rows for the exact date, grouped by variety
+// into per-grade targets/ids so the frontend can edit what's already assigned.
+exports.getCenterAssignedTargetsDao = (companyCenterId, date) => {
+    return new Promise((resolve, reject) => {
+        const dateParam = new Date(date).toISOString().split('T')[0];
+        const sql = `
+                SELECT dt.id, dt.grade, dt.target, dt.varietyId, co.firstNameEnglish, co.lastNameEnglish
+                FROM dailytarget dt
+                LEFT JOIN collectionofficer co ON dt.assignBy = co.id
+                WHERE companyCenterId = ? AND DATE(date) = ?
+        `;
+
+        collectionofficer.query(sql, [companyCenterId, dateParam], (err, results) => {
+            if (err) {
+                return reject(err);
+            }
+
+            const grouped = {};
+            results.forEach(row => {
+                if (!grouped[row.varietyId]) {
+                    grouped[row.varietyId] = {
+                        varietyId: row.varietyId,
+                        targetA: 0,
+                        targetB: 0,
+                        targetC: 0,
+                        idA: null,
+                        idB: null,
+                        idC: null
+                    };
+                }
+
+                if (row.grade === 'A') {
+                    grouped[row.varietyId].targetA = parseFloat(row.target);
+                    grouped[row.varietyId].idA = row.id;
+                } else if (row.grade === 'B') {
+                    grouped[row.varietyId].targetB = parseFloat(row.target);
+                    grouped[row.varietyId].idB = row.id;
+                } else if (row.grade === 'C') {
+                    grouped[row.varietyId].targetC = parseFloat(row.target);
+                    grouped[row.varietyId].idC = row.id;
+                }
+            });
+
+            // The assigning officer is the same for every row assigned in one batch, so just take it from the first row.
+            const officerName = results.length > 0
+                ? [results[0].firstNameEnglish, results[0].lastNameEnglish].filter(Boolean).join(' ') || null
+                : null;
+
+            resolve({ grouped, officerName });
+        });
+    });
+};
+
+exports.getAllRequestedItemsDao = (date) => {
+    console.log('date', date)
+  return new Promise((resolve, reject) => {
+    const queryParams = [];
+
+    let whereClause = ` 
+    WHERE po.status = 'Processing' 
+    AND (op.id IS NOT NULL OR oai.id IS NOT NULL)
+    `;
+
+    // Add conditions for district if provided
+    if (date) {
+      whereClause += ` AND DATE(o.sheduleDate) = ?`;
+      queryParams.push(date);
+    }
+
+    let dataSql = `
+      SELECT
+      po.id AS processOrderId,
+      po.invNo,
+      po.status,
+      o.id AS orderId,
+      o.centerId,
+      o.isPackage,
+      o.sheduleDate,
+      oh.city AS houseCity,
+      oa.city AS apartmentCity,
+      -- Package-level grouping (when packages exist)
+      CASE
+          WHEN COUNT(DISTINCT op.id) > 0 THEN (
+              SELECT JSON_ARRAYAGG(
+                  JSON_OBJECT(
+                      'orderPackageId', op2.id,
+                      'packageId', op2.packageId,
+                      'packingStatus', op2.packingStatus,
+                      'packageQty', op2.qty,
+                      'items', (
+                          SELECT JSON_ARRAYAGG(
+                              JSON_OBJECT(
+                                  'productId', opi2.productId,
+                                  'varietyId', cv1.id,
+                                  'qty', opi2.qty,
+                                  'productName', mpi1.displayName,
+                                  'unitType','Kg',
+                                  'varietyNameEnglish', cv1.varietyNameEnglish,
+                                  'cropNameEnglish', cg1.cropNameEnglish
+                              )
+                          )
+                          FROM market_place.orderpackageitems opi2 
+                          LEFT JOIN market_place.marketplaceitems mpi1 ON opi2.productId = mpi1.id 
+                          LEFT JOIN plant_care.cropvariety cv1 ON mpi1.varietyId = cv1.id 
+                          LEFT JOIN plant_care.cropgroup cg1 ON cv1.cropGroupId = cg1.id 
+                          WHERE opi2.orderPackageId = op2.id
+                      )
+                  )
+              )
+              FROM market_place.orderpackage op2
+              WHERE op2.orderId = po.id AND op2.packingStatus = 'Dispatch'
+          )
+          ELSE NULL
+      END AS packageDetails,
+      -- Additional items (aggregated by order)
+      CASE
+          WHEN COUNT(DISTINCT oai.id) > 0 THEN (
+              SELECT JSON_ARRAYAGG(
+                  JSON_OBJECT(
+                      'productId', oai2.productId,
+                      'varietyId', cv2.id,
+                      'qty', oai2.qty,
+                      'productName', mpi2.displayName,
+                      'unitType', oai2.unit,
+                      'varietyNameEnglish', cv2.varietyNameEnglish,
+                      'cropNameEnglish', cg2.cropNameEnglish
+                  )
+              )
+              FROM market_place.orderadditionalitems oai2
+              LEFT JOIN market_place.marketplaceitems mpi2 ON oai2.productId = mpi2.id 
+              LEFT JOIN plant_care.cropvariety cv2 ON mpi2.varietyId = cv2.id
+              LEFT JOIN plant_care.cropgroup cg2 ON cv2.cropGroupId = cg2.id 
+              WHERE oai2.orderId = o.id
+          )
+          ELSE NULL
+      END AS additionalItems
+  FROM market_place.processorders po
+  LEFT JOIN market_place.orders o ON po.orderId = o.id
+  LEFT JOIN market_place.orderpackage op ON op.orderId = po.id AND op.packingStatus = 'Dispatch'
+  LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
+  LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
+  LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+  ${whereClause}
+  GROUP BY po.id, po.invNo, po.status, o.id, o.centerId, o.isPackage, o.sheduleDate, oh.city, oa.city
+      `;
+
+    collectionofficer.query(dataSql, queryParams, (dataErr, dataResults) => {
+      if (dataErr) {
+        console.error('Error in data query:', dataErr);
+        return reject(dataErr);
+      }
+      resolve(dataResults);
+    });
+  });
+};
