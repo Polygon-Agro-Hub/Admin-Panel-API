@@ -489,12 +489,7 @@ exports.getAllCollectionOfficers = (
       );
     }
 
-    dataSql += `
-      ORDER BY 
-        CASE WHEN coff.jobRole = 'Collection Centre Manager' THEN 0 ELSE 1 END,
-        CASE WHEN coff.jobRole = 'Collection Centre Manager' THEN coff.empId END ASC,
-        CASE WHEN coff.jobRole = 'Collection Officer' THEN coff.createdAt END DESC
-    `;
+    dataSql += ` ORDER BY coff.createdAt DESC`;
 
     dataSql += " LIMIT ? OFFSET ?";
     dataParams.push(limit, offset);
