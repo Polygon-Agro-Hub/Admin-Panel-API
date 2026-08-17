@@ -27,11 +27,11 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
           queryParams.push(date);
           break;
         case "toCollectionCenter":
-          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 2 DAY)) = ?`;
+          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
           queryParams.push(date);
           break;
         case "toDispatchCenter":
-          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
+          whereSql += ` AND DATE(o.sheduleDate) = ?`;
           queryParams.push(date);
           break;
       }
@@ -110,8 +110,8 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         ROUND(SUM(items.quantity), 3) AS quantity,
         cg.cropNameEnglish,
         cv.varietyNameEnglish,
-        MAX(DATE_SUB(items.sheduleDate, INTERVAL 2 DAY)) AS toCollectionCentre,
-        MAX(DATE_SUB(items.sheduleDate, INTERVAL 1 DAY)) AS toDispatchCenter
+        MAX(DATE_SUB(items.sheduleDate, INTERVAL 1 DAY)) AS toCollectionCentre,
+        MAX(items.sheduleDate) AS toDispatchCenter
       FROM (${itemsSubquery}) items
       JOIN plant_care.cropvariety cv ON items.varietyId = cv.id
       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
@@ -189,11 +189,11 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
           queryParams.push(date);
           break;
         case "toCollectionCenter":
-          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 2 DAY)) = ?`;
+          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
           queryParams.push(date);
           break;
         case "toDispatchCenter":
-          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
+          whereSql += ` AND DATE(o.sheduleDate) = ?`;
           queryParams.push(date);
           break;
       }
@@ -221,8 +221,8 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
         oai.unit,
         cg.cropNameEnglish, 
         cv.varietyNameEnglish,
-        DATE_SUB(o.sheduleDate, INTERVAL 2 DAY) AS toCollectionCenter,
-        DATE_SUB(o.sheduleDate, INTERVAL 1 DAY) AS toDispatchCenter
+        DATE_SUB(o.sheduleDate, INTERVAL 1 DAY) AS toCollectionCenter,
+        o.sheduleDate AS toDispatchCenter
       ${baseJoinSql}
       ${whereSql}
       ORDER BY o.createdAt DESC, cg.cropNameEnglish ASC, cv.varietyNameEnglish ASC
@@ -1207,7 +1207,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     const countParams = [];
 
     let dataSql = `
-        SELECT DISTINCT
+        SELECT
           po.id AS processOrderId,
           (SELECT SUM(mp.productPrice * op2.qty)
            FROM orderpackage op2
@@ -1218,27 +1218,52 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
           po.invNo,
           po.status,
           po.createdAt,
-          (SELECT MAX(opi.createdAt) FROM orderpackageitems opi WHERE opi.orderPackageId = op.id) AS processCreatedAt,
-          op.packingStatus,
+          (SELECT MAX(opi.createdAt)
+           FROM orderpackageitems opi
+           JOIN orderpackage op3 ON opi.orderPackageId = op3.id
+           WHERE op3.orderId = po.id AND op3.packingStatus = 'Dispatch'
+          ) AS processCreatedAt,
+          (SELECT op4.packingStatus
+           FROM orderpackage op4
+           WHERE op4.orderId = po.id AND op4.packingStatus = 'Dispatch'
+           LIMIT 1) AS packingStatus,
           au.userName
         FROM processorders po
         JOIN orders o ON po.orderId = o.id
-        JOIN orderpackage op ON op.orderId = po.id
         LEFT JOIN agro_world_admin.adminusers au ON po.dispatchOfficer = au.id
-        WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
+        WHERE po.status = 'Processing'
+          AND EXISTS (
+            SELECT 1 FROM orderpackage op
+            WHERE op.orderId = po.id AND op.packingStatus = 'Dispatch'
+          )
       `;
 
     let countSql = `
-      SELECT COUNT(DISTINCT po.id) AS total
+      SELECT COUNT(*) AS total
       FROM processorders po
       JOIN orders o ON po.orderId = o.id
-      JOIN orderpackage op ON op.orderId = po.id
-      WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
+      WHERE po.status = 'Processing'
+        AND EXISTS (
+          SELECT 1 FROM orderpackage op
+          WHERE op.orderId = po.id AND op.packingStatus = 'Dispatch'
+        )
       `;
 
     if (dateFilter) {
-      dataSql += ` AND DATE((SELECT ADDTIME(MAX(opi.createdAt), '05:30:00') FROM orderpackageitems opi WHERE opi.orderPackageId = op.id)) = ? `;
-      countSql += ` AND DATE((SELECT ADDTIME(MAX(opi.createdAt), '05:30:00') FROM orderpackageitems opi WHERE opi.orderPackageId = op.id)) = ? `;
+      dataSql += ` AND DATE(ADDTIME(
+        (SELECT MAX(opi.createdAt)
+         FROM orderpackageitems opi
+         JOIN orderpackage op3 ON opi.orderPackageId = op3.id
+         WHERE op3.orderId = po.id AND op3.packingStatus = 'Dispatch'),
+        '05:30:00'
+      )) = ? `;
+      countSql += ` AND DATE(ADDTIME(
+        (SELECT MAX(opi.createdAt)
+         FROM orderpackageitems opi
+         JOIN orderpackage op3 ON opi.orderPackageId = op3.id
+         WHERE op3.orderId = po.id AND op3.packingStatus = 'Dispatch'),
+        '05:30:00'
+      )) = ? `;
       params.push(dateFilter);
       countParams.push(dateFilter);
     }
@@ -1254,8 +1279,6 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     dataSql += ` ORDER BY po.createdAt DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), parseInt(offset));
 
-    console.log("Executing Count Query...");
-
     marketPlace.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Count query error:", countErr);
@@ -1264,7 +1287,6 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
 
       const total = countResults[0]?.total || 0;
 
-      console.log("Executing Data Query...");
       marketPlace.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Data query error:", dataErr);
@@ -1730,6 +1752,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         oa.city as apartmentCity,
         opi.productId,
         mpi.displayName AS productName,
+        NULL AS unit,
         SUM(opi.qty * op.qty) AS totalQty
       FROM market_place.processorders po
       INNER JOIN market_place.orders o ON po.orderId = o.id
@@ -1755,6 +1778,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         oa.city as apartmentCity,
         oai.productId,
         mpi.displayName AS productName,
+        oai.unit AS unit,
         SUM(oai.qty) AS totalQty
       FROM market_place.processorders po
       INNER JOIN market_place.orders o ON po.orderId = o.id
@@ -1765,7 +1789,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
       LEFT JOIN plant_care.cropvariety v ON mpi.varietyId = v.id
       LEFT JOIN plant_care.cropgroup c ON v.cropGroupId = c.id
       ${whereClauseAdditional}
-      GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, oai.productId, mpi.displayName
+      GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, oai.productId, mpi.displayName, oai.unit
     `;
 
     console.log('=== DEBUG SQL ===');
@@ -1866,10 +1890,13 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
             console.log('Created new product map entry with key:', key);
           }
 
-          // Add quantity (convert to number)
-          const qtyToAdd = parseFloat(row.totalQty) || 0;
+          // Add quantity (convert to number, normalize grams -> kg)
+          const rawQty = parseFloat(row.totalQty) || 0;
+          const unit = row.unit ? row.unit.toString().trim().toLowerCase() : 'kg';
+          const qtyToAdd = (unit === 'g' || unit === 'gram' || unit === 'grams') ? rawQty / 1000 : rawQty;
+
           productMap[key].quantity += qtyToAdd;
-          console.log('Added quantity:', qtyToAdd, ', New total:', productMap[key].quantity);
+          console.log('Added quantity:', qtyToAdd, '(unit:', unit, '), New total:', productMap[key].quantity);
         }
 
         console.log('===================');
