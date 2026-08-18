@@ -45,7 +45,7 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         DATE(po.createdAt) AS createdAt,
         DATE(o.sheduleDate) AS sheduleDate,
         mpi.varietyId,
-        opi.qty AS quantity
+        (opi.qty * op.qty) AS quantity
       FROM market_place.processorders po
       JOIN market_place.orders o ON po.orderId = o.id
       JOIN market_place.orderpackage op ON op.orderId = po.id
@@ -2207,7 +2207,7 @@ exports.getShortageDetails = () => {
       SELECT 
         s.id,
         s.mpItemId,
-        ((s.shortageQty * 1.02) - IFNULL((
+        (s.shortageQty - IFNULL((
           SELECT SUM(sa.qty)
           FROM collection_officer.shortageassigned sa
           WHERE sa.shortageassigned = s.id
@@ -2244,7 +2244,7 @@ exports.getShortageDetailsById = (id) => {
     }
     const sql = `
       SELECT 
-        ((s.shortageQty * 1.02) - IFNULL((
+        (s.shortageQty - IFNULL((
           SELECT SUM(sa.qty)
           FROM collection_officer.shortageassigned sa
           WHERE sa.shortageassigned = s.id
@@ -2385,7 +2385,7 @@ exports.getShortageToFinalizeDao = () => {
         mpi.displayName AS itemName,
         cv.image AS imageUrl,
         au.userName AS assignedBy,
-        co.empId AS assignOfficerBy
+        CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS assignOfficerBy
       FROM collection_officer.shortageassigned sa
       JOIN collection_officer.shortage s ON sa.shortageassigned = s.id
       JOIN market_place.marketplaceitems mpi ON s.mpItemId = mpi.id
@@ -2425,7 +2425,7 @@ exports.getShortageFinalizedDao = () => {
         mpi.displayName AS itemName,
         cv.image AS imageUrl,
         au.userName AS assignedBy,
-        co.empId AS assignOfficerBy,
+         CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS assignOfficerBy,
         dc.regCode,
         dc.city,
         dc.province
