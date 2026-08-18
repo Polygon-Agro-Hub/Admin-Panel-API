@@ -3128,7 +3128,7 @@ exports.forgotPassword = async (req, res) => {
 
     await adminDao.createPasswordResetToken(user.id, token, expiresAt);
 
-    const resetUrl = `${process.env.FRONTEND_URL}admin/reset-password/${token}`;
+    const resetUrl = `${process.env.FRONTEND_URL}reset-password/${token}`;
 
     // Configure transporter
     const transporter = nodemailer.createTransport({
@@ -3272,7 +3272,7 @@ exports.resendResetLink = async (req, res) => {
 
     await adminDao.createPasswordResetToken(user.id, newToken, expiresAt);
 
-    const resetUrl = `${process.env.FRONTEND_URL}admin/reset-password/${newToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL}reset-password/${newToken}`;
 
     // Send new email
     const transporter = nodemailer.createTransport({
