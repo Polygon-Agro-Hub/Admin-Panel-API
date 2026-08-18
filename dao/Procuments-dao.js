@@ -2207,7 +2207,11 @@ exports.getShortageDetails = () => {
       SELECT 
         s.id,
         s.mpItemId,
-        s.shortageQty,
+        (s.shortageQty - IFNULL((
+          SELECT SUM(sa.qty)
+          FROM collection_officer.shortageassigned sa
+          WHERE sa.shortageassigned = s.id
+        ), 0)) AS shortageQty,
         s.buyPrice,
         s.createdAt,
         IFNULL((
