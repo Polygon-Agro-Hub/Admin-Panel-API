@@ -2207,7 +2207,7 @@ exports.getShortageDetails = () => {
       SELECT 
         s.id,
         s.mpItemId,
-        (s.shortageQty - IFNULL((
+        ((s.shortageQty * 1.02) - IFNULL((
           SELECT SUM(sa.qty)
           FROM collection_officer.shortageassigned sa
           WHERE sa.shortageassigned = s.id
@@ -2244,7 +2244,7 @@ exports.getShortageDetailsById = (id) => {
     }
     const sql = `
       SELECT 
-        (s.shortageQty - IFNULL((
+        ((s.shortageQty * 1.02) - IFNULL((
           SELECT SUM(sa.qty)
           FROM collection_officer.shortageassigned sa
           WHERE sa.shortageassigned = s.id
@@ -2385,7 +2385,7 @@ exports.getShortageToFinalizeDao = () => {
         mpi.displayName AS itemName,
         cv.image AS imageUrl,
         au.userName AS assignedBy,
-        CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS assignOfficerBy
+        co.empId AS assignOfficerBy
       FROM collection_officer.shortageassigned sa
       JOIN collection_officer.shortage s ON sa.shortageassigned = s.id
       JOIN market_place.marketplaceitems mpi ON s.mpItemId = mpi.id
@@ -2425,7 +2425,7 @@ exports.getShortageFinalizedDao = () => {
         mpi.displayName AS itemName,
         cv.image AS imageUrl,
         au.userName AS assignedBy,
-         CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS assignOfficerBy,
+        co.empId AS assignOfficerBy,
         dc.regCode,
         dc.city,
         dc.province
