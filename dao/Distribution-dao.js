@@ -5090,14 +5090,25 @@ exports.getDistributionDashboardDao = () => {
     // 8. Loss Due to Returned Orders - Today
     // Join orders (market_place) with processorders for Return Received + Cash,
     // filtered by driverorders.handOverTime = today (collection_officer db)
+    // const returnLossTodaySql = `
+    //   SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossToday
+    //   FROM market_place.orders o
+    //   INNER JOIN market_place.processorders po ON po.orderId = o.id
+    //   INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
+    //   WHERE po.status = 'Return Received'
+    //     AND po.paymentMethod = 'Cash'
+    //     AND DATE(dor.handOverTime) = CURDATE() 
+    // `;
+
     const returnLossTodaySql = `
       SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossToday
-      FROM market_place.orders o
-      INNER JOIN market_place.processorders po ON po.orderId = o.id
-      INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
-      WHERE po.status = 'Return Received'
-        AND po.paymentMethod = 'Cash'
-        AND DATE(dor.handOverTime) = CURDATE()
+      FROM collection_officer.driverordermain drm
+      INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
+      INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id
+      INNER JOIN market_place.processorders po ON dro.orderId = po.id
+      INNER JOIN market_place.orders o ON o.id = po.orderId
+      WHERE po.status = 'Return Received' AND po.paymentMethod = 'Cash' AND DATE(drr.createdAt) = CURDATE()
+
     `;
 
     // 9. Total Delivered Orders - This Month
@@ -5119,15 +5130,30 @@ exports.getDistributionDashboardDao = () => {
     `;
 
     // 11. Loss Due to Returned Orders - This Month
+    // const returnLossMonthSql = `
+    //   SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossMonth
+    //   FROM market_place.orders o
+    //   INNER JOIN market_place.processorders po ON po.orderId = o.id
+    //   INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
+    //   WHERE po.status = 'Return Received'
+    //     AND po.paymentMethod = 'Cash'
+    //     AND MONTH(dor.handOverTime) = MONTH(CURDATE())
+    //     AND YEAR(dor.handOverTime) = YEAR(CURDATE())
+    // `;
+
     const returnLossMonthSql = `
       SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossMonth
-      FROM market_place.orders o
-      INNER JOIN market_place.processorders po ON po.orderId = o.id
-      INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
-      WHERE po.status = 'Return Received'
-        AND po.paymentMethod = 'Cash'
-        AND MONTH(dor.handOverTime) = MONTH(CURDATE())
-        AND YEAR(dor.handOverTime) = YEAR(CURDATE())
+      FROM collection_officer.driverordermain drm
+      INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
+      INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id
+      INNER JOIN market_place.processorders po ON dro.orderId = po.id
+      INNER JOIN market_place.orders o ON o.id = po.orderId
+      WHERE 
+        po.status = 'Return Received' 
+        AND po.paymentMethod = 'Cash' 
+        AND MONTH(drr.createdAt) = MONTH(CURDATE())
+        AND YEAR(drr.createdAt) = YEAR(CURDATE())
+
     `;
 
     // Execute all queries
