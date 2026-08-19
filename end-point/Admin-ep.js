@@ -1350,9 +1350,25 @@ exports.updatePlantCareUser = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Validate request body
-    const validatedBody =
-      await ValidateSchema.updatePlantCareUserSchema.validateAsync(req.body);
+    const user = await adminDao.getUserById(id);
+    if (!user) {
+      return res.status(404).json({ message: "PlantCare User not found" });
+    }
+
+    const bankFields = [
+      "accNumber",
+      "accHolderName",
+      "bankName",
+      "branchName",
+    ];
+    const updateSchema =
+      user.farmerQr === null
+        ? ValidateSchema.updatePlantCareUserSchema.fork(bankFields, (schema) =>
+            schema.optional()
+          )
+        : ValidateSchema.updatePlantCareUserSchema;
+
+    const validatedBody = await updateSchema.validateAsync(req.body);
     const {
       firstName,
       lastName,
@@ -1366,12 +1382,6 @@ exports.updatePlantCareUser = async (req, res) => {
       bankName,
       branchName,
     } = validatedBody;
-
-    // Check if user exists
-    const user = await adminDao.getUserById(id);
-    if (!user) {
-      return res.status(404).json({ message: "PlantCare User not found" });
-    }
 
     // Handle profile image upload if provided
     let profileImageUrl = user.profileImage;
