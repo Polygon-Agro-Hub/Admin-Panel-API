@@ -2102,6 +2102,20 @@ exports.editUserTask = async (req, res) => {
   try {
     const validatedParams = req.body;
 
+    const taskMeta = await adminDao.getTaskCropAndUserDao(id);
+    if (!taskMeta) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    const getStartingDate = await adminDao.getFirstStartingDateDaoU(
+      taskMeta.cropCalendarId,
+      taskMeta.userId
+    );
+
+    const recalculatedDays = getStartingDate
+      ? getDaysDifference(getStartingDate, validatedParams.startingDate)
+      : 0;
+
     // Call DAO to update task
     const result = await adminDao.editUserTask(
       validatedParams.taskEnglish,
@@ -2114,6 +2128,7 @@ exports.editUserTask = async (req, res) => {
       validatedParams.taskCategorySinhala,
       validatedParams.taskCategoryTamil,
       validatedParams.startingDate,
+      recalculatedDays, 
       validatedParams.reqImages,
       validatedParams.imageLink,
       validatedParams.videoLinkEnglish,
@@ -2144,6 +2159,18 @@ exports.editUserTask = async (req, res) => {
       .json({ error: "An error occurred while updating task" });
   }
 };
+
+function getDaysDifference(startDateInput, endDateInput) {
+  const start = new Date(startDateInput);
+  const end = new Date(endDateInput);
+
+  const startUTC = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const endUTC = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+
+  const diffDays = Math.round((endUTC - startUTC) / (1000 * 60 * 60 * 24));
+  return diffDays >= 0 ? diffDays : 0; 
+}
+
 exports.getAllPostyById = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Request URL:", fullUrl);
@@ -2300,9 +2327,6 @@ exports.addNewTaskU = async (req, res) => {
   console.log("Admin user Id:", req.user);
   console.log("----------------------------------------");
 
-
-
-
   try {
     const task = req.body;
     console.log(req.params);
@@ -2324,12 +2348,20 @@ exports.addNewTaskU = async (req, res) => {
       }
     }
 
+    const getStartingDate = await adminDao.getFirstStartingDateDaoU(cropId, userId);
+
+    const daysToAdd = parseInt(task.days) || 0;
+    const taskStartingDate = getStartingDate
+      ? addDaysToDate(getStartingDate, daysToAdd)
+      : null;
+
     const addedTaskResult = await adminDao.addNewTaskDaoU(
       task,
       indexId + 1,
       userId,
       cropId,
-      onCulscropID
+      onCulscropID,
+      taskStartingDate
     );
 
     const trackResult = await adminDao.tracktaskAddOngoingCultivation(
@@ -2353,6 +2385,16 @@ exports.addNewTaskU = async (req, res) => {
       .json({ error: "An error occurred while adding the task" });
   }
 };
+
+function addDaysToDate(dateInput, daysToAdd) {
+  const d = new Date(dateInput);
+  const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  utc.setUTCDate(utc.getUTCDate() + Number(daysToAdd));
+  const yyyy = utc.getUTCFullYear();
+  const mm = String(utc.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(utc.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 exports.uploadUsersXLSX = async (req, res) => {
   try {

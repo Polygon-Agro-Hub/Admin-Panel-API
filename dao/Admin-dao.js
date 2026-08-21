@@ -2206,6 +2206,21 @@ exports.getSlaveCropCalendarDayById = (id) => {
   });
 };
 
+exports.getTaskCropAndUserDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT cropCalendarId, userId
+      FROM slavecropcalendardays
+      WHERE id = ?`;
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
 exports.editUserTask = (
   taskEnglish,
   taskSinhala,
@@ -2217,6 +2232,7 @@ exports.editUserTask = (
   taskCategorySinhala,
   taskCategoryTamil,
   startingDate,
+  days, 
   reqImages,
   imageLink,
   videoLinkEnglish,
@@ -2228,7 +2244,7 @@ exports.editUserTask = (
     const sql = `
             UPDATE slavecropcalendardays 
             SET taskEnglish=?, taskSinhala=?, taskTamil=?, taskTypeEnglish=?, taskTypeSinhala=?, taskTypeTamil=?, 
-                taskCategoryEnglish=?, taskCategorySinhala=?, taskCategoryTamil=? , startingDate=?, reqImages=?,imageLink=?, videoLinkEnglish= ?, videoLinkSinhala= ?, videoLinkTamil= ?
+                taskCategoryEnglish=?, taskCategorySinhala=?, taskCategoryTamil=? , startingDate=?, days=?, reqImages=?,imageLink=?, videoLinkEnglish= ?, videoLinkSinhala= ?, videoLinkTamil= ?
             WHERE id = ?
         `;
     const values = [
@@ -2242,6 +2258,7 @@ exports.editUserTask = (
       taskCategorySinhala,
       taskCategoryTamil,
       startingDate,
+      days,
       reqImages,
       imageLink,
       videoLinkEnglish,
@@ -2463,20 +2480,36 @@ exports.getAllTaskIdDaoU = (cropId, userId) => {
   });
 };
 
-exports.addNewTaskDaoU = (task, indexId, userId, cropId, onCulscropID) => {
+exports.getFirstStartingDateDaoU = (cropId, userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT MIN(startingDate) as firstStartingDate
+      FROM slavecropcalendardays
+      WHERE cropCalendarId = ? AND userId = ?`;
+    plantcare.query(sql, [cropId, userId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]?.firstStartingDate || null);
+    });
+  });
+};
+
+exports.addNewTaskDaoU = (task, indexId, userId, cropId, onCulscropID, taskStartingDate) => {
   console.log("Dao Task: ", task);
   const defStatus = "Pending";
 
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO slavecropcalendardays (userId, onCulscropID, cropCalendarId, taskIndex, days, taskTypeEnglish, taskTypeSinhala, taskTypeTamil, taskCategoryEnglish, taskCategorySinhala, taskCategoryTamil, taskEnglish, taskSinhala, taskTamil, taskDescriptionEnglish, taskDescriptionSinhala, taskDescriptionTamil, reqImages, imageLink, videoLinkEnglish, videoLinkSinhala, videoLinkTamil, status) VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?)";
+      "INSERT INTO slavecropcalendardays (userId, onCulscropID, cropCalendarId, taskIndex, startingDate, days, taskTypeEnglish, taskTypeSinhala, taskTypeTamil, taskCategoryEnglish, taskCategorySinhala, taskCategoryTamil, taskEnglish, taskSinhala, taskTamil, taskDescriptionEnglish, taskDescriptionSinhala, taskDescriptionTamil, reqImages, imageLink, videoLinkEnglish, videoLinkSinhala, videoLinkTamil, status) VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?)";
 
     const values = [
       userId,
       onCulscropID,
       cropId,
       indexId,
-      task.startingDate,
+      taskStartingDate,
+      task.days,
       task.taskTypeEnglish,
       task.taskTypeSinhala,
       task.taskTypeTamil,
@@ -2498,7 +2531,7 @@ exports.addNewTaskDaoU = (task, indexId, userId, cropId, onCulscropID) => {
     ];
 
     // Ensure that the values array length matches the expected column count
-    if (values.length !== 23) {
+    if (values.length !== 24) {
       return reject(
         new Error("Mismatch between column count and value count.")
       );
