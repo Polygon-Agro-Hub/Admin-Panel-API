@@ -296,21 +296,17 @@ exports.updatePlantCareUserSchema = Joi.object({
     "any.required": "language name is required",
     "string.empty": "language name cannot be empty",
   }),
-  accNumber: Joi.string().min(1).max(50).required().messages({
-    "any.required": "account number is required",
-    "string.empty": "account number cannot be empty",
+  accNumber: Joi.string().max(50).optional().allow("").messages({
+    "string.max": "account number cannot exceed 50 characters",
   }),
-  accHolderName: Joi.string().min(1).max(50).required().messages({
-    "any.required": "account holder name is required",
-    "string.empty": "account holder name cannot be empty",
+  accHolderName: Joi.string().max(50).optional().allow("").messages({
+    "string.max": "account holder name cannot exceed 50 characters",
   }),
-  bankName: Joi.string().min(1).max(50).required().messages({
-    "any.required": "bank name is required",
-    "string.empty": "bank name cannot be empty",
+  bankName: Joi.string().max(50).optional().allow("").messages({
+    "string.max": "bank name cannot exceed 50 characters",
   }),
-  branchName: Joi.string().min(1).max(50).required().messages({
-    "any.required": "branch name is required",
-    "string.empty": "branch name cannot be empty",
+  branchName: Joi.string().max(50).optional().allow("").messages({
+    "string.max": "branch name cannot exceed 50 characters",
   }),
   file: Joi.any().optional(),
 });

@@ -45,7 +45,7 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         DATE(po.createdAt) AS createdAt,
         DATE(o.sheduleDate) AS sheduleDate,
         mpi.varietyId,
-        opi.qty AS quantity
+        (opi.qty * op.qty) AS quantity
       FROM market_place.processorders po
       JOIN market_place.orders o ON po.orderId = o.id
       JOIN market_place.orderpackage op ON op.orderId = po.id
@@ -2207,7 +2207,11 @@ exports.getShortageDetails = () => {
       SELECT 
         s.id,
         s.mpItemId,
-        s.shortageQty,
+        (s.shortageQty - IFNULL((
+          SELECT SUM(sa.qty)
+          FROM collection_officer.shortageassigned sa
+          WHERE sa.shortageassigned = s.id
+        ), 0)) AS shortageQty,
         s.buyPrice,
         s.createdAt,
         IFNULL((
