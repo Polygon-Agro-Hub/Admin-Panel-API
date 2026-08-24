@@ -78,7 +78,7 @@ exports.loginAdmin = async (req, res) => {
         userId: user.id,
         role: user.role,
         position: user.position,
-        permissions,
+        // permissions,
       },
       process.env.JWT_SECRET,
       { expiresIn: "5h" }
@@ -968,6 +968,31 @@ exports.getLandOwnershipDetails = async (req, res) => {
       parseInt(landAssetId)
     );
 
+    if (results.ownershipType === "Lease") {
+      const leaseDetails = await adminDao.getLeaseDetails(
+        parseInt(landAssetId)
+      );
+
+      // Step 3: Attach extra data
+      results.leaseDetails = leaseDetails;
+    } else if (results.ownershipType === "Own") {
+      const ownLandDetails = await adminDao.getOwnLandDetails(
+        parseInt(landAssetId)
+      );
+
+      results.ownLandDetails = ownLandDetails;
+
+    } else if (results.ownershipType === "Shared") {
+      const sharedLandDetails = await adminDao.getSharedLandDetails(
+        parseInt(landAssetId)
+      );
+
+      results.sharedLandDetails = sharedLandDetails;
+
+    }
+
+    console.log('results', results)
+
     console.log("Successfully retrieved land ownership details");
     res.status(200).json(results);
   } catch (err) {
@@ -1325,9 +1350,25 @@ exports.updatePlantCareUser = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Validate request body
-    const validatedBody =
-      await ValidateSchema.updatePlantCareUserSchema.validateAsync(req.body);
+    const user = await adminDao.getUserById(id);
+    if (!user) {
+      return res.status(404).json({ message: "PlantCare User not found" });
+    }
+
+    const bankFields = [
+      "accNumber",
+      "accHolderName",
+      "bankName",
+      "branchName",
+    ];
+    const updateSchema =
+      user.farmerQr === null
+        ? ValidateSchema.updatePlantCareUserSchema.fork(bankFields, (schema) =>
+            schema.optional()
+          )
+        : ValidateSchema.updatePlantCareUserSchema;
+
+    const validatedBody = await updateSchema.validateAsync(req.body);
     const {
       firstName,
       lastName,
@@ -1341,12 +1382,6 @@ exports.updatePlantCareUser = async (req, res) => {
       bankName,
       branchName,
     } = validatedBody;
-
-    // Check if user exists
-    const user = await adminDao.getUserById(id);
-    if (!user) {
-      return res.status(404).json({ message: "PlantCare User not found" });
-    }
 
     // Handle profile image upload if provided
     let profileImageUrl = user.profileImage;
@@ -2159,13 +2194,10 @@ exports.addNewTask = async (req, res) => {
     const taskIdArr = await adminDao.getAllTaskIdDao(cropId);
     console.log("Task array:", taskIdArr);
 
-    for (let i = 0; i < taskIdArr.length; i++) {
+     for (let i = 0; i < taskIdArr.length; i++) {
       const existingTask = taskIdArr[i];
 
-      if (existingTask.taskIndex > indexId) {
-        console.log(
-          `Updating task ${existingTask.id}, current taskIndex: ${existingTask.taskIndex}`
-        );
+      if (existingTask.taskIndex >= indexId) {
         await adminDao.shiftUpTaskIndexDao(
           existingTask.id,
           existingTask.taskIndex + 1
@@ -2175,18 +2207,14 @@ exports.addNewTask = async (req, res) => {
 
     const addedTaskResult = await adminDao.addNewTaskDao(
       task,
-      indexId + 1,
+      indexId,
       cropId
     );
 
     if (addedTaskResult.insertId > 0) {
-      res
-        .status(201)
-        .json({ status: true, message: "Succcesfull Task Added!" });
+      res.status(201).json({ status: true, message: "Succcesfull Task Added!" });
     } else {
-      res
-        .status(500)
-        .json({ status: false, message: "Issue Occor in Task Adding!" });
+      res.status(500).json({ status: false, message: "Issue Occor in Task Adding!" });
     }
   } catch (error) {
     console.error("Error adding task:", error);
@@ -2763,7 +2791,7 @@ exports.plantcareDashboard = async (req, res) => {
       await adminDao.qrUsersTillPreviousMonth();
     const qrUsers = await adminDao.qrUsers();
     const vegCultivation = await adminDao.vegEnroll();
-    const grainCultivation = await adminDao.grainEnroll();
+    const cerealsCultivation = await adminDao.cerealsEnroll();
     const fruitCultivation = await adminDao.fruitEnroll();
     const mushCultivation = await adminDao.mushEnroll();
     const leLegumesCultivation = await adminDao.legumesEnroll();
@@ -2776,8 +2804,8 @@ exports.plantcareDashboard = async (req, res) => {
       await adminDao.spicesEnrollTillPreviousMonth();
     const fruitEnrollTillPreviousMonth =
       await adminDao.fruitEnrollTillPreviousMonth();
-    const grainEnrollTillPreviousMonth =
-      await adminDao.grainEnrollTillPreviousMonth();
+    const cerealsEnrollTillPreviousMonth =
+      await adminDao.cerealsEnrollTillPreviousMonth();
     const mushEnrollTillPreviousMonth =
       await adminDao.mushEnrollTillPreviousMonth();
 
@@ -2791,9 +2819,9 @@ exports.plantcareDashboard = async (req, res) => {
 
     const totalCultivationTillPreviousMonth =
       vegEnrollTillPreviousMonth.veg_cultivation_count_till_previous_month +
-      leLegumesEnrollTillPreviousMonth.egumes_cultivation_count_till_previous_month +
+      leLegumesEnrollTillPreviousMonth.legumes_cultivation_count_till_previous_month +
       fruitEnrollTillPreviousMonth.fruit_cultivation_count_till_previous_month +
-      grainEnrollTillPreviousMonth.grain_cultivation_count_till_previous_month +
+      cerealsEnrollTillPreviousMonth.cereals_cultivation_count_till_previous_month +
       lspicesEnrollTillPreviousMonth.spices_cultivation_count_till_previous_month +
       mushEnrollTillPreviousMonth.mush_cultivation_count_till_previous_month;
 
@@ -2801,7 +2829,7 @@ exports.plantcareDashboard = async (req, res) => {
       vegCultivation.veg_cultivation_count +
       leLegumesCultivation.legumes_cultivation_count +
       fruitCultivation.fruit_cultivation_count +
-      grainCultivation.grain_cultivation_count +
+      cerealsCultivation.cereals_cultivation_count +
       spicesCultivation.spices_cultivation_count +
       mushCultivation.mush_cultivation_count;
 
@@ -2829,7 +2857,7 @@ exports.plantcareDashboard = async (req, res) => {
       new_users: newUsers.new_users_count,
       vegCultivation: vegCultivation.veg_cultivation_count,
       leLegumesCultivation: leLegumesCultivation.legumes_cultivation_count,
-      grainCultivation: grainCultivation.grain_cultivation_count,
+      cerealsCultivation: cerealsCultivation.cereals_cultivation_count,
       fruitCultivation: fruitCultivation.fruit_cultivation_count,
       spicesCultivation: spicesCultivation.spices_cultivation_count,
       mushCultivation: mushCultivation.mush_cultivation_count,
@@ -3110,7 +3138,7 @@ exports.forgotPassword = async (req, res) => {
 
     await adminDao.createPasswordResetToken(user.id, token, expiresAt);
 
-    const resetUrl = `${process.env.FRONTEND_URL}admin/reset-password/${token}`;
+    const resetUrl = `${process.env.FRONTEND_URL}reset-password/${token}`;
 
     // Configure transporter
     const transporter = nodemailer.createTransport({
@@ -3127,9 +3155,9 @@ exports.forgotPassword = async (req, res) => {
     });
 
     const mailOptions = {
-      from: `"Polygon Agro" <${process.env.EMAIL_USERNAME}>`,
+      from: `"Polygon Holdings" <${process.env.EMAIL_USERNAME}>`,
       to: email,
-      subject: "Polygon Agro Password Reset Request",
+      subject: "Polygon Holdings Password Reset Request",
       html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0;">
 
@@ -3144,7 +3172,7 @@ exports.forgotPassword = async (req, res) => {
 
         <p style="color: #000;">Hello,</p>
         <p style="color: #000;">
-          We received a request to reset your password for your Polygon Agro account.
+          We received a request to reset your password for your Polygon Holdings account.
           Click the button below to reset it:
         </p>
 
@@ -3199,7 +3227,7 @@ exports.resetPassword = async (req, res) => {
     if (!tokenData)
       return res.status(400).json({
         success: false,
-        message: "Invalid or expired token",
+        message: "This password reset link has expired. Please request a new reset link to continue.",
       });
 
     await adminDao.resetPassword(tokenData.userId, newPassword);
@@ -3254,7 +3282,7 @@ exports.resendResetLink = async (req, res) => {
 
     await adminDao.createPasswordResetToken(user.id, newToken, expiresAt);
 
-    const resetUrl = `${process.env.FRONTEND_URL}admin/reset-password/${newToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL}reset-password/${newToken}`;
 
     // Send new email
     const transporter = nodemailer.createTransport({
@@ -3271,9 +3299,9 @@ exports.resendResetLink = async (req, res) => {
     });
 
     const mailOptions = {
-      from: `"Polygon Agro" <${process.env.EMAIL_USERNAME}>`,
+      from: `"Polygon Holdings" <${process.env.EMAIL_USERNAME}>`,
       to: user.mail,
-      subject: "Polygon Agro Password Reset Link (Resent)",
+      subject: "Polygon Holdings Password Reset Link (Resent)",
       html: `
         <div style="font-family: Arial; max-width: 600px; margin: auto;">
           <div style="background:#3E206D; padding:15px; text-align:center; border-radius:6px 6px 0 0;">
@@ -4022,5 +4050,143 @@ exports.getFiealdOfficerComplainById = async (req, res) => {
     res
       .status(500)
       .json({ error: "An error occurred while fetching center complains" });
+  }
+};
+
+exports.getAllBlockWords = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { page = 1, limit = 18, search = '' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const result = await adminDao.getAllBlockWords(
+      parseInt(limit),
+      offset,
+      search
+    );
+
+    console.log("Successfully fetched block words");
+    res.json({
+      status: true,
+      ...result
+    });
+  } catch (err) {
+    console.error("Error fetching block words:", err);
+    res.status(500).json({
+      status: false,
+      error: "An error occurred while fetching block words"
+    });
+  }
+};
+
+// Add a new block word
+exports.addBlockWord = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { word } = req.body;
+
+    if (!word || !word.trim()) {
+      return res.status(400).json({
+        status: false,
+        error: "Word is required"
+      });
+    }
+
+    const result = await adminDao.addBlockWord(word.trim());
+
+    console.log("Block word added successfully");
+    res.json({
+      status: true,
+      message: "Block word added successfully",
+      id: result.insertId
+    });
+  } catch (err) {
+    console.error("Error adding block word:", err);
+    
+    if (err.message === "Word already exists in block list") {
+      return res.status(409).json({
+        status: false,
+        error: "Word already exists in block list"
+      });
+    }
+
+    res.status(500).json({
+      status: false,
+      error: "An error occurred while adding block word"
+    });
+  }
+};
+
+// Delete a block word
+exports.deleteBlockWord = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        status: false,
+        error: "ID is required"
+      });
+    }
+
+    const result = await adminDao.deleteBlockWord(parseInt(id));
+
+    console.log("Block word deleted successfully");
+    res.json({
+      status: true,
+      message: "Block word deleted successfully"
+    });
+  } catch (err) {
+    console.error("Error deleting block word:", err);
+    
+    if (err.message === "Block word not found") {
+      return res.status(404).json({
+        status: false,
+        error: "Block word not found"
+      });
+    }
+
+    res.status(500).json({
+      status: false,
+      error: "An error occurred while deleting block word"
+    });
+  }
+};
+
+// Delete multiple block words
+exports.deleteMultipleBlockWords = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        status: false,
+        error: "IDs array is required"
+      });
+    }
+
+    const result = await adminDao.deleteMultipleBlockWords(ids);
+
+    console.log("Block words deleted successfully");
+    res.json({
+      status: true,
+      message: `${result.affectedRows} block word(s) deleted successfully`
+    });
+  } catch (err) {
+    console.error("Error deleting block words:", err);
+    res.status(500).json({
+      status: false,
+      error: "An error occurred while deleting block words"
+    });
   }
 };

@@ -4,6 +4,7 @@ const {
   collectionofficer,
   marketPlace,
   investment,
+  goviShop,
 } = require("../startup/database");
 const bcrypt = require("bcryptjs");
 const { Upload } = require("@aws-sdk/lib-storage");
@@ -147,7 +148,7 @@ exports.getAllDashboardData = () => {
                   };
 
                   resolve(dashboardData);
-                }
+                },
               );
             });
           });
@@ -225,7 +226,7 @@ exports.getAllPackagePayments = (page, limit, searchTerm, fromDate, toDate) => {
         searchValue,
         searchValue,
         searchValue,
-        searchValue
+        searchValue,
       );
       dataParams.push(
         searchValue,
@@ -233,7 +234,7 @@ exports.getAllPackagePayments = (page, limit, searchTerm, fromDate, toDate) => {
         searchValue,
         searchValue,
         searchValue,
-        searchValue
+        searchValue,
       );
     }
 
@@ -353,7 +354,6 @@ exports.getAllGovijobDashboardData = () => {
   });
 };
 
-
 exports.getAllCertificateDashboardData = () => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -379,41 +379,71 @@ exports.getAllCertificateDashboardData = () => {
       // Monthly income = (Certificate Price / No of months) * active user count per certificate
       // Only include valid/active certificates (expireDate > current date for current month)
       // Certificate durations: 1 month, 4 months, 12 months
+      // -----------------old one-----------------------------
+      // const incomeQuery = `
+      //   SELECT
+      //     COALESCE(SUM(
+      //       CASE
+      //         WHEN c.timeLine > 0
+      //         THEN (c.price / c.timeLine) * current_users.userCount
+      //         ELSE 0
+      //       END
+      //     ), 0) as currentMonthIncome,
+      //     COALESCE(SUM(
+      //       CASE
+      //         WHEN c.timeLine > 0
+      //         THEN (c.price / c.timeLine) * previous_users.userCount
+      //         ELSE 0
+      //       END
+      //     ), 0) as previousMonthIncome
+      //   FROM certificates c
+      //   LEFT JOIN (
+      //     SELECT
+      //       certificateId,
+      //       COUNT(DISTINCT userId) as userCount
+      //     FROM certificationpayment
+      //     WHERE expireDate > CURRENT_TIMESTAMP()
+      //     GROUP BY certificateId
+      //   ) current_users ON c.id = current_users.certificateId
+      //   LEFT JOIN (
+      //     SELECT
+      //       certificateId,
+      //       COUNT(DISTINCT userId) as userCount
+      //     FROM certificationpayment
+      //     WHERE expireDate > DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)
+      //       AND createdAt <= LAST_DAY(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH))
+      //     GROUP BY certificateId
+      //   ) previous_users ON c.id = previous_users.certificateId
+      //   WHERE c.timeLine IN (1, 4, 12)
+      // `;
+      // ----------------------------------------------
+
       const incomeQuery = `
         SELECT 
-          COALESCE(SUM(
-            CASE 
-              WHEN c.timeLine > 0
-              THEN (c.price / c.timeLine) * current_users.userCount
-              ELSE 0
-            END
-          ), 0) as currentMonthIncome,
-          COALESCE(SUM(
-            CASE 
-              WHEN c.timeLine > 0
-              THEN (c.price / c.timeLine) * previous_users.userCount
-              ELSE 0
-            END
-          ), 0) as previousMonthIncome
-        FROM certificates c
-        LEFT JOIN (
-          SELECT 
-            certificateId,
-            COUNT(DISTINCT userId) as userCount
-          FROM certificationpayment
-          WHERE expireDate > CURRENT_TIMESTAMP()
-          GROUP BY certificateId
-        ) current_users ON c.id = current_users.certificateId
-        LEFT JOIN (
-          SELECT 
-            certificateId,
-            COUNT(DISTINCT userId) as userCount
-          FROM certificationpayment
-          WHERE expireDate > DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)
-            AND createdAt <= LAST_DAY(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH))
-          GROUP BY certificateId
-        ) previous_users ON c.id = previous_users.certificateId
-        WHERE c.timeLine IN (1, 4, 12)
+  -- Current month: only payments NOT expired right now
+  COALESCE(SUM(
+    CASE 
+      WHEN c.timeLine > 0 
+        AND cp.expireDate > CURRENT_TIMESTAMP()
+      THEN (c.price / c.timeLine)
+      ELSE 0
+    END
+  ), 0) AS currentMonthIncome,
+
+  -- Previous month: payments that were active during last month
+  COALESCE(SUM(
+    CASE 
+      WHEN c.timeLine > 0
+        AND cp.expireDate > DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH)
+        AND cp.createdAt <= LAST_DAY(DATE_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 MONTH))
+      THEN (c.price / c.timeLine)
+      ELSE 0
+    END
+  ), 0) AS previousMonthIncome
+
+FROM certificates c
+JOIN certificationpayment cp ON c.id = cp.certificateId
+WHERE c.timeLine IN (1, 4, 12)
       `;
 
       // Get recent 6 payments with validity period calculation (FIXED)
@@ -425,7 +455,7 @@ exports.getAllCertificateDashboardData = () => {
     c.srtName as certificateName,
     cp.payType,
     FORMAT(cp.amount, 2) as amount,
-    DATE_FORMAT(cp.createdAt, '%Y-%m-%d %H:%i') as dateTime,
+    cp.createdAt as dateTime,
     DATE_FORMAT(cp.expireDate, '%Y-%m-%d') as expiryDate,
     CASE 
       WHEN cp.expireDate IS NULL OR cp.createdAt IS NULL THEN 'Expired'
@@ -517,9 +547,9 @@ exports.getAllCertificateDashboardData = () => {
                     };
 
                     resolve(dashboardData);
-                  }
+                  },
                 );
-              }
+              },
             );
           });
         });
@@ -625,7 +655,7 @@ exports.getAllServicePayments = (page, limit, searchTerm, fromDate, toDate) => {
           return reject(dataErr);
         }
         // Remove the firstName and lastName from final response if you don't want them
-        const formattedResults = dataResults.map(item => {
+        const formattedResults = dataResults.map((item) => {
           const { firstName, lastName, ...rest } = item;
           return rest;
         });
@@ -641,7 +671,7 @@ exports.getAllCertificatePayments = (
   limit,
   searchTerm,
   fromDate,
-  toDate
+  toDate,
 ) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
@@ -657,19 +687,33 @@ exports.getAllCertificatePayments = (
     let dataSql = `
       SELECT 
         cp.transactionId,
+        cp.payType,
         CASE 
           WHEN cp.payType = 'Cluster' THEN fc.clsName
           ELSE CONCAT(u.firstName, ' ', u.lastName)
         END as farmerName,
         FORMAT(cp.amount, 2) as amount,
-        DATE_FORMAT(cp.createdAt, '%d %b, %Y %h:%i%p') as dateTime,
-        cp.expireDate,
-        cp.createdAt as sortDate,
+    DATE_FORMAT(cp.createdAt, '%Y-%m-%d %H:%i') as dateTime,
+    DATE_FORMAT(cp.expireDate, '%Y-%m-%d') as expiryDate,
+    CASE 
+      WHEN cp.expireDate IS NULL OR cp.createdAt IS NULL THEN 'Expired'
+      ELSE CONCAT(
+        TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate),
+        ' month',
+        CASE WHEN TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) != 1 THEN 's' ELSE '' END,
+        ' ',
+        DATEDIFF(
+          cp.expireDate, 
+          DATE_ADD(cp.createdAt, INTERVAL TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) MONTH)
+        ),
+        ' day',
         CASE 
-          WHEN cp.expireDate < NOW() THEN 'Expired'
-          ELSE CONCAT(
-            FLOOR(DATEDIFF(cp.expireDate, NOW()) / 30), ' months ',
-            MOD(DATEDIFF(cp.expireDate, NOW()), 30), ' days'
+          WHEN DATEDIFF(
+            cp.expireDate, 
+            DATE_ADD(cp.createdAt, INTERVAL TIMESTAMPDIFF(MONTH, cp.createdAt, cp.expireDate) MONTH)
+          ) != 1 THEN 's' 
+          ELSE '' 
+        END
           )
         END as validityPeriod
       FROM certificationpayment cp
@@ -718,7 +762,7 @@ exports.getAllCertificatePayments = (
         searchValue,
         searchValue,
         searchValue,
-        searchValue
+        searchValue,
       );
       dataParams.push(
         searchValue,
@@ -726,7 +770,7 @@ exports.getAllCertificatePayments = (
         searchValue,
         searchValue,
         searchValue,
-        searchValue
+        searchValue,
       );
     }
 
@@ -806,14 +850,14 @@ exports.getAllAgentCommissions = (page, limit, searchTerm = "") => {
         searchValue,
         searchValue,
         searchValue,
-        searchValue
+        searchValue,
       );
       dataParams.push(
         searchValue,
         searchValue,
         searchValue,
         searchValue,
-        searchValue
+        searchValue,
       );
     }
 
@@ -905,7 +949,7 @@ exports.createAgentCommission = (commissionData) => {
         this.getAgentCommissionById(results.insertId)
           .then((newCommission) => resolve(newCommission))
           .catch(reject);
-      }
+      },
     );
   });
 };
@@ -970,7 +1014,7 @@ exports.updateAgentCommission = (id, updateData) => {
       values.push(id);
 
       const sql = `UPDATE agentcommission SET ${fields.join(
-        ", "
+        ", ",
       )} WHERE id = ?`;
 
       // Execute update
@@ -1097,7 +1141,7 @@ exports.InsertPaymentHistoryDAO = (
   amount,
   payRef,
   xlLink,
-  issueBy
+  issueBy,
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1122,7 +1166,7 @@ exports.UpdatePaymentHistoryDAO = (
   amount,
   payRef,
   xlLink,
-  modifyBy
+  modifyBy,
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1281,7 +1325,8 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
         ir.nicBack AS NIC_Back_Image,
         DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
         DATE_FORMAT(ir.createdAt, '%M %d, %Y') AS Requested_On,
-        COALESCE(ao.userName, '--') AS Assigned_By
+        COALESCE(ao.userName, '--') AS Assigned_By,
+        ir.officerStatus
       FROM investmentrequest ir
       INNER JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.feildofficer co ON ir.officerId = co.id
@@ -1336,7 +1381,7 @@ exports.GetInvestmentRequestByIdDAO = (requestId) => {
         ir.extentha AS ExtentH,
         ir.extentp AS ExtentP,
         ir.investment AS Expected_Investment,
-        CONCAT(ir.expectedYield, 'kg') AS Expected_Yield,
+        ir.expectedYield AS Expected_Yield,
         DATE_FORMAT(ir.startDate, '%M %d, %Y') AS Expected_Start_Date,
         DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time
       FROM investmentrequest ir
@@ -1392,7 +1437,7 @@ exports.GetApprovedInvestmentRequestByIdDAO = (requestId) => {
 exports.assignOfficerToInvestmentRequestDAO = (
   requestId,
   assignOfficerId,
-  assignByUserId
+  assignByUserId,
 ) => {
   return new Promise(async (resolve, reject) => {
     let connection;
@@ -1404,7 +1449,7 @@ exports.assignOfficerToInvestmentRequestDAO = (
       // Check if investment request exists
       const [requestExists] = await connection.query(
         `SELECT id FROM investmentrequest WHERE id = ?`,
-        [requestId]
+        [requestId],
       );
 
       if (requestExists.length === 0) {
@@ -1415,7 +1460,7 @@ exports.assignOfficerToInvestmentRequestDAO = (
       // Check if officer exists and is active
       const [officerExists] = await connection.query(
         `SELECT id FROM plant_care.feildofficer WHERE id = ? AND status = 'Approved'`,
-        [assignOfficerId]
+        [assignOfficerId],
       );
 
       if (officerExists.length === 0) {
@@ -1445,7 +1490,7 @@ exports.assignOfficerToInvestmentRequestDAO = (
       if (result.affectedRows === 0) {
         await connection.rollback();
         return reject(
-          new Error("Investment request not found or no changes made")
+          new Error("Investment request not found or no changes made"),
         );
       }
 
@@ -1473,7 +1518,11 @@ exports.assignOfficerToInvestmentRequestDAO = (
   });
 };
 
-exports.getOfficersByDistrictAndRoleForInvestmentDAO = (district, jobRole, Farmer_ID) => {
+exports.getOfficersByDistrictAndRoleForInvestmentDAO = (
+  district,
+  jobRole,
+  Farmer_ID,
+) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -1630,7 +1679,7 @@ WHERE ir.reqStatus = 'Rejected'
 };
 
 exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
-  console.log('filters', filters)
+  console.log("filters", filters);
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
@@ -1643,8 +1692,9 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
         COALESCE(ir.publishStatus, 'Draft') AS publishStatus,
         ir.nicFront AS NIC_Front_Image,
         ir.nicBack AS NIC_Back_Image,
-        DATE_FORMAT(ir.createdAt, '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
+        DATE_FORMAT(CONVERT_TZ(ir.reqCahangeTime, '+00:00', '+05:30'), '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
         COALESCE(ao.userName, '--') AS Assigned_By,
+        COALESCE(ao2.userName, '--') AS Approved_By,
         ( 
           SELECT JSON_OBJECT(
             'approveId',air.id,
@@ -1663,9 +1713,10 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
       INNER JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.feildofficer co ON ir.officerId = co.id
       LEFT JOIN agro_world_admin.adminusers ao ON ir.assignedBy = ao.id
+      LEFT JOIN agro_world_admin.adminusers ao2 ON ir.approvedBy = ao2.id
       WHERE ir.reqStatus = 'Approved'
     `;
-
+    // DATE_FORMAT(ir.reqCahangeTime, '%h:%i%p on %M %d, %Y') AS Request_Date_Time,
     const params = [];
 
     // Filter by publish status (Draft or Published)
@@ -1676,13 +1727,13 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
 
     // Filter by shares division status
     if (filters.shares) {
-      if (filters.shares === 'Divided') {
+      if (filters.shares === "Divided") {
         // Get records that have at least one row in approvedinvestmentrequest
         sql += ` AND EXISTS (
           SELECT 1 FROM approvedinvestmentrequest air 
           WHERE air.reqId = ir.id
         )`;
-      } else if (filters.shares === 'Not Divided') {
+      } else if (filters.shares === "Not Divided") {
         // Get records that have no rows in approvedinvestmentrequest
         sql += ` AND NOT EXISTS (
           SELECT 1 FROM approvedinvestmentrequest air 
@@ -1765,7 +1816,7 @@ exports.GetProjectInvesmentDAO = (filters = {}) => {
       params.push(searchTerm, searchTerm, searchTerm, searchTerm);
     }
 
-    sql += ` ORDER BY ir.createdAt DESC`;
+    sql += ` ORDER BY cg.cropNameEnglish, (fillShares/ai.defineShares) DESC`;
 
     investment.query(sql, params, (err, results) => {
       if (err) {
@@ -1776,12 +1827,7 @@ exports.GetProjectInvesmentDAO = (filters = {}) => {
   });
 };
 
-
-
-
-exports.getAllInvestmentsDao = (
-  id, status, search
-) => {
+exports.getAllInvestmentsDao = (id, status, search) => {
   return new Promise((resolve, reject) => {
     let dataSql = `
     SELECT
@@ -1831,9 +1877,8 @@ exports.getAllInvestmentsDao = (
         return reject(dataErr);
       }
       resolve({
-        items: dataResults
+        items: dataResults,
       });
-
     });
   });
 };
@@ -1872,21 +1917,44 @@ exports.RejectInvestmentRequestDao = (id) => {
   });
 };
 
-
 exports.getInspectionDerailsDao = async (id) => {
   return new Promise((resolve, reject) => {
     const queries = [
-      { sql: `SELECT * FROM inspectionpersonal WHERE reqId = ?`, key: 'Personal' },
-      { sql: `SELECT * FROM inspectionidproof WHERE reqId = ?`, key: 'ID' },
-      { sql: `SELECT * FROM inspectionfinance WHERE reqId = ?`, key: 'Finance' },
-      { sql: `SELECT * FROM inspectionland WHERE reqId = ?`, key: 'Land' },
-      { sql: `SELECT * FROM inspectioninvestment WHERE reqId = ?`, key: 'Investment' },
-      { sql: `SELECT * FROM inspectioncultivation WHERE reqId = ?`, key: 'Cultivation' },
-      { sql: `SELECT * FROM inspectioncropping WHERE reqId = ?`, key: 'Cropping' },
-      { sql: `SELECT * FROM inspectionprofit WHERE reqId = ?`, key: 'ProfitRisk' },
-      { sql: `SELECT * FROM inspectioneconomical WHERE reqId = ?`, key: 'Economical' },
-      { sql: `SELECT * FROM inspectionlabour WHERE reqId = ?`, key: 'Labor' },
-      { sql: `SELECT * FROM inspectionharveststorage WHERE reqId = ?`, key: 'Harvest' }
+      {
+        sql: `SELECT * FROM inspectionpersonal WHERE reqId = ?`,
+        key: "Personal",
+      },
+      { sql: `SELECT * FROM inspectionidproof WHERE reqId = ?`, key: "ID" },
+      {
+        sql: `SELECT * FROM inspectionfinance WHERE reqId = ?`,
+        key: "Finance",
+      },
+      { sql: `SELECT * FROM inspectionland WHERE reqId = ?`, key: "Land" },
+      {
+        sql: `SELECT * FROM inspectioninvestment WHERE reqId = ?`,
+        key: "Investment",
+      },
+      {
+        sql: `SELECT * FROM inspectioncultivation WHERE reqId = ?`,
+        key: "Cultivation",
+      },
+      {
+        sql: `SELECT * FROM inspectioncropping WHERE reqId = ?`,
+        key: "Cropping",
+      },
+      {
+        sql: `SELECT * FROM inspectionprofit WHERE reqId = ?`,
+        key: "ProfitRisk",
+      },
+      {
+        sql: `SELECT * FROM inspectioneconomical WHERE reqId = ?`,
+        key: "Economical",
+      },
+      { sql: `SELECT * FROM inspectionlabour WHERE reqId = ?`, key: "Labor" },
+      {
+        sql: `SELECT * FROM inspectionharveststorage WHERE reqId = ?`,
+        key: "Harvest",
+      },
     ];
 
     const result = {
@@ -1900,7 +1968,7 @@ exports.getInspectionDerailsDao = async (id) => {
       ProfitRisk: {},
       Economical: {},
       Labor: {},
-      Harvest: {}
+      Harvest: {},
     };
 
     let completedQueries = 0;
@@ -2003,7 +2071,6 @@ exports.getDetailsForDivideShareDao = (id) => {
   });
 };
 
-
 exports.devideSharesDao = (sharesData, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -2018,7 +2085,7 @@ exports.devideSharesDao = (sharesData, adminId) => {
       sharesData.numShares,
       sharesData.minimumShare,
       sharesData.maximumShare,
-      adminId
+      adminId,
     ];
 
     investment.query(sql, values, (err, result) => {
@@ -2030,16 +2097,15 @@ exports.devideSharesDao = (sharesData, adminId) => {
   });
 };
 
-
-exports.ApproveRequestDao = (id) => {
+exports.ApproveRequestDao = (id, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE investmentrequest ir
-      SET ir.reqStatus = 'Approved', ir.reqCahangeTime = CURDATE()
+      SET ir.reqStatus = 'Approved', ir.reqCahangeTime = NOW(), ir.approvedBy = ?
       WHERE ir.id = ?
     `;
 
-    investment.query(sql, [id], (err, result) => {
+    investment.query(sql, [adminId, id], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -2047,7 +2113,6 @@ exports.ApproveRequestDao = (id) => {
     });
   });
 };
-
 
 exports.updateRejectReasonDao = (id, reason, adminId) => {
   return new Promise((resolve, reject) => {
@@ -2065,7 +2130,6 @@ exports.updateRejectReasonDao = (id, reason, adminId) => {
     });
   });
 };
-
 
 exports.rejectRequestDao = (id) => {
   return new Promise((resolve, reject) => {
@@ -2098,7 +2162,7 @@ exports.editDevideSharesDao = (sharesData, adminId) => {
       sharesData.minimumShare,
       sharesData.maximumShare,
       adminId,
-      sharesData.id
+      sharesData.id,
     ];
 
     investment.query(sql, values, (err, result) => {
@@ -2109,7 +2173,6 @@ exports.editDevideSharesDao = (sharesData, adminId) => {
     });
   });
 };
-
 
 exports.getSalesAgentForFilterDao = () => {
   return new Promise((resolve, reject) => {
@@ -2129,7 +2192,6 @@ exports.getSalesAgentForFilterDao = () => {
   });
 };
 
-
 exports.getAgentCommitionsDao = (data) => {
   return new Promise((resolve, reject) => {
     let sql = `
@@ -2145,25 +2207,23 @@ exports.getAgentCommitionsDao = (data) => {
     `;
 
     if (data.paymentStatus) {
-      if (data.paymentStatus === 'Completed') {
+      if (data.paymentStatus === "Completed") {
         sql += ` AND po.isPaid = 1 `;
-      } else if (data.paymentStatus === 'Pending') {
+      } else if (data.paymentStatus === "Pending") {
         sql += ` AND po.isPaid = 0 `;
       }
     }
 
-    marketPlace.query(sql,
-      [
-        data.agentId,
-        data.fromDate,
-        data.toDate,
-        data.deliveredDate
-      ], (err, result) => {
+    marketPlace.query(
+      sql,
+      [data.agentId, data.fromDate, data.toDate, data.deliveredDate],
+      (err, result) => {
         if (err) {
           return reject(err);
         }
         resolve(result);
-      });
+      },
+    );
   });
 };
 
@@ -2199,7 +2259,7 @@ exports.GetAllPensionRequestsDAO = (filters = {}) => {
         COALESCE(pr.approveTime) AS Approved_Date_Time
       FROM plant_care.pensionrequest pr
       LEFT JOIN agro_world_admin.adminusers au ON pr.approveBy = au.id
-      WHERE 1=1
+      WHERE pr.reqStatus NOT IN ('Approved')
     `;
 
     const params = [];
@@ -2249,6 +2309,8 @@ exports.GetPensionRequestByIdDAO = (id) => {
     pr.nicBack AS NIC_Back_Image,
     pr.sucNicFront AS Successor_NIC_Front_Image,
     pr.sucNicBack AS Successor_NIC_Back_Image,
+    pr.birthCrtFront AS Successor_birthCrtFront,
+    pr.birthCrtBack AS Successor_birthCrtBack,
     co.empId,
     CASE 
         WHEN pr.approveBy IS NULL THEN 'Not Approved'
@@ -2303,8 +2365,8 @@ exports.UpdatePensionRequestStatusDAO = (id, updateData) => {
 
       // Return updated record
       this.GetPensionRequestByIdDAO(id)
-        .then(updatedRecord => resolve(updatedRecord))
-        .catch(error => reject(error));
+        .then((updatedRecord) => resolve(updatedRecord))
+        .catch((error) => reject(error));
     });
   });
 };
@@ -2352,7 +2414,7 @@ exports.getFarmerPensionDetailsDao = (page, limit, searchText) => {
         pr.id,
         pr.fullName,
         pr.nic,
-        CONCAT(u.firstName, ' ', u.lastName) AS farmerFullName,
+        pr.fullName AS farmerFullName,
         u.phoneNumber,
         pr.dob,
         pr.sucType,
@@ -2396,6 +2458,1003 @@ exports.getFarmerPensionDetailsDao = (page, limit, searchText) => {
           items: dataResults,
         });
       });
+    });
+  });
+};
+
+exports.getGocicareAllInvestmentUsersDao = (
+  id,
+  status,
+  search,
+  limit,
+  offset,
+) => {
+  return new Promise((resolve, reject) => {
+    // Count query for total records
+    let countSql = `
+    SELECT COUNT(*) as total
+    FROM investmentusers iu
+    `;
+
+    // Data query for paginated results
+    let dataSql = `
+    SELECT
+        iu.id,
+        iu.regCode,
+        iu.title,
+        iu.userName,
+        iu.phoneCode,
+        iu.phoneNumber,
+        iu.nic,
+        iu.email,
+        iu.address,
+        iu.createdAt
+    FROM investmentusers iu
+    `;
+
+    const params = [];
+    const whereConditions = [];
+
+    if (id) {
+      whereConditions.push("iu.id = ?");
+      params.push(id);
+    }
+
+    if (status) {
+      whereConditions.push("iu.status = ?");
+      params.push(status);
+    }
+
+    if (search) {
+      whereConditions.push(`
+        (iu.nic LIKE ? 
+        OR CONCAT(iu.phoneCode, iu.phoneNumber) LIKE ?
+        OR iu.userName LIKE ?
+        OR iu.email LIKE ?)
+      `);
+      const searchValue = `%${search}%`;
+      params.push(searchValue, searchValue, searchValue, searchValue);
+    }
+
+    // Add WHERE clause if there are conditions
+    if (whereConditions.length > 0) {
+      const whereClause = " WHERE " + whereConditions.join(" AND ");
+      countSql += whereClause;
+      dataSql += whereClause;
+    }
+
+    dataSql += " ORDER BY iu.createdAt DESC";
+
+    // Add pagination if limit and offset are provided
+    if (limit !== undefined && offset !== undefined) {
+      dataSql += " LIMIT ? OFFSET ?";
+    }
+
+    // Execute count query first
+    investment.query(countSql, params, (countErr, countResults) => {
+      if (countErr) {
+        console.error("Error in count query:", countErr);
+        return reject(countErr);
+      }
+
+      const total = countResults[0].total;
+
+      // Prepare data query parameters including pagination
+      const dataParams = [...params];
+      if (limit !== undefined && offset !== undefined) {
+        dataParams.push(limit, offset);
+      }
+
+      // Execute data query with pagination
+      investment.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          console.error("Error in data query:", dataErr);
+          return reject(dataErr);
+        }
+
+        resolve({
+          total: total,
+          items: dataResults,
+        });
+      });
+    });
+  });
+};
+
+// ───────────────────────────────────────────── Daos for the finance dashboard ─────────────────────────────────────────────
+
+exports.getAllFinanceDashboardDataDao = () => {
+  console.log("goviShop connection:", goviShop);
+  return new Promise((resolve, reject) => {
+    // ── Count Cards ──────────────────────────────────────────────────────────
+
+    const pensionCountSql = `
+      SELECT COUNT(*) AS count
+      FROM pensionrequest
+      WHERE reqStatus = 'To Review'
+    `;
+
+    const supplierUpgradeSql = `
+      SELECT COUNT(*) AS count
+      FROM shopowners
+      WHERE currentPlan = 'Premium'
+        AND accessStatus = 'Pending'
+    `;
+
+    const projectRequestSql = `
+      SELECT COUNT(*) AS count
+      FROM investmentrequest
+      WHERE reqStatus = 'Pending'
+    `;
+
+    const publishedProjectSql = `
+      SELECT COUNT(*) AS count
+      FROM investmentrequest
+      WHERE reqStatus = 'Approved'
+        AND publishStatus = 'Published'
+    `;
+
+    const goviCareProIncomeSql = `
+      SELECT
+        COALESCE(SUM(
+          mp.payment / CAST(SUBSTRING_INDEX(mp.plan, ' ', 1) AS UNSIGNED)
+        ), 0) AS currentMonthIncome
+      FROM membershippayment mp
+      WHERE mp.activeStatus = 1
+        AND CAST(SUBSTRING_INDEX(mp.plan, ' ', 1) AS UNSIGNED) > 0
+        AND mp.createdAt  <= LAST_DAY(CURRENT_DATE())
+        AND mp.expireDate >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01')
+    `;
+
+    const certificationsIncomeSql = `
+      SELECT
+        COALESCE(SUM(
+          cp.amount / NULLIF(c.timeLine, 0)
+        ), 0) AS currentMonthIncome
+      FROM certificationpayment cp
+      INNER JOIN certificates c ON cp.certificateId = c.id
+      WHERE c.timeLine > 0
+        AND cp.createdAt  <= LAST_DAY(CURRENT_DATE())
+        AND cp.expireDate >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01')
+    `;
+
+    const collectionExpensesSql = `
+      SELECT
+        COALESCE(SUM(
+          (COALESCE(fpc.gradeAprice, 0) * COALESCE(fpc.gradeAquan, 0)) +
+          (COALESCE(fpc.gradeBprice, 0) * COALESCE(fpc.gradeBquan, 0)) +
+          (COALESCE(fpc.gradeCprice, 0) * COALESCE(fpc.gradeCquan, 0))
+        ), 0) AS currentMonthExpenses
+      FROM farmerpaymentscrops fpc
+      WHERE MONTH(fpc.createdAt) = MONTH(CURRENT_DATE())
+        AND YEAR(fpc.createdAt)  = YEAR(CURRENT_DATE())
+    `;
+
+    const goviMartSalesIncomeSql = `
+      SELECT
+        COALESCE(SUM(o.fullTotal), 0) AS currentMonthIncome
+      FROM orders o
+      WHERE o.orderApp = 'Marketplace'
+        AND MONTH(o.createdAt) = MONTH(CURRENT_DATE())
+        AND YEAR(o.createdAt)  = YEAR(CURRENT_DATE())
+    `;
+
+    const salesDashIncomeSql = `
+      SELECT
+        COALESCE(SUM(o.fullTotal), 0) AS currentMonthIncome
+      FROM orders o
+      WHERE o.orderApp = 'Dash'
+        AND MONTH(o.createdAt) = MONTH(CURRENT_DATE())
+        AND YEAR(o.createdAt)  = YEAR(CURRENT_DATE())
+    `;
+
+    const returnedOrdersLossSql = `
+  SELECT
+    COALESCE(SUM(o.fullTotal), 0) AS currentMonthLoss
+  FROM driverorders dro
+  INNER JOIN market_place.processorders po ON dro.orderId = po.id
+  INNER JOIN market_place.orders o ON po.orderId = o.id
+  WHERE dro.drvStatus = 'Return Received'
+    AND po.paymentMethod = 'Cash'
+    AND MONTH(dro.handOverTime) = MONTH(CURRENT_DATE())
+    AND YEAR(dro.handOverTime)  = YEAR(CURRENT_DATE())
+`;
+
+    const goviShopPremiumIncomeSql = `
+      SELECT
+        COALESCE(SUM(pp.planPrice), 0) AS currentMonthIncome
+      FROM paymentplan pp
+      WHERE MONTH(pp.createdAt) = MONTH(CURRENT_DATE())
+        AND YEAR(pp.createdAt)  = YEAR(CURRENT_DATE())
+    `;
+
+    const goviShopOrderCommissionSql = `
+      SELECT
+        COALESCE(SUM(po.amount), 0) AS currentMonthCommission
+      FROM processorders po
+      INNER JOIN orders o ON po.orderId = o.id
+      WHERE po.isPaid = 1
+        AND MONTH(po.deliveredTime) = MONTH(CURRENT_DATE())
+        AND YEAR(po.deliveredTime)  = YEAR(CURRENT_DATE())
+    `;
+
+    // ── Execute all queries across databases ──────────────────────────────────
+
+    plantcare.query(pensionCountSql, (err1, pensionResult) => {
+      if (err1) return reject("Error in pension count query: " + err1);
+
+      goviShop.query(supplierUpgradeSql, (err2, supplierResult) => {
+        if (err2)
+          return reject("Error in supplier upgrade count query: " + err2);
+
+        investment.query(projectRequestSql, (err3, projectResult) => {
+          if (err3)
+            return reject("Error in project request count query: " + err3);
+
+          investment.query(publishedProjectSql, (err4, publishedResult) => {
+            if (err4)
+              return reject("Error in published project count query: " + err4);
+
+            plantcare.query(goviCareProIncomeSql, (err5, goviCareResult) => {
+              if (err5)
+                return reject("Error in GoViCare pro income query: " + err5);
+
+              plantcare.query(certificationsIncomeSql, (err6, certResult) => {
+                if (err6)
+                  return reject(
+                    "Error in certifications income query: " + err6,
+                  );
+
+                collectionofficer.query(
+                  collectionExpensesSql,
+                  (err7, collectionResult) => {
+                    if (err7)
+                      return reject(
+                        "Error in collection expenses query: " + err7,
+                      );
+
+                    marketPlace.query(
+                      goviMartSalesIncomeSql,
+                      (err8, goviMartResult) => {
+                        if (err8)
+                          return reject(
+                            "Error in GoViMart sales income query: " + err8,
+                          );
+
+                        marketPlace.query(
+                          salesDashIncomeSql,
+                          (err9, salesDashResult) => {
+                            if (err9)
+                              return reject(
+                                "Error in SalesDash income query: " + err9,
+                              );
+
+                            collectionofficer.query(
+                              returnedOrdersLossSql,
+                              (err10, returnedResult) => {
+                                if (err10)
+                                  return reject(
+                                    "Error in returned orders loss query: " +
+                                    err10,
+                                  );
+
+                                goviShop.query(
+                                  goviShopPremiumIncomeSql,
+                                  (err11, premiumResult) => {
+                                    if (err11)
+                                      return reject(
+                                        "Error in GoViShop premium income query: " +
+                                        err11,
+                                      );
+
+                                    marketPlace.query(
+                                      goviShopOrderCommissionSql,
+                                      (err12, commissionResult) => {
+                                        if (err12)
+                                          return reject(
+                                            "Error in GoViShop order commission query: " +
+                                            err12,
+                                          );
+
+                                        resolve({
+                                          counts: {
+                                            allPensionRequests:
+                                              pensionResult[0].count,
+                                            supplierUpgrades:
+                                              supplierResult[0].count,
+                                            allProjectRequests:
+                                              projectResult[0].count,
+                                            publishedProjects:
+                                              publishedResult[0].count,
+                                          },
+                                          income: {
+                                            goviCareProIncome:
+                                              parseFloat(
+                                                goviCareResult[0]
+                                                  .currentMonthIncome,
+                                              ) || 0,
+                                            certificationsIncome:
+                                              parseFloat(
+                                                certResult[0]
+                                                  .currentMonthIncome,
+                                              ) || 0,
+                                            collectionExpenses:
+                                              parseFloat(
+                                                collectionResult[0]
+                                                  .currentMonthExpenses,
+                                              ) || 0,
+                                            goviMartSalesIncome:
+                                              parseFloat(
+                                                goviMartResult[0]
+                                                  .currentMonthIncome,
+                                              ) || 0,
+                                            salesDashIncome:
+                                              parseFloat(
+                                                salesDashResult[0]
+                                                  .currentMonthIncome,
+                                              ) || 0,
+                                            returnedOrdersLoss:
+                                              parseFloat(
+                                                returnedResult[0]
+                                                  .currentMonthLoss,
+                                              ) || 0,
+                                            goviShopPremiumIncome:
+                                              parseFloat(
+                                                premiumResult[0]
+                                                  .currentMonthIncome,
+                                              ) || 0,
+                                            goviShopOrderCommission:
+                                              parseFloat(
+                                                commissionResult[0]
+                                                  .currentMonthCommission,
+                                              ) || 0,
+                                          },
+                                        });
+                                      },
+                                    );
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                );
+              });
+            });
+          });
+        });
+      });
+    });
+  });
+};
+
+exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
+  return new Promise((resolve, reject) => {
+    const Sqlparams = [];
+    const Counterparams = [];
+    const offset = (page - 1) * limit;
+
+    // SQL to count total records - Added missing JOINs
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM collection_officer.driverordertransaction dt
+      LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
+      LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
+      WHERE 1 = 1
+    `;
+
+    // SQL to fetch paginated data
+    let sql = `
+      SELECT 
+        dt.id, 
+        dt.transCode AS transactionId,
+        dt.transStatus AS status,
+        CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS name,
+        co.empId AS driverId,
+        co.phoneNumber01 AS phoneNumber,
+        dt.transAmount AS amount,
+        dt.paySlip AS document,
+        dt.createdAt AS submittedAt,
+        au.userName AS updatedBy,
+        dt.updatedAt
+      FROM collection_officer.driverordertransaction dt
+      LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
+      LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
+      LEFT JOIN agro_world_admin.adminusers au ON dt.updatedBy = au.id
+      WHERE 1 = 1
+    `;
+
+    // Add filter for status
+    if (status) {
+      countSql += " AND dt.transStatus = ? ";
+      sql += " AND dt.transStatus = ? ";
+      Sqlparams.push(status);
+      Counterparams.push(status);
+    }
+
+    // Fixed category filter to use the correct alias
+    if (date) {
+      countSql += " AND DATE(dt.createdAt) = ? ";
+      sql += " AND DATE(dt.createdAt) = ? ";
+      Sqlparams.push(date);
+      Counterparams.push(date);
+    }
+
+    // Add search functionality
+    if (searchItem) {
+      countSql += `
+        AND ( dt.transCode LIKE ? OR co.empId LIKE ? OR CONCAT('0', co.phoneNumber01) LIKE ? )
+      `;
+      sql += `
+        AND ( dt.transCode LIKE ? OR co.empId LIKE ? OR CONCAT('0', co.phoneNumber01) LIKE ? )
+      `;
+      const searchQuery = `%${searchItem}%`;
+      Sqlparams.push(searchQuery, searchQuery, searchQuery);
+      Counterparams.push(searchQuery, searchQuery, searchQuery);
+    }
+
+    // Add pagination
+    sql += " ORDER BY dt.createdAt ASC LIMIT ? OFFSET ?";
+    Sqlparams.push(parseInt(limit), parseInt(offset));
+
+    // Execute count query to get total records
+    collectionofficer.query(
+      countSql,
+      Counterparams,
+      (countErr, countResults) => {
+        if (countErr) {
+          return reject(countErr);
+        }
+
+        const total = countResults[0]?.total || 0;
+
+        // Execute main query to get paginated results
+        collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
+          if (dataErr) {
+            return reject(dataErr);
+          }
+
+          resolve({ results, total });
+        });
+      },
+    );
+  });
+};
+
+exports.getTransactionDocumentByIdDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        d.id,
+        d.transAmount,
+        d.paySlip,
+        d.transStatus,
+        c.id AS driverId,
+        c.empId,
+        c.firstNameEnglish,
+        c.lastNameEnglish,
+        c.phoneCode01,
+        c.phoneNumber01
+      FROM driverordertransaction d
+      LEFT JOIN driverordermain dom ON d.drvOrderMainId = dom.id
+      LEFT JOIN collectionofficer c ON dom.driverId = c.id
+      WHERE d.id = ?;
+    `;
+
+    collectionofficer.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
+};
+
+exports.updateTransactionStatusDao = (data) => {
+  return new Promise((resolve, reject) => {
+    const { id, transStatus, rejectReason, updatedBy } = data;
+
+    collectionofficer.getConnection((err, connection) => {
+      if (err) return reject(err);
+
+      connection.beginTransaction((err) => {
+        if (err) {
+          connection.release();
+          return reject(err);
+        }
+
+        const getSql = `
+          SELECT drvOrderMainId
+          FROM driverordertransaction
+          WHERE id = ?
+        `;
+
+        connection.query(getSql, [id], (err, result) => {
+          if (err) {
+            return connection.rollback(() => {
+              connection.release();
+              reject(err);
+            });
+          }
+
+          if (result.length === 0) {
+            return connection.rollback(() => {
+              connection.release();
+              reject(new Error("Transaction not found"));
+            });
+          }
+
+          const drvOrderMainId = result[0].drvOrderMainId;
+
+          const updateTransactionSql = `
+            UPDATE driverordertransaction
+            SET
+                transStatus = ?,
+                rejectReason = ?,
+                updatedBy = ?,
+                updatedAt = NOW()
+            WHERE id = ?
+          `;
+
+          connection.query(
+            updateTransactionSql,
+            [
+              transStatus,
+              transStatus === "Rejected" ? rejectReason : null,
+              updatedBy,
+              id,
+            ],
+            (err) => {
+              if (err) {
+                return connection.rollback(() => {
+                  connection.release();
+                  reject(err);
+                });
+              }
+
+              const isHandOver = transStatus === "Approved" ? 1 : 0;
+
+              const updateMainSql = `
+                  UPDATE driverordermain
+                  SET isHandOver = ?
+                  WHERE id = ?
+                `;
+
+              connection.query(
+                updateMainSql,
+                [isHandOver, drvOrderMainId],
+                (err) => {
+                  if (err) {
+                    return connection.rollback(() => {
+                      connection.release();
+                      reject(err);
+                    });
+                  }
+
+                  connection.commit((err) => {
+                    if (err) {
+                      return connection.rollback(() => {
+                        connection.release();
+                        reject(err);
+                      });
+                    }
+
+                    connection.release();
+                    resolve(true);
+                  });
+                },
+              );
+            },
+          );
+        });
+      });
+    });
+  });
+};
+
+exports.getTransactionOrdersDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        do.id AS driverOrdId,
+        po.id,
+        po.invNo,
+        po.moneyPaid AS amount,
+        do.earnPrice,
+        dt.createdAt AS submittedAt
+      FROM collection_officer.driverordertransaction dt
+      LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
+      LEFT JOIN collection_officer.driverorders do ON dom.id = do.drvOrderMainId
+      LEFT JOIN market_place.processorders po ON do.orderId = po.id
+      WHERE dt.id = ? AND po.status = 'Delivered' AND po.paymentMethod = 'Cash' AND po.isPaid = 1;
+    `;
+
+    goviShop.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        const orders = results.map((order) => ({
+          ...order,
+          toReceive: order.amount - order.earnPrice,
+        }));
+
+        const totalToReceive = orders.reduce(
+          (total, order) => total + order.toReceive,
+          0,
+        );
+
+        resolve({
+          orders,
+          totalToReceive,
+        });
+      }
+    });
+  });
+};
+
+exports.getAllShortageSubmissionsDAO = (
+  page,
+  limit,
+  status,
+  purchasedAt,
+  searchItem,
+) => {
+  return new Promise((resolve, reject) => {
+    const sqlParams = [];
+    const countParams = [];
+
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM shortageassigned sa
+      LEFT JOIN shortage s ON sa.shortageassigned = s.id
+      LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
+      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
+      LEFT JOIN distributedcenter dc ON co.distributedCenterId = dc.id
+      LEFT JOIN agro_world_admin.adminusers au ON sp.markBy = au.id
+      WHERE 1 = 1
+    `;
+
+    let sql = `
+      SELECT
+        cg.cropNameEnglish AS product,
+        cg.image,
+        sp.id,
+        sp.prchQty,
+        sp.reqStatus,
+        sp.createdAt AS purchasedAt,
+        co.empId,
+        CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS officerName,
+        co.phoneCode01,
+        co.phoneNumber01,
+        dc.regCode,
+        au.userName AS finalizedBy,
+        sp.markAt AS finalizeAt
+      FROM shortageassigned sa
+      LEFT JOIN shortage s ON sa.shortageassigned = s.id
+      LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
+      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
+      LEFT JOIN distributedcenter dc ON co.distributedCenterId = dc.id
+      LEFT JOIN agro_world_admin.adminusers au ON sp.markBy = au.id
+      WHERE 1 = 1
+    `;
+
+    // Status Filter
+    if (status) {
+      sql += ` AND sp.reqStatus = ? `;
+      countSql += ` AND sp.reqStatus = ? `;
+
+      sqlParams.push(status);
+      countParams.push(status);
+    }
+
+    // Purchased Date Filter
+    if (purchasedAt) {
+      sql += ` AND DATE(sp.createdAt) = ? `;
+      countSql += ` AND DATE(sp.createdAt) = ? `;
+
+      sqlParams.push(purchasedAt);
+      countParams.push(purchasedAt);
+    }
+
+    // Search
+    if (searchItem) {
+      const search = `%${searchItem}%`;
+
+      sql += `
+        AND (
+          cg.cropNameEnglish LIKE ?
+          OR co.empId LIKE ?
+          OR CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) LIKE ?
+          OR dc.regCode LIKE ?
+        )
+      `;
+
+      countSql += `
+        AND (
+          cg.cropNameEnglish LIKE ?
+          OR co.empId LIKE ?
+          OR CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) LIKE ?
+          OR dc.regCode LIKE ?
+        )
+      `;
+
+      sqlParams.push(search, search, search, search);
+      countParams.push(search, search, search, search);
+    }
+
+    sql += `
+      ORDER BY sp.createdAt DESC, sp.id DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    sqlParams.push(parseInt(limit), parseInt(offset));
+
+    collectionofficer.query(countSql, countParams, (countErr, countResult) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResult[0].total;
+
+      collectionofficer.query(sql, sqlParams, (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+
+        resolve({
+          results,
+          total,
+        });
+      });
+    });
+  });
+};
+
+exports.getViewSubmissionDocumentDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        cg.cropNameEnglish AS product,
+        sp.id,
+        sp.prchQty,
+        sp.prchPrice,
+        sp.reqStatus,
+        co.empId,
+        co.phoneCode01,
+        co.phoneNumber01,
+        sp.slip
+      FROM shortageassigned sa
+      LEFT JOIN shortage s ON sa.shortageassigned = s.id
+      LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
+      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
+      LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+      LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
+      WHERE sp.id = ?;
+    `;
+
+    collectionofficer.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+
+      resolve(result);
+    });
+  });
+};
+
+exports.updateSubmissionStatusDao = (id, markedBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE shortagepurchase sp
+      SET sp.reqStatus = 'Completed', sp.markAt = NOW(), sp.markBy = ?
+      WHERE sp.id = ?
+    `;
+
+    collectionofficer.query(sql, [markedBy, id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
+};
+
+exports.getAllCOPTransactionsDAO = (
+  page,
+  limit,
+  status,
+  purchasedAt,
+  searchItem,
+) => {
+  return new Promise((resolve, reject) => {
+    const sqlParams = [];
+    const countParams = [];
+
+    const offset = (page - 1) * limit;
+
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM pickuptransaction pt
+      LEFT JOIN pickuporders po ON po.transId = pt.transactionId
+      LEFT JOIN collectionofficer co ON pt.officerId = co.id
+      LEFT JOIN agro_world_admin.adminusers au ON pt.approvedBy = au.id
+      WHERE 1 = 1
+    `;
+
+    let sql = `
+      SELECT
+        pt.id,
+        pt.transactionId,
+        pt.slip,
+        pt.transactionStatus,
+        pt.createdAt AS purchasedAt,
+        co.empId,
+        CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS officerName,
+        co.phoneCode01,
+        co.phoneNumber01,
+       au.userName AS finalizedBy,
+        pt.approvedAt AS finalizeAt,
+        pt.officerId,
+        po.orderId,
+        po.signature,
+        po.handOverPrice,
+        po.handOverTime
+      FROM pickuptransaction pt
+      LEFT JOIN pickuporders po ON po.transId = pt.transactionId
+      LEFT JOIN collectionofficer co ON pt.officerId = co.id
+      LEFT JOIN agro_world_admin.adminusers au ON pt.approvedBy = au.id
+      WHERE 1 = 1
+    `;
+
+    // Status Filter
+    if (status) {
+      sql += ` AND pt.transactionStatus = ? `;
+      countSql += ` AND pt.transactionStatus = ? `;
+
+      sqlParams.push(status);
+      countParams.push(status);
+    }
+
+    // Purchased Date Filter
+    if (purchasedAt) {
+      sql += ` AND DATE(pt.createdAt) = ? `;
+      countSql += ` AND DATE(pt.createdAt) = ? `;
+
+      sqlParams.push(purchasedAt);
+      countParams.push(purchasedAt);
+    }
+
+    // Search
+    if (searchItem) {
+      const search = `%${searchItem}%`;
+
+      sql += `
+        AND (
+          co.empId LIKE ?
+          OR CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) LIKE ?
+          OR pt.transactionId LIKE ?
+        )
+      `;
+
+      countSql += `
+        AND (
+          co.empId LIKE ?
+          OR CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) LIKE ?
+          OR pt.transactionId LIKE ?
+        )
+      `;
+
+      sqlParams.push(search, search, search);
+      countParams.push(search, search, search);
+    }
+
+    sql += `
+      ORDER BY pt.createdAt DESC, pt.id DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    sqlParams.push(parseInt(limit), parseInt(offset));
+
+    collectionofficer.query(countSql, countParams, (countErr, countResult) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResult[0].total;
+
+      collectionofficer.query(sql, sqlParams, (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+
+        resolve({
+          results,
+          total,
+        });
+      });
+    });
+  });
+};
+
+exports.getPickupHandOverSummaryDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        po.orderId,
+        pro.invNo,
+        po.handOverPrice,
+        pt.createdAt AS subbmittedAt,
+        SUM(po.handOverPrice) OVER (PARTITION BY pt.officerId) AS totalHandOverPrice
+      FROM pickuptransaction pt
+      LEFT JOIN pickuporders po ON pt.id = po.transId
+      LEFT JOIN market_place.processorders pro ON po.orderId = pro.orderId
+      WHERE pt.id = ?;
+    `;
+    collectionofficer.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
+};
+
+exports.viewCopTransactionDocumentDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+	      co.empId,
+	      CONCAT(co.firstNameEnglish,' ',co.lastNameEnglish) AS officerName,
+	      co.phoneCode01,
+        co.phoneNumber01,
+	      po.handOverPrice,
+	      pt.transactionStatus,
+	      pt.slip
+      FROM pickuptransaction pt
+      LEFT JOIN collectionofficer co ON pt.officerId = co.id
+      LEFT JOIN pickuporders po ON pt.id = po.transId 
+      WHERE pt.id = ?
+    `;
+
+    collectionofficer.query(sql, [id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+
+      resolve(result);
+    });
+  });
+};
+
+exports.updateCopTransactionStatusDao = ({ id, updatedBy }) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE pickuptransaction
+      SET
+        transactionStatus = 'Completed',
+        approvedBy = ?,
+        approvedAt = NOW()
+      WHERE id = ?
+    `;
+
+    collectionofficer.query(sql, [updatedBy, id], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+
+      resolve(result);
     });
   });
 };

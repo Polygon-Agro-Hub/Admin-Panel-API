@@ -1191,12 +1191,12 @@ exports.GetComplainCategoriesByRole = async (req, res) => {
 
   try {
     const roleId = req.params.roleId;
-    const appId = req.params.appId;
+    const appName = req.params.appName;
     console.log(roleId);
 
     const result = await CollectionCenterDao.GetComplainCategoriesByRole(
       roleId,
-      appId
+      appName
     );
 
     if (result.length === 0) {
@@ -1226,31 +1226,26 @@ exports.GetComplainCategoriesByRoleSuper = async (req, res) => {
   console.log("Request URL:", fullUrl);
 
   try {
-    const appId = req.params.appId;
+    const id = req.params.id;
 
-    const result = await CollectionCenterDao.GetComplainCategoriesByRoleSuper(
-      appId
-    );
+    const result = await CollectionCenterDao.GetComplainCategoriesByRoleSuper(id);
 
     if (result.length === 0) {
       return res
         .status(404)
-        .json({ message: "No complain categories not found", data: result });
+        .json({ message: "No complain categories found", data: result });
     }
 
     console.log("Successfully retrieved all complain categories");
     res.json(result);
   } catch (err) {
     if (err.isJoi) {
-      // Validation error
       console.error("Validation error:", err.details[0].message);
       return res.status(400).json({ error: err.details[0].message });
     }
 
-    console.error("Error fetching news:", err);
-    res
-      .status(500)
-      .json({ error: "An error occurred while complain categories" });
+    console.error("Error fetching complain categories:", err);
+    res.status(500).json({ error: "An error occurred while fetching complain categories" });
   }
 };
 

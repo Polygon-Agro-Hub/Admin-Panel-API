@@ -15,7 +15,7 @@ const path = require("path");
 exports.getCollectionOfficerDistrictReports = (district) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT cg.cropNameEnglish AS cropName,
+            SELECT cv.varietyNameEnglish AS cropName,
              c.district, 
              SUM(fpc.gradeAquan) AS qtyA, 
              SUM(fpc.gradeBquan) AS qtyB, 
@@ -25,7 +25,7 @@ exports.getCollectionOfficerDistrictReports = (district) => {
              SUM(fpc.gradeCprice) AS priceC
             FROM registeredfarmerpayments rp, collectionofficer c, plant_care.cropvariety cv , plant_care.cropgroup cg, farmerpaymentscrops fpc
             WHERE rp.id = fpc.registerFarmerId AND rp.collectionOfficerId = c.id AND fpc.cropId = cv.id AND cv.cropGroupId = cg.id AND c.district = ? AND c.companyId = 1
-            GROUP BY cg.cropNameEnglish, c.district
+            GROUP BY cv.varietyNameEnglish, c.district
         `;
     collectionofficer.query(sql, [district], (err, results) => {
       if (err) {
@@ -87,89 +87,41 @@ exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
   });
 };
 
-// exports.createCollectionOfficerPersonal = (officerData, profileImageUrl) => {
-//   return new Promise(async (resolve, reject) => {
-//     try {
-//       // Prepare data for QR code generation
-//       const qrData = `
-//             {
-//                 "empId": "${officerData.empId}",
-//             }
-//             `;
+exports.getLastEmpIdByRoleDao = (role) => {
+  console.log("role", role);
+  return new Promise((resolve, reject) => {
+    const sql =
+      "SELECT empId FROM collectionofficer WHERE empId LIKE ? ORDER BY empId DESC LIMIT 1";
 
-//       const qrCodeBase64 = await QRCode.toDataURL(qrData);
-//       const qrCodeBuffer = Buffer.from(
-//         qrCodeBase64.replace(/^data:image\/png;base64,/, ""),
-//         "base64"
-//       );
-//       const qrcodeURL = await uploadFileToS3(
-//         qrCodeBuffer,
-//         `${officerData.empId}.png`,
-//         "collectionofficer/QRcode"
-//       );
-//       console.log(qrcodeURL);
+    collectionofficer.query(sql, [`${role}%`], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
 
-//       const sql = `
-//                 INSERT INTO collectionofficer (
-//                     centerId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
-//                     lastNameSinhala, lastNameTamil, jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
-//                     nic, email, houseNumber, streetName, city, district, province, country,
-//                     languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
-//                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-//                          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-//                          ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?, 'Not Approved')
-//             `;
+      let newEmpId;
 
-//       // Database query with QR image data added
-//       collectionofficer.query(
-//         sql,
-//         [
-//           officerData.centerId,
-//           officerData.companyId,
-//           officerData.irmId,
-//           officerData.firstNameEnglish,
-//           officerData.firstNameSinhala,
-//           officerData.firstNameTamil,
-//           officerData.lastNameEnglish,
-//           officerData.lastNameSinhala,
-//           officerData.lastNameTamil,
-//           officerData.jobRole,
-//           officerData.empId,
-//           officerData.empType,
-//           officerData.phoneCode01,
-//           officerData.phoneNumber01,
-//           officerData.phoneCode02,
-//           officerData.phoneNumber02,
-//           officerData.nic,
-//           officerData.email,
-//           officerData.houseNumber,
-//           officerData.streetName,
-//           officerData.city,
-//           officerData.district,
-//           officerData.province,
-//           officerData.country,
-//           officerData.languages,
-//           officerData.accHolderName,
-//           officerData.accNumber,
-//           officerData.bankName,
-//           officerData.branchName,
-//           profileImageUrl,
-//           qrcodeURL,
-//         ],
-//         (err, results) => {
-//           if (err) {
-//             console.log(err);
+      if (results.length > 0) {
+        const numericPart = parseInt(results[0].empId.substring(3), 10);
+        const incrementedValue = numericPart + 1;
+        newEmpId = `${role}${incrementedValue.toString().padStart(5, "0")}`;
+      } else {
+        newEmpId = `${role}00001`;
+      }
 
-//             return reject(err); // Reject promise if an error occurs
-//           }
-//           resolve(results); // Resolve the promise with the query results
-//         }
-//       );
-//     } catch (error) {
-//       reject(error); // Reject if any error occurs during QR code generation
-//     }
-//   });
-// };
+      resolve({ empId: newEmpId });
+    });
+  });
+};
+
+exports.checkEmpIdExist = (empId, excludeId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `SELECT id FROM collectionofficer WHERE empId = ? AND id != ?`;
+    collectionofficer.query(sql, [empId, excludeId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.length > 0);
+    });
+  });
+};
 
 exports.createCollectionOfficerPersonal = (
   officerData,
@@ -178,12 +130,10 @@ exports.createCollectionOfficerPersonal = (
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
+      console.log(officerData.empId);
+      
       // Prepare data for QR code generation
-      const qrData = `
-            {
-                "empId": "${officerData.empId}",
-            }
-            `;
+      const qrData = `{"empId":"${lastId}"}`;
 
       const qrCodeBase64 = await QRCode.toDataURL(qrData);
       const qrCodeBuffer = Buffer.from(
@@ -539,12 +489,7 @@ exports.getAllCollectionOfficers = (
       );
     }
 
-    dataSql += `
-      ORDER BY 
-        CASE WHEN coff.jobRole = 'Collection Centre Manager' THEN 0 ELSE 1 END,
-        CASE WHEN coff.jobRole = 'Collection Centre Manager' THEN coff.empId END ASC,
-        CASE WHEN coff.jobRole = 'Collection Officer' THEN coff.createdAt END DESC
-    `;
+    dataSql += ` ORDER BY coff.createdAt DESC`;
 
     dataSql += " LIMIT ? OFFSET ?";
     dataParams.push(limit, offset);
@@ -815,6 +760,24 @@ exports.getRegisteredFarmerPaymentsByOfficer = (collectionOfficerId, date) => {
   });
 };
 
+exports.getCollectionOfficerEmpId = (collectionOfficerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+            SELECT coff.empId 
+            FROM collectionofficer coff
+            WHERE coff.id = ? 
+        `;
+    const values = [collectionOfficerId];
+
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
 exports.getFarmerPaymentsCropsByRegisteredFarmerId = (registeredFarmerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -830,6 +793,7 @@ exports.getFarmerPaymentsCropsByRegisteredFarmerId = (registeredFarmerId) => {
       if (err) {
         return reject(err);
       }
+      console.log('results', results)
       resolve(results);
     });
   });
@@ -839,7 +803,7 @@ exports.getCollectionOfficerProvinceReports = (province) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-        cg.cropNameEnglish AS cropName,
+        cv.varietyNameEnglish AS cropName,
         cc.province, 
         SUM(fpc.gradeAquan) AS qtyA, 
         SUM(fpc.gradeBquan) AS qtyB, 
@@ -854,7 +818,7 @@ exports.getCollectionOfficerProvinceReports = (province) => {
       INNER JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       INNER JOIN collectioncenter cc ON c.centerId = cc.id
       WHERE cc.province = ? AND c.companyId = 1
-      GROUP BY cg.cropNameEnglish, cc.province
+      GROUP BY cv.varietyNameEnglish, cc.province
     `;
 
     collectionofficer.query(sql, [province], (err, results) => {
@@ -926,7 +890,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(20)
       .fillColor("#071a51")
-      .text("Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation", {
+      .text("Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation", {
         align: "center",
       });
 
@@ -953,7 +917,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(12)
       .text(
-        "You have successfully created an account with PolygonAgro (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
+        "You have successfully created an account with Polygon Holdings (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
         {
           align: "justify",
         }
@@ -983,8 +947,8 @@ exports.SendGeneratedPasswordDao = async (
 
     doc.moveDown();
     doc.fontSize(12).text(`Best Regards,`);
-    doc.fontSize(12).text(`The PolygonAgro Team`);
-    doc.fontSize(12).text(`PolygonAgro (Pvt) Ltd. | All rights reserved.`);
+    doc.fontSize(12).text(`The Polygon Holdings Team`);
+    doc.fontSize(12).text(`Polygon Holdings (Pvt) Ltd. | All rights reserved.`);
     doc.moveDown();
     doc.fontSize(12).text(`Address: No:14,`);
     doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
@@ -1029,7 +993,7 @@ exports.SendGeneratedPasswordDao = async (
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
+      subject: "Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation",
       text: `Dear ${firstNameEnglish},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {
@@ -1421,7 +1385,7 @@ exports.getDailyReport = (collectionOfficerId, fromDate, toDate) => {
           farmerpaymentscrops fpc ON rfp.id = fpc.registerFarmerId
         WHERE 
           rfp.collectionOfficerId = ? 
-          AND rfp.createdAt BETWEEN ? AND ?
+          AND DATE(rfp.createdAt) BETWEEN DATE(?) AND DATE(?)
         GROUP BY 
           DATE(rfp.createdAt)
         ORDER BY 
@@ -1461,7 +1425,8 @@ exports.getOfficerByIdDAO = (id) => {
               DC.regCode AS distributedCenterRegCode,
               VR.*,
               VR.id AS vehicleRegId,
-              CONCAT(COF2.empId, ' - ',COF2.firstNameEnglish, ' ', COF2.lastNameEnglish) AS manageName
+              CONCAT(COF2.empId, ' - ',COF2.firstNameEnglish, ' ', COF2.lastNameEnglish) AS manageName,
+              dcs.slvCatName
           FROM 
               collectionofficer COF
           JOIN 
@@ -1474,6 +1439,8 @@ exports.getOfficerByIdDAO = (id) => {
                vehicleregistration VR ON COF.id = VR.coId
           LEFT JOIN 
               collectionofficer COF2 ON COF.irmId = COF2.id
+           LEFT JOIN 
+              drivercategoryslave dcs ON COF.driverCatId = dcs.id
           WHERE 
               COF.id = ?`;
 
@@ -1546,7 +1513,8 @@ exports.getOfficerByIdDAO = (id) => {
           vehBackImg: officer.vehBackImg,
           vehSideImgA: officer.vehSideImgA,
           vehSideImgB: officer.vehSideImgB,
-          manageName:officer.manageName
+          manageName:officer.manageName,
+          slvCatName:officer.slvCatName
         }
         
       });
@@ -1574,11 +1542,7 @@ exports.createCenterHeadPersonal = (officerData, profileImageUrl, lastId) => {
   return new Promise(async (resolve, reject) => {
     try {
       // Prepare data for QR code generation
-      const qrData = `
-            {
-                "empId": "${lastId}",
-            }
-            `;
+      const qrData = `{"empId":"${lastId}"}`;
 
       const qrCodeBase64 = await QRCode.toDataURL(qrData);
       const qrCodeBuffer = Buffer.from(
@@ -2447,7 +2411,8 @@ exports.getAllDrivers = (
   searchNIC,
   centerStatus,
   status,
-  centerId
+  centerId,
+  driverCatId
 ) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
@@ -2459,6 +2424,7 @@ exports.getAllDrivers = (
             LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
+            LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
             WHERE coff.jobRole = 'Driver' AND cm.id = 2
         `;
 
@@ -2475,6 +2441,9 @@ exports.getAllDrivers = (
                 coff.phoneCode01,
                 coff.phoneNumber01,
                 coff.nic,
+                coff.driverCatId,
+                dcs.slvCatName,
+                dcs.slvPayout,
                 -- Show officer name instead of ID for officerModiyBy
                 CASE 
                     WHEN coff.officerModiyBy IS NOT NULL THEN CONCAT(coff_modify.firstNameEnglish, ' ', coff_modify.lastNameEnglish)
@@ -2503,6 +2472,7 @@ exports.getAllDrivers = (
             LEFT JOIN distributedcenter dc ON coff.distributedCenterId = dc.id
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
+            LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
             WHERE coff.jobRole = 'Driver' AND cm.id = 2
         `;
 
@@ -2541,6 +2511,13 @@ exports.getAllDrivers = (
       dataParams.push(centerId);
     }
 
+    if (driverCatId) {
+      countSql += " AND coff.driverCatId = ?";
+      dataSql += " AND coff.driverCatId = ?";
+      countParams.push(driverCatId);
+      dataParams.push(driverCatId);
+    }
+
     if (searchNIC) {
       const searchCondition = `
                 AND (
@@ -2552,6 +2529,7 @@ exports.getAllDrivers = (
                     OR coff.district LIKE ?
                     OR coff.empId LIKE ?
                     OR dc.centerName LIKE ?
+                    OR dcs.slvCatName LIKE ?
                 )
             `;
       countSql += searchCondition;
@@ -2565,9 +2543,11 @@ exports.getAllDrivers = (
         searchValue,
         searchValue,
         searchValue,
+        searchValue,
         searchValue
       );
       dataParams.push(
+        searchValue,
         searchValue,
         searchValue,
         searchValue,
@@ -2668,6 +2648,124 @@ exports.disclaimDriverDetailsDao = (id) => {
           WHERE id = ?
       `;
     collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getAllDriveCategories = (search = '') => {
+  return new Promise((resolve, reject) => {
+    let sql = "SELECT dc.id, dc.catName, dc.payout, au.userName, dc.updatedAt FROM drivercategory dc LEFT JOIN agro_world_admin.adminusers au ON au.id = dc.updatedBy";
+    const params = [];
+    
+    if (search && search.trim() !== '') {
+      sql += " WHERE catName LIKE ?";
+      params.push(`%${search.trim()}%`);
+    }
+    
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getDriveCategoryById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT id, catName, payout FROM drivercategory WHERE id = ?";
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.addDriveCategory = (data) => {
+  return new Promise((resolve, reject) => {
+    const { catName, payout, updatedBy } = data;
+    const sql = "INSERT INTO drivercategory (catName, payout, updatedAt, createdAt) VALUES (?, ?, ?, NOW())";
+    const params = [catName, payout, updatedBy];
+    
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve({
+        id: results.insertId,
+        catName: catName,
+        payout: payout,
+        updatedBy: updatedBy,
+        updatedAt: new Date(),
+        createdAt: new Date()
+      });
+    });
+  });
+};
+
+exports.updateDriveCategory = (id, data) => {
+  return new Promise((resolve, reject) => {
+    const { catName, payout, updatedBy } = data;
+    const sql = "UPDATE drivercategory SET catName = ?, payout = ?, updatedBy = ?, updatedAt = NOW() WHERE id = ?";
+    const params = [catName, payout, updatedBy, id];
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.affectedRows === 0) {
+        return reject(new Error('Category not found'));
+      }
+
+      resolve({
+        id: id,
+        catName: catName,
+        payout: payout,
+        updatedBy: updatedBy,
+        updatedAt: new Date()
+      });
+    });
+  });
+};
+
+exports.getDriveCategoryByName = (catName, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = "SELECT id, catName, payout FROM drivercategory WHERE LOWER(catName) = LOWER(?)";
+    const params = [catName];
+
+    if (excludeId) {
+      sql += " AND id != ?";
+      params.push(excludeId);
+    }
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.getAllDriveCategoriesSlave = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id, 
+        catId, 
+        slvCatName
+      FROM drivercategoryslave
+      ORDER BY slvCatName ASC
+    `;
+
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }

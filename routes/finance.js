@@ -236,4 +236,45 @@ router.get(
   financeController.getFarmerPensionDetails
 );
 
+router.get(
+  "/main-dashboard",
+  authMiddleware,     
+  financeController.getFinanceMainDashboard
+);
+
+router.get('/govicare-investment-users', authMiddleware, financeController.getGocicareAllInvestmentUsers);
+
+router.get(
+  "/get-all-transactions",
+  authMiddleware,
+  financeController.getAllTransactionsEp
+);
+
+router.get(
+  "/get-all-transaction-orders/:id",
+  authMiddleware,
+  financeController.getAllTransactionOrdersEp,
+);
+
+router.get(
+  "/view-transaction-document/:id",
+  authMiddleware,
+  financeController.getViewTransactionDocument
+);
+
+router.put(
+  "/update-transaction-status/:id",
+  authMiddleware,
+  financeController.updateTransactionStatus
+);
+
+router.get("/get-all-shortage-submission",authMiddleware, financeController.getAllShortageSubmissionEp);
+router.get("/view-submission-document/:id",authMiddleware, financeController.ViewSubmissionDocumentEp);
+router.put("/update-submission-status/:id",authMiddleware, financeController.updateSubmissionStatusEp);
+router.get("/get-all-cop-transactions", authMiddleware, financeController.getAllCOPTransactionsEp);
+router.get("/pickup-handover-summary/:id", authMiddleware, financeController.getPickupHandOverSummaryEp);
+
+router.get("/view-cop-transaction-document/:id",authMiddleware, financeController.viewCopTransactionDocumentEp);
+router.put("/update-cop-transaction-status/:id",authMiddleware, financeController.updateCopTransactionStatusEp);
+
 module.exports = router;

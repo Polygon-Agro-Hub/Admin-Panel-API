@@ -75,6 +75,7 @@ const upload = multer({
     // Allowed extensions for images and documents
     const imageExtensions = /jpeg|jpg|png|gif/i;
     const documentExtensions = /csv|xlsx|xls/i;
+    const pdfExtensions = /pdf/i;
 
     // Get file extension
     const extname = path.extname(file.originalname).toLowerCase().replace('.', '');
@@ -88,9 +89,12 @@ const upload = multer({
       'application/octet-stream'
     ];
 
+    const pdfMimetypes = ['application/pdf'];
+
     // Check if either image or document type matches
     const isImage = imageExtensions.test(extname) && imageMimetypes.includes(file.mimetype);
     const isDocument = documentExtensions.test(extname) && documentMimetypes.includes(file.mimetype);
+    const isPdf = pdfExtensions.test(extname) && pdfMimetypes.includes(file.mimetype);
 
     console.log("File validation:", {
       filename: file.originalname,
@@ -100,10 +104,10 @@ const upload = multer({
       isDocument: isDocument
     });
 
-    if (isImage || isDocument) {
+    if (isImage || isDocument || isPdf) {
       cb(null, true);
     } else {
-      cb(new Error('Only images (JPEG, JPG, PNG, GIF) and documents (CSV, XLSX, XLS) are allowed'));
+      cb(new Error('Only images (JPEG, JPG, PNG, GIF), documents (CSV, XLSX, XLS) and pdfs(.pdf) are allowed' ));
     }
   },
   limits: {

@@ -1022,7 +1022,6 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
             oof.id,
             oof.buildingAssetId,
             oof.landAssetId,
-            oof.issuedDate,
             oof.estimateValue
           FROM 
             ownershipownerfixedasset oof
@@ -1043,7 +1042,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
           WHERE 
             olf.buildingAssetId = ?;
         `,
-          "Permit Building": `
+          "Permitted Building": `
           SELECT 
             opf.id,
             opf.buildingAssetId,
@@ -1069,6 +1068,8 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
         };
 
         const ownershipQuery = ownershipQueries[ownership];
+
+        console.log('ownershipQuery', ownershipQuery)
 
         if (!ownershipQuery) {
           // If no specific ownership query, return just building details
@@ -1104,8 +1105,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
 
 exports.getLandOwnershipDetails = (landAssetId) => {
   return new Promise((resolve, reject) => {
-    // First, get the land details including ownership type
-    const getLandQuery = `
+    const query = `
       SELECT 
         lf.id as landAssetId,
         lf.fixedAssetId,
@@ -1115,132 +1115,94 @@ exports.getLandOwnershipDetails = (landAssetId) => {
         lf.extentp,
         lf.district,
         lf.landFenced,
-        lf.perennialCrop
+        lf.perennialCrop,
+        opf.issuedDate,
+        opf.permitFeeAnnually
       FROM 
         landfixedasset lf
+      LEFT JOIN 
+        ownershippermitfixedasset opf ON lf.id = opf.landAssetId
       WHERE 
         lf.id = ?;
     `;
 
-    plantcare.query(getLandQuery, [landAssetId], (err, landResults) => {
+    plantcare.query(query, [landAssetId], (err, results) => {
       if (err) {
         reject("Error fetching land details: " + err);
         return;
       }
 
-      if (landResults.length === 0) {
+      if (results.length === 0) {
         reject("Land not found");
         return;
       }
 
-      const land = landResults[0];
-      const ownership = land.ownership;
+      const row = results[0];
+      
+      resolve({
+        landDetails: {
+          landAssetId: row.landAssetId,
+          ownership: row.ownership,
+          extentha: row.extentha || 0,
+          extentac: row.extentac || 0,
+          extentp: row.extentp || 0,
+          district: row.district,
+          landFenced: row.landFenced,
+          perennialCrop: row.perennialCrop,
+        },
+        ownershipDetails: {
+          issuedDate: row.issuedDate,
+          permitFeeAnnually: row.permitFeeAnnually
+        },
+        ownershipType: row.ownership,
+      });
+    });
+  });
+};
 
-      // Get extent values without calculation
-      const extentha = land.extentha || 0;
-      const extentac = land.extentac || 0;
-      const extentp = land.extentp || 0;
 
-      // Define ownership-specific queries for land
-      const ownershipQueries = {
-        Own: `
-          SELECT 
-            oof.id,
-            oof.buildingAssetId,
-            oof.landAssetId,
-            oof.issuedDate,
-            oof.estimateValue
-          FROM 
-            ownershipownerfixedasset oof
-          WHERE 
-            oof.landAssetId = ?;
-        `,
-        Lease: `
-          SELECT 
-            olf.id,
-            olf.buildingAssetId,
-            olf.landAssetId,
-            olf.startDate,
-            olf.durationYears,
-            olf.durationMonths,
-            olf.leastAmountAnnually
-          FROM 
-            ownershipleastfixedasset olf
-          WHERE 
-            olf.landAssetId = ?;
-        `,
-        Permited: `
-          SELECT 
-            opf.id,
-            opf.buildingAssetId,
-            opf.landAssetId,
-            opf.issuedDate,
-            opf.permitFeeAnnually
-          FROM 
-            ownershippermitfixedasset opf
-          WHERE 
-            opf.landAssetId = ?;
-        `,
-        Shared: `
-          SELECT 
-            osf.id,
-            osf.buildingAssetId,
-            osf.landAssetId,
-            osf.paymentAnnually
-          FROM 
-            ownershipsharedfixedasset osf
-          WHERE 
-            osf.landAssetId = ?;
-        `,
-      };
+// example
+exports.getLeaseDetails = (landAssetId) => {
+  return new Promise((resolve, reject) => {
+    const query = `
+      SELECT DATE_ADD(startDate, INTERVAL 330 MINUTE) AS startDate, durationYears, durationMonths, leastAmountAnnually
+      FROM plant_care.ownershipleastfixedasset
+      WHERE landAssetId = ?
+    `;
 
-      const ownershipQuery = ownershipQueries[ownership];
+    plantcare.query(query, [landAssetId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
 
-      if (!ownershipQuery) {
-        // If no specific ownership query, return just land details with separate extent values
-        resolve({
-          landDetails: {
-            landAssetId: land.landAssetId,
-            ownership: land.ownership,
-            extentha: extentha,
-            extentac: extentac,
-            extentp: extentp,
-            district: land.district,
-            landFenced: land.landFenced,
-            perennialCrop: land.perennialCrop,
-          },
-          ownershipDetails: null,
-          ownershipType: ownership,
-        });
-        return;
-      }
+exports.getOwnLandDetails = (landAssetId) => {
+  return new Promise((resolve, reject) => {
+    const query = `
+      SELECT estimateValue
+      FROM plant_care.ownershipownerfixedasset
+      WHERE landAssetId = ?
+    `;
 
-      // Execute the ownership-specific query
-      plantcare.query(
-        ownershipQuery,
-        [landAssetId],
-        (err, ownershipResults) => {
-          if (err) {
-            reject("Error fetching ownership details: " + err);
-          } else {
-            resolve({
-              landDetails: {
-                landAssetId: land.landAssetId,
-                ownership: land.ownership,
-                extentha: extentha,
-                extentac: extentac,
-                extentp: extentp,
-                district: land.district,
-                landFenced: land.landFenced,
-                perennialCrop: land.perennialCrop,
-              },
-              ownershipDetails:
-                ownershipResults.length > 0 ? ownershipResults[0] : null,
-              ownershipType: ownership,
-            });
-          }
-        }
-      );
+    plantcare.query(query, [landAssetId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.getSharedLandDetails = (landAssetId) => {
+  return new Promise((resolve, reject) => {
+    const query = `
+      SELECT paymentAnnually
+      FROM plant_care.ownershipsharedfixedasset
+      WHERE landAssetId = ?
+    `;
+
+    plantcare.query(query, [landAssetId], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
     });
   });
 };
@@ -2792,6 +2754,7 @@ exports.getPaymentSlipReport = (
       JOIN plant_care.users u ON rp.userId = u.id 
       WHERE rp.collectionOfficerId = ? 
     `;
+    
     let dataSql = `
       SELECT 
           rp.id,
@@ -2802,10 +2765,13 @@ exports.getPaymentSlipReport = (
           co.firstNameEnglish AS officerFirstName,
           co.lastNameEnglish AS officerLastName,
           rp.invNo,
+          SUM(fpc.gradeAprice * fpc.gradeAquan + fpc.gradeBprice * fpc.gradeBquan + fpc.gradeCprice * fpc.gradeCquan) AS totalAmount,
           rp.createdAt
       FROM 
           registeredfarmerpayments rp
       JOIN 
+          farmerpaymentscrops fpc ON rp.id = fpc.registerFarmerId
+      JOIN
           plant_care.users u ON rp.userId = u.id
       JOIN 
           collectionofficer co ON rp.collectionOfficerId = co.id
@@ -2825,15 +2791,27 @@ exports.getPaymentSlipReport = (
     // Add search filter if provided
     if (search) {
       const searchQuery = `%${search}%`;
-      countSql +=
-        " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
-      dataSql +=
-        " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
+      countSql += " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
+      dataSql += " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
       params.push(searchQuery, searchQuery, searchQuery);
     }
 
     // Add pagination parameters
-    dataSql += " ORDER BY rp.createdAt DESC LIMIT ? OFFSET ?";
+    dataSql += `
+      GROUP BY
+        rp.id,
+        u.id,
+        u.firstName,
+        u.lastName,
+        u.NICnumber,
+        co.firstNameEnglish,
+        co.lastNameEnglish,
+        rp.invNo,
+        rp.createdAt
+      ORDER BY rp.createdAt DESC 
+      LIMIT ? OFFSET ?
+    `;
+    
     params.push(limit, offset);
 
     // Execute the count query
@@ -3149,8 +3127,23 @@ exports.insertUserXLSXData = (data) => {
       const validatedData = [];
       const duplicateData = [];
       const emptyRows = [];
-      const phoneSet = new Set();
-      const nicSet = new Set();
+      // const phoneSet = new Set();
+      // const nicSet = new Set();
+      const phoneCount = new Map();
+      const nicCount = new Map();
+
+      data.forEach((row) => {
+        const phone = String(row["Phone Number"] || "").trim();
+        const nic = String(row["NIC Number"] || "").trim();
+
+        if (phone) {
+          phoneCount.set(phone, (phoneCount.get(phone) || 0) + 1);
+        }
+
+        if (nic) {
+          nicCount.set(nic, (nicCount.get(nic) || 0) + 1);
+        }
+      });
 
       // Process each row
       for (let i = 0; i < data.length; i++) {
@@ -3185,7 +3178,28 @@ exports.insertUserXLSXData = (data) => {
         const nic = String(value["NIC Number"]).trim();
 
         // Check for duplicates within the Excel file
-        if (phoneSet.has(phone) || nicSet.has(nic)) {
+        // if (phoneSet.has(phone) || nicSet.has(nic)) {
+        //   duplicateData.push({
+        //     firstName: value["First Name"],
+        //     lastName: value["Last Name"],
+        //     phoneNumber: phone,
+        //     NICnumber: nic,
+        //     rowNumber: i + 1,
+        //   });
+        // } else {
+        //   phoneSet.add(phone);
+        //   nicSet.add(nic);
+        //   validatedData.push({
+        //     ...value,
+        //     rowNumber: i + 1
+        //   });
+        // }
+
+        // Check duplicates by occurrence count
+        if (
+          phoneCount.get(phone) > 1 ||
+          nicCount.get(nic) > 1
+        ) {
           duplicateData.push({
             firstName: value["First Name"],
             lastName: value["Last Name"],
@@ -3193,14 +3207,14 @@ exports.insertUserXLSXData = (data) => {
             NICnumber: nic,
             rowNumber: i + 1,
           });
-        } else {
-          phoneSet.add(phone);
-          nicSet.add(nic);
-          validatedData.push({
-            ...value,
-            rowNumber: i + 1
-          });
+
+          continue;
         }
+
+        validatedData.push({
+          ...value,
+          rowNumber: i + 1,
+        });
       }
 
       // If no valid data after skipping empties
@@ -3217,46 +3231,80 @@ exports.insertUserXLSXData = (data) => {
         return;
       }
 
+      if (duplicateData.length > 0) {
+        resolve({
+          message: "Duplicate entries found in Excel.",
+          existingUsers: [],
+          duplicateData,
+          emptyRows,
+          totalRows: data.length,
+          insertedRows: 0,
+          skippedRows: emptyRows.length,
+          duplicateRows: duplicateData.length,
+          processedRows: validatedData.length,
+        });
+
+        return;
+      }
+
       // Database check for existing users
       const phones = validatedData.map((row) => {
-        const phone = String(row["Phone Number"]).trim();
+      const phone = String(row["Phone Number"]).trim();
         return phone.startsWith("+") ? phone : `+${phone}`;
       });
-      
+
       const nics = validatedData.map((row) => String(row["NIC Number"]).trim());
 
       const existingUsers = await new Promise((resolve, reject) => {
-        const sql = `
-          SELECT firstName, lastName, phoneNumber, NICnumber 
-          FROM users 
-          WHERE phoneNumber IN (?) OR NICnumber IN (?)
-        `;
-        plantcare.query(sql, [phones, nics], (err, results) => {
-          if (err) reject(err);
-          else resolve(results);
-        });
+      const sql = `
+        SELECT firstName, lastName, phoneNumber, NICnumber 
+        FROM users 
+        WHERE phoneNumber IN (?) OR NICnumber IN (?)
+      `;
+      plantcare.query(sql, [phones, nics], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
       });
+    });
 
-      // Filter new users
-      const existingPhones = new Set(
-        existingUsers.map((user) => user.phoneNumber)
-      );
-      const existingNICs = new Set(existingUsers.map((user) => user.NICnumber));
+    // Build fast lookup sets from DB results
+    const existingPhoneSet = new Set(existingUsers.map((u) => u.phoneNumber));
+    const existingNICSet = new Set(existingUsers.map((u) => u.NICnumber));
 
-      const newUsers = validatedData.filter((user) => {
-        const phone = String(user["Phone Number"]).trim();
-        const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
-        const nic = String(user["NIC Number"]).trim();
-        return !existingPhones.has(formattedPhone) && !existingNICs.has(nic);
+    // Compare EACH uploaded row independently against phone/NIC sets
+    const newUsers = [];
+    const existingUsersReport = [];
+
+    validatedData.forEach((row) => {
+      const rawPhone = String(row["Phone Number"]).trim();
+      const formattedPhone = rawPhone.startsWith("+") ? rawPhone : `+${rawPhone}`;
+      const nic = String(row["NIC Number"]).trim();
+
+      const phoneExists = existingPhoneSet.has(formattedPhone);
+      const nicExists = existingNICSet.has(nic);
+
+    if (phoneExists || nicExists) {
+      existingUsersReport.push({
+        firstName: row["First Name"],
+        lastName: row["Last Name"],
+        phoneNumber: formattedPhone,
+        NICnumber: nic,
+        phoneExists,   // <-- true only if THIS row's phone matched DB
+        nicExists,     // <-- true only if THIS row's NIC matched DB
+        rowNumber: row.rowNumber,
       });
+    } else {
+      newUsers.push(row);
+    }
+  });
 
-      let insertedRows = 0;
-      if (newUsers.length > 0) {
-        const sql = `
-          INSERT INTO users 
-          (firstName, lastName, phoneNumber, NICnumber, membership, district) 
-          VALUES ?
-        `;
+    let insertedRows = 0;
+    if (newUsers.length > 0) {
+      const sql = `
+        INSERT INTO users 
+        (firstName, lastName, phoneNumber, NICnumber, membership, district) 
+        VALUES ?
+      `;
         // const values = newUsers.map((row) => [
         //   row["First Name"],
         //   row["Last Name"],
@@ -3268,39 +3316,39 @@ exports.insertUserXLSXData = (data) => {
         //   row["District"],
         // ]);
 
-        const values = newUsers.map((row) => [
-          row["First Name"],
-          row["Last Name"],
-          normalizeSLMobile(row["Phone Number"]),
-          String(row["NIC Number"]).trim(),
-          row["Membership"],
-          row["District"],
-        ]);
+      const values = newUsers.map((row) => [
+        row["First Name"],
+        row["Last Name"],
+        normalizeSLMobile(row["Phone Number"]),
+        String(row["NIC Number"]).trim(),
+        row["Membership"],
+        row["District"],
+      ]);
 
-        await new Promise((resolve, reject) => {
-          plantcare.query(sql, [values], (err, result) => {
-            if (err) reject(err);
-            else {
-              insertedRows = result.affectedRows || newUsers.length;
-              resolve(result);
-            }
-          });
-        });
-      }
-
-      resolve({
-        message: newUsers.length > 0 
-          ? "Data inserted successfully. Some users already exist or were duplicates." 
-          : "No new users inserted. All users already exist in database or were duplicates.",
-        existingUsers,
-        duplicateData, // Duplicates within Excel
-        emptyRows, // Empty rows that were skipped
-        totalRows: data.length,
-        insertedRows: insertedRows,
-        skippedRows: emptyRows.length,
-        duplicateRows: duplicateData.length,
-        processedRows: validatedData.length
+    await new Promise((resolve, reject) => {
+      plantcare.query(sql, [values], (err, result) => {
+        if (err) reject(err);
+        else {
+          insertedRows = result.affectedRows || newUsers.length;
+          resolve(result);
+        }
       });
+    });
+  }
+
+    resolve({
+      message: newUsers.length > 0
+        ? "Data inserted successfully. Some users already exist or were duplicates."
+        : "No new users inserted. All users already exist in database or were duplicates.",
+      existingUsers: existingUsersReport, 
+      duplicateData,
+      emptyRows,
+      totalRows: data.length,
+      insertedRows: insertedRows,
+      skippedRows: emptyRows.length,
+      duplicateRows: duplicateData.length,
+      processedRows: validatedData.length
+    });
     } catch (error) {
       reject(error);
     }
@@ -3817,15 +3865,15 @@ exports.spicesEnrollTillPreviousMonth = (userId) => {
   });
 };
 
-exports.grainEnroll = (userId) => {
+exports.cerealsEnroll = (userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-    SELECT COUNT(DISTINCT occ.id) AS grain_cultivation_count
+    SELECT COUNT(DISTINCT occ.id) AS cereals_cultivation_count
     FROM ongoingcultivationscrops occ
     JOIN cropcalender cc ON occ.cropCalendar = cc.id
     JOIN cropvariety cv ON cc.cropVarietyId = cv.id
     JOIN cropgroup cg ON cv.cropGroupId = cg.id
-    WHERE cg.category = 'Grain' ;
+    WHERE cg.category = 'Cereals' ;
     `;
 
     plantcare.query(sql, [userId], (err, results) => {
@@ -3839,15 +3887,15 @@ exports.grainEnroll = (userId) => {
   });
 };
 
-exports.grainEnrollTillPreviousMonth = (userId) => {
+exports.cerealsEnrollTillPreviousMonth = (userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-    SELECT COUNT(DISTINCT occ.id) AS grain_cultivation_count_till_previous_month
+    SELECT COUNT(DISTINCT occ.id) AS cereals_cultivation_count_till_previous_month
     FROM ongoingcultivationscrops occ
     JOIN cropcalender cc ON occ.cropCalendar = cc.id
     JOIN cropvariety cv ON cc.cropVarietyId = cv.id
     JOIN cropgroup cg ON cv.cropGroupId = cg.id
-    WHERE cg.category = 'Grain' AND occ.createdAt <= DATE_SUB(CURDATE(), INTERVAL 1 MONTH) ;
+    WHERE cg.category = 'Cereals' AND occ.createdAt <= DATE_SUB(CURDATE(), INTERVAL 1 MONTH) ;
     `;
 
     plantcare.query(sql, [userId], (err, results) => {
@@ -4619,6 +4667,7 @@ exports.GetAllManagerList = () => {
   });
 };
 
+// shold be check and remove it not used
 exports.getForCreateId = (role) => {
   console.log("role", role);
   return new Promise((resolve, reject) => {
@@ -5304,6 +5353,110 @@ exports.getCultivationForPensionDao = (id) => {
     `;
 
     plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getAllBlockWords = (limit, offset, search) => {
+  return new Promise((resolve, reject) => {
+    let countSql = "SELECT COUNT(*) as total FROM blockwords";
+    let dataSql = "SELECT id, word, createdAt FROM blockwords";
+    let params = [];
+    let countParams = [];
+
+    if (search && search.trim()) {
+      const whereClause = " WHERE word LIKE ?";
+      countSql += whereClause;
+      dataSql += whereClause;
+      const searchQuery = `%${search.trim()}%`;
+      params.push(searchQuery);
+      countParams.push(searchQuery);
+    }
+
+    // Order by word (for A-Z / Z-A sorting)
+    dataSql += " ORDER BY word ASC LIMIT ? OFFSET ?";
+    params.push(parseInt(limit), parseInt(offset));
+
+    // Get total count
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResults[0]?.total || 0;
+
+      // Get paginated data
+      plantcare.query(dataSql, params, (dataErr, dataResults) => {
+        if (dataErr) {
+          return reject(dataErr);
+        }
+
+        resolve({
+          total: total,
+          items: dataResults
+        });
+      });
+    });
+  });
+};
+
+// Add a new block word
+exports.addBlockWord = (word) => {
+  return new Promise((resolve, reject) => {
+    // Check if word already exists (case insensitive)
+    const checkSql = "SELECT COUNT(*) as count FROM blockwords WHERE LOWER(word) = LOWER(?)";
+    plantcare.query(checkSql, [word.trim()], (checkErr, checkResults) => {
+      if (checkErr) {
+        return reject(checkErr);
+      }
+
+      if (checkResults[0].count > 0) {
+        return reject(new Error("Word already exists in block list"));
+      }
+
+      const sql = "INSERT INTO blockwords (word) VALUES (?)";
+      plantcare.query(sql, [word.trim()], (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(results);
+      });
+    });
+  });
+};
+
+// Delete a block word by ID
+exports.deleteBlockWord = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = "DELETE FROM blockwords WHERE id = ?";
+    plantcare.query(sql, [parseInt(id)], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      if (results.affectedRows === 0) {
+        return reject(new Error("Block word not found"));
+      }
+      resolve(results);
+    });
+  });
+};
+
+// Delete multiple block words by IDs (for bulk delete)
+exports.deleteMultipleBlockWords = (ids) => {
+  return new Promise((resolve, reject) => {
+    if (!ids || ids.length === 0) {
+      return reject(new Error("No IDs provided"));
+    }
+
+    const numericIds = ids.map(id => parseInt(id));
+    const placeholders = numericIds.map(() => '?').join(',');
+    const sql = `DELETE FROM blockwords WHERE id IN (${placeholders})`;
+    
+    plantcare.query(sql, numericIds, (err, results) => {
       if (err) {
         return reject(err);
       }

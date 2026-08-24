@@ -300,7 +300,7 @@ exports.assignOfficerToJobDAO = (jobId, officerId, assignedBy) => {
           UPDATE govilinkjobs 
           SET 
             assignBy = ?,
-            status = 'Pending',
+            status = 'Assigned',
             assignDate = NOW()
           WHERE id = ?
         `;
@@ -586,10 +586,10 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         fa.id,
         fa.jobId AS jobId,
         fo.empId AS empId,
-        COALESCE(f.id, f2.id, f3.id) AS farmId,
+        COALESCE( f.id, f2.id, f3.id) AS farmId,
         COALESCE(f.regCode, f2.regCode, f3.regCode) AS farmCode,
         COALESCE(u.NICnumber, u2.NICnumber) AS farmerNIC,
-        f.district AS district,
+        COALESCE(fc.district, f.district, f2.district, f3.district) AS district,
         fa.sheduleDate AS scheduledDate,
         fa.completeDate AS completedDate,
         fa.status AS status,
@@ -613,6 +613,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
       LEFT JOIN plant_care.certificationpaymentcrop cpc ON cp.id = cpc.paymentId
       LEFT JOIN plant_care.ongoingcultivationscrops ongc ON cpc.cropId = ongc.id
       LEFT JOIN plant_care.farms f3 ON ongc.farmId = f3.id
+      LEFT JOIN plant_care.farmcluster fc ON cp.certificateId = fc.certificateId
 
       ${where2}
     )
@@ -807,20 +808,21 @@ exports.getFieldAuditHistoryResponseByIdDAO = (jobId) => {
         sqi.type,
         sqi.uploadImage,
         sqi.officerTickResult,
-        js.problem,
-        js.solution
+        sq.id AS slaveQId,
+        COALESCE(f.regCode, f2.regCode) AS farmId
       FROM feildaudits fa
       LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
       LEFT JOIN certificates ct ON ct.id = cp.certificateId
       LEFT JOIN certificationpaymentcrop cpc ON cpc.paymentId = cp.id
       LEFT JOIN ongoingcultivationscrops occ ON occ.id = cpc.cropId
+      LEFT JOIN certificationpaymentfarm cpf ON cpf.paymentId = cp.id
       LEFT JOIN farms f ON f.id = occ.farmId
+      LEFT JOIN farms f2 ON f2.id = cpf.farmId
       LEFT JOIN cropcalender cc ON cc.id = occ.cropCalendar
       LEFT JOIN cropvariety cv ON cv.id = cc.cropVarietyId
       LEFT JOIN cropgroup cg ON cg.id = cv.cropGroupId
       LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
       LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
-      LEFT JOIN jobsuggestions js ON js.slaveId = sq.id
       WHERE fa.jobId = ?
     `;
 
@@ -836,26 +838,81 @@ exports.getFieldAuditHistoryResponseByIdDAO = (jobId) => {
         regCode: results[0].regCode,
         cropId: results[0].cropId,
         cropNameEnglish: results[0].cropNameEnglish,
-        applicable: results[0].applicable
+        applicable: results[0].applicable,
+        farmId: results[0].farmId
       };
 
-      const data = results.map((row) => ({
-        qEnglish: row.qEnglish,
-        type: row.type,
-        uploadImage: row.uploadImage,
-        officerTickResult: row.officerTickResult,
-        problem: row.problem,
-        solution: row.solution,
-      }));
+      const slaveQIds = [...new Set(results.map(row => row.slaveQId).filter(id => id))];
 
-      resolve({
-        ...header,
-        data,
-      });
+      if (slaveQIds.length === 0) {
+        const data = results.map((row) => ({
+          qEnglish: row.qEnglish,
+          type: row.type,
+          uploadImage: row.uploadImage,
+          officerTickResult: row.officerTickResult,
+          slaveQId: row.slaveQId,
+          problem: null,
+          solution: null,
+          suggestions: []
+        }));
+        return resolve({ ...header, data });
+      }
+
+      exports.getJobSuggestionsBySlaveIdsDAO(slaveQIds)
+        .then(suggestionMap => {
+          const data = results.map((row) => {
+            const rowSuggestions = suggestionMap[row.slaveQId] || [];
+            return {
+              qEnglish: row.qEnglish,
+              type: row.type,
+              uploadImage: row.uploadImage,
+              officerTickResult: row.officerTickResult,
+              slaveQId: row.slaveQId,
+              problem: rowSuggestions[0]?.problem ?? null,
+              solution: rowSuggestions[0]?.solution ?? null,
+              suggestions: rowSuggestions
+            };
+          });
+          resolve({ ...header, data });
+        })
+        .catch(err => reject(err));
     });
   });
 };
 
+exports.getJobSuggestionsBySlaveIdsDAO = (slaveIds) => {
+  return new Promise((resolve, reject) => {
+    if (!slaveIds || slaveIds.length === 0) return resolve({});
+
+    const placeholders = slaveIds.map(() => '?').join(', ');
+    const sql = `
+      SELECT 
+        slaveId,
+        problem,
+        solution
+      FROM jobsuggestions
+      WHERE slaveId IN (${placeholders})
+    `;
+
+    plantcare.query(sql, slaveIds, (err, results) => {
+      if (err) {
+        console.error('Error fetching job suggestions:', err);
+        return reject(err);
+      }
+
+      const grouped = {};
+      results.forEach(row => {
+        if (!grouped[row.slaveId]) grouped[row.slaveId] = [];
+        grouped[row.slaveId].push({
+          problem: row.problem,
+          solution: row.solution
+        });
+      });
+
+      resolve(grouped);
+    });
+  });
+};
 
 exports.getServiceRequestResponseDao = (jobId) => {
   return new Promise((resolve, reject) => {
@@ -934,11 +991,10 @@ exports.getAdvicesServiceRequestDao = (id) => {
     plantcare.query(sql, [id], (err, results) => {
       if (err) return reject(err);
       resolve(results);
-      console.log('results', results)
+      console.log("results", results);
     });
   });
 };
-
 
 exports.getSuggestionsServiceRequestDao = (id) => {
   return new Promise((resolve, reject) => {
@@ -959,6 +1015,79 @@ exports.getSuggestionsServiceRequestDao = (id) => {
   });
 };
 
+// exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
+//   return new Promise((resolve, reject) => {
+//     const sql = `
+//       SELECT 
+//         fa.jobId,
+//         cp.certificateId,
+//         ct.srtName,
+//         cp.payType,
+//         f.regCode,
+//         (SELECT COUNT(*) FROM feildauditcluster fac1 WHERE fac1.feildAuditId = fa.id) AS totalFarms,
+//         (SELECT COUNT(*) FROM feildauditcluster fac2 WHERE fac2.feildAuditId = fa.id AND fac2.isCompleted = 1) AS completedFarms,
+
+
+//         JSON_ARRAYAGG(
+//           JSON_OBJECT(
+//             'qEnglish', sqi.qEnglish,
+//             'type', sqi.type,
+//             'uploadImage', sqi.uploadImage,
+//             'officerTickResult', sqi.officerTickResult,
+//             'problem', js.problem,
+//             'solution', js.solution
+//           )
+//         ) AS questions
+
+//       FROM feildaudits fa
+//       LEFT JOIN certificationpayment cp ON fa.paymentId  = cp.id 
+//       LEFT JOIN certificates ct ON ct.id = cp.certificateId 
+//       LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
+//       LEFT JOIN certificationpaymentfarm cpf ON cpf.paymentId = cp.id
+//       LEFT JOIN farmcluster fc ON fc.id = cp.clusterId 
+//       LEFT JOIN farmclusterfarmers fcf ON fcf.clusterId = fc.id
+//       LEFT JOIN farms f ON f.id = fcf.farmId 
+//       LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
+//       LEFT JOIN jobsuggestions js ON js.slaveId  = sq.id
+
+//       WHERE fa.jobId = ?
+
+//       GROUP BY 
+//         fa.jobId,
+//         cp.certificateId,
+//         ct.srtName,
+//         cp.payType,
+//         f.regCode,
+//         totalFarms,
+//         completedFarms
+//     `;
+
+//     plantcare.query(sql, [jobId], (err, results) => {
+//       if (err) return reject(err);
+//       if (!results || results.length === 0) return resolve(null);
+
+//       const header = {
+//         jobId: results[0].jobId,
+//         certificateId: results[0].certificateId,
+//         srtName: results[0].srtName,
+//         payType: results[0].payType,
+//         totalFarms: results[0].totalFarms,
+//         completedFarms: results[0].completedFarms
+//       };
+
+//       const farms = results.map((row) => ({
+//         regCode: row.regCode,
+//         questions: row.questions || [],
+//       }));
+
+//       resolve({
+//         header,
+//         farms,
+//       });
+//     });
+//   });
+// };
+
 exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -968,20 +1097,16 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
         ct.srtName,
         cp.payType,
         f.regCode,
-
-        JSON_ARRAYAGG(
-          JSON_OBJECT(
-            'qEnglish', sqi.qEnglish,
-            'type', sqi.type,
-            'uploadImage', sqi.uploadImage,
-            'officerTickResult', sqi.officerTickResult,
-            'problem', js.problem,
-            'solution', js.solution
-          )
-        ) AS questions
+        sqi.qEnglish,
+        sqi.type,
+        sqi.uploadImage,
+        sqi.officerTickResult,
+        sq.id AS slaveQId,
+        (SELECT COUNT(*) FROM feildauditcluster fac1 WHERE fac1.feildAuditId = fa.id) AS totalFarms,
+        (SELECT COUNT(*) FROM feildauditcluster fac2 WHERE fac2.feildAuditId = fa.id AND fac2.isCompleted = 1) AS completedFarms
 
       FROM feildaudits fa
-      LEFT JOIN certificationpayment cp ON fa.paymentId  = cp.id 
+      LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id 
       LEFT JOIN certificates ct ON ct.id = cp.certificateId 
       LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
       LEFT JOIN certificationpaymentfarm cpf ON cpf.paymentId = cp.id
@@ -989,16 +1114,8 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
       LEFT JOIN farmclusterfarmers fcf ON fcf.clusterId = fc.id
       LEFT JOIN farms f ON f.id = fcf.farmId 
       LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
-      LEFT JOIN jobsuggestions js ON js.slaveId  = sq.id
 
       WHERE fa.jobId = ?
-
-      GROUP BY 
-        fa.jobId,
-        cp.certificateId,
-        ct.srtName,
-        cp.payType,
-        f.regCode
     `;
 
     plantcare.query(sql, [jobId], (err, results) => {
@@ -1010,17 +1127,180 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
         certificateId: results[0].certificateId,
         srtName: results[0].srtName,
         payType: results[0].payType,
+        totalFarms: results[0].totalFarms,
+        completedFarms: results[0].completedFarms
       };
 
-      const farms = results.map((row) => ({
-        regCode: row.regCode,
-        questions: row.questions || [],
-      }));
+      const slaveQIds = [...new Set(results.map(row => row.slaveQId).filter(id => id))];
 
-      resolve({
-        header,
-        farms,
+      // Group by regCode first
+      const farmsMap = new Map();
+      
+      results.forEach(row => {
+        if (!farmsMap.has(row.regCode)) {
+          farmsMap.set(row.regCode, {
+            regCode: row.regCode,
+            questions: []
+          });
+        }
+        farmsMap.get(row.regCode).questions.push({
+          qEnglish: row.qEnglish,
+          type: row.type,
+          uploadImage: row.uploadImage,
+          officerTickResult: row.officerTickResult,
+          slaveQId: row.slaveQId
+        });
       });
+
+      if (slaveQIds.length === 0) {
+        return resolve({
+          header,
+          farms: Array.from(farmsMap.values())
+        });
+      }
+
+      exports.getJobSuggestionsBySlaveIdsDAO(slaveQIds)
+        .then(suggestionMap => {
+          const farms = Array.from(farmsMap.values()).map(farm => ({
+            ...farm,
+            questions: farm.questions.map(q => ({
+              ...q,
+              problem: suggestionMap[q.slaveQId]?.[0]?.problem ?? null,
+              solution: suggestionMap[q.slaveQId]?.[0]?.solution ?? null,
+              suggestions: suggestionMap[q.slaveQId] || []
+            }))
+          }));
+          
+          resolve({
+            header,
+            farms
+          });
+        })
+        .catch(err => reject(err));
     });
   });
 };
+
+exports.getDashbordOfficerCountDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count, JobRole
+      FROM feildofficer
+      WHERE status = 'Approved'
+      GROUP BY JobRole
+    `;
+
+    plantcare.query(sql, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+exports.getDashbordServiceCountDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT SUM(count) AS total_count
+      FROM (
+        SELECT COUNT(*) AS count
+        FROM investments.investmentrequest ir
+        WHERE DATE(ir.auditedDate) = CURDATE() AND ir.officerStatus = 'Completed'
+        
+        UNION ALL
+        
+        SELECT COUNT(*) AS count
+        FROM govilinkjobs
+        WHERE DATE(doneDate) = CURDATE() AND status = 'Completed'
+      ) AS subquery;
+    `;
+    
+
+    plantcare.query(sql, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+
+
+exports.getDashbordAuditCountDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM feildaudits 
+      WHERE status = 'Completed' AND DATE(completeDate) = CURDATE()
+    `;
+
+    plantcare.query(sql, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.getDashbordAuditSummaryDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        SUM(CASE 
+          WHEN f.propose = 'Individual' AND DATE(f.sheduleDate) = DATE(f.completeDate) THEN 1 
+          ELSE 0 
+        END) AS individual_same_day,
+        
+        SUM(CASE 
+          WHEN f.propose = 'Individual' AND DATE(f.sheduleDate) != DATE(f.completeDate) THEN 1 
+          ELSE 0 
+        END) AS individual_diff_day,
+        
+        SUM(CASE 
+          WHEN f.propose = 'Cluster' AND DATE(f.sheduleDate) = DATE(f.completeDate) THEN 1 
+          ELSE 0 
+        END) AS cluster_same_day,
+        
+        SUM(CASE 
+          WHEN f.propose = 'Cluster' AND DATE(f.sheduleDate) != DATE(f.completeDate) THEN 1 
+          ELSE 0 
+        END) AS cluster_diff_day,
+        
+        MONTH(CURDATE()) AS current_month
+        
+      FROM feildaudits f
+      WHERE 
+        f.status = 'Completed'
+        AND MONTH(f.completeDate) = MONTH(CURDATE())
+        AND YEAR(f.completeDate) = YEAR(CURDATE())
+    `;
+    plantcare.query(sql, [], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+
+exports.getDashbordServiceSummaryDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        SUM(CASE 
+          WHEN DATE(g.sheduleDate) = DATE(g.doneDate) THEN 1 
+          ELSE 0 
+        END) AS same_day,
+        
+        SUM(CASE 
+          WHEN DATE(g.sheduleDate) != DATE(g.doneDate) THEN 1 
+          ELSE 0 
+        END) AS diff_day
+        
+      FROM govilinkjobs g
+      WHERE 
+        g.status = 'Completed'
+        AND MONTH(g.sheduleDate) = MONTH(g.doneDate)
+        AND YEAR(g.sheduleDate) = YEAR(g.doneDate)
+    `;
+    plantcare.query(sql, [], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+

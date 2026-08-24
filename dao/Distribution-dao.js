@@ -657,7 +657,7 @@ exports.GetDistributionHeadDetailsByIdDao = (id) => {
       SELECT 
         co.id, 
         co.companyId, 
-        cc.centerName,  -- ✅ fetched from collectioncenter
+        cc.centerName, 
         co.irmId, 
         co.firstNameEnglish, 
         co.lastNameEnglish, 
@@ -950,7 +950,7 @@ exports.generateRegCode = (province, district, city, callback) => {
   // Generate the prefix based on province and district with "P" after province initial
   const prefix =
     province.charAt(0).toUpperCase() +
-    "P" +
+    province.charAt(1).toUpperCase() +
     district.charAt(0).toUpperCase() +
     city.charAt(0).toUpperCase();
 
@@ -1178,16 +1178,8 @@ exports.getAllDistributionOfficers = (
       );
     }
 
-    // Modified ORDER BY clause: DCM first, then Distribution Officers, then by EMP ID
-    dataSql += ` 
-      ORDER BY 
-        CASE 
-          WHEN coff.jobRole = 'Distribution Centre Manager' THEN 1 
-          WHEN coff.jobRole = 'Distribution Officer' THEN 2 
-          ELSE 3 
-        END,
-        coff.empId ASC
-    `;
+    // Sort by most recently created first, regardless of role
+    dataSql += ` ORDER BY coff.createdAt DESC`;
 
     // Add pagination to the data query
     dataSql += " LIMIT ? OFFSET ?";
@@ -1344,7 +1336,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(20)
       .fillColor("#071a51")
-      .text("Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation", {
+      .text("Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation", {
         align: "center",
       });
 
@@ -1371,7 +1363,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(12)
       .text(
-        "You have successfully created an account with PolygonAgro (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
+        "You have successfully created an account with Polygon Holdings (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
         {
           align: "justify",
         }
@@ -1401,8 +1393,8 @@ exports.SendGeneratedPasswordDao = async (
 
     doc.moveDown();
     doc.fontSize(12).text(`Best Regards,`);
-    doc.fontSize(12).text(`The PolygonAgro Team`);
-    doc.fontSize(12).text(`PolygonAgro (Pvt) Ltd. | All rights reserved.`);
+    doc.fontSize(12).text(`The Polygon Holdings Team`);
+    doc.fontSize(12).text(`Polygon Holdings (Pvt) Ltd. | All rights reserved.`);
     doc.moveDown();
     doc.fontSize(12).text(`Address: No:14,`);
     doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
@@ -1447,11 +1439,11 @@ exports.SendGeneratedPasswordDao = async (
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to PolygonAgro (Pvt) Ltd - Registration Confirmation",
+      subject: "Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation",
       text: `Dear ${firstNameEnglish},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {
-          filename: `password_${empId}.pdf`, // PDF file name
+          filename: `Password_${empId}.pdf`, // PDF file name
           content: pdfData, // Attach the PDF buffer directly
         },
       ],
@@ -1527,7 +1519,7 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
         } else if (employee === "Distribution Officer") {
           return resolve("DIO00001");
         } else if (employee === "Driver") {
-          return resolve("DVR00001");
+          return resolve("DRV00001");
         }
       }
 
@@ -1555,11 +1547,7 @@ exports.createDistributionOfficerPersonal = (
   return new Promise(async (resolve, reject) => {
     try {
       // Prepare data for QR code generation
-      const qrData = `
-            {
-                "empId": "${lastId}",
-            }
-            `;
+      const qrData = `{"empId":"${lastId}"}`;
 
       const qrCodeBase64 = await QRCode.toDataURL(qrData);
       const qrCodeBuffer = Buffer.from(
@@ -1581,11 +1569,11 @@ exports.createDistributionOfficerPersonal = (
 
       const sql = `
                 INSERT INTO collectionofficer (
-                    distributedCenterId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
+                    distributedCenterId, companyId ,irmId ,driverCatId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
                     lastNameSinhala, lastNameTamil, jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
                     languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                          ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?, 'Not Approved')
             `;
@@ -1597,6 +1585,7 @@ exports.createDistributionOfficerPersonal = (
           officerData.centerId,
           officerData.companyId,
           officerData.irmId,
+          officerData.driverCatId,
           officerData.firstNameEnglish,
           officerData.firstNameSinhala,
           officerData.firstNameTamil,
@@ -1910,6 +1899,7 @@ exports.getDistributedCenterTargetDao = async (
         co.firstNameEnglish, 
         co.lastNameEnglish, 
         o.sheduleDate, 
+        o.sheduleTime,
         dti.isComplete,
         COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
         COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus
@@ -1991,6 +1981,7 @@ exports.getDistributedCenterTargetDao = async (
       co.firstNameEnglish, 
       co.lastNameEnglish, 
       o.sheduleDate, 
+      o.sheduleTime,
       dti.isComplete,
       pic.packageStatus, 
       aic.additionalItemsStatus
@@ -2090,8 +2081,11 @@ exports.getDistributionOutForDlvrOrderDao = (
   status
 ) => {
   return new Promise((resolve, reject) => {
-    console.log('filterDate', filterDate)
+    console.log('filterDate', filterDate);
+    console.log('status', status);
+
     const sqlParams = [id];
+
     let sql = `
         SELECT 
             po.id,
@@ -2101,45 +2095,71 @@ exports.getDistributionOutForDlvrOrderDao = (
             o.sheduleDate,
             o.sheduleTime,
             po.outDlvrDate,
-            CASE 
-                WHEN po.outDlvrDate IS NULL THEN 'Pending'
-                WHEN po.outDlvrDate <= o.sheduleDate THEN 'On Time'
-                ELSE 'Late'
-            END AS outDlvrStatus
+            DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE) AS sheduleDateA,
+            DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE) AS outDlvrDateA
         FROM distributedtarget dt
         JOIN distributedtargetitems dti ON dt.id = dti.targetId
         JOIN market_place.processorders po ON dti.orderId = po.id
         JOIN market_place.orders o ON po.orderId = o.id
         JOIN collectionofficer cof ON po.outBy = cof.id
-        WHERE (po.status = 'Out For Delivery' OR po.status = 'Out For Delivery') AND dt.companycenterId = ?    `;
+        WHERE po.status = 'Out For Delivery'
+        AND dt.companycenterId = ?
+    `;
 
-    // Add search functionality for invNo
     if (searchText) {
       sql += ` AND po.invNo LIKE ? `;
       sqlParams.push(`%${searchText}%`);
     }
 
-    // Add date filter for specific outDlvrDate
     if (filterDate) {
-      sql += ` AND DATE(po.outDlvrDate) = ? `;
+      sql += ` AND DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = ? `;
       sqlParams.push(filterDate);
     }
 
-    // Add status filter (only 'On Time' or 'Late')
-    if (status) {
-      if (status === "On Time") {
-        sql += ` AND po.outDlvrDate IS NOT NULL AND po.outDlvrDate <= o.sheduleDate `;
-      } else if (status === "Late") {
-        sql += ` AND po.outDlvrDate IS NOT NULL AND po.outDlvrDate > o.sheduleDate `;
-      }
+    if (status === 'Late') {
+      sql += `
+        AND (
+          (o.sheduleTime = 'Within 8AM - 2PM' AND (
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            OR (
+              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+              AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > '14:00:00'
+            )
+          )) OR
+          (o.sheduleTime = 'Within 2PM - 8PM' AND (
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            OR (
+              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+              AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > '20:00:00'
+            )
+          ))
+        )
+      `;
     }
+
+    if (status === 'On Time') {
+      sql += `
+        AND (
+          DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) < DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+          OR
+          (
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            AND (
+              (o.sheduleTime = 'Within 8AM - 2PM' AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) <= '14:00:00') OR
+              (o.sheduleTime = 'Within 2PM - 8PM' AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) <= '20:00:00')
+            )
+          )
+        )
+      `;
+    }
+
+    console.log('sql', sql);
 
     collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.log(err);
         return reject(err);
       }
-
       resolve(results);
     });
   });
@@ -2150,6 +2170,7 @@ exports.updateDistributionOfficerDetails = (
   centerId,
   companyId,
   irmId,
+  driverCatId,
   firstNameEnglish,
   lastNameEnglish,
   firstNameSinhala,
@@ -2182,7 +2203,7 @@ exports.updateDistributionOfficerDetails = (
   return new Promise((resolve, reject) => {
     let sql = `
              UPDATE collectionofficer
-                SET distributedCenterId = ?, companyId = ?, irmId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
+                SET distributedCenterId = ?, companyId = ?, irmId = ?, driverCatId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
                     firstNameTamil = ?, lastNameTamil = ?, jobRole = ?, empId = ?, empType = ?, phoneCode01 = ?, phoneNumber01 = ?, phoneCode02 = ?, phoneNumber02 = ?,
                     nic = ?, email = ?, houseNumber = ?, streetName = ?, city = ?, district = ?, province = ?, country = ?, languages = ?,
                     accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?,  adminModifyBy = ?, status = 'Not Approved', officerModiyBy = NULL
@@ -2191,6 +2212,7 @@ exports.updateDistributionOfficerDetails = (
       centerId,
       companyId,
       irmId || null,
+      driverCatId || null,
       firstNameEnglish,
       lastNameEnglish,
       firstNameSinhala,
@@ -3363,9 +3385,9 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       LEFT JOIN 
         collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
       LEFT JOIN 
-        collection_officer.collectionofficer cof2 ON po.outBy = cof2.id
-      LEFT JOIN
-        collection_officer.distributedcenter dc2 ON cof2.distributedCenterId = dc2.id
+        collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id
+      LEFT JOIN 
+        collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
       WHERE 
         DATE(o.sheduleDate) = CURDATE()
       `;
@@ -3404,7 +3426,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
     if (searchParams.regCode) {
       console.log("searchParams.regCode", searchParams.regCode);
 
-      conditions.push(`(dc.id = ? OR dc2.id = ?)`);
+      conditions.push(`(dc.id = ? OR dcc.centerId = ?)`);
       values.push(searchParams.regCode, searchParams.regCode);
     }
 
@@ -3912,9 +3934,9 @@ exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
               SELECT JSON_ARRAYAGG(
                   JSON_OBJECT(
                   	 'holdId',dho.id,
-                      'holdTime', dho.createdAt,
+                     'holdTime', DATE_ADD(dho.createdAt, INTERVAL 330 MINUTE),
                       'holdReason', hr.rsnEnglish,
-                      'restartedTime', dho.restartedTime
+                      'restartedTime', DATE_ADD(dho.restartedTime, INTERVAL 330 MINUTE)
                   )
               )
               FROM driverholdorders dho
@@ -4897,9 +4919,9 @@ exports.getHomeDiliveryTrackingDriverDetailsDao = async (id) => {
               SELECT JSON_ARRAYAGG(
                   JSON_OBJECT(
                   	 'holdId',dho.id,
-                      'holdTime', dho.createdAt,
+                      'holdTime', DATE_ADD(dho.createdAt, INTERVAL 330 MINUTE),           
                       'holdReason', hr.rsnEnglish,
-                      'restartedTime', dho.restartedTime
+                      'restartedTime', DATE_ADD(dho.restartedTime, INTERVAL 330 MINUTE)
                   )
               )
               FROM driverholdorders dho
@@ -5007,6 +5029,195 @@ exports.getRecivedDelivaryCashDashbordDao = async (data, comcenId) => {
       } else {
         resolve(results[0]);
       }
+    });
+  });
+};
+
+exports.getDistributionDashboardDao = () => {
+  return new Promise((resolve, reject) => {
+
+    // 1. Total Head Officers
+    const headOfficerSql = `
+      SELECT COUNT(*) AS totalHeadOfficers
+      FROM collectionofficer
+      WHERE jobRole = 'Distribution Centre Head' AND status = 'Approved'
+    `;
+
+    // 2. Total Centres
+    const centresSql = `
+      SELECT COUNT(*) AS totalCentres
+      FROM collectioncenter
+    `;
+
+    // 3. Total Managers
+    const managerSql = `
+      SELECT COUNT(*) AS totalManagers
+      FROM collectionofficer
+      WHERE jobRole = 'Distribution Centre Manager' AND status = 'Approved'
+    `;
+
+    // 4. Total Drivers
+    const driverSql = `
+      SELECT COUNT(*) AS totalDrivers
+      FROM collectionofficer
+      WHERE jobRole = 'Driver' AND status = 'Approved'
+    `;
+
+    // 5. Total Cash Received - Today
+    const cashReceivedTodaySql = `
+      SELECT COALESCE(SUM(amount), 0) AS totalCashReceivedToday
+      FROM market_place.processorders
+      WHERE paymentMethod = 'Cash'
+        AND DATE(deliveredTime) = CURDATE()
+    `;
+
+    // 6. Total Delivered Orders - Today
+    const deliveredTodaySql = `
+      SELECT COUNT(*) AS totalDeliveredToday
+      FROM market_place.processorders
+      WHERE status = 'Delivered'
+        AND DATE(deliveredTime) = CURDATE()
+    `;
+
+    // 7. Total In-Store Pickup Orders - Today
+    const pickupTodaySql = `
+      SELECT COUNT(*) AS totalPickupToday
+      FROM market_place.processorders
+      WHERE status = 'Picked up'
+        AND DATE(deliveredTime) = CURDATE()
+    `;
+
+    // 8. Loss Due to Returned Orders - Today
+    // Join orders (market_place) with processorders for Return Received + Cash,
+    // filtered by driverorders.handOverTime = today (collection_officer db)
+    // const returnLossTodaySql = `
+    //   SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossToday
+    //   FROM market_place.orders o
+    //   INNER JOIN market_place.processorders po ON po.orderId = o.id
+    //   INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
+    //   WHERE po.status = 'Return Received'
+    //     AND po.paymentMethod = 'Cash'
+    //     AND DATE(dor.handOverTime) = CURDATE() 
+    // `;
+
+    const returnLossTodaySql = `
+      SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossToday
+      FROM collection_officer.driverordermain drm
+      INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
+      INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id
+      INNER JOIN market_place.processorders po ON dro.orderId = po.id
+      INNER JOIN market_place.orders o ON o.id = po.orderId
+      WHERE po.status = 'Return Received' AND po.paymentMethod = 'Cash' AND DATE(drr.createdAt) = CURDATE()
+
+    `;
+
+    // 9. Total Delivered Orders - This Month
+    const deliveredMonthSql = `
+      SELECT COUNT(*) AS totalDeliveredMonth
+      FROM market_place.processorders
+      WHERE status = 'Delivered'
+        AND MONTH(deliveredTime) = MONTH(CURDATE())
+        AND YEAR(deliveredTime) = YEAR(CURDATE())
+    `;
+
+    // 10. Total In-Store Pickup Orders - This Month
+    const pickupMonthSql = `
+      SELECT COUNT(*) AS totalPickupMonth
+      FROM market_place.processorders
+      WHERE status = 'Picked up'
+        AND MONTH(deliveredTime) = MONTH(CURDATE())
+        AND YEAR(deliveredTime) = YEAR(CURDATE())
+    `;
+
+    // 11. Loss Due to Returned Orders - This Month
+    // const returnLossMonthSql = `
+    //   SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossMonth
+    //   FROM market_place.orders o
+    //   INNER JOIN market_place.processorders po ON po.orderId = o.id
+    //   INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
+    //   WHERE po.status = 'Return Received'
+    //     AND po.paymentMethod = 'Cash'
+    //     AND MONTH(dor.handOverTime) = MONTH(CURDATE())
+    //     AND YEAR(dor.handOverTime) = YEAR(CURDATE())
+    // `;
+
+    const returnLossMonthSql = `
+      SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossMonth
+      FROM collection_officer.driverordermain drm
+      INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
+      INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id
+      INNER JOIN market_place.processorders po ON dro.orderId = po.id
+      INNER JOIN market_place.orders o ON o.id = po.orderId
+      WHERE 
+        po.status = 'Return Received' 
+        AND po.paymentMethod = 'Cash' 
+        AND MONTH(drr.createdAt) = MONTH(CURDATE())
+        AND YEAR(drr.createdAt) = YEAR(CURDATE())
+
+    `;
+
+    // Execute all queries
+    collectionofficer.query(headOfficerSql, (err1, headResult) => {
+      if (err1) return reject(err1);
+
+      collectionofficer.query(centresSql, (err2, centresResult) => {
+        if (err2) return reject(err2);
+
+        collectionofficer.query(managerSql, (err3, managerResult) => {
+          if (err3) return reject(err3);
+
+          collectionofficer.query(driverSql, (err4, driverResult) => {
+            if (err4) return reject(err4);
+
+            marketPlace.query(cashReceivedTodaySql, (err5, cashResult) => {
+              if (err5) return reject(err5);
+
+              marketPlace.query(deliveredTodaySql, (err6, deliveredTodayResult) => {
+                if (err6) return reject(err6);
+
+                marketPlace.query(pickupTodaySql, (err7, pickupTodayResult) => {
+                  if (err7) return reject(err7);
+
+                  marketPlace.query(returnLossTodaySql, (err8, returnLossTodayResult) => {
+                    if (err8) return reject(err8);
+
+                    marketPlace.query(deliveredMonthSql, (err9, deliveredMonthResult) => {
+                      if (err9) return reject(err9);
+
+                      marketPlace.query(pickupMonthSql, (err10, pickupMonthResult) => {
+                        if (err10) return reject(err10);
+
+                        marketPlace.query(returnLossMonthSql, (err11, returnLossMonthResult) => {
+                          if (err11) return reject(err11);
+
+                          resolve({
+                            // Stat Cards
+                            totalHeadOfficers: headResult[0].totalHeadOfficers,
+                            totalCentres: centresResult[0].totalCentres,
+                            totalManagers: managerResult[0].totalManagers,
+                            totalDrivers: driverResult[0].totalDrivers,
+
+                            // Today
+                            totalCashReceivedToday: parseFloat(cashResult[0].totalCashReceivedToday) || 0,
+                            totalDeliveredToday: deliveredTodayResult[0].totalDeliveredToday,
+                            totalPickupToday: pickupTodayResult[0].totalPickupToday,
+                            returnLossToday: parseFloat(returnLossTodayResult[0].returnLossToday) || 0,
+
+                            // This Month
+                            totalDeliveredMonth: deliveredMonthResult[0].totalDeliveredMonth,
+                            totalPickupMonth: pickupMonthResult[0].totalPickupMonth,
+                            returnLossMonth: parseFloat(returnLossMonthResult[0].returnLossMonth) || 0,
+                          });
+                        });
+                      });
+                    });
+                  });
+                });
+              });
+            });
+          });
+        });
+      });
     });
   });
 };

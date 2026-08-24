@@ -11,6 +11,11 @@ const {
   getAllInvestmentSchema,
   getInvestmentIdSchema,
   getAgentCommitionsShema,
+  getAllInvestmentUsersSchema,
+  getAllTransactionsSchema,
+  IdParamSchema,
+  getAllShortageSubmissionsSchema,
+  getAllCOPTransactionsSchema
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
@@ -1696,6 +1701,7 @@ exports.rejectRequestEp = async (req, res) => {
 exports.approveInvenstmentRequest = async (req, res) => {
   try {
     const { reqId } = req.body;
+    const adminId = req.user.userId;
 
     if (!reqId) {
       return res.status(400).json({
@@ -1704,7 +1710,7 @@ exports.approveInvenstmentRequest = async (req, res) => {
       });
     }
 
-    const results = await financeDao.ApproveRequestDao(reqId);
+    const results = await financeDao.ApproveRequestDao(reqId, adminId);
     if (results.affectedRows !== 0) {
       res.status(200).json({
         status: true,
@@ -1935,6 +1941,431 @@ exports.getFarmerPensionDetails = async (req, res) => {
       status: false,
       message: "Failed to get farmer pension details",
       error: error.message,
+    });
+  }
+};
+
+exports.getGocicareAllInvestmentUsers = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    // Validate query parameters including pagination
+    const { page, limit, id, status, search } =
+      await getAllInvestmentUsersSchema.validateAsync(req.query);
+
+    // Calculate offset for pagination
+    const offset = (page - 1) * limit;
+
+    // Pass all parameters to the DAO function including pagination
+    const result = await financeDao.getGocicareAllInvestmentUsersDao(
+      id || null,      // id (optional)
+      status || null,  // status (optional)
+      search || null,  // search term (optional)
+      limit,           // pagination limit
+      offset           // pagination offset
+    );
+
+    console.log('Investment users result:', result);
+    console.log('Current page:', page);
+    console.log('Items per page:', limit);
+    console.log('Search term:', search);
+
+    // Return paginated response
+    return res.status(200).json({
+      items: result.items,
+      total: result.total,
+      currentPage: page,
+      totalPages: Math.ceil(result.total / limit),
+      limit: limit
+    });
+
+  } catch (error) {
+    if (error.isJoi) {
+      // Handle validation error
+      return res.status(400).json({ 
+        error: error.details[0].message 
+      });
+    }
+
+    console.error("Error fetching investment users:", error);
+    return res.status(500).json({ 
+      error: "An error occurred while fetching investment users" 
+    });
+  }
+};
+
+exports.getFinanceMainDashboard = async (req, res) => {
+  try {
+    const dashboardData = await financeDao.getAllFinanceDashboardDataDao();
+ 
+    return res.status(200).json({
+      status: true,
+      data: dashboardData,
+    });
+  } catch (error) {
+    console.error("Error fetching finance main dashboard data:", error);
+    return res.status(500).json({
+      status: false,
+      message: "An error occurred while fetching finance dashboard data",
+      error: error,
+    });
+  }
+};
+
+exports.getAllTransactionsEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { page, limit, status, date, searchItem } =
+      await getAllTransactionsSchema.validateAsync(req.query);
+
+    const { results, total } = await financeDao.GetAllTransactionsDAO(
+          page,
+          limit,
+          status,
+          date,
+          searchItem,
+        );
+
+    console.log("results", results);
+
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      console.error("Validation error:", err.details[0].message);
+      return res.status(400).json({ error: err.details[0].message });
+    }
+
+    console.error("Error fetching transactions:", err);
+    res.status(500).json({
+      error: "An error occurred while fetching transactions",
+    });
+  }
+};
+
+exports.getAllTransactionOrdersEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { id } = await IdParamSchema.validateAsync(req.params);
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: "transaction id required" });
+    }
+
+    const { orders, totalToReceive } = await financeDao.getTransactionOrdersDao(id);
+
+    console.log('orders', orders)
+
+    return res.status(200).json({ orders: orders, total: totalToReceive });
+
+  } catch (error) {
+    console.error("Update Govi Shop User Status Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+exports.getViewTransactionDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Transaction ID is required" });
+    }
+
+    const document = await financeDao.getTransactionDocumentByIdDao(id);
+
+    if (!document) {
+      return res.status(404).json({ error: "Transaction document not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: document,
+    });
+  } catch (err) {
+    console.error("Error fetching transaction document:", err);
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while fetching transaction document",
+    });
+  }
+};
+
+exports.updateTransactionStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { transStatus, rejectReason } = req.body;
+
+    const updatedBy = req.user.userId; 
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction Id is required",
+      });
+    }
+
+    if (!["Approved", "Rejected"].includes(transStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid transaction status",
+      });
+    }
+
+    await financeDao.updateTransactionStatusDao({
+      id,
+      transStatus,
+      rejectReason,
+      updatedBy,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Transaction status updated successfully",
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+exports.getAllShortageSubmissionEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { page, limit, status, purchasedAt, searchItem } =
+      await getAllShortageSubmissionsSchema.validateAsync(req.query);
+
+    const { results, total } = await financeDao.getAllShortageSubmissionsDAO(
+      page,
+      limit,
+      status,
+      purchasedAt,
+      searchItem
+    );
+
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({
+        error: err.details[0].message,
+      });
+    }
+
+    console.error(err);
+    res.status(500).json({
+      error: "An error occurred while fetching submissions",
+    });
+  }
+};
+
+exports.ViewSubmissionDocumentEp = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Submission Id is required",
+      });
+    }
+
+    const result = await financeDao.getViewSubmissionDocumentDao(id);
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Submission not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      result: result[0],
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+exports.updateSubmissionStatusEp = async (req, res) => {
+  try {
+
+    const { id } = req.params;
+    const { reqStatus } = req.body;
+
+    const markedBy = req.user.userId;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Submission Id is required",
+      });
+    }
+
+    if (!["Completed"].includes(reqStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status",
+      });
+    }
+
+    await financeDao.updateSubmissionStatusDao(id, markedBy);
+
+    return res.status(200).json({
+      success: true,
+      message: "Submission completed successfully",
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+
+  }
+};
+
+exports.getAllCOPTransactionsEp = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { page, limit, status, purchasedAt, searchItem } =
+      await getAllCOPTransactionsSchema.validateAsync(req.query);
+
+    const { results, total } = await financeDao.getAllCOPTransactionsDAO(
+      page,
+      limit,
+      status,
+      purchasedAt,
+      searchItem
+    );
+
+    res.json({ results, total });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({
+        error: err.details[0].message,
+      });
+    }
+
+    console.error(err);
+    res.status(500).json({
+      error: "An error occurred while fetching transactions",
+    });
+  }
+};
+
+exports.getPickupHandOverSummaryEp = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Id is required",
+      });
+    }
+
+    const result = await financeDao.getPickupHandOverSummaryDao(id);
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No hand over records found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      result: result,
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+exports.viewCopTransactionDocumentEp = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Transaction Id is required" });
+    }
+
+    const document = await financeDao.viewCopTransactionDocumentDao(id);
+
+    if (!document) {
+      return res.status(404).json({ error: "Transaction document not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: document,
+    });
+  } catch (err) {
+    console.error("Error fetching COP transaction document:", err);
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while fetching COP transaction document",
+    });
+  }
+};
+
+exports.updateCopTransactionStatusEp = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const updatedBy = req.user.userId;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction Id is required",
+      });
+    }
+
+    await financeDao.updateCopTransactionStatusDao({
+      id,
+      updatedBy,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Transaction status updated successfully",
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
     });
   }
 };

@@ -76,10 +76,15 @@ exports.getAllRetailOrderSchema = Joi.object({
 
 
 exports.getmarketplaceCustomerParamSchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1),
-  limit: Joi.number().integer().min(1).max(100).default(10),
-  searchText: Joi.string().optional(),
+  page:         Joi.number().integer().min(1).default(1),
+  limit:        Joi.number().integer().min(1).default(10),
+  searchText:   Joi.string().allow('').optional(),
+  ratingFilter: Joi.string().valid('VVIP', 'VIP', 'COR', 'NOR', 'VVP').allow('').optional(),
 });
+
+exports.updateCustomerRatingSchema = Joi.object({
+  rateofCus: Joi.string().valid('VVIP','VIP','COR','NOR','VVP'),
+})
 
 exports.getCoupenValidation = Joi.object({
   coupenId: Joi.number().min(0).required(),
@@ -102,4 +107,9 @@ exports.updateCoupenValidation = Joi.object({
 exports.changePackageStatusValidation = Joi.object({
   id: Joi.number().min(0).positive().required(),
   status: Joi.string().required(),
+});
+
+// In your MarketPriceValidate file, add:
+exports.ValidateStatusSchema = Joi.object({
+  isValid: Joi.number().valid(0, 1).required()
 });

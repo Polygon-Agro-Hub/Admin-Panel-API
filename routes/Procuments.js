@@ -154,4 +154,61 @@ router.get(
   ProcumentsEP.testFunc
 );
 
+router.get(
+  "/shortage-details",
+  authMiddleware,
+  ProcumentsEP.getShortageDetails
+);
+
+router.get(
+  "/shortage-details/:id",
+  authMiddleware,
+  ProcumentsEP.getShortageDetailsById
+);
+
+router.post(
+  "/assign-shortage/:id",
+  authMiddleware,
+  ProcumentsEP.assignShortage
+);
+
+router.get(
+  "/shortage-assigned-details/:id",
+  authMiddleware,
+  ProcumentsEP.getShortageAssignedDetails
+);
+
+router.get(
+  "/shortage/distribution-centers",
+  authMiddleware,
+  ProcumentsEP.getShortageDistributionCenters
+);
+ 
+// GET  -> "To Finalize" list
+router.get(
+  "/shortage/to-finalize",
+  authMiddleware,
+  ProcumentsEP.getShortageToFinalize
+);
+ 
+// GET  -> "Finalized" list
+router.get(
+  "/shortage/finalized",
+  authMiddleware,
+  ProcumentsEP.getShortageFinalized
+);
+ 
+// PUT  -> finalize action (sets comCenId, ceilling, status, finalizedBy)
+router.put(
+  "/shortage/finalize",
+  authMiddleware,
+  ProcumentsEP.finalizeShortageAssigned
+);
+
+router.get(
+  "/get-all-shortage-details",
+  authMiddleware,
+  ProcumentsEP.getAllShortageAssignedDetails
+);
+
 module.exports = router;

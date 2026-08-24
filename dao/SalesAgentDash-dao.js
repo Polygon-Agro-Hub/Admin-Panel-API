@@ -7,83 +7,6 @@ const {
 const { Upload } = require("@aws-sdk/lib-storage");
 const Joi = require("joi");
 
-// exports.getAllSalesAgentsDao = (page, limit, searchText, status, date, targetValue) => {
-//     return new Promise((resolve, reject) => {
-//         const offset = (page - 1) * limit;
-//         let countSql = `
-//         SELECT COUNT(*) AS total FROM salesagent
-//         `;
-
-//         let dataSql = `
-//         SELECT
-//             SA.id,
-//             SA.empId,
-//             SA.firstName,
-//             SA.lastName,
-//             (SELECT COUNT(*) FROM orders WHERE salesAgentId = SA.id AND DATE(createdAt) = ?) AS targetComplete
-//         FROM
-//             salesagent SA
-
-//         `;
-//         const countParams = [];
-//         const dataParams = [date];
-
-//         // Handling Search Query
-//         if (searchText) {
-//             if (searchText) {
-//                 dataSql += `
-//                     WHERE ( SA.lastName LIKE ? OR SA.firstName LIKE ? OR SA.empId LIKE ? )
-//                 `
-//             }
-
-//             const searchPattern = `%${searchText}%`;
-//             countParams.push(searchPattern, searchPattern, searchPattern);
-//             dataParams.push(searchPattern, searchPattern, searchPattern);
-//         }
-
-//         // Handling Status Filter
-//         if (status) {
-//             if (status === 'Pending') {
-//                 dataSql += ` HAVING targetComplete < ? `
-//                 dataParams.push(targetValue)
-//             } else if (status === 'Completed') {
-//                 dataSql += ` HAVING targetComplete = ? `
-//                 dataParams.push(targetValue)
-//             } else if (status === 'Exceeded') {
-//                 dataSql += ` HAVING targetComplete > ? `
-//                 dataParams.push(targetValue)
-//             } else {
-//                 console.log("not valid status");
-//             }
-//         }
-
-//         dataSql += " LIMIT ? OFFSET ? ";
-//         dataParams.push(parseInt(limit), parseInt(offset));
-
-//         // Execute Count Query
-//         marketPlace.query(countSql, countParams, (countErr, countResults) => {
-//             if (countErr) {
-//                 console.error('Error in count query:', countErr);
-//                 return reject(countErr);
-//             }
-
-//             const total = countResults[0].total;
-
-//             // Execute Data Query
-//             marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
-//                 if (dataErr) {
-//                     console.error('Error in data query:', dataErr);
-//                     return reject(dataErr);
-//                 }
-
-//                 // console.log(dataResults);
-
-//                 resolve({ items: dataResults, total });
-//             });
-//         });
-//     });
-// };
-
 exports.getAllSalesAgentsDao = (
   page,
   limit,
@@ -116,7 +39,6 @@ exports.getAllSalesAgentsDao = (
     const countParams = [];
     const dataParams = [date];
 
-    // Handling Search Query
     if (searchText) {
       const searchPattern = `%${searchText}%`;
       dataSql += `
@@ -173,12 +95,11 @@ exports.saveTargetDao = (target, userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
         INSERT INTO target(targetValue, createdBy) VALUES (?, ?)
-      
       `;
 
     marketPlace.query(sql, [target.targetValue, userId], (err, results) => {
       if (err) {
-        return reject(err); // Reject if an error occurs
+        return reject(err); 
       }
       resolve(results);
     });
@@ -200,7 +121,7 @@ exports.getAllTargets = () => {
 
 exports.restoreTargets = (targets) => {
   return new Promise((resolve, reject) => {
-    if (targets.length === 0) return resolve(); // Nothing to restore
+    if (targets.length === 0) return resolve(); 
 
     const sql = `
       INSERT INTO target (targetValue, createdBy, createdAt)
@@ -219,23 +140,6 @@ exports.restoreTargets = (targets) => {
   });
 };
 
-//not usage
-// exports.getDailyTarget = () => {
-//     return new Promise((resolve, reject) => {
-//         const sql = `
-//         SELECT targetValue FROM target WHERE target.id = 1
-//       `;
-
-//         marketPlace.query(sql, (err, results) => {
-//             if (err) {
-//                 return reject(err); // Reject if an error occurs
-//             }
-
-//             resolve({ results });
-//         });
-//     });
-// };
-
 exports.getTotalTargetDao = (date) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -244,7 +148,7 @@ exports.getTotalTargetDao = (date) => {
 
     marketPlace.query(sql, (err, results) => {
       if (err) {
-        return reject(err); // Reject if an error occurs
+        return reject(err); 
       }
 
       let data;
@@ -267,7 +171,7 @@ exports.removeTargetDao = () => {
 
     marketPlace.query(sql, (err, results) => {
       if (err) {
-        return reject(err); // Reject if an error occurs
+        return reject(err); 
       }
       resolve(results);
     });

@@ -138,6 +138,42 @@ const IdParamSchema = Joi.object({
   id: Joi.number().integer().required() 
 });
 
+// In your validation schema file
+const getAllInvestmentUsersSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+  id: Joi.number().integer().optional().allow(null),
+  status: Joi.string().optional().allow(null, ''),
+  search: Joi.string().allow('', null).optional()
+});
+
+const getAllTransactionsSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).default(10).optional(),
+  status: Joi.string().optional(),
+  date: Joi.string().required(),
+  searchItem: Joi.string().optional(),
+});
+
+const getAllShortageSubmissionsSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).default(10).optional(),
+  status: Joi.string()
+    .valid("Pending", "Completed")
+    .optional(),
+  purchasedAt: Joi.string().optional(),
+  searchItem: Joi.string().allow("").optional(),
+});
+
+const getAllCOPTransactionsSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).default(10).optional(),
+  status: Joi.string()
+    .valid("Pending", "Completed")
+    .optional(),
+  purchasedAt: Joi.string().optional(),
+  searchItem: Joi.string().allow("").optional(),
+})
 
 module.exports = {
   createAgentCommissionSchema,
@@ -151,5 +187,9 @@ module.exports = {
   getAllInvestmentSchema,
   getInvestmentIdSchema,
   getAgentCommitionsShema,
-  IdParamSchema
+  IdParamSchema,
+  getAllInvestmentUsersSchema,
+  getAllTransactionsSchema,
+  getAllShortageSubmissionsSchema,
+  getAllCOPTransactionsSchema
 };

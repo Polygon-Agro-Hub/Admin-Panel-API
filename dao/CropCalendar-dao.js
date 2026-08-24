@@ -14,11 +14,10 @@ exports.allCropGroups = () => {
 
     plantcare.query(sql, (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err);
       }
 
       resolve(results);
-      console.log(results);
     });
   });
 };
@@ -31,11 +30,18 @@ exports.createCropGroup = async (
   costFeild,
   incomeFeild,
   image,
-  bgColor
+  bgColor,
+  seedRate,
+  rowSpace,
+  plantSpace,
+  AvgYield,
+  nitrogen,
+  phosphorus,
+  potassium,
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, image, bgColor) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, image, bgColor, seedRate, rowSpace, plantSpace, AvgYield, nitrogen, phosphorus, potassium) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
       cropNameEnglish,
       cropNameSinhala,
@@ -45,6 +51,13 @@ exports.createCropGroup = async (
       incomeFeild,
       image,
       bgColor,
+      seedRate,
+      rowSpace,
+      plantSpace,
+      AvgYield,
+      nitrogen,
+      phosphorus,
+      potassium,
     ];
 
     plantcare.query(sql, values, (err, results) => {
@@ -61,7 +74,7 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
   return new Promise((resolve, reject) => {
     const dataParams = [];
     const countParams = [];
-    let countSql = "SELECT COUNT(*) AS total FROM cropgroup cg"; // Added cg alias here
+    let countSql = "SELECT COUNT(*) AS total FROM cropgroup cg";
     let dataSql = `
         SELECT 
           cg.*,
@@ -73,7 +86,6 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
           cropvariety cv ON cg.id = cv.cropGroupId
       `;
 
-    // Array to hold WHERE conditions
     const whereConditions = [];
 
     if (searchText) {
@@ -83,12 +95,11 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
     }
 
     if (category) {
-      whereConditions.push("cg.category = ?"); // Added cg prefix for consistency
+      whereConditions.push("cg.category = ?");
       dataParams.push(category);
       countParams.push(category);
     }
 
-    // Add WHERE clause if there are any conditions
     if (whereConditions.length > 0) {
       const whereClause = " WHERE " + whereConditions.join(" AND ");
       dataSql += whereClause;
@@ -99,7 +110,7 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
         GROUP BY 
           cg.id
         ORDER BY 
-          cg.createdAt DESC
+          cg.cropNameEnglish ASC
         LIMIT ? OFFSET ?
       `;
     dataParams.push(limit, offset);
@@ -112,7 +123,6 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
           if (dataErr) {
             reject(dataErr);
           } else {
-            // Process the results to convert varietyList from comma-separated string to array
             const processedResults = dataResults.map((row) => ({
               ...row,
               varietyList: row.varietyList ? row.varietyList.split(",") : [],
@@ -151,7 +161,7 @@ exports.createCropVariety = async (
   descriptionSinhala,
   descriptionTamil,
   image,
-  bgColor
+  bgColor,
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
@@ -181,17 +191,14 @@ exports.createCropVariety = async (
 exports.allCropVariety = (cropGroupId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, varietyNameEnglish FROM cropvariety WHERE cropGroupId = ? ORDER BY varietyNameEnglish ASC "; // Use parameterized query with "?"
+      "SELECT id, varietyNameEnglish FROM cropvariety WHERE cropGroupId = ? ORDER BY varietyNameEnglish ASC ";
 
     plantcare.query(sql, [cropGroupId], (err, results) => {
-      // Pass cropGroupId in an array as the second argument
       if (err) {
         console.error("Database error:", err);
-        return reject(err); // Reject promise if an error occurs
+        return reject(err);
       }
-      console.log("hiiii", cropGroupId);
-      console.log("Query results:", results);
-      resolve(results); // Return results directly
+      resolve(results);
     });
   });
 };
@@ -202,7 +209,7 @@ exports.createCropCallender = async (
   natOfCul,
   cropDuration,
   suitableAreas,
-  specialNotes
+  specialNotes,
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
@@ -228,7 +235,45 @@ exports.createCropCallender = async (
 
 exports.insertXLSXData = (cropId, data) => {
   return new Promise((resolve, reject) => {
-    // Define validation schema
+    if (!data || data.length === 0) {
+      return reject(new Error("No data found in the uploaded file"));
+    }
+
+    const requiredColumns = [
+      "Task index",
+      "Day",
+      "Task type (English)",
+      "Task type (Sinhala)",
+      "Task type (Tamil)",
+      "Task Category (English)",
+      "Task Category (Sinhala)",
+      "Task Category (Tamil)",
+      "Task (English)",
+      "Task (Sinhala)",
+      "Task (Tamil)",
+      "Task description (English)",
+      "Task description (Sinhala)",
+      "Task description (Tamil)",
+      "Image Link",
+      "Video Link English",
+      "Video Link Sinhala",
+      "Video Link Tamil",
+      "Required Images",
+    ];
+
+    const headerKeys = Object.keys(data[0]);
+    const missingColumns = requiredColumns.filter(
+      (col) => !headerKeys.includes(col)
+    );
+
+    if (missingColumns.length > 0) {
+      return reject(
+        new Error(
+          `Missing required column(s) in the uploaded file: ${missingColumns.join(", ")}`
+        )
+      );
+    }
+
     const schema = Joi.object({
       "Task index": Joi.number().required(),
       Day: Joi.number().integer().required(),
@@ -244,14 +289,13 @@ exports.insertXLSXData = (cropId, data) => {
       "Task description (English)": Joi.string().required(),
       "Task description (Sinhala)": Joi.string().required(),
       "Task description (Tamil)": Joi.string().required(),
-      "Image Link": Joi.string(),
-      "Video Link English": Joi.string(),
-      "Video Link Sinhala": Joi.string(),
-      "Video Link Tamil": Joi.string(),
-      "Required Images": Joi.number(),
+      "Image Link": Joi.string().allow('', null),
+      "Video Link English": Joi.string().allow('', null),
+      "Video Link Sinhala": Joi.string().allow('', null),
+      "Video Link Tamil": Joi.string().allow('', null),
+      "Required Images": Joi.number().required(),
     }).required();
 
-    // Validate all data
     const validatedData = [];
     for (let i = 0; i < data.length; i++) {
       const { error, value } = schema.validate(data[i]);
@@ -289,10 +333,10 @@ exports.insertXLSXData = (cropId, data) => {
       row["Task description (English)"],
       row["Task description (Sinhala)"],
       row["Task description (Tamil)"],
-      row["Image Link"],
-      row["Video Link English"],
-      row["Video Link Sinhala"],
-      row["Video Link Tamil"],
+      row["Image Link"] ?? null,
+      row["Video Link English"] ?? null,
+      row["Video Link Sinhala"] ?? null,
+      row["Video Link Tamil"] ?? null,
       row["Required Images"],
     ]);
 
@@ -316,20 +360,13 @@ exports.getAllVarietyByGroup = (cropGroupId) => {
 
     plantcare.query(sql, [cropGroupId], (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err);
       }
       const processedDataResults = results.map((variety) => {
-        // if (variety.image) {
-        //   const base64Image = Buffer.from(variety.image).toString(
-        //     "base64"
-        //   );
-        //   const mimeType = "image/png"; // Adjust the MIME type if needed
-        //   variety.image = `data:${mimeType};base64,${base64Image}`;
-        // }
         return variety;
       });
 
-      resolve(processedDataResults); // No need to wrap in arrays, return results directly
+      resolve(processedDataResults);
     });
   });
 };
@@ -353,12 +390,12 @@ exports.getGroupById = (id) => {
 
     plantcare.query(sql, [id], (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err);
       }
       const processedDataResults = results.map((variety) => {
         return variety;
       });
-      resolve(processedDataResults); // No need to wrap in arrays, return results directly
+      resolve(processedDataResults);
     });
   });
 };
@@ -371,9 +408,9 @@ exports.getGroupByIds3 = (id) => {
         return reject(err);
       }
       if (results.length === 0) {
-        return resolve(null); // No user found
+        return resolve(null);
       }
-      resolve(results[0]); // Return the first result
+      resolve(results[0]);
     });
   });
 };
@@ -386,9 +423,9 @@ exports.getVarietyByIds3 = (id) => {
         return reject(err);
       }
       if (results.length === 0) {
-        return resolve(null); // No user found
+        return resolve(null);
       }
-      resolve(results[0]); // Return the first result
+      resolve(results[0]);
     });
   });
 };
@@ -399,44 +436,15 @@ exports.getVarietyById = (id) => {
 
     plantcare.query(sql, [id], (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err);
       }
       const processedDataResults = results.map((variety) => {
-        // if (variety.image) {
-        //   const base64Image = Buffer.from(variety.image).toString(
-        //     "base64"
-        //   );
-        //   const mimeType = "image/png"; // Adjust the MIME type if needed
-        //   variety.image = `data:${mimeType};base64,${base64Image}`;
-        // }
         return variety;
       });
-      resolve(processedDataResults); // No need to wrap in arrays, return results directly
+      resolve(processedDataResults);
     });
   });
 };
-
-// exports.updateGroup = (updates, id) => {
-//   return new Promise((resolve, reject) => {
-
-//     const { cropNameEnglish, cropNameSinhala, cropNameTamil, category, bgColor, image } = newsData;
-//     const fields = [];
-//     const values = [];
-
-//     for (const [key, value] of Object.entries(updates)) {
-//       fields.push(`${key} = ?`);
-//       values.push(value);
-//     }
-
-//     const sql = `UPDATE cropgroup SET ${fields.join(', ')} WHERE id = ?`;
-//     values.push(id); // Add ID as the last parameter
-
-//     db.query(sql, values, (err, result) => {
-//       if (err) return reject(err);
-//       resolve(result);
-//     });
-//   });
-// };
 
 exports.updateGroup = (newsData, id) => {
   return new Promise((resolve, reject) => {
@@ -449,8 +457,14 @@ exports.updateGroup = (newsData, id) => {
       incomeFeild,
       bgColor,
       image,
+      seedRate,
+      rowSpace,
+      plantSpace,
+      AvgYield,
+      nitrogen,
+      phosphorus,
+      potassium,
     } = newsData;
-    console.log(newsData);
 
     let sql = `
             UPDATE cropgroup 
@@ -461,7 +475,14 @@ exports.updateGroup = (newsData, id) => {
                 category = ?,
                 costFeild = ?,
                 incomeFeild = ?,
-                bgColor = ?
+                bgColor = ?,
+                seedRate = ?,
+                rowSpace = ?,
+                plantSpace = ?,
+                AvgYield = ?,
+                nitrogen = ?,
+                phosphorus = ?,
+                potassium = ?
         `;
 
     let values = [
@@ -472,10 +493,17 @@ exports.updateGroup = (newsData, id) => {
       costFeild,
       incomeFeild,
       bgColor,
+      seedRate,
+      rowSpace,
+      plantSpace,
+      AvgYield,
+      nitrogen,
+      phosphorus,
+      potassium,
     ];
 
     if (image) {
-      sql += `, image = ?`; // Update the image field with binary data
+      sql += `, image = ?`;
       values.push(image);
     }
 
@@ -502,7 +530,7 @@ exports.updateCropVariety = (id, updates) => {
     }
 
     const sql = `UPDATE cropvariety SET ${fields.join(", ")} WHERE id = ?`;
-    values.push(id); // Add ID as the last parameter
+    values.push(id);
 
     plantcare.query(sql, values, (err, result) => {
       if (err) return reject(err);
@@ -554,7 +582,7 @@ exports.getAllCropCalendars = (limit, offset, searchText, category) => {
         searchValue,
         searchValue,
         searchValue,
-        searchValue
+        searchValue,
       );
     }
 
@@ -569,12 +597,10 @@ exports.getAllCropCalendars = (limit, offset, searchText, category) => {
       dataSql += whereClause;
     }
 
-    // Ensure limit & offset are integers
     limit = parseInt(limit, 10) || 10;
     offset = parseInt(offset, 10) || 0;
 
-    // dataSql += " ORDER BY cropcalender.createdAt DESC LIMIT ? OFFSET ?";
-    dataSql += " ORDER BY cropcalender.createdAt DESC";
+    dataSql += "ORDER BY cropgroup.cropNameEnglish, cropvariety.varietyNameEnglish";
     const dataParams = [...params, limit, offset];
 
     plantcare.query(countSql, params, (countErr, countResults) => {
@@ -608,7 +634,6 @@ exports.updateCropCalender = async (id, updateData) => {
                 suitableAreas = ?
         `;
 
-    // Update the values based on the provided data
     let values = [
       updateData.method,
       updateData.natOfCul,
@@ -617,11 +642,9 @@ exports.updateCropCalender = async (id, updateData) => {
       updateData.suitableAreas,
     ];
 
-    // Complete the SQL query with the WHERE clause
     sql += ` WHERE id = ?`;
     values.push(id);
 
-    // Execute the query
     plantcare.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
@@ -656,7 +679,6 @@ exports.getAllTaskByCropId = (cropId, limit, offset) => {
             WHERE cc.id = ?
             ORDER BY cd.taskIndex 
             `;
-            // LIMIT ? OFFSET ?
     const values = [cropId];
 
     plantcare.query(countSql, [cropId], (countErr, countResults) => {
@@ -675,7 +697,7 @@ exports.getAllTaskByCropId = (cropId, limit, offset) => {
                 total: countResults[0].total,
               });
             }
-          }
+          },
         );
       }
     });
@@ -694,7 +716,6 @@ exports.updateVariety = (newsData, id) => {
       bgColor,
       image,
     } = newsData;
-    console.log(newsData);
 
     let sql = `
           UPDATE cropvariety 
@@ -719,7 +740,7 @@ exports.updateVariety = (newsData, id) => {
     ];
 
     if (image) {
-      sql += `, image = ?`; // Update the image field with binary data
+      sql += `, image = ?`;
       values.push(image);
     }
 
@@ -740,13 +761,10 @@ exports.checkCropGroup = (engName) => {
     const sql = "SELECT * FROM cropgroup WHERE cropNameEnglish LIKE ?";
 
     plantcare.query(sql, [engName], (err, results) => {
-      console.log(sql);
-
       if (err) {
         console.error("Database error:", err);
         return reject(err);
       }
-      console.log("Query results:", results);
       resolve(results);
     });
   });
@@ -762,7 +780,6 @@ exports.checkCropVerity = (id, engName) => {
         console.error("Database error:", err);
         return reject(err);
       }
-      console.log("Query results:", results);
       resolve(results);
     });
   });
@@ -772,7 +789,7 @@ exports.checkExistanceCropCalander = async (
   id,
   cultivationMethod,
   natureOfCultivation,
-  excludeId // Pass this during update
+  excludeId,
 ) => {
   return new Promise((resolve, reject) => {
     let sql =
@@ -794,7 +811,6 @@ exports.checkExistanceCropCalander = async (
   });
 };
 
-
 exports.cropGroupsDao = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT id, cropNameEnglish FROM cropgroup";
@@ -808,7 +824,6 @@ exports.cropGroupsDao = async (id) => {
   });
 };
 
-// Get all crop groups with only id and cropNameEnglish
 exports.getAllCropGroupEnglishNamesOnly = () => {
   return new Promise((resolve, reject) => {
     const sql = `

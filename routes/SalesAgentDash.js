@@ -24,12 +24,4 @@ router.post(
     salesAgentDashEp.saveTarget
 )
 
-
-//not usage
-// router.get(
-//     '/get-daily-target',
-//     authMiddleware,
-//     salesAgentDashEp.getDailyTarget
-// )
-
 module.exports = router;

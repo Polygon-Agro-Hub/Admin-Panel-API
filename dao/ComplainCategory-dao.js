@@ -483,48 +483,45 @@ exports.getComplaintCategoryFromMarketplace = (appId) => {
 
 
 exports.GetAllDistributedComplainDAO = (
-  page,
-  limit,
-  status,
-  category,
-  comCategory,
-  filterCompany,
-  searchText,
-  rpstatus,
-  role
+  page, limit, status, category, comCategory,
+  filterCompany, searchText, rpstatus, role
 ) => {
   return new Promise((resolve, reject) => {
     const Sqlparams = [];
     const Counterparams = [];
     const offset = (page - 1) * limit;
 
-    // SQL to count total records - Added missing JOINs
     let countSql = `
       SELECT COUNT(*) AS total
       FROM distributedcomplains oc
       LEFT JOIN collectionofficer co ON oc.officerId = co.id
       LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
-      LEFT JOIN  company c ON co.companyId = c.id
-      LEFT JOIN  distributedcenter dc ON co.distributedCenterId = dc.id
+      LEFT JOIN company c ON co.companyId = c.id
+      LEFT JOIN distributedcenter dc ON co.distributedCenterId = dc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
       WHERE complainAssign = 'Admin'
     `;
 
-    // SQL to fetch paginated data
     let sql = `
       SELECT 
         oc.id, 
         oc.refNo,
         co.empId AS empId,
-        CONCAT (co.firstNameEnglish, ' ', co.lastNameEnglish) AS officerName,
-        CONCAT (co.firstNameSinhala, ' ', co.lastNameSinhala) AS officerNameSinhala,
-        CONCAT (co.firstNameTamil, ' ', co.lastNameTamil) AS officerNameTamil,
+        CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS officerName,
+        CONCAT(co.firstNameSinhala, ' ', co.lastNameSinhala) AS officerNameSinhala,
+        CONCAT(co.firstNameTamil, ' ', co.lastNameTamil) AS officerNameTamil,
         c.companyNameEnglish AS companyName,
         cc.categoryEnglish AS complainCategory,
         ar.role,
         oc.createdAt,
         oc.complain,
-        oc.AdminStatus AS status,
+        CASE 
+          WHEN oc.AdminStatus = 'Assigned'
+            AND oc.reply IS NULL
+            AND oc.createdAt <= DATE_SUB(NOW(), INTERVAL 2 DAY)
+          THEN 'Pending'
+          ELSE oc.AdminStatus
+        END AS status,
         oc.reply,
         dc.regCode,
         oc.language,
@@ -532,22 +529,43 @@ exports.GetAllDistributedComplainDAO = (
       FROM distributedcomplains oc
       LEFT JOIN collectionofficer co ON oc.officerId = co.id
       LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
-      LEFT JOIN  company c ON co.companyId = c.id
-      LEFT JOIN  distributedcenter dc ON co.distributedCenterId = dc.id
+      LEFT JOIN company c ON co.companyId = c.id
+      LEFT JOIN distributedcenter dc ON co.distributedCenterId = dc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
       LEFT JOIN agro_world_admin.adminusers au ON oc.adminReplyBy = au.id
       WHERE complainAssign = 'Admin'
     `;
 
-    // Add filter for status
+    // Status filter — aware of computed Pending
     if (status) {
-      countSql += " AND oc.AdminStatus = ? ";
-      sql += " AND oc.AdminStatus = ? ";
-      Sqlparams.push(status);
-      Counterparams.push(status);
+      if (status === 'Pending') {
+        const pendingCond = ` AND (
+          oc.AdminStatus = 'Pending'
+          OR (
+            oc.AdminStatus = 'Assigned'
+            AND oc.reply IS NULL
+            AND oc.createdAt <= DATE_SUB(NOW(), INTERVAL 2 DAY)
+          )
+        ) `;
+        countSql += pendingCond;
+        sql += pendingCond;
+      } else if (status === 'Assigned') {
+        const assignedCond = ` AND oc.AdminStatus = 'Assigned'
+          AND (
+            oc.reply IS NOT NULL
+            OR oc.createdAt > DATE_SUB(NOW(), INTERVAL 2 DAY)
+          ) `;
+        countSql += assignedCond;
+        sql += assignedCond;
+      } else {
+        // Closed or any other explicit status
+        countSql += " AND oc.AdminStatus = ? ";
+        sql += " AND oc.AdminStatus = ? ";
+        Sqlparams.push(status);
+        Counterparams.push(status);
+      }
     }
 
-    // Fixed category filter to use the correct alias
     if (parseInt(role) !== 1) {
       countSql += " AND cc.roleId = ? ";
       sql += " AND cc.roleId = ? ";
@@ -569,21 +587,19 @@ exports.GetAllDistributedComplainDAO = (
       Counterparams.push(filterCompany);
     }
 
-    // Add search functionality
     if (searchText) {
-      countSql += `
+      const searchCond = `
         AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
       `;
-      sql += `
-        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR dc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
-      `;
-      const searchQuery = `%${searchText}%`;
-      Sqlparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
-      Counterparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
+      countSql += searchCond;
+      sql += searchCond;
+      const sq = `%${searchText}%`;
+      Sqlparams.push(sq, sq, sq, sq);
+      Counterparams.push(sq, sq, sq, sq);
     }
 
     if (rpstatus) {
-      if (rpstatus === "Yes") {
+      if (rpstatus === 'Yes') {
         countSql += " AND oc.reply IS NOT NULL ";
         sql += " AND oc.reply IS NOT NULL ";
       } else {
@@ -592,31 +608,18 @@ exports.GetAllDistributedComplainDAO = (
       }
     }
 
-    // Add pagination
     sql += " ORDER BY oc.createdAt DESC LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
-    // Execute count query to get total records
-    collectionofficer.query(
-      countSql,
-      Counterparams,
-      (countErr, countResults) => {
-        if (countErr) {
-          return reject(countErr);
-        }
+    collectionofficer.query(countSql, Counterparams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+      const total = countResults[0]?.total || 0;
 
-        const total = countResults[0]?.total || 0;
-
-        // Execute main query to get paginated results
-        collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
-          if (dataErr) {
-            return reject(dataErr);
-          }
-
-          resolve({ results, total });
-        });
-      }
-    );
+      collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
+        if (dataErr) return reject(dataErr);
+        resolve({ results, total });
+      });
+    });
   });
 };
 
@@ -849,7 +852,7 @@ exports.GetAllDriverComplainDAO = (
   });
 };
 
-exports.getDriverComplainById = (id) => {
+exports.getDriverComplainByIdDAO = (id) => {
   return new Promise((resolve, reject) => {
     const sql = ` 
     SELECT 

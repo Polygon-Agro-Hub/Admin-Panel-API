@@ -179,17 +179,16 @@ router.delete(
 );
 
 router.get(
-  "/get-all-complain-category-list/:roleId/:appId",
+  "/get-all-complain-category-list/:roleId/:appName",
   authMiddleware,
   CollectionCenterEp.GetComplainCategoriesByRole
 );
 
 router.get(
-  "/get-all-complain-category-list-super/:appId",
+  "/get-all-complain-category-list-super/:id",
   authMiddleware,
   CollectionCenterEp.GetComplainCategoriesByRoleSuper
 );
-
 router.get(
   "/get-all-comppany-for-officer-complain",
   authMiddleware,

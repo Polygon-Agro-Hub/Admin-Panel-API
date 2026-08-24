@@ -327,47 +327,44 @@ exports.GetAllComplainDAO = (
 };
 
 exports.GetAllCenterComplainDAO = (
-  page,
-  limit,
-  status,
-  category,
-  comCategory,
-  filterCompany,
-  searchText,
-  rpstatus
+  page, limit, status, category, comCategory, filterCompany, searchText, rpstatus
 ) => {
   return new Promise((resolve, reject) => {
     const Sqlparams = [];
     const Counterparams = [];
     const offset = (page - 1) * limit;
 
-    // SQL to count total records - Added missing JOINs
     let countSql = `
       SELECT COUNT(*) AS total
       FROM officercomplains oc
       LEFT JOIN collectionofficer co ON oc.officerId = co.id
       LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
-      LEFT JOIN  company c ON co.companyId = c.id
-      LEFT JOIN  collectioncenter coc ON co.centerId = coc.id
+      LEFT JOIN company c ON co.companyId = c.id
+      LEFT JOIN collectioncenter coc ON co.centerId = coc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
       WHERE complainAssign = 'Admin'
     `;
 
-    // SQL to fetch paginated data
     let sql = `
       SELECT 
         oc.id, 
         oc.refNo,
         co.empId AS empId,
-        CONCAT (co.firstNameEnglish, ' ', co.lastNameEnglish) AS officerName,
-        CONCAT (co.firstNameSinhala, ' ', co.lastNameSinhala) AS officerNameSinhala,
-        CONCAT (co.firstNameTamil, ' ', co.lastNameTamil) AS officerNameTamil,
+        CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS officerName,
+        CONCAT(co.firstNameSinhala, ' ', co.lastNameSinhala) AS officerNameSinhala,
+        CONCAT(co.firstNameTamil, ' ', co.lastNameTamil) AS officerNameTamil,
         c.companyNameEnglish AS companyName,
         cc.categoryEnglish AS complainCategory,
         ar.role,
         oc.createdAt,
         oc.complain,
-        oc.AdminStatus AS status,
+        CASE 
+          WHEN oc.AdminStatus = 'Assigned' 
+            AND oc.reply IS NULL 
+            AND oc.createdAt <= DATE_SUB(NOW(), INTERVAL 2 DAY) 
+          THEN 'Pending'
+          ELSE oc.AdminStatus 
+        END AS status,
         oc.reply,
         coc.regCode,
         oc.language,
@@ -375,53 +372,53 @@ exports.GetAllCenterComplainDAO = (
       FROM officercomplains oc
       LEFT JOIN collectionofficer co ON oc.officerId = co.id
       LEFT JOIN agro_world_admin.complaincategory cc ON oc.complainCategory = cc.id
-      LEFT JOIN  company c ON co.companyId = c.id
-      LEFT JOIN  collectioncenter coc ON co.centerId = coc.id
+      LEFT JOIN company c ON co.companyId = c.id
+      LEFT JOIN collectioncenter coc ON co.centerId = coc.id
       LEFT JOIN agro_world_admin.adminroles ar ON cc.roleId = ar.id
       LEFT JOIN agro_world_admin.adminusers au ON oc.adminReplyBy = au.id
       WHERE complainAssign = 'Admin'
     `;
 
-    // Add filter for status
+    // Status filter
     if (status) {
-      countSql += " AND oc.AdminStatus = ? ";
-      sql += " AND oc.AdminStatus = ? ";
-      Sqlparams.push(status);
-      Counterparams.push(status);
+      if (status === 'Pending') {
+        countSql += ` AND (oc.AdminStatus = 'Pending' OR (oc.AdminStatus = 'Assigned' AND oc.reply IS NULL AND oc.createdAt <= DATE_SUB(NOW(), INTERVAL 2 DAY))) `;
+        sql      += ` AND (oc.AdminStatus = 'Pending' OR (oc.AdminStatus = 'Assigned' AND oc.reply IS NULL AND oc.createdAt <= DATE_SUB(NOW(), INTERVAL 2 DAY))) `;
+      } else if (status === 'Assigned') {
+        countSql += ` AND oc.AdminStatus = 'Assigned' AND (oc.reply IS NOT NULL OR oc.createdAt > DATE_SUB(NOW(), INTERVAL 2 DAY)) `;
+        sql      += ` AND oc.AdminStatus = 'Assigned' AND (oc.reply IS NOT NULL OR oc.createdAt > DATE_SUB(NOW(), INTERVAL 2 DAY)) `;
+      } else {
+        countSql += " AND oc.AdminStatus = ? ";
+        sql      += " AND oc.AdminStatus = ? ";
+        Sqlparams.push(status);
+        Counterparams.push(status);
+      }
     }
 
-    // Fixed category filter to use the correct alias
     if (category) {
       countSql += " AND ar.role = ? ";
-      sql += " AND ar.role = ? ";
+      sql      += " AND ar.role = ? ";
       Sqlparams.push(category);
       Counterparams.push(category);
-      console.log(category);
-      
     }
 
     if (comCategory) {
       countSql += " AND oc.complainCategory = ? ";
-      sql += " AND oc.complainCategory = ? ";
+      sql      += " AND oc.complainCategory = ? ";
       Sqlparams.push(comCategory);
       Counterparams.push(comCategory);
     }
 
     if (filterCompany) {
       countSql += " AND c.id = ? ";
-      sql += " AND c.id = ? ";
+      sql      += " AND c.id = ? ";
       Sqlparams.push(filterCompany);
       Counterparams.push(filterCompany);
     }
 
-    // Add search functionality
     if (searchText) {
-      countSql += `
-        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR coc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
-      `;
-      sql += `
-        AND (oc.refNo LIKE ? OR co.empId LIKE ? OR coc.regCode LIKE ? OR c.companyNameEnglish LIKE ?)
-      `;
+      countSql += ` AND (oc.refNo LIKE ? OR co.empId LIKE ? OR coc.regCode LIKE ? OR c.companyNameEnglish LIKE ?) `;
+      sql      += ` AND (oc.refNo LIKE ? OR co.empId LIKE ? OR coc.regCode LIKE ? OR c.companyNameEnglish LIKE ?) `;
       const searchQuery = `%${searchText}%`;
       Sqlparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
       Counterparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
@@ -430,38 +427,25 @@ exports.GetAllCenterComplainDAO = (
     if (rpstatus) {
       if (rpstatus === "Yes") {
         countSql += " AND oc.reply IS NOT NULL ";
-        sql += " AND oc.reply IS NOT NULL ";
+        sql      += " AND oc.reply IS NOT NULL ";
       } else {
         countSql += " AND oc.reply IS NULL ";
-        sql += " AND oc.reply IS NULL ";
+        sql      += " AND oc.reply IS NULL ";
       }
     }
 
-    // Add pagination
     sql += " ORDER BY oc.createdAt DESC LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
-    // Execute count query to get total records
-    collectionofficer.query(
-      countSql,
-      Counterparams,
-      (countErr, countResults) => {
-        if (countErr) {
-          return reject(countErr);
-        }
+    collectionofficer.query(countSql, Counterparams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+      const total = countResults[0]?.total || 0;
 
-        const total = countResults[0]?.total || 0;
-
-        // Execute main query to get paginated results
-        collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
-          if (dataErr) {
-            return reject(dataErr);
-          }
-
-          resolve({ results, total });
-        });
-      }
-    );
+      collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
+        if (dataErr) return reject(dataErr);
+        resolve({ results, total });
+      });
+    });
   });
 };
 
@@ -561,6 +545,15 @@ exports.getAllCenterPage = (limit, offset, district, province, searchItem) => {
 
     let whereClause = " WHERE 1=1";
     const searchParams = [];
+
+    // Add condition to exclude centers with Polygon Holdings Private Limited
+    whereClause += ` AND NOT EXISTS (
+        SELECT 1 
+        FROM companycenter CMC 
+        JOIN company COM ON COM.id = CMC.companyId 
+        WHERE CMC.centerId = C.id 
+        AND COM.companyNameEnglish = 'Polygon Holdings Private Limited'
+    )`;
 
     if (searchItem) {
       const searchQuery = `%${searchItem}%`;
@@ -1604,11 +1597,13 @@ exports.deleteCompanyHeadData = async (id) => {
   });
 };
 
-exports.GetComplainCategoriesByRole = (roleId, appId) => {
+exports.GetComplainCategoriesByRole = (roleId, appName) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, categoryEnglish FROM complaincategory WHERE roleId=? AND appId=?";
-    admin.query(sql, [roleId, appId], (err, results) => {
+      `SELECT cc.id, cc.categoryEnglish FROM agro_world_admin.complaincategory cc 
+       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
+       WHERE cc.roleId=? AND sa.appName=?`;
+    admin.query(sql, [roleId, appName], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1617,11 +1612,13 @@ exports.GetComplainCategoriesByRole = (roleId, appId) => {
   });
 };
 
-exports.GetComplainCategoriesByRoleSuper = (appId) => {
+exports.GetComplainCategoriesByRoleSuper = (id) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, categoryEnglish FROM complaincategory WHERE appId=?";
-    admin.query(sql, [appId], (err, results) => {
+      `SELECT cc.id, cc.categoryEnglish FROM agro_world_admin.complaincategory cc
+       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
+       WHERE sa.id = ?`;
+    admin.query(sql, [parseInt(id, 10)], (err, results) => {
       if (err) {
         return reject(err);
       }

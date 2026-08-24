@@ -21,6 +21,7 @@ exports.getRecievedOrdersQuantity = async (req, res) => {
     // const validatedQuery = await collectionofficerValidate.getPurchaseReport.validateAsync(req.query);
 
     const { page, limit, filterType, date, search } = req.query;
+    console.log('search', search)
 
     console.log(page, limit);
 
@@ -40,46 +41,6 @@ exports.getRecievedOrdersQuantity = async (req, res) => {
   }
 };
 
-// exports.getAllOrdersWithProcessInfo = async (req, res) => {
-//   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-//   console.log(fullUrl);
-//   try {
-//     // If you have validation, uncomment and use this:
-//     // const validatedQuery = await ordersValidate.getAllOrdersWithProcessInfo.validateAsync(req.query);
-
-//     const { page = 1, limit = 10, filterType, date, search } = req.query;
-
-//     const ordersData = await procumentDao.getAllOrdersWithProcessInfo(
-//       page,
-//       limit,
-//       filterType,
-//       date,
-//       search
-//     );
-
-//     res.json({
-//       success: true,
-//       data: ordersData.items,
-//       total: ordersData.total,
-//       currentPage: parseInt(page),
-//       totalPages: Math.ceil(ordersData.total / limit),
-//     });
-//   } catch (err) {
-//     console.error("Error fetching orders with process info:", err);
-
-//     // More detailed error response
-//     const statusCode = err.isJoi ? 400 : 500;
-//     const message = err.isJoi
-//       ? err.details[0].message
-//       : "An error occurred while fetching orders data.";
-
-//     res.status(statusCode).json({
-//       success: false,
-//       message: message,
-//       error: process.env.NODE_ENV === "development" ? err.stack : undefined,
-//     });
-//   }
-// };
 
 exports.getAllOrdersWithProcessInfo = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -788,6 +749,276 @@ exports.getAllDistributionCenters = async (req, res) => {
       success: false,
       message: "An error occurred while fetching distribution centers.",
       error: err.message
+    });
+  }
+};
+
+exports.getShortageDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const shortageDetails = await procumentDao.getShortageDetails();
+
+    console.log('shortageDetails', shortageDetails);
+
+    if (!shortageDetails) {
+      return res.status(404).json({
+        success: false,
+        message: "Shortage details not found",
+      });
+    }
+
+    res.json(shortageDetails);
+  } catch (err) {
+    console.error("Error fetching shortage details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching shortage details",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
+exports.getShortageDetailsById = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const id = req.params.id;
+    console.log('id', id);
+
+    const shortageDetail = await procumentDao.getShortageDetailsById(id);
+    const centers = await procumentDao.getAllCenters();
+
+    console.log('shortageDetail', shortageDetail);
+    console.log('centers', centers);
+
+    if (!shortageDetail) {
+      return res.status(404).json({
+        success: false,
+        message: "Shortage details not found",
+      });
+    }
+
+    res.json({
+      ...shortageDetail,
+      centers,
+    });
+  } catch (err) {
+    console.error("Error fetching shortage details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching shortage details",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
+exports.assignShortage = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const shortageassigned = req.params.id;
+    const { comCenId, qty, ceilling } = req.body;
+    const assignedBy = req.user.userId;
+
+    const result = await procumentDao.assignShortage(shortageassigned, comCenId, qty, ceilling, assignedBy);
+
+    console.log('result', result);
+
+    res.json({
+      success: true,
+      message: "Shortage assigned successfully",
+      insertId: result.insertId,
+    });
+  } catch (err) {
+    console.error("Error assigning shortage:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while assigning shortage",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
+exports.getShortageAssignedDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const shortageassigned = req.params.id;
+    console.log('shortageassigned', shortageassigned);
+
+    const shortageAssignedDetails = await procumentDao.getShortageAssignedDetails(shortageassigned);
+
+    console.log('shortageAssignedDetails', shortageAssignedDetails);
+
+    if (!shortageAssignedDetails) {
+      return res.status(404).json({
+        success: false,
+        message: "Shortage assigned details not found",
+      });
+    }
+
+    res.json(shortageAssignedDetails);
+  } catch (err) {
+    console.error("Error fetching shortage assigned details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching shortage assigned details",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
+
+exports.getShortageDistributionCenters = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+ 
+  try {
+    const centers = await procumentDao.getDistributionCentersForShortageDao();
+    res.json({ success: true, data: centers });
+  } catch (err) {
+    console.error("Error fetching distribution centers:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching distribution centers.",
+    });
+  }
+};
+ 
+exports.getShortageToFinalize = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+ 
+  try {
+    const [toFinalize, centers] = await Promise.all([
+      procumentDao.getShortageToFinalizeDao(),
+      procumentDao.getDistributionCentersForShortageDao(),
+    ]);
+ 
+    // Every "to finalize" row gets the same dropdown of available centres
+    const items = toFinalize.map((item) => ({
+      ...item,
+      distributionCenters: centers,
+      selectedDC: null,
+    }));
+ 
+    res.json({ success: true, data: items });
+  } catch (err) {
+    console.error("Error fetching shortage to-finalize list:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching shortage data.",
+    });
+  }
+};
+ 
+exports.getShortageFinalized = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+ 
+  try {
+    const finalized = await procumentDao.getShortageFinalizedDao();
+ 
+    const items = finalized.map((item) => {
+      const parts = [item.regCode, item.city, item.province].filter(Boolean);
+      const label = parts.join(" - ");
+ 
+      return {
+        ...item,
+        selectedDC: item.comCenId
+          ? {
+              comCenId: item.comCenId,
+              value: item.regCode,
+              label,
+              fullName: label,
+            }
+          : null,
+      };
+    });
+ 
+    res.json({ success: true, data: items });
+  } catch (err) {
+    console.error("Error fetching finalized shortage list:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching finalized shortage data.",
+    });
+  }
+};
+ 
+exports.finalizeShortageAssigned = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+ 
+  try {
+    const { shortageAssignedId, comCenId, ceilingPercent } = req.body;
+    const finalizedBy = req.user.userId; // logged-in admin, set by auth middleware
+ 
+    if (!shortageAssignedId || !comCenId) {
+      return res.status(400).json({
+        success: false,
+        message: "shortageAssignedId and comCenId are required",
+      });
+    }
+ 
+    const result = await procumentDao.finalizeShortageAssignedDao(
+      shortageAssignedId,
+      comCenId,
+      ceilingPercent,
+      finalizedBy
+    );
+ 
+    if (!result.affectedRows) {
+      return res.status(404).json({
+        success: false,
+        message: "Shortage assignment not found or already finalized",
+      });
+    }
+ 
+    res.json({
+      success: true,
+      message: "Shortage assignment finalized successfully",
+    });
+  } catch (err) {
+    console.error("Error finalizing shortage assignment:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while finalizing the shortage assignment.",
+    });
+  }
+};
+
+exports.getAllShortageAssignedDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { date } = req.query;
+    console.log('date', date);
+
+    const shortageAssignedDetails = await procumentDao.getAllShortageAssignedDetails(date);
+
+    console.log('shortageAssignedDetails', shortageAssignedDetails);
+
+    if (!shortageAssignedDetails) {
+      return res.status(404).json({
+        success: false,
+        message: "Shortage assigned details not found",
+      });
+    }
+
+    res.json(shortageAssignedDetails);
+  } catch (err) {
+    console.error("Error fetching shortage assigned details:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching shortage assigned details",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 };

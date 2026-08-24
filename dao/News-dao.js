@@ -26,7 +26,8 @@ exports.updateNews = (newsData, id) => {
                 descriptionSinhala = ?, 
                 descriptionTamil = ?,
                 publishDate = ?,
-                expireDate = ?
+                expireDate = ?,
+                status = 'Draft'
         `;
         
         let values = [

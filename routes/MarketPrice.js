@@ -70,6 +70,9 @@ const getCropVarietyData = () => {
         cropvariety
       JOIN 
         cropgroup ON cropvariety.cropGroupId = cropgroup.id
+      ORDER BY 
+        cropgroup.cropNameEnglish ASC,
+        cropvariety.varietyNameEnglish ASC
     `;
     return new Promise((resolve, reject) => {
       plantcare.query(sql, (err, results) => {
