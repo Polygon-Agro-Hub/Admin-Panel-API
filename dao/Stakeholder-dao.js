@@ -419,7 +419,7 @@ exports.SendGeneratedPasswordDao = async (
       .moveDown()
       .text(
         "If you need assistance, please reach out to our support team at polygonagro.inf@gmail.com",
-        { align: "justify" }
+        
       )
       .moveDown()
       .text("Best Regards,")
