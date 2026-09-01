@@ -660,15 +660,15 @@ exports.getAllRequestedItemsDao = (date) => {
                                   'cropNameEnglish', cg1.cropNameEnglish
                               )
                           )
-                          FROM market_place.orderpackageitems opi2 
-                          LEFT JOIN market_place.marketplaceitems mpi1 ON opi2.productId = mpi1.id 
+                          FROM collection_officer.orderpackageitems opi2 
+                          LEFT JOIN collection_officer.marketplaceitems mpi1 ON opi2.productId = mpi1.id 
                           LEFT JOIN plant_care.cropvariety cv1 ON mpi1.varietyId = cv1.id 
                           LEFT JOIN plant_care.cropgroup cg1 ON cv1.cropGroupId = cg1.id 
                           WHERE opi2.orderPackageId = op2.id
                       )
                   )
               )
-              FROM market_place.orderpackage op2
+              FROM collection_officer.orderpackage op2
               WHERE op2.orderId = po.id AND op2.packingStatus = 'Dispatch'
           )
           ELSE NULL
@@ -687,20 +687,20 @@ exports.getAllRequestedItemsDao = (date) => {
                       'cropNameEnglish', cg2.cropNameEnglish
                   )
               )
-              FROM market_place.orderadditionalitems oai2
-              LEFT JOIN market_place.marketplaceitems mpi2 ON oai2.productId = mpi2.id 
+              FROM collection_officer.orderadditionalitems oai2
+              LEFT JOIN collection_officer.marketplaceitems mpi2 ON oai2.productId = mpi2.id 
               LEFT JOIN plant_care.cropvariety cv2 ON mpi2.varietyId = cv2.id
               LEFT JOIN plant_care.cropgroup cg2 ON cv2.cropGroupId = cg2.id 
               WHERE oai2.orderId = o.id
           )
           ELSE NULL
       END AS additionalItems
-  FROM market_place.processorders po
-  LEFT JOIN market_place.orders o ON po.orderId = o.id
-  LEFT JOIN market_place.orderpackage op ON op.orderId = po.id AND op.packingStatus = 'Dispatch'
-  LEFT JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-  LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-  LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+  FROM collection_officer.processorders po
+  LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+  LEFT JOIN collection_officer.orderpackage op ON op.orderId = po.id AND op.packingStatus = 'Dispatch'
+  LEFT JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+  LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+  LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
   ${whereClause}
   GROUP BY po.id, po.invNo, po.status, o.id, o.centerId, o.isPackage, o.sheduleDate, oh.city, oa.city
       `;
