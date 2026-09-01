@@ -2432,108 +2432,6 @@ exports.getOfficerDailyDistributionTargetDao = async (id, date) => {
   });
 };
 
-// exports.getSelectTargetItems = (targetId, searchText = "", status = "") => {
-//   return new Promise((resolve, reject) => {
-//     let sql = `
-//       WITH package_item_statuses AS (
-//         SELECT 
-//           op.orderId,
-//           op.id AS packageId,
-//           COUNT(*) AS totalItems,
-//           SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems,
-//           CASE
-//             WHEN COUNT(*) = 0 THEN 'Unknown'
-//             WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
-//             WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
-//             WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
-//             ELSE 'Unknown'
-//           END AS packageItemStatus
-//         FROM market_place.orderpackageitems opi
-//         JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
-//         GROUP BY op.orderId, op.id
-//       ),
-//       package_item_counts AS (
-//         SELECT
-//           orderId,
-//           CASE
-//             WHEN SUM(CASE WHEN packageItemStatus = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
-//             WHEN SUM(CASE WHEN packageItemStatus = 'Opened' THEN 1 ELSE 0 END) > 0 THEN 'Opened'
-//             WHEN SUM(CASE WHEN packageItemStatus = 'Completed' THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
-//             ELSE 'Unknown'
-//           END AS packageStatus,
-//           SUM(totalItems) AS totalItems,
-//           SUM(packedItems) AS packedItems
-//         FROM package_item_statuses
-//         GROUP BY orderId
-//       ),
-//       additional_items_counts AS (
-//         SELECT 
-//           orderId,
-//           COUNT(*) AS totalAdditionalItems,
-//           SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
-//           CASE
-//             WHEN COUNT(*) = 0 THEN 'Unknown'
-//             WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
-//             WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
-//               AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
-//             WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
-//             ELSE 'Unknown'
-//           END AS additionalItemsStatus
-//         FROM market_place.orderadditionalitems
-//         GROUP BY orderId
-//       )
-//       SELECT
-//         dti.id,
-//         dti.orderId as processOrderId,
-//         dti.isComplete,
-//         dti.completeTime,
-//         po.id as orderId,
-//         po.invNo,
-//         o.sheduleDate,
-//         o.sheduleTime,
-//         dt.userId as officerId,
-//         e.empId,
-//         e.firstNameEnglish,
-//         e.lastNameEnglish,
-//         COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
-//         COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
-//         CASE 
-//           WHEN dti.isComplete = 0 THEN 'Not Complete'
-//           WHEN dti.completeTime IS NULL THEN 'Not Complete'
-//           WHEN dti.completeTime < o.sheduleDate THEN 'On Time'
-//           WHEN dti.completeTime >= o.sheduleDate THEN 'Late'
-//           ELSE 'Not Complete'
-//         END AS completeTimeStatus
-//       FROM distributedtargetitems dti
-//       LEFT JOIN market_place.processorders po ON dti.orderId = po.id
-//       LEFT JOIN package_item_counts pic ON pic.orderId = po.id
-//       LEFT JOIN additional_items_counts aic ON aic.orderId = po.id
-//       LEFT JOIN market_place.orders o ON po.orderId = o.id
-//       LEFT JOIN distributedtarget dt ON dti.targetId = dt.id
-//       LEFT JOIN collectionofficer e ON dt.userId = e.id
-//       WHERE dti.targetId = ?
-//     `;
-
-//     const params = [targetId];
-
-//     // Add search filter
-//     if (searchText) {
-//       sql += ` AND po.invNo LIKE ?`;
-//       params.push(`%${searchText}%`);
-//     }
-
-//     collectionofficer.query(sql, params, (err, results) => {
-//       if (err) {
-//         return reject(err);
-//       }
-//       resolve(results);
-//     });
-//   });
-// };
-
-
-
-
 exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatus ) => {
   return new Promise((resolve, reject) => {
 
@@ -2736,7 +2634,7 @@ GROUP BY
 
       `;
 
-      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
@@ -2950,7 +2848,7 @@ LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
       `;
 
     console.log("Executing Data Query...");
-    marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+    collectionofficer.query(dataSql, params, (dataErr, dataResults) => {
       if (dataErr) {
         console.error("Error in data query:", dataErr);
         return reject(dataErr);
@@ -3443,7 +3341,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
     // Add ORDER BY clause
     sql += ` ORDER BY po.createdAt DESC`;
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -3910,7 +3808,7 @@ exports.getTodayDiliveryTrackingCenterDetailsDao = async (id) => {
       WHERE po.id = ?
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -4055,152 +3953,6 @@ exports.getDistributedDriversAndVehiclesDao = (
     });
   });
 };
-
-// exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
-//   return new Promise((resolve, reject) => {
-//     // Base SQL query
-//     let sql = `
-//     SELECT
-//     po.id AS processOrderId,
-//     po.invNo,
-//     o.fullTotal,
-//     po.status,
-//     mu.title AS customerTitle,
-//     mu.firstName,
-//     mu.lastName,
-//     mu.phoneCode AS customerPhoneCode,
-//     mu.phoneNumber AS customerPhoneNumber,
-//     o.phonecode1 AS receiverPhoneCode1,
-//     o.phone1 AS receiverPhone1,
-//     o.phonecode2 AS receiverPhoneCode2,
-//     o.phone2 AS receiverPhone2,
-//     o.sheduleDate,
-//     o.sheduleTime,
-//     o.title,
-//     o.fullName,
-//     o.orderApp,
-//     o.createdAt AS orderCreatedAt,
-//     po.isPaid,
-//     paymentMethod
-// FROM collection_officer.distributedtarget dt
-// LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
-// LEFT JOIN market_place.processorders po ON dti.orderId = po.id
-// LEFT JOIN market_place.orders o ON po.orderId = o.id
-// LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
-// WHERE 1=1
-//     `;
-
-//     const conditions = [];
-//     const values = [];
-
-//     // Required parameter: companycenterId
-//     if (searchParams.companycenterId) {
-//       conditions.push(`dt.companycenterId = ?`);
-//       values.push(searchParams.companycenterId);
-//     } else {
-//       return reject(new Error("companycenterId is required"));
-//     }
-
-//     // Filter by status based on activeTab
-//     if (searchParams.activeTab) {
-//       if (searchParams.activeTab === 'Ready to Pickup') {
-//         conditions.push(`po.status = ?`);
-//         values.push('Ready to Pickup');
-//       } else if (searchParams.activeTab === 'Picked Up') {
-//         conditions.push(`po.status = ?`);
-//         values.push('Picked up');
-//       } else if (searchParams.activeTab === 'All') {
-//         // For "All" tab, show both statuses
-//         conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
-//       }
-//     } else {
-//       // Default to both statuses
-//       conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
-//     }
-
-//     // Date filter - FIXED: Use proper date handling
-//     if (searchParams.date) {
-//       let dateValue;
-
-//       if (typeof searchParams.date === "string") {
-//         dateValue = searchParams.date.trim();
-//       } else if (searchParams.date instanceof Date) {
-//         dateValue = searchParams.date.toISOString().split("T")[0];
-//       }
-
-//       if (dateValue && dateValue !== "") {
-//         // Handle both date-only and datetime strings
-//         conditions.push(`DATE(o.sheduleDate) = DATE(?)`);
-//         values.push(dateValue);
-//       }
-//     }
-
-//     // Time filter - FIXED: Match time slot values
-//     if (searchParams.time && searchParams.time.trim() !== "") {
-//       const timeValue = searchParams.time.trim();
-//       // Try to match common time formats
-//       const timeMap = {
-//         "8AM-12PM": "8AM-12PM",
-//         "12PM-4PM": "12PM-4PM",
-//         "4PM-8PM": "4PM-8PM",
-//         "8AM - 12PM": "8AM-12PM",
-//         "12PM - 4PM": "12PM-4PM",
-//         "4PM - 8PM": "4PM-8PM",
-//       };
-
-//       const normalizedTime = timeMap[timeValue] || timeValue;
-//       conditions.push(`o.sheduleTime = ?`);
-//       values.push(normalizedTime);
-//     }
-
-//     // Search text filter - FIXED: Better phone number concatenation
-//     if (searchParams.searchText && searchParams.searchText.trim() !== "") {
-//       const searchPattern = `%${searchParams.searchText.trim()}%`;
-//       conditions.push(`(
-//         po.invNo LIKE ? OR 
-//         mu.phoneNumber LIKE ? OR
-//         o.phone1 LIKE ? OR
-//         CONCAT(mu.phoneCode, mu.phoneNumber) LIKE ? OR
-//         CONCAT(o.phonecode1, o.phone1) LIKE ?
-//       )`);
-//       values.push(
-//         searchPattern,
-//         searchPattern,
-//         searchPattern,
-//         searchPattern,
-//         searchPattern
-//       );
-//     }
-
-//     // Append all conditions to the WHERE clause
-//     if (conditions.length > 0) {
-//       sql += ` AND (${conditions.join(" AND ")})`;
-//     }
-
-//     // Add ORDER BY clause
-//     sql += `
-//     ORDER BY 
-//         o.sheduleDate ASC,
-//         o.sheduleTime ASC,
-//         po.invNo DESC
-//     `;
-
-//     // Debug logging
-//     console.log("SQL Query:", sql);
-//     console.log("SQL Parameters:", values);
-//     console.log("Search Params Received:", searchParams);
-
-//     collectionofficer.query(sql, values, (err, results) => {
-//       if (err) {
-//         console.error("Database query error:", err);
-//         reject(err);
-//       } else {
-//         console.log(`Query returned ${results.length} results`);
-//         resolve(results);
-//       }
-//     });
-//   });
-// };
 
 exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
   return new Promise((resolve, reject) => {
@@ -4365,7 +4117,7 @@ exports.getPikupOderRecordsDetailsDao = async (id) => {
       WHERE po.id = ?
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -4598,7 +4350,7 @@ LEFT JOIN market_place.marketplaceusers mpu ON o.userId = mpu.id
       ${sortSql}
       `;
 
-    marketPlace.query(sql, dataParams, (err, results) => {
+    collectionofficer.query(sql, dataParams, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -4606,115 +4358,6 @@ LEFT JOIN market_place.marketplaceusers mpu ON o.userId = mpu.id
     });
   });
 };
-
-
-// exports.getCenterHomeDeliveryOrdersDao = (searchParams = {}) => {
-//   return new Promise((resolve, reject) => {
-//     // Base SQL query
-//     let sql = `
-//       SELECT 
-//         po.id,
-//         po.invNo,
-//         COALESCE(dc.regCode, dc2.regCode) AS regCode,
-//         COALESCE(dc.centerName, dc2.centerName) AS centerName,
-//         o.sheduleTime,
-//         o.sheduleDate,
-//         po.createdAt,
-//         po.status,
-//         TIME(po.outDlvrDate) as outDlvrTime,
-//         dro.createdAt AS collectTime,
-//         drv.empId AS driverEmpId,
-//         CONCAT(drv.phoneCode01, drv.phoneNumber01) AS driverPhone,
-//         dro.startTime AS driverStartTime,
-//         drr.createdAt AS returnTime,
-//         po.deliveredTime AS deliveryTime,
-//         dho.createdAt AS holdTime
-//       FROM 
-//         market_place.processorders po
-//       INNER JOIN 
-//         market_place.orders o ON po.orderId = o.id
-//       LEFT JOIN 
-//         collection_officer.distributedcenter dc ON o.centerId = dc.id
-//       LEFT JOIN
-//         collection_officer.driverorders dro ON po.id = dro.orderId
-//       LEFT JOIN
-//         collection_officer.collectionofficer drv ON dro.driverId = drv.id
-//       LEFT JOIN
-//         collection_officer.driverholdorders dho ON dro.id = dho.drvOrderId
-//         AND dho.id = (
-//             SELECT MAX(id) 
-//             FROM collection_officer.driverholdorders 
-//             WHERE drvOrderId = dro.id
-//         )
-//       LEFT JOIN 
-//         collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
-//       LEFT JOIN 
-//         collection_officer.collectionofficer cof2 ON po.outBy = cof2.id
-//       LEFT JOIN
-//         collection_officer.distributedcenter dc2 ON cof2.distributedCenterId = dc2.id
-//       WHERE 
-//         DATE(o.sheduleDate) = CURDATE()
-//       `;
-//     // DATE(o.sheduleDate) = CURDATE()
-//     // Add search conditions if search parameters are provided
-//     const conditions = [];
-//     const values = [];
-
-//     if (searchParams.activeTab) {
-//       console.log(searchParams.activeTab);
-//       if (searchParams.activeTab === "out-for-delivery") {
-//         conditions.push(`po.status = ?`);
-//         values.push("Out For Delivery");
-//       } else if (searchParams.activeTab === "collected") {
-//         conditions.push(`po.status = ?`);
-//         values.push("Collected");
-//       } else if (searchParams.activeTab === "on-the-way") {
-//         conditions.push(`po.status = ?`);
-//         values.push("On the way");
-//       } else if (searchParams.activeTab === "hold") {
-//         conditions.push(`po.status = ?`);
-//         values.push("Hold");
-//       } else if (searchParams.activeTab === "return") {
-//         conditions.push(`po.status = ?`);
-//         values.push("Return");
-//       } else if (searchParams.activeTab === "delivered") {
-//         conditions.push(`po.status = ?`);
-//         values.push("Delivered");
-//       } else if (searchParams.activeTab === "all") {
-//         conditions.push(
-//           ` po.status IN ('Out For Delivery', 'Collected', 'On the way', 'Hold', 'Return', 'Delivered') `
-//         );
-//       }
-//     }
-
-//     if (searchParams.regCode) {
-//       console.log("searchParams.regCode", searchParams.regCode);
-
-//       conditions.push(`(dc.id = ? OR dc2.id = ?)`);
-//       values.push(searchParams.regCode, searchParams.regCode);
-//     }
-
-//     if (searchParams.invNo) {
-//       conditions.push(`po.invNo LIKE ?`);
-//       values.push(`%${searchParams.invNo}%`);
-//     }
-
-//     // Append search conditions to the WHERE clause
-//     if (conditions.length > 0) {
-//       sql += ` AND (${conditions.join(" AND ")})`;
-//     }
-
-//     // Add ORDER BY clause
-//     sql += ` ORDER BY po.createdAt DESC`;
-
-//     marketPlace.query(sql, values, (err, results) => {
-//       if (err) {
-//         return reject(err);
-//       }
-//       resolve(results);
-//     });
-//   });
-// };
 
 
 exports.getPolygonCenterDashbordDetailsDao = (data) => {
@@ -4829,25 +4472,6 @@ exports.getDriverCashRevenueDao = (data) => {
       LEFT JOIN collection_officer.collectionofficer cof_handover ON do.handOverOfficer = cof_handover.id
       WHERE o.assignCoMCenId = ? AND po.paymentMethod = 'Cash' AND do.id IS NOT NULL
     `;
-
-    // SELECT
-    //       do.id,
-    //       po.invNo,
-    //       do.handOverPrice,
-    //       do.handOverTime,
-    //       cof_dro.empId AS driverEmpId,
-    //       cof_handover.empId AS handOverOfficerEmpId
-    //   FROM collection_officer.driverorders do 
-    //   LEFT JOIN market_place.processorders po ON po.id = do.orderId
-    //   LEFT JOIN collection_officer.collectionofficer cof_dro ON do.driverId = cof_dro.id
-    //       AND cof_dro.companyId = ?
-    //       AND cof_dro.distributedCenterId = ?
-    //   LEFT JOIN collection_officer.collectionofficer cof_handover ON do.handOverOfficer = cof_handover.id
-    //       AND cof_handover.companyId = ?
-    //       AND cof_handover.distributedCenterId = ?
-    //   WHERE do.id IS NOT NULL
-
-    // const params = [companyId, centerId, companyId, centerId];
     const params = [comCenId];
     
     if (filterDate) {
@@ -4894,7 +4518,7 @@ exports.getHomeDiliveryTrackingCenterDetailsDao = async (id) => {
       WHERE po.id = ?
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -4969,23 +4593,8 @@ exports.getRecivedPickUpCashDashbordDao = async (data) => {
       LEFT JOIN collection_officer.pickuporders por ON po.id = por.orderId
       WHERE o.centerId = ? AND po.status IN ('Ready to Pickup', 'Picked up')
     `;
-    // DATE(po.outDlvrDate) = CURDATE()
-    //COALESCE(SUM(DISTINCT por.handOverPrice), 0) AS order_price,
 
-    // SELECT 
-    //       COUNT(CASE WHEN po.deliveredTime IS NULL THEN 1 END) AS total_today,
-    //       COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
-    //       COUNT(CASE WHEN DATE(o.sheduleDate) != CURDATE() THEN 1 END) AS not_scheduled_today,
-    //       COUNT(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS all_pickup,
-    //       COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS today_pickup,
-    //       COALESCE(SUM(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.handOverPrice END), 0) AS order_price
-    //   FROM market_place.processorders po
-    //   INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup' AND po.paymentMethod = 'Cash'
-    //   LEFT JOIN collection_officer.pickuporders por ON po.id = por.orderId
-    //   LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
-    //   WHERE cof1.companyId = ? AND cof1.distributedCenterId = ?
-
-    marketPlace.query(sql, [data.centerId], (err, results) => {
+    collectionofficer.query(sql, [data.centerId], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -5010,20 +4619,8 @@ exports.getRecivedDelivaryCashDashbordDao = async (data, comcenId) => {
       LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
       WHERE o.assignCoMCenId = ? AND po.status IN ('Out For Delivery', 'Delivered') AND po.paymentMethod = 'Cash'
     `;
-    // SELECT 
-    //       COUNT(CASE WHEN po.deliveredTime IS NULL THEN 1 END) AS total_today,
-    //       COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
-    //       COUNT(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS all_delivary,
-    //       COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS today_delivary,
-    //       COALESCE(SUM(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.handOverPrice END), 0) AS order_price
-    //   FROM market_place.processorders po
-    //   INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
-    //   LEFT JOIN collection_officer.driverorders dro ON po.id = dro.orderId AND dro.handOverTime IS NOT NULL
-    //   LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
-    //   WHERE cof1.companyId = ? AND cof1.distributedCenterId = ?
-    // DATE(po.outDlvrDate) = CURDATE()
 
-    marketPlace.query(sql, [comcenId], (err, results) => {
+    collectionofficer.query(sql, [comcenId], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -5087,19 +4684,6 @@ exports.getDistributionDashboardDao = () => {
         AND DATE(deliveredTime) = CURDATE()
     `;
 
-    // 8. Loss Due to Returned Orders - Today
-    // Join orders (market_place) with processorders for Return Received + Cash,
-    // filtered by driverorders.handOverTime = today (collection_officer db)
-    // const returnLossTodaySql = `
-    //   SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossToday
-    //   FROM market_place.orders o
-    //   INNER JOIN market_place.processorders po ON po.orderId = o.id
-    //   INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
-    //   WHERE po.status = 'Return Received'
-    //     AND po.paymentMethod = 'Cash'
-    //     AND DATE(dor.handOverTime) = CURDATE() 
-    // `;
-
     const returnLossTodaySql = `
       SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossToday
       FROM collection_officer.driverordermain drm
@@ -5129,18 +4713,6 @@ exports.getDistributionDashboardDao = () => {
         AND YEAR(deliveredTime) = YEAR(CURDATE())
     `;
 
-    // 11. Loss Due to Returned Orders - This Month
-    // const returnLossMonthSql = `
-    //   SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossMonth
-    //   FROM market_place.orders o
-    //   INNER JOIN market_place.processorders po ON po.orderId = o.id
-    //   INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
-    //   WHERE po.status = 'Return Received'
-    //     AND po.paymentMethod = 'Cash'
-    //     AND MONTH(dor.handOverTime) = MONTH(CURDATE())
-    //     AND YEAR(dor.handOverTime) = YEAR(CURDATE())
-    // `;
-
     const returnLossMonthSql = `
       SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossMonth
       FROM collection_officer.driverordermain drm
@@ -5169,25 +4741,25 @@ exports.getDistributionDashboardDao = () => {
           collectionofficer.query(driverSql, (err4, driverResult) => {
             if (err4) return reject(err4);
 
-            marketPlace.query(cashReceivedTodaySql, (err5, cashResult) => {
+            collectionofficer.query(cashReceivedTodaySql, (err5, cashResult) => {
               if (err5) return reject(err5);
 
-              marketPlace.query(deliveredTodaySql, (err6, deliveredTodayResult) => {
+              collectionofficer.query(deliveredTodaySql, (err6, deliveredTodayResult) => {
                 if (err6) return reject(err6);
 
-                marketPlace.query(pickupTodaySql, (err7, pickupTodayResult) => {
+                collectionofficer.query(pickupTodaySql, (err7, pickupTodayResult) => {
                   if (err7) return reject(err7);
 
-                  marketPlace.query(returnLossTodaySql, (err8, returnLossTodayResult) => {
+                  collectionofficer.query(returnLossTodaySql, (err8, returnLossTodayResult) => {
                     if (err8) return reject(err8);
 
-                    marketPlace.query(deliveredMonthSql, (err9, deliveredMonthResult) => {
+                    collectionofficer.query(deliveredMonthSql, (err9, deliveredMonthResult) => {
                       if (err9) return reject(err9);
 
-                      marketPlace.query(pickupMonthSql, (err10, pickupMonthResult) => {
+                      collectionofficer.query(pickupMonthSql, (err10, pickupMonthResult) => {
                         if (err10) return reject(err10);
 
-                        marketPlace.query(returnLossMonthSql, (err11, returnLossMonthResult) => {
+                        collectionofficer.query(returnLossMonthSql, (err11, returnLossMonthResult) => {
                           if (err11) return reject(err11);
 
                           resolve({
