@@ -46,11 +46,11 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         DATE(o.sheduleDate) AS sheduleDate,
         mpi.varietyId,
         (opi.qty * op.qty) AS quantity
-      FROM market_place.processorders po
-      JOIN market_place.orders o ON po.orderId = o.id
-      JOIN market_place.orderpackage op ON op.orderId = po.id
-      JOIN market_place.orderpackageitems opi ON opi.orderPackageId = op.id
-      JOIN market_place.marketplaceitems mpi ON opi.productId = mpi.id
+      FROM collection_officer.processorders po
+      JOIN collection_officer.orders o ON po.orderId = o.id
+      JOIN collection_officer.orderpackage op ON op.orderId = po.id
+      JOIN collection_officer.orderpackageitems opi ON opi.orderPackageId = op.id
+      JOIN collection_officer.marketplaceitems mpi ON opi.productId = mpi.id
       ${whereSql}
         AND mpi.varietyId IS NOT NULL
       
@@ -66,10 +66,10 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
           WHEN oai.unit = 'g' THEN oai.qty / 1000
           ELSE oai.qty 
         END AS quantity
-      FROM market_place.processorders po
-      JOIN market_place.orders o ON po.orderId = o.id
-      JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-      JOIN market_place.marketplaceitems mpi ON oai.productId = mpi.id
+      FROM collection_officer.processorders po
+      JOIN collection_officer.orders o ON po.orderId = o.id
+      JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+      JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id
       ${whereSql}
         AND mpi.varietyId IS NOT NULL
     `;
@@ -135,7 +135,7 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
 
     console.log('dataSql', dataSql)
 
-    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
         return reject(countErr);
@@ -143,7 +143,7 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
 
       const total = countResults[0].total;
 
-      marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
@@ -165,10 +165,10 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
   return new Promise((resolve, reject) => {
     // Base join SQL
     let baseJoinSql = `
-      FROM market_place.orderpackage op 
-      JOIN market_place.orders o ON op.orderId = o.id
-      JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-      JOIN market_place.marketplaceitems mpi ON oai.productId = mpi.id
+      FROM collection_officer.orderpackage op 
+      JOIN collection_officer.orders o ON op.orderId = o.id
+      JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+      JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id
       JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
     `;
@@ -229,7 +229,7 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
     `;
 
     // Execute query
-    marketPlace.query(dataSql, queryParams, (err, results) => {
+    collectionofficer.query(dataSql, queryParams, (err, results) => {
       if (err) {
         console.error("Error fetching data for Excel:", err);
         return reject(err);
@@ -243,117 +243,6 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
     });
   });
 };
-
-
-// exports.getAllOrdersWithProcessInfo = (
-//   page,
-//   limit,
-//   statusFilter,
-//   dateFilter,
-//   dateFilter1,
-//   searchText
-// ) => {
-//   return new Promise((resolve, reject) => {
-//     const offset = (page - 1) * limit;
-//     const params = [];
-//     const countParams = [];
-
-//     let dataSql = `
-//          SELECT 
-//           o.fullTotal AS total,
-//           o.sheduleDate,
-//           o.orderApp,
-//           po.id AS processOrderId,
-//           po.invNo,
-//           po.status,
-//           po.createdAt,
-//           op.packingStatus,
-//           op.createdAt AS packageCreatedAt
-//         FROM processorders po, orders o, orderpackage op
-//         WHERE op.packingStatus = 'Todo' AND po.status = 'Processing' AND po.orderId = o.id AND po.id = op.orderId 
-//       `;
-
-//     let countSql = `
-//       SELECT COUNT(DISTINCT po.id) AS total
-//       FROM processorders po, orders o, orderpackage op
-//       WHERE op.packingStatus = 'Todo' AND po.status = 'Processing' AND po.orderId = o.id AND po.id = op.orderId
-//     `;
-
-//     // Apply filters to both queries
-//     if (statusFilter) {
-//       if (statusFilter === "Paid") {
-//         dataSql += ` AND po.isPaid = 1 `;
-//         countSql += ` AND po.isPaid = 1 `;
-//       } else if (statusFilter === "Pending") {
-//         dataSql += ` AND po.isPaid = 0 `;
-//         countSql += ` AND po.isPaid = 0 `;
-//       } else if (statusFilter === "Cancelled") {
-//         dataSql += ` AND po.status = 'Cancelled' `;
-//         countSql += ` AND po.status = 'Cancelled' `;
-//       }
-//     }
-
-//     if (dateFilter) {
-//       dataSql += ` AND DATE(o.sheduleDate) = ? `;
-//       countSql += ` AND DATE(o.sheduleDate) = ? `;
-//       params.push(dateFilter);
-//       countParams.push(dateFilter);
-//     }
-
-//     if (dateFilter1) {
-//       dataSql += ` AND DATE(po.createdAt) = ? `;
-//       countSql += ` AND DATE(po.createdAt) = ? `;
-//       params.push(dateFilter1);
-//       countParams.push(dateFilter1);
-//     }
-
-//     if (searchText) {
-//       dataSql += ` AND po.invNo LIKE ? `;
-//       countSql += ` AND po.invNo LIKE ? `;
-//       params.push(`%${searchText}%`);
-//       countParams.push(`%${searchText}%`);
-//     }
-
-//     // Add GROUP BY and ORDER BY only to data query
-//     dataSql += ` GROUP BY
-//                   o.fullTotal,
-//                   o.sheduleDate,
-//                   o.orderApp,
-//                   po.id,
-//                   po.invNo,
-//                   po.status,
-//                   op.packingStatus,
-//                   op.createdAt
-//                  ORDER BY op.createdAt DESC
-//                  LIMIT ? OFFSET ?
-//                 `;
-
-//     params.push(parseInt(limit), parseInt(offset));
-
-
-//     marketPlace.query(countSql, countParams, (countErr, countResults) => {
-//       if (countErr) {
-//         console.error("Count query error:", countErr);
-//         return reject(countErr);
-//       }
-
-//       const total = countResults[0]?.total || 0;
-
-//       marketPlace.query(dataSql, params, (dataErr, dataResults) => {
-//         if (dataErr) {
-//           console.error("Data query error:", dataErr);
-//           return reject(dataErr);
-//         }
-
-//         resolve({
-//           items: dataResults,
-//           total,
-//         });
-//       });
-//     });
-//   });
-// };
-
 
 exports.getAllOrdersWithProcessInfo = (
   page,
@@ -443,7 +332,7 @@ exports.getAllOrdersWithProcessInfo = (
     // Add limit and offset only to data query
     params.push(parseInt(limit), parseInt(offset));
 
-    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Count query error:", countErr);
         return reject(countErr);
@@ -451,7 +340,7 @@ exports.getAllOrdersWithProcessInfo = (
 
       const total = countResults[0]?.total || 0;
 
-      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Data query error:", dataErr);
           return reject(dataErr);
@@ -470,7 +359,7 @@ exports.getAllProductTypes = () => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT typeName, shortCode FROM producttypes";
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -484,54 +373,6 @@ exports.getOrderDetailsById = (orderId) => {
   console.log(`[getOrderDetailsById] Fetching details for orderId: ${orderId}`);
 
   return new Promise((resolve, reject) => {
-    //     const sql = `
-
-    //     SELECT 
-    //     po.invNo,
-    //     po.id AS processOrderId,
-    //     o.id AS orderId,
-    //     mpp.id AS packageId,
-    //     op.id AS orderpkgId,
-    //     mpp.displayName,
-    //     CAST(mpp.productPrice AS DECIMAL(10,2)) AS productPrice,
-    //     df.id AS definePkgId,
-    //     CAST(df.price AS DECIMAL(10,2)) AS definePkgPrice,
-    //     JSON_ARRAYAGG(
-    //         JSON_OBJECT(
-    //             'itemId', dfi.id,
-    //             'productTypeId', dfi.productType,
-    //             'productTypeShortCode', pt.shortCode,
-    //             'productId', dfi.productId,
-    //             'productName', mpi.displayName,
-    //             'qty', dfi.qty,
-    //             'price', dfi.price,
-    //             'dicountedPrice', mpi.discountedPrice 
-    //         )
-    //     ) AS items
-    // FROM 
-    //     market_place.processorders po
-    // JOIN 
-    //     market_place.orders o ON po.orderId = o.id
-    // LEFT JOIN 
-    //     market_place.orderpackage op ON po.id = op.orderId
-    // LEFT JOIN 
-    //     market_place.marketplacepackages mpp ON op.packageId = mpp.id
-    // LEFT JOIN 
-    //     market_place.definepackage df ON mpp.id = df.packageId
-    // LEFT JOIN
-    //     market_place.definepackageitems dfi ON df.id = dfi.definePackageId
-    // JOIN 
-    //     market_place.producttypes pt ON pt.id = dfi.productType
-    // JOIN 
-    //     market_place.marketplaceitems mpi ON mpi.id = dfi.productId
-    // WHERE 
-    //     po.id = ?
-    // GROUP BY 
-    //     po.invNo, po.id, o.id, op.id, mpp.id, mpp.displayName, mpp.productPrice, df.id
-
-
-    //     `;
-
     const sql = `
 SELECT 
     po.invNo,
@@ -557,28 +398,28 @@ SELECT
         )
     ) AS items
 FROM 
-    market_place.processorders po
+    collection_officer.processorders po
 JOIN 
-    market_place.orders o ON po.orderId = o.id
+    collection_officer.orders o ON po.orderId = o.id
 LEFT JOIN 
-    market_place.orderpackage op ON po.id = op.orderId
+    collection_officer.orderpackage op ON po.id = op.orderId
 LEFT JOIN 
-    market_place.marketplacepackages mpp ON op.packageId = mpp.id
+    collection_officer.marketplacepackages mpp ON op.packageId = mpp.id
 LEFT JOIN (
     SELECT dp1.*
-    FROM market_place.definepackage dp1
+    FROM collection_officer.definepackage dp1
     INNER JOIN (
         SELECT packageId, MAX(createdAt) AS max_createdAt
-        FROM market_place.definepackage
+        FROM collection_officer.definepackage
         GROUP BY packageId
     ) dp2 ON dp1.packageId = dp2.packageId AND dp1.createdAt = dp2.max_createdAt
 ) df ON mpp.id = df.packageId
 LEFT JOIN
-    market_place.definepackageitems dfi ON df.id = dfi.definePackageId
+    collection_officer.definepackageitems dfi ON df.id = dfi.definePackageId
 JOIN 
-    market_place.producttypes pt ON pt.id = dfi.productType
+    collection_officer.producttypes pt ON pt.id = dfi.productType
 JOIN 
-    market_place.marketplaceitems mpi ON mpi.id = dfi.productId
+    collection_officer.marketplaceitems mpi ON mpi.id = dfi.productId
 WHERE 
     po.id = ?
 GROUP BY 
@@ -586,7 +427,7 @@ GROUP BY
 `;
 
     try {
-      marketPlace.query(sql, [orderId], (err, results) => {
+      collectionofficer.query(sql, [orderId], (err, results) => {
         if (err) {
           console.log("Database error:", err);
           return reject(err);
@@ -609,113 +450,6 @@ GROUP BY
 
   });
 };
-
-// exports.getOrderDetailsById = (orderId) => {
-//   console.log(`[getOrderDetailsById] Fetching details for orderId: ${orderId}`);
-
-//   return new Promise((resolve, reject) => {
-//     const sql = `
-//       SELECT 
-//         po.invNo,
-//         op.id AS packageId,
-//         mpp.displayName,
-//         mpp.productPrice,
-//         pt.id AS productTypeId,
-//         pt.typeName,
-//         pt.shortCode
-//       FROM 
-//         processorders po
-//       JOIN 
-//         orders o ON po.orderId = o.id
-//       LEFT JOIN 
-//         orderpackage op ON po.id = op.orderId
-//       LEFT JOIN 
-//         marketplacepackages mp ON op.packageId = mp.id
-//       LEFT JOIN 
-//         packagedetails pd ON mp.id = pd.packageId
-//       LEFT JOIN 
-//         producttypes pt ON pd.productTypeId = pt.id
-//       WHERE 
-//         po.orderId = ?
-//       ORDER BY
-//         op.id, pt.id
-
-
-//     `;
-
-//     // LEFT JOIN 
-//       //   orderpackage op ON po.id = op.orderId
-//       // LEFT JOIN 
-//       //   marketplacepackages mpp ON op.packageId = mpp.id
-//       // LEFT JOIN 
-//       //   definepackage df ON mpp.id = df.packageId
-//       // LEFT JOIN
-//       //   definepackageitems dfi ON df.id = dfi.definePackageId
-//       // LEFT JOIN 
-//       //   producttype pt ON pd.productTypeId = pt.id
-//       // WHERE po.id = ?
-
-
-//     console.log(
-//       `[getOrderDetailsById] SQL Query:`,
-//       sql.replace(/\s+/g, " ").trim()
-//     );
-
-//     marketPlace.query(sql, [orderId], (err, results) => {
-//       if (err) {
-//         console.error(`[getOrderDetailsById] Database error:`, err);
-//         return reject(err);
-//       }
-
-//       // console.log(`[getOrderDetailsById] Raw results:`, results);
-
-//       if (results.length === 0) {
-//         // console.log(
-//         //   `[getOrderDetailsById] No data found for orderId: ${orderId}`
-//         // );
-//         return resolve(null);
-//       }
-
-//       const invNo = results[0].invNo;
-//       const packagesMap = new Map();
-
-//       results.forEach((row) => {
-//         if (!row.packageId) return;
-
-//         if (!packagesMap.has(row.packageId)) {
-//           packagesMap.set(row.packageId, {
-//             packageId: row.packageId,
-//             displayName: row.displayName,
-//             productPrice: row.productPrice,
-//             productTypes: [],
-//           });
-//         }
-
-//         // Add productType if it exists
-//         if (row.productTypeId) {
-//           const packageEntry = packagesMap.get(row.packageId);
-//           packageEntry.productTypes.push({
-//             id: row.productTypeId,
-//             typeName: row.typeName,
-//             shortCode: row.shortCode,
-//           });
-//         }
-//       });
-
-//       // Convert to final structure
-//       const response = {
-//         invNo: invNo,
-//         packages: Array.from(packagesMap.values()),
-//       };
-
-//       // console.log(
-//       //   `[getOrderDetailsById] Final structured data:`,
-//       //   JSON.stringify(response, null, 2)
-//       // );
-//       resolve(response);
-//     });
-//   });
-// };
 
 exports.createOrderPackageItemDao = (orderPackageId, products) => {
   return new Promise((resolve, reject) => {
@@ -741,7 +475,7 @@ exports.createOrderPackageItemDao = (orderPackageId, products) => {
       `;
 
       // Database query with batch insert
-      marketPlace.query(sql, [values], (err, results) => {
+      collectionofficer.query(sql, [values], (err, results) => {
         if (err) {
           console.log("Database error:", err);
           return reject(err);
@@ -787,7 +521,7 @@ exports.getAllMarketplaceItems = (category, userId) => {
     `;
 
 
-    marketPlace.query(sql, [userId, userId], (err, results) => {
+    collectionofficer.query(sql, [userId, userId], (err, results) => {
       if (err) {
         console.error(
           "[getAllMarketplaceItems] Error fetching all marketplace items:",
@@ -835,7 +569,7 @@ exports.getOrderTypeDao = async (id) => {
       FROM processorders POR, orders O, marketplaceusers U
       WHERE POR.id = ? AND POR.orderId = O.id AND O.userId = U.id
     `;
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         console.log("Erro", err);
 
@@ -903,7 +637,7 @@ exports.getAllOrdersWithProcessInfoCompleted = (page, limit, dateFilter, searchT
     console.log("Executing Count Query...");
     // console.log(dataSql);
 
-    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Count query error:", countErr);
         return reject(countErr);
@@ -912,7 +646,7 @@ exports.getAllOrdersWithProcessInfoCompleted = (page, limit, dateFilter, searchT
       const total = countResults[0]?.total || 0;
 
       console.log("Executing Data Query...");
-      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Data query error:", dataErr);
           return reject(dataErr);
@@ -938,7 +672,7 @@ exports.updateOrderPackagePackingStatusDao = (orderPackageId, orderId, status) =
       WHERE orderId = ?;
       `;
 
-      marketPlace.query(sql, [status, orderId], (err, results) => {
+      collectionofficer.query(sql, [status, orderId], (err, results) => {
         if (err) {
           console.log("Database error:", err);
           return reject(err);
@@ -964,7 +698,7 @@ exports.getAllOrderAdditionalItemsDao = (id) => {
       WHERE PO.id = ? AND PO.orderId = ORD.id AND ORAD.orderId = ORD.id AND ORAD.productId = MPI.id
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1019,7 +753,7 @@ exports.getOrderPackagesByOrderId = (orderId) => {
           op.packageId, opi.id
       `;
 
-      marketPlace.query(sql, [orderId], (err, results) => {
+      collectionofficer.query(sql, [orderId], (err, results) => {
         if (err) {
           console.log("Database error:", err);
           return reject(err);
@@ -1086,7 +820,7 @@ exports.updateOrderPackageItemsDao = async (product) => {
             price = ?
         WHERE id = ?
       `;
-    marketPlace.query(
+    collectionofficer.query(
       sql,
       [product.productId, product.qty, product.price, product.id],
       (err, results) => {
@@ -1102,103 +836,6 @@ exports.updateOrderPackageItemsDao = async (product) => {
     );
   });
 };
-
-// exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, searchTerm) => {
-//   return new Promise((resolve, reject) => {
-//     const offset = (page - 1) * limit;
-//     const params = [];
-//     const countParams = [];
-
-//     let dataSql = `
-//         SELECT 
-//         o.fullTotal AS total,
-//         o.sheduleDate,
-//         o.orderApp,
-//         po.id AS processOrderId,
-//         po.invNo,
-//         po.status,
-//         po.createdAt,
-//         po.createdAt AS processCreatedAt,
-//         op.packingStatus,
-//         au.userName
-//         FROM processorders po
-//         JOIN orders o  ON po.orderId = o.id
-//         JOIN orderpackage op ON op.orderId = po.id
-//         LEFT JOIN agro_world_admin.adminusers au ON po.dispatchOfficer = au.id
-//         WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
-//       `;
-//     countSql = `
-//       SELECT 
-//         COUNT(DISTINCT po.id) AS total
-//         FROM processorders po
-//         JOIN orders o  ON po.orderId = o.id
-//         JOIN orderpackage op ON op.orderId = po.id
-//         WHERE op.packingStatus = 'Dispatch' AND po.status = 'Processing'
-//       `;
-
-//     if (dateFilter) {
-//       console.log("Date Filter:", dateFilter);
-
-//       dataSql += ` AND DATE(o.sheduleDate) = ? `;
-//       countSql += ` AND DATE(o.sheduleDate) = ? `;
-//       params.push(dateFilter);
-//       countParams.push(dateFilter);
-//     }
-
-//     if (searchTerm) {
-//       dataSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ? OR mu.firstName LIKE ? OR mu.lastName LIKE ?)`;
-//       countSql += ` AND (po.invNo LIKE ? OR o.orderApp LIKE ? OR mu.firstName LIKE ? OR mu.lastName LIKE ?)`;
-//       const searchPattern = `%${searchTerm}%`;
-//       params.push(searchPattern, searchPattern, searchPattern, searchPattern);
-//       countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
-//     }
-
-//     dataSql += ` 
-//                 GROUP BY
-//                   o.fullTotal,
-//                   o.sheduleDate,
-//                   o.orderApp,
-//                   po.id,
-//                   po.invNo,
-//                   po.status,
-//                   op.packingStatus,
-//                   op.createdAt,
-//                   au.userName
-//                  ORDER BY op.createdAt DESC
-//                  LIMIT ? OFFSET ?
-//                 `;
-
-//     params.push(parseInt(limit), parseInt(offset));
-
-//     console.log("Executing Count Query...");
-//     // console.log(dataSql);
-
-//     marketPlace.query(countSql, countParams, (countErr, countResults) => {
-//       if (countErr) {
-//         console.error("Count query error:", countErr);
-//         return reject(countErr);
-//       }
-
-//       console.log(countResults);
-
-//       const total = countResults[0]?.total || 0;
-
-//       console.log("Executing Data Query...");
-//       marketPlace.query(dataSql, params, (dataErr, dataResults) => {
-//         if (dataErr) {
-//           console.error("Data query error:", dataErr);
-//           return reject(dataErr);
-//         }
-//         console.log(dataResults);
-
-//         resolve({
-//           items: dataResults,
-//           total,
-//         });
-//       });
-//     });
-//   });
-// };
 
 exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, searchTerm) => {
   return new Promise((resolve, reject) => {
@@ -1279,7 +916,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
     dataSql += ` ORDER BY po.createdAt DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), parseInt(offset));
 
-    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Count query error:", countErr);
         return reject(countErr);
@@ -1287,7 +924,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
 
       const total = countResults[0]?.total || 0;
 
-      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Data query error:", dataErr);
           return reject(dataErr);
@@ -1319,12 +956,12 @@ exports.updateDefinePackageItemData = (formattedData) => {
 
       // 1. Update packagingStatus to 'Completed'
       const updateStatusSQL = `
-        UPDATE market_place.orderpackage
+        UPDATE collection_officer.orderpackage
         SET packingStatus = 'Dispatch'
         WHERE packageId = ? AND orderId = ?
       `;
       updatePromises.push(new Promise((resolveInner, rejectInner) => {
-        marketPlace.query(updateStatusSQL, [packageId, processOrderId], (err, result) => {
+        collectionofficer.query(updateStatusSQL, [packageId, processOrderId], (err, result) => {
           if (err) {
             console.error(`Error updating packagingStatus for packageId ${packageId}:`, err);
             return rejectInner(err);
@@ -1336,7 +973,7 @@ exports.updateDefinePackageItemData = (formattedData) => {
       // 2. Insert items
       items.forEach(item => {
         const insertItemSQL = `
-          INSERT INTO market_place.orderpackageitems (orderPackageId, productType, productId, qty, price)
+          INSERT INTO collection_officer.orderpackageitems (orderPackageId, productType, productId, qty, price)
           VALUES (?, ?, ?, ?, ?)
         `;
         const itemParams = [
@@ -1348,7 +985,7 @@ exports.updateDefinePackageItemData = (formattedData) => {
         ];
 
         updatePromises.push(new Promise((resolveInner, rejectInner) => {
-          marketPlace.query(insertItemSQL, itemParams, (err, result) => {
+          collectionofficer.query(insertItemSQL, itemParams, (err, result) => {
             if (err) {
               console.error(`Error inserting item into packageId ${packageId}:`, err);
               return rejectInner(err);
@@ -1389,7 +1026,7 @@ JOIN marketplaceitems MPI ON XL.mpItemId = MPI.id
 WHERE XL.userId = ? 
     AND MPI.category = 'Retail';
     `;
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         console.log("Erro", err);
 
@@ -1404,7 +1041,7 @@ WHERE XL.userId = ?
 exports.productCategoryDao = async () => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT * FROM producttypes WHERE isValid = 1 ORDER BY typeName";
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1423,7 +1060,7 @@ exports.trackDispatchOfficerDao = async (userId, orderId) => {
         WHERE 
           id = ?
       `;
-    marketPlace.query(sql, [userId, orderId], (err, results) => {
+    collectionofficer.query(sql, [userId, orderId], (err, results) => {
       if (err) {
         console.log("Erro", err);
         reject(err);
@@ -1441,7 +1078,7 @@ exports.testFuncDao = async () => {
     const sql = `
       SELECT GetProcessOrderPackageDetails() AS process_order_data;
     `;
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         console.log("Error", err);
         reject(err);
@@ -1454,255 +1091,6 @@ exports.testFuncDao = async () => {
     });
   });
 };
-
-// exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit) => {
-//   return new Promise((resolve, reject) => {
-//     const queryParams = [];
-//     const offset = (page - 1) * limit;
-
-//     // Build WHERE clause for package items
-//     let whereClausePackage = ` 
-//     WHERE po.status = 'Processing' 
-//     AND op.id IS NOT NULL
-//     `;
-
-//     // Build WHERE clause for additional items
-//     let whereClauseAdditional = ` 
-//     WHERE po.status = 'Processing' 
-//     AND oai.id IS NOT NULL
-//     `;
-
-//     // Add date filter if provided
-//     if (deliveryDate) {
-//       whereClausePackage += ` AND DATE(o.sheduleDate) = ?`;
-//       whereClauseAdditional += ` AND DATE(o.sheduleDate) = ?`;
-//       queryParams.push(deliveryDate);
-//     }
-
-//     // Duplicate params for the second query in UNION
-//     const allQueryParams = [...queryParams, ...queryParams];
-
-//     // Query to get aggregated data with delivery addresses
-//     let dataSql = `
-//       SELECT
-//         o.id as orderId,
-//         o.centerId,
-//         o.delivaryMethod,
-//         o.buildingType,
-//         o.sheduleDate,
-//         oh.city as houseCity,
-//         oa.city as apartmentCity,
-//         opi.productId,
-//         mpi.displayName AS productName,
-//         SUM(opi.qty * op.qty) AS totalQty
-//       FROM market_place.processorders po
-//       INNER JOIN market_place.orders o ON po.orderId = o.id
-//       INNER JOIN market_place.orderpackage op ON op.orderId = po.id AND op.packingStatus = 'Dispatch'
-//       INNER JOIN market_place.orderpackageitems opi ON opi.orderPackageId = op.id
-//       INNER JOIN market_place.marketplaceitems mpi ON opi.productId = mpi.id
-//       LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-//       LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
-//       ${whereClausePackage}
-//       GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, opi.productId, mpi.displayName
-
-//       UNION ALL
-
-//       SELECT
-//         o.id as orderId,
-//         o.centerId,
-//         o.delivaryMethod,
-//         o.buildingType,
-//         o.sheduleDate,
-//         oh.city as houseCity,
-//         oa.city as apartmentCity,
-//         oai.productId,
-//         mpi.displayName AS productName,
-//         SUM(oai.qty) AS totalQty
-//       FROM market_place.processorders po
-//       INNER JOIN market_place.orders o ON po.orderId = o.id
-//       INNER JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-//       INNER JOIN market_place.marketplaceitems mpi ON oai.productId = mpi.id
-//       LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-//       LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
-//       ${whereClauseAdditional}
-//       GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, oai.productId, mpi.displayName
-//     `;
-
-//     console.log('=== DEBUG SQL ===');
-//     console.log('Query:', dataSql);
-//     console.log('Params:', allQueryParams);
-//     console.log('Center Filter (will apply after):', centerId);
-//     console.log('=================');
-
-//     marketPlace.query(dataSql, allQueryParams, async (dataErr, dataResults) => {
-//       if (dataErr) {
-//         console.error('Error in data query:', dataErr);
-//         return reject(dataErr);
-//       }
-
-//       console.log('=== DEBUG RESULTS ===');
-//       console.log('Raw results count:', dataResults.length);
-//       console.log('First rows:', dataResults);
-//       console.log('=====================');
-
-//       try {
-//         // Process results to aggregate quantities by center and product
-//         const productMap = {};
-
-//         for (const row of dataResults) {
-//           console.log('---');
-//           console.log('Processing row:', {
-//             orderId: row.orderId,
-//             deliveryMethod: row.delivaryMethod,
-//             buildingType: row.buildingType,
-//             orderCenterId: row.centerId,
-//             houseCity: row.houseCity,
-//             apartmentCity: row.apartmentCity,
-//             productId: row.productId
-//           });
-
-//           let finalCenterId = null;
-//           let centerInfo = null;
-
-//           // Determine centerId based on delivery method
-//           if (row.delivaryMethod === 'pickup' || row.delivaryMethod === 'Pickup') {
-//             // For pickup, use centerId from orders table
-//             finalCenterId = row.centerId;
-//             if (finalCenterId) {
-//               centerInfo = await exports.getCenterName(finalCenterId);
-//               console.log('✓ Pickup - Center info for centerId', finalCenterId, ':', centerInfo);
-//             } else {
-//               console.log('✗ Pickup - No centerId in orders table');
-//             }
-//           } else if (row.delivaryMethod === 'Delivery' || row.delivaryMethod === 'delivery') {
-//             // For delivery, get city based on building type
-//             let city = null;
-//             if (row.buildingType === 'House' && row.houseCity) {
-//               city = row.houseCity;
-//             } else if (row.buildingType === 'Apartment' && row.apartmentCity) {
-//               city = row.apartmentCity;
-//             }
-
-//             console.log('→ Delivery - Building type:', row.buildingType, ', City:', city);
-
-//             // Find centerId through the chain: city -> deliverycharge -> centerowncity -> distributedcompanycenter -> distributedcenter
-//             if (city) {
-//               centerInfo = await exports.getCenterByCityChain(city);
-//               if (centerInfo) {
-//                 finalCenterId = centerInfo.id;
-//                 console.log('✓ Delivery - Found center for city "' + city + '":', centerInfo);
-//               } else {
-//                 console.log('✗ Delivery - No center found for city "' + city + '"');
-//               }
-//             } else {
-//               console.log('✗ Delivery - No city found for this order');
-//             }
-//           }
-
-//           // Skip this row if centerId filter is applied and doesn't match
-//           if (centerId) {
-//             const filterCenterId = parseInt(centerId);
-//             if (finalCenterId != filterCenterId) {
-//               console.log('⊗ Skipping - Filter centerId:', filterCenterId, 'vs finalCenterId:', finalCenterId);
-//               continue;
-//             } else {
-//               console.log('✓ Match - Filter centerId:', filterCenterId, 'matches finalCenterId:', finalCenterId);
-//             }
-//           }
-
-//           // Create unique key for grouping
-//           const key = `${finalCenterId}-${row.productId}`;
-
-//           if (!productMap[key]) {
-//             productMap[key] = {
-//               centerId: finalCenterId,
-//               centerName: centerInfo?.centerName || 'N/A',
-//               regCode: centerInfo?.regCode || 'N/A',
-//               productId: row.productId,
-//               productName: row.productName,
-//               sheduleDate: row.sheduleDate,
-//               quantity: 0
-//             };
-//             console.log('Created new product map entry with key:', key);
-//           }
-
-//           // Add quantity (convert to number)
-//           const qtyToAdd = parseFloat(row.totalQty) || 0;
-//           productMap[key].quantity += qtyToAdd;
-//           console.log('Added quantity:', qtyToAdd, ', New total:', productMap[key].quantity);
-//         }
-
-//         console.log('===================');
-//         console.log('Product map keys after center filter:', Object.keys(productMap));
-
-//         // Convert to array
-//         let distributionOrders = Object.values(productMap);
-//         console.log('Distribution orders count after mapping:', distributionOrders.length);
-
-//         // Apply search filter
-//         if (search && search.trim() !== '') {
-//           const searchLower = search.trim().toLowerCase();
-//           distributionOrders = distributionOrders.filter(product =>
-//             product.productName && product.productName.toLowerCase().includes(searchLower)
-//           );
-//           console.log('After search filter:', distributionOrders.length);
-//         }
-
-//         // Get total count
-//         const totalItems = distributionOrders.length;
-
-//         // Get crop and variety information for each product and sort by cropNameEnglish and varietyNameEnglish A-Z
-//         const enrichedOrders = await Promise.all(
-//           distributionOrders.map(async (order) => {
-//             const productInfo = await exports.getProductCropVarietyInfo(order.productId);
-//             return {
-//               ...order,
-//               quantity: parseFloat(order.quantity).toFixed(2), // Format to 2 decimal places
-//               cropNameEnglish: productInfo?.cropNameEnglish || 'N/A',
-//               varietyNameEnglish: productInfo?.varietyNameEnglish || 'N/A'
-//             };
-//           })
-//         );
-
-//         // Sort enriched orders by cropNameEnglish and varietyNameEnglish A to Z
-//         enrichedOrders.sort((a, b) => {
-//           // First sort by cropNameEnglish
-//           const cropCompare = (a.cropNameEnglish || 'N/A').localeCompare(b.cropNameEnglish || 'N/A');
-//           if (cropCompare !== 0) {
-//             return cropCompare;
-//           }
-//           // If cropNameEnglish is the same, sort by varietyNameEnglish
-//           return (a.varietyNameEnglish || 'N/A').localeCompare(b.varietyNameEnglish || 'N/A');
-//         });
-
-//         console.log('After A-Z sorting - First 3 items:', enrichedOrders.slice(0, 3).map(item => ({
-//           crop: item.cropNameEnglish,
-//           variety: item.varietyNameEnglish
-//         })));
-
-//         // Apply pagination after sorting
-//         const paginatedOrders = enrichedOrders.slice(offset, offset + limit);
-//         console.log('After pagination:', paginatedOrders.length);
-
-//         console.log('Final enriched orders:', paginatedOrders.length);
-//         console.log('===================');
-
-//         resolve({
-//           items: paginatedOrders,
-//           total: totalItems,
-//           page: page,
-//           limit: limit
-//         });
-
-//       } catch (error) {
-//         console.error('Error processing distribution orders:', error);
-//         reject(error);
-//       }
-//     });
-//   });
-// };
-
-
 
 exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit) => {
   return new Promise((resolve, reject) => {
@@ -1754,13 +1142,13 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         mpi.displayName AS productName,
         NULL AS unit,
         SUM(opi.qty * op.qty) AS totalQty
-      FROM market_place.processorders po
-      INNER JOIN market_place.orders o ON po.orderId = o.id
-      INNER JOIN market_place.orderpackage op ON op.orderId = po.id AND op.packingStatus = 'Dispatch'
-      INNER JOIN market_place.orderpackageitems opi ON opi.orderPackageId = op.id
-      INNER JOIN market_place.marketplaceitems mpi ON opi.productId = mpi.id
-      LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-      LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+      FROM collection_officer.processorders po
+      INNER JOIN collection_officer.orders o ON po.orderId = o.id
+      INNER JOIN collection_officer.orderpackage op ON op.orderId = po.id AND op.packingStatus = 'Dispatch'
+      INNER JOIN collection_officer.orderpackageitems opi ON opi.orderPackageId = op.id
+      INNER JOIN collection_officer.marketplaceitems mpi ON opi.productId = mpi.id
+      LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+      LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
       LEFT JOIN plant_care.cropvariety v ON mpi.varietyId = v.id
       LEFT JOIN plant_care.cropgroup c ON v.cropGroupId = c.id
       ${whereClausePackage}
@@ -1780,12 +1168,12 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         mpi.displayName AS productName,
         oai.unit AS unit,
         SUM(oai.qty) AS totalQty
-      FROM market_place.processorders po
-      INNER JOIN market_place.orders o ON po.orderId = o.id
-      INNER JOIN market_place.orderadditionalitems oai ON oai.orderId = o.id
-      INNER JOIN market_place.marketplaceitems mpi ON oai.productId = mpi.id
-      LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-      LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+      FROM collection_officer.processorders po
+      INNER JOIN collection_officer.orders o ON po.orderId = o.id
+      INNER JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+      INNER JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id
+      LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+      LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
       LEFT JOIN plant_care.cropvariety v ON mpi.varietyId = v.id
       LEFT JOIN plant_care.cropgroup c ON v.cropGroupId = c.id
       ${whereClauseAdditional}
@@ -1798,7 +1186,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
     console.log('Center Filter (will apply after):', centerId);
     console.log('=================');
 
-    marketPlace.query(dataSql, allQueryParams, async (dataErr, dataResults) => {
+    collectionofficer.query(dataSql, allQueryParams, async (dataErr, dataResults) => {
       if (dataErr) {
         console.error('Error in data query:', dataErr);
         return reject(dataErr);
@@ -2116,7 +1504,7 @@ exports.getProductCropVarietyInfo = (productId) => {
       SELECT 
         c.cropNameEnglish,
         v.varietyNameEnglish
-      FROM market_place.marketplaceitems mpi
+      FROM collection_officer.marketplaceitems mpi
       LEFT JOIN plant_care.cropvariety v ON mpi.varietyId = v.id
       LEFT JOIN plant_care.cropgroup c ON v.cropGroupId = c.id
       WHERE mpi.id = ?
@@ -2222,7 +1610,7 @@ exports.getShortageDetails = () => {
         mi.displayName,
         cv.image
       FROM collection_officer.shortage s
-      LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
+      LEFT JOIN collection_officer.marketplaceitems mi ON mi.id = s.mpItemId
       LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
       WHERE DATE(s.createdAt) = CURDATE()
       ORDER BY s.createdAt DESC
@@ -2253,7 +1641,7 @@ exports.getShortageDetailsById = (id) => {
         mi.displayName,
         cv.image
       FROM collection_officer.shortage s
-      LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
+      LEFT JOIN collection_officer.marketplaceitems mi ON mi.id = s.mpItemId
       LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
       WHERE s.id = ?
     `;
@@ -2388,7 +1776,7 @@ exports.getShortageToFinalizeDao = () => {
         CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS assignOfficerBy
       FROM collection_officer.shortageassigned sa
       JOIN collection_officer.shortage s ON sa.shortageassigned = s.id
-      JOIN market_place.marketplaceitems mpi ON s.mpItemId = mpi.id
+      JOIN collection_officer.marketplaceitems mpi ON s.mpItemId = mpi.id
       LEFT JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
       LEFT JOIN agro_world_admin.adminusers au ON sa.assignedBy = au.id
       LEFT JOIN collection_officer.collectionofficer co ON sa.assignedOfficerBy = co.id
@@ -2431,7 +1819,7 @@ exports.getShortageFinalizedDao = () => {
         dc.province
       FROM collection_officer.shortageassigned sa
       JOIN collection_officer.shortage s ON sa.shortageassigned = s.id
-      JOIN market_place.marketplaceitems mpi ON s.mpItemId = mpi.id
+      JOIN collection_officer.marketplaceitems mpi ON s.mpItemId = mpi.id
       LEFT JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
       LEFT JOIN agro_world_admin.adminusers au ON sa.assignedBy = au.id
       LEFT JOIN collection_officer.distributedcompanycenter dcc ON sa.comCenId = dcc.id
@@ -2510,7 +1898,7 @@ exports.getAllShortageAssignedDetails = (date) => {
         cv.image
       FROM collection_officer.shortage s
       LEFT JOIN collection_officer.shortageassigned sa ON sa.shortageassigned = s.id
-      LEFT JOIN market_place.marketplaceitems mi ON mi.id = s.mpItemId
+      LEFT JOIN collection_officer.marketplaceitems mi ON mi.id = s.mpItemId
       LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
       LEFT JOIN collection_officer.distributedcompanycenter dcc ON sa.comCenId = dcc.id
       LEFT JOIN collection_officer.distributedcenter cc ON cc.id = dcc.centerId
