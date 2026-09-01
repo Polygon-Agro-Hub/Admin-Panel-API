@@ -75,7 +75,7 @@ exports.checkMarketProductExistsDao = async (
       "SELECT * FROM marketplaceitems WHERE category = ? AND (varietyId = ? OR displayName = ?)";
     const values = [category, varietyId, displayName];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -113,7 +113,7 @@ exports.checkMarketEditProductExistsDao = async (
 
     const values = [category, varietyId, displayName, id];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -156,7 +156,7 @@ exports.createMarketProductDao = async (product) => {
       product.comPrice,
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -185,7 +185,7 @@ exports.getMarketplaceItems = (
                     JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
                     JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
                     LEFT JOIN agro_world_admin.adminusers au ON m.modifyBy = au.id
-                    LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id`;
+                    LEFT JOIN collection_officer.producttypes pt ON m.productTypeId = pt.id`;
 
     let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.comPrice, m.discount, m.startValue, m.maxQuantity, m.promo,
                   m.unitType, m.changeby, m.normalPrice, m.category, m.displayType, m.isEnable, au.userName AS modifyBy,
@@ -196,7 +196,7 @@ exports.getMarketplaceItems = (
                   JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
                   JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
                   LEFT JOIN agro_world_admin.adminusers au ON m.modifyBy = au.id
-                  LEFT JOIN market_place.producttypes pt ON m.productTypeId = pt.id `;
+                  LEFT JOIN collection_officer.producttypes pt ON m.productTypeId = pt.id `;
 
     if (searchItem) {
       whereConditions.push(
@@ -238,10 +238,10 @@ exports.getMarketplaceItems = (
     dataSql += " ORDER BY m.displayName LIMIT ? OFFSET ?";
     dataParams.push(parseInt(limit), parseInt(offset));
 
-    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) return reject(countErr);
       const total = countResults[0].total;
-      marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) return reject(dataErr);
         resolve({ total, items: dataResults });
       });
@@ -252,7 +252,7 @@ exports.getMarketplaceItems = (
 exports.deleteMarketplaceItem = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = "DELETE FROM marketplaceitems WHERE id = ?";
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -278,7 +278,7 @@ exports.createCoupenDAO = async (coupen) => {
       coupen.endDate,
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -325,13 +325,13 @@ exports.getAllCoupenDAO = (limit, offset, status, types, searchText) => {
     dataParms.push(limit);
     dataParms.push(offset);
 
-    marketPlace.query(countSql, countParms, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParms, (countErr, countResults) => {
       if (countErr) {
         console.log(countErr);
 
         reject(countErr);
       } else {
-        marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
+        collectionofficer.query(dataSql, dataParms, (dataErr, dataResults) => {
           if (dataErr) {
             console.log(dataErr);
 
@@ -351,7 +351,7 @@ exports.getAllCoupenDAO = (limit, offset, status, types, searchText) => {
 exports.deleteCoupenById = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = "DELETE FROM coupon WHERE id = ?";
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -364,7 +364,7 @@ exports.deleteCoupenById = async (id) => {
 exports.deleteAllCoupen = async () => {
   return new Promise((resolve, reject) => {
     const sql = "DELETE FROM coupon";
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -383,7 +383,7 @@ exports.getAllProductCropCatogoryDAO = () => {
           ORDER BY cg.cropNameEnglish, mpi.displayName
       `;
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -454,7 +454,7 @@ exports.creatPackageDAO = async (data, profileImageUrl) => {
       formatDate(data.endDate),
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         console.log(err);
         reject(err);
@@ -473,7 +473,7 @@ exports.creatPackageDetailsDAO = async (data, packageId) => {
     `;
     const values = [packageId, data.productTypeId, data.qty];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -497,7 +497,7 @@ exports.creatPackageDetailsDAOEdit = async (data, packageId) => {
       data.discountedPrice,
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -534,10 +534,10 @@ exports.getProductById = async (id) => {
           FROM marketplaceitems MPI
           JOIN plant_care.cropvariety CV ON MPI.varietyId = CV.id
           JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
-          LEFT JOIN market_place.producttypes PT ON MPI.productTypeId = PT.id  
+          LEFT JOIN collection_officer.producttypes PT ON MPI.productTypeId = PT.id  
           WHERE MPI.id = ?
     `;
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -601,7 +601,7 @@ exports.updateMarketProductDao = async (product, id, modifyBy) => {
       parseInt(id),
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         console.error("SQL Error:", err);
         reject(err);
@@ -659,7 +659,7 @@ exports.getAllMarketplacePackagesDAO = (searchText, date) => {
 
     sql += ` ORDER BY MP.status ASC, MP.displayName ASC`;
 
-    marketPlace.query(sql, sqlParams, (err, results) => {
+    collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) return reject(err);
 
       const groupedData = {};
@@ -756,7 +756,7 @@ exports.getMarketplacePackagesByDateDAO = (date, packageType) => {
 
     sql += ` ORDER BY MP.status ASC, MP.displayName ASC `;
 
-    marketPlace.query(sql, sqlParams, (err, results) => {
+    collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) return reject(err);
 
       const groupedData = {};
@@ -808,7 +808,7 @@ exports.getMarketplacePackagesByDateDAO = (date, packageType) => {
 exports.deleteMarketplacePckages = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = "DELETE FROM marketplacepackages WHERE id = ?";
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -855,7 +855,7 @@ exports.updateMarketplacePackageDAO = (packageId, updateData) => {
       packageId,
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -878,11 +878,11 @@ exports.getMarketplacePackageByIdDAO = async (id) => {
         mpp.id, mpp.displayName, mpp.image, mpp.status, mpp.description, 
         mpp.packageType, mpp.startDate, mpp.endDate,
         mpp.productPrice, mpp.packingFee, mpp.serviceFee
-      FROM market_place.marketplacepackages mpp
+      FROM collection_officer.marketplacepackages mpp
       WHERE mpp.id = ?;
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -922,7 +922,7 @@ exports.getMarketplacePackageByIdWithDetailsDAO = (packageId) => {
       WHERE mp.id = ?
     `;
 
-    marketPlace.query(sql, [packageId], (err, results) => {
+    collectionofficer.query(sql, [packageId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -979,7 +979,7 @@ exports.updatePackageDAO = async (data, profileImageUrl, packageId) => {
       packageId,
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         console.log(err);
         reject(err);
@@ -1002,7 +1002,7 @@ exports.updatePackageDetailsDAO = async (data, detailId) => {
       detailId,
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1016,7 +1016,7 @@ exports.deletePackageDetails = async (packageId) => {
   return new Promise((resolve, reject) => {
     const sql = "DELETE FROM packagedetails WHERE packageId = ?";
 
-    marketPlace.query(sql, [packageId], (err, results) => {
+    collectionofficer.query(sql, [packageId], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1034,7 +1034,7 @@ exports.getMarketplaceUsers = async (buyerType) => {
       WHERE isSubscribe = 1 AND LOWER(buyerType) = LOWER(?)
     `;
 
-    marketPlace.query(sql, [buyerType], (err, results) => {
+    collectionofficer.query(sql, [buyerType], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1052,7 +1052,7 @@ exports.deleteMarketplaceUser = async (userId) => {
       WHERE id = ? AND isSubscribe = 1
     `;
 
-    marketPlace.query(sql, [userId], (err, result) => {
+    collectionofficer.query(sql, [userId], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -1072,7 +1072,7 @@ exports.getNextBannerIndexRetail = () => {
       WHERE type = 'Retail'
     `;
 
-    marketPlace.query(query, (error, results) => {
+    collectionofficer.query(query, (error, results) => {
       if (error) {
         return reject(error);
       }
@@ -1090,7 +1090,7 @@ exports.getNextBannerIndexWholesale = () => {
       WHERE type = 'Wholesale'
     `;
 
-    marketPlace.query(query, (error, results) => {
+    collectionofficer.query(query, (error, results) => {
       if (error) {
         return reject(error);
       }
@@ -1104,7 +1104,7 @@ exports.getBannerCount = async (type) => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT COUNT(*) as count FROM banners WHERE type = ?";
 
-    marketPlace.query(sql, [type], (err, results) => {
+    collectionofficer.query(sql, [type], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1120,7 +1120,7 @@ exports.createBanner = async (data) => {
       "INSERT INTO banners (indexId, details, image, type) VALUES (?, ?, ?, ?)";
     const values = [data.index, data.name, data.image, "Retail"];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1139,7 +1139,7 @@ exports.createBannerWholesale = async (data) => {
       "INSERT INTO banners (indexId, details, image, type) VALUES (?, ?, ?, ?)";
     const values = [data.index, data.name, data.image, "Wholesale"];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1156,7 +1156,7 @@ exports.getAllBanners = () => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT * FROM banners WHERE type = 'Retail' ORDER BY indexId";
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1171,7 +1171,7 @@ exports.getAllBannersWholesale = () => {
     const sql =
       "SELECT * FROM banners WHERE type = 'Wholesale' ORDER BY indexId";
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1187,7 +1187,7 @@ exports.updateBannerOrder = async (feedbacks) => {
 
     const queries = feedbacks.map((feedback) => {
       return new Promise((resolveInner, rejectInner) => {
-        marketPlace.query(
+        collectionofficer.query(
           sql,
           [feedback.orderNumber, feedback.id],
           (err, results) => {
@@ -1208,7 +1208,7 @@ exports.updateBannerOrder = async (feedbacks) => {
 exports.getBannerById = async (feedbackId) => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT * FROM banners WHERE id = ?";
-    marketPlace.query(sql, [feedbackId], (err, results) => {
+    collectionofficer.query(sql, [feedbackId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1223,11 +1223,11 @@ exports.deleteBannerRetail = async (feedbackId, orderNumber) => {
     const updateSql =
       "UPDATE banners SET indexId = indexId - 1 WHERE indexId > ? AND type = 'Retail'";
 
-    marketPlace.query(deleteSql, [feedbackId], (deleteErr, deleteResults) => {
+    collectionofficer.query(deleteSql, [feedbackId], (deleteErr, deleteResults) => {
       if (deleteErr) {
         return reject(deleteErr);
       }
-      marketPlace.query(
+      collectionofficer.query(
         updateSql,
         [orderNumber],
         (updateErr, updateResults) => {
@@ -1251,11 +1251,11 @@ exports.deleteBannerWhole = async (feedbackId, orderNumber) => {
     const updateSql =
       "UPDATE banners SET indexId = indexId - 1 WHERE indexId > ? AND type = 'Wholesale'";
 
-    marketPlace.query(deleteSql, [feedbackId], (deleteErr, deleteResults) => {
+    collectionofficer.query(deleteSql, [feedbackId], (deleteErr, deleteResults) => {
       if (deleteErr) {
         return reject(deleteErr);
       }
-      marketPlace.query(
+      collectionofficer.query(
         updateSql,
         [orderNumber],
         (updateErr, updateResults) => {
@@ -1277,7 +1277,7 @@ exports.createProductTypesDao = async (data) => {
   return new Promise((resolve, reject) => {
     const sql =
       "INSERT INTO producttypes (typeName, shortCode, isValid) VALUES (?, ?, ?)";
-    marketPlace.query(
+    collectionofficer.query(
       sql,
       [data.typeName, data.shortCode, 0],
       (err, results) => {
@@ -1304,7 +1304,7 @@ exports.viewProductTypeDao = async () => {
       LEFT JOIN agro_world_admin.adminusers au ON au.id = pt.modifyId
       ORDER BY pt.shortCode
     `;
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1317,7 +1317,7 @@ exports.getProductType = async () => {
   return new Promise((resolve, reject) => {
     const sql =
       "SELECT typeName, isValid, shortCode, id FROM producttypes ORDER BY typeName ASC";
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1352,7 +1352,7 @@ exports.editPackageDAO = async (data, profileImageUrl, id) => {
       parseFloat(id),
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         console.log(err);
         reject(err);
@@ -1373,7 +1373,7 @@ exports.editPackageDetailsDAO = async (data) => {
 
     const values = [data.qty, data.id];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1394,9 +1394,9 @@ exports.getAllRetailOrderDetails = (
   return new Promise((resolve, reject) => {
     let countSql = `
       SELECT COUNT(*) as total 
-      FROM market_place.orders o 
-      LEFT JOIN market_place.processorders po ON o.id = po.orderId
-      LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+      FROM collection_officer.orders o 
+      LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
+      LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
     `;
 
     let sql = `
@@ -1412,9 +1412,9 @@ exports.getAllRetailOrderDetails = (
         po.creditPaid,
         po.moneyPaid,
         o.createdAt AS orderdDate 
-      FROM market_place.orders o
-      LEFT JOIN market_place.processorders po ON o.id = po.orderId
-      LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+      FROM collection_officer.orders o
+      LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
+      LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
     `;
 
     let whereClause = " WHERE 1=1";
@@ -1448,14 +1448,14 @@ exports.getAllRetailOrderDetails = (
     sql += whereClause + " ORDER BY po.createdAt DESC LIMIT ? OFFSET ?";
     const dataParams = [...searchParams, limit, offset];
 
-    marketPlace.query(countSql, searchParams, (countErr, countResults) => {
+    collectionofficer.query(countSql, searchParams, (countErr, countResults) => {
       if (countErr) {
         return reject(countErr);
       }
 
       const total = countResults[0].total;
 
-      marketPlace.query(sql, dataParams, (dataErr, dataResults) => {
+      collectionofficer.query(sql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           return reject(dataErr);
         }
@@ -1473,7 +1473,7 @@ exports.getProductTypeByIdDao = async (id) => {
   return new Promise((resolve, reject) => {
     const sql =
       "SELECT typeName, isValid, shortCode FROM producttypes WHERE id = ?";
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1490,7 +1490,7 @@ exports.editProductTypesDao = async (data, id, modifyId) => {
                   typeName = ?, shortCode = ?, modifyId = ?, isValid = ?
                 WHERE id = ?
               `;
-    marketPlace.query(
+    collectionofficer.query(
       sql,
       [data.typeName, data.shortCode, modifyId, 0, id],
       (err, results) => {
@@ -1506,7 +1506,7 @@ exports.editProductTypesDao = async (data, id, modifyId) => {
 exports.DeleteProductTypeByIdDao = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = "DELETE FROM producttypes WHERE id = ?";
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1736,7 +1736,7 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
       sql += " AND id != ? AND isValid = 1";
       sqlParams.push(id);
     }
-    marketPlace.query(sql, sqlParams, (err, results) => {
+    collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1838,10 +1838,10 @@ exports.checkPackageDisplayNameExistsDao = async (displayName, id) => {
 //     dataParms.push(limit, offset);
 
 //     // ── Execute ─────────────────────────────────────────────
-//     marketPlace.query(countSql, countParms, (countErr, countResults) => {
+//     collectionofficer.query(countSql, countParms, (countErr, countResults) => {
 //       if (countErr) return reject(countErr);
 
-//       marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
+//       collectionofficer.query(dataSql, dataParms, (dataErr, dataResults) => {
 //         if (dataErr) return reject(dataErr);
 
 //         resolve({
@@ -1932,10 +1932,10 @@ exports.getAllRetailCustomersDao = (limit, offset, searchText, ratingFilter) => 
     dataParms.push(limit, offset);
 
     // ── Execute ─────────────────────────────────────────────
-    marketPlace.query(countSql, countParms, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParms, (countErr, countResults) => {
       if (countErr) return reject(countErr);
 
-      marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, dataParms, (dataErr, dataResults) => {
         if (dataErr) return reject(dataErr);
 
         resolve({
@@ -1957,7 +1957,7 @@ exports.updateRetailCustomerRatingDao = (customerId, rateofCus) => {
         AND isMarketPlaceUser = 1
     `;
 
-    marketPlace.query(sql, [rateofCus, customerId], (err, result) => {
+    collectionofficer.query(sql, [rateofCus, customerId], (err, result) => {
       if (err) return reject(err);
       resolve(result.affectedRows > 0);
     });
@@ -1982,7 +1982,7 @@ exports.getOrderDetailsById = (orderId) => {
       WHERE mp.id = ?
     `;
 
-    marketPlace.query(sql, [orderId], (err, results) => {
+    collectionofficer.query(sql, [orderId], (err, results) => {
       if (err) {
         console.error(`[getOrderDetailsById] Database error:`, err);
         return reject(new Error(`Database error: ${err.message}`));
@@ -2072,7 +2072,7 @@ exports.getAllMarketplaceItems = (category) => {
       ORDER BY createdAt DESC
     `;
 
-    marketPlace.query(sql, [category], (err, results) => {
+    collectionofficer.query(sql, [category], (err, results) => {
       if (err) {
         console.error(
           "[getAllMarketplaceItems] Error fetching all marketplace items:",
@@ -2114,7 +2114,7 @@ exports.getOrderTypeDao = async (id) => {
       FROM processorders POR, orders O, marketplaceusers U
       WHERE POR.orderId = O.id AND O.userId = U.id
     `;
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         console.log("Erro", err);
 
@@ -2145,7 +2145,7 @@ exports.createDefinePackageDao = (packageData, userId) => {
         parseInt(userId),
       ];
 
-      marketPlace.query(sql, values, (err, results) => {
+      collectionofficer.query(sql, values, (err, results) => {
         if (err) {
           console.log("Database error:", err);
           return reject(err);
@@ -2180,7 +2180,7 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
         ) VALUES ?
       `;
 
-      marketPlace.query(sql, [values], (err, results) => {
+      collectionofficer.query(sql, [values], (err, results) => {
         if (err) {
           console.log("Database error:", err);
           return reject(err);
@@ -2194,121 +2194,6 @@ exports.createDefinePackageItemsDao = (definePackageId, products) => {
   });
 };
 
-// exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) => {
-//   return new Promise((resolve, reject) => {
-//     let countParms = [];
-//     let dataParms  = [];
-
-//     let countSql = `
-//       SELECT COUNT(*) AS total
-//       FROM marketplaceusers MP
-//       WHERE
-//         MP.buyerType = 'Wholesale'
-//         AND MP.isMarketPlaceUser = 1
-//     `;
-
-//     let dataSql = `
-//       SELECT
-//         MP.id,
-//         MP.title,
-//         MP.firstName,
-//         MP.lastName,
-//         MP.phoneCode,
-//         MP.phoneNumber,
-//         MP.cusId,
-//         MP.email,
-//         MP.created_at,
-//         MP.buildingType,
-//         MP.companyName,
-//         MP.companyPhoneCode,
-//         MP.companyPhone,
-//         MP.rateofCus,
-//         H.houseNo,
-//         H.streetName,
-//         H.city,
-//         A.buildingNo,
-//         A.buildingName,
-//         A.unitNo,
-//         A.floorNo,
-//         A.houseNo      AS AparthouseNo,
-//         A.streetName   AS ApartstreetName,
-//         A.city         AS Apartcity,
-//         (
-//           SELECT COUNT(*)
-//           FROM orders O
-//           LEFT JOIN processorders PO ON O.id = PO.orderId
-//           WHERE O.userId = MP.id
-//         ) AS totalOrders
-//       FROM marketplaceusers MP
-//       LEFT JOIN house      H ON MP.id = H.customerId AND MP.buildingType = 'House'
-//       LEFT JOIN apartment  A ON MP.id = A.customerId AND MP.buildingType = 'Apartment'
-//       WHERE
-//         MP.buyerType = 'Wholesale'
-//         AND MP.isMarketPlaceUser = 1
-//     `;
-
-//     // ── Rating filter ──────────────────────────────────────────────────────────
-//     if (ratingFilter) {
-//       countSql += ` AND MP.rateofCus = ? `;
-//       dataSql  += ` AND MP.rateofCus = ? `;
-//       countParms.push(ratingFilter);
-//       dataParms.push(ratingFilter);
-//     }
-
-//     // ── Search filter ──────────────────────────────────────────────────────────
-//     if (searchText) {
-//       const searchClause = `
-//         AND (
-//           CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?
-//           OR MP.firstName    LIKE ?
-//           OR MP.lastName     LIKE ?
-//           OR MP.phoneNumber  LIKE ?
-//           OR MP.cusId        LIKE ?
-//           OR CONCAT(MP.phoneCode, ' - ', MP.phoneNumber) LIKE ?
-//           OR CONCAT(MP.phoneCode, '-',   MP.phoneNumber) LIKE ?
-//           OR CONCAT(MP.phoneCode,        MP.phoneNumber) LIKE ?
-//           OR REPLACE(CONCAT(MP.phoneCode, ' - ', MP.phoneNumber), ' ', '') LIKE ?
-//           OR REPLACE(CONCAT(MP.phoneCode, '-',   MP.phoneNumber), ' ', '') LIKE ?
-//         )
-//       `;
-//       countSql += searchClause;
-//       dataSql  += searchClause;
-
-//       const search             = `%${searchText}%`;
-//       const searchWithoutSpaces = `%${searchText.replace(/\s/g, '')}%`;
-//       const searchArgs = [
-//         search, search, search, search, search,
-//         search, search,
-//         searchWithoutSpaces, searchWithoutSpaces, searchWithoutSpaces,
-//       ];
-
-//       countParms.push(...searchArgs);
-//       dataParms.push(...searchArgs);
-//     }
-
-//     dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
-//     dataParms.push(limit, offset);
-
-//     marketPlace.query(countSql, countParms, (countErr, countResults) => {
-//       if (countErr) {
-//         console.error(countErr);
-//         return reject(countErr);
-//       }
-
-//       marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
-//         if (dataErr) {
-//           console.error(dataErr);
-//           return reject(dataErr);
-//         }
-
-//         resolve({
-//           total: countResults[0].total,
-//           items: dataResults,
-//         });
-//       });
-//     });
-//   });
-// };
 
 exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) => {
   return new Promise((resolve, reject) => {
@@ -2392,13 +2277,13 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
     dataSql += ` ORDER BY MP.created_at DESC LIMIT ? OFFSET ? `;
     dataParms.push(limit, offset);
 
-    marketPlace.query(countSql, countParms, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParms, (countErr, countResults) => {
       if (countErr) {
         console.error(countErr);
         return reject(countErr);
       }
 
-      marketPlace.query(dataSql, dataParms, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, dataParms, (dataErr, dataResults) => {
         if (dataErr) {
           console.error(dataErr);
           return reject(dataErr);
@@ -2421,7 +2306,7 @@ exports.updateWholesaleCustomerRatingDao = (id, rateofCus) => {
       WHERE id = ? AND buyerType = 'Wholesale'
     `;
 
-    marketPlace.query(sql, [rateofCus, id], (err, result) => {
+    collectionofficer.query(sql, [rateofCus, id], (err, result) => {
       if (err) {
         console.error(err);
         return reject(err);
@@ -2478,7 +2363,7 @@ exports.getUserOrdersDao = async (userId, status) => {
       sql += " AND P.status = 'Return Received' ";
     }
 
-    marketPlace.query(sql, [userId, status], (err, results) => {
+    collectionofficer.query(sql, [userId, status], (err, results) => {
       if (err) {
         console.log("Error", err);
         reject(err);
@@ -2542,7 +2427,7 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
       WHERE po.id = ?
     `;
 
-    marketPlace.query(sql, [processOrderId], (err, results) => {
+    collectionofficer.query(sql, [processOrderId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2586,7 +2471,7 @@ exports.getFamilyPackItemsDAO = (orderId) => {
       WHERE op.orderId = ?
     `;
 
-    marketPlace.query(sql, [orderId], (err, results) => {
+    collectionofficer.query(sql, [orderId], (err, results) => {
       if (err) return reject(err);
 
       const expanded = [];
@@ -2620,7 +2505,7 @@ exports.getAdditionalItemsDAO = (id) => {
       WHERE oai.orderId = ?
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2649,7 +2534,7 @@ exports.getBillingDetailsDAO = (orderId, userId) => {
       LIMIT 1
     `;
 
-    marketPlace.query(sql, [orderId], (err, results) => {
+    collectionofficer.query(sql, [orderId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2664,7 +2549,7 @@ exports.getPickupCenterDetailsDAO = (centerId) => {
       SELECT * FROM collection_officer.distributedcenter WHERE id = ?
     `;
 
-    marketPlace.query(sql, [centerId], (err, results) => {
+    collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2686,7 +2571,7 @@ exports.getPackageDetailsDAO = (packageId) => {
       WHERE pd.packageId = ?
     `;
 
-    marketPlace.query(sql, [packageId], (err, results) => {
+    collectionofficer.query(sql, [packageId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2698,9 +2583,9 @@ exports.getPackageDetailsDAO = (packageId) => {
 exports.getCoupenDAO = async (coupenId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT coupon.id, coupon.code, coupon.type, CAST(coupon.percentage AS DECIMAL(10,2)) AS percentage, coupon.status, coupon.checkLimit, CAST(coupon.priceLimit AS DECIMAL(10,2)) AS priceLimit, CAST(coupon.fixDiscount AS DECIMAL(10,2)) AS fixDiscount, coupon.startDate, coupon.endDate FROM market_place.coupon WHERE coupon.id = ?";
+      "SELECT coupon.id, coupon.code, coupon.type, CAST(coupon.percentage AS DECIMAL(10,2)) AS percentage, coupon.status, coupon.checkLimit, CAST(coupon.priceLimit AS DECIMAL(10,2)) AS priceLimit, CAST(coupon.fixDiscount AS DECIMAL(10,2)) AS fixDiscount, coupon.startDate, coupon.endDate FROM collection_officer.coupon WHERE coupon.id = ?";
 
-    marketPlace.query(sql, [coupenId], (err, results) => {
+    collectionofficer.query(sql, [coupenId], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -2750,7 +2635,7 @@ exports.updateCoupenDAO = async (coupen) => {
       coupen.id,
     ];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -2772,7 +2657,7 @@ exports.getPackageEachItemsDao = async (id) => {
       LEFT JOIN packagedetails PD ON PT.id = PD.productTypeId
       AND PD.packageId = ?
     `;
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2792,9 +2677,9 @@ exports.getAllWholesaleOrderDetails = (
   return new Promise((resolve, reject) => {
     let countSql = `
       SELECT COUNT(*) as total 
-      FROM market_place.orders o 
-      LEFT JOIN market_place.processorders po ON o.id = po.orderId
-      LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+      FROM collection_officer.orders o 
+      LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
+      LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
     `;
 
     let sql = `
@@ -2811,9 +2696,9 @@ exports.getAllWholesaleOrderDetails = (
         po.moneyPaid,
         o.createdAt AS orderdDate,
         mu.companyName
-      FROM market_place.orders o
-      LEFT JOIN market_place.processorders po ON o.id = po.orderId
-      LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+      FROM collection_officer.orders o
+      LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
+      LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
     `;
 
     let whereClause = " WHERE 1=1";
@@ -2847,14 +2732,14 @@ exports.getAllWholesaleOrderDetails = (
     sql += whereClause + " ORDER BY po.createdAt DESC LIMIT ? OFFSET ?";
     const dataParams = [...searchParams, limit, offset];
 
-    marketPlace.query(countSql, searchParams, (countErr, countResults) => {
+    collectionofficer.query(countSql, searchParams, (countErr, countResults) => {
       if (countErr) {
         return reject(countErr);
       }
 
       const total = countResults[0].total;
 
-      marketPlace.query(sql, dataParams, (dataErr, dataResults) => {
+      collectionofficer.query(sql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           return reject(dataErr);
         }
@@ -2877,7 +2762,7 @@ exports.deletePackageDetailsItemsDao = async (data) => {
 
     const values = [data.id];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -2896,7 +2781,7 @@ exports.insertNewPackageDetailsItemsDao = async (id, data) => {
 
     const values = [id, data.productTypeId, data.qty];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -2927,7 +2812,7 @@ exports.getDefinePackageItemsByPackageIdDAO = async (packageId) => {
       )
     `;
 
-    marketPlace.query(sql, [packageId], (err, results) => {
+    collectionofficer.query(sql, [packageId], (err, results) => {
       if (err) {
         reject(err);
       } else if (results.length === 0) {
@@ -2957,7 +2842,7 @@ exports.toDaySalesDao = async () => {
       WHERE DATE(PO.createdAt) = CURDATE()
     `;
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -2983,7 +2868,7 @@ exports.yesterdaySalesDao = async () => {
       WHERE DATE(PO.createdAt) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
     `;
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3011,7 +2896,7 @@ exports.thisMonthSalesDao = async () => {
       WHERE YEAR(PO.createdAt) = YEAR(CURDATE()) AND MONTH(PO.createdAt) = MONTH(CURDATE())
     `;
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3040,7 +2925,7 @@ exports.thisMonthSalesDao = async () => {
 //       sql += ` AND DATE(created_at) = CURDATE() `;
 //     }
 
-//     marketPlace.query(sql, (err, results) => {
+//     collectionofficer.query(sql, (err, results) => {
 //       if (err) {
 //         reject(err);
 //       } else {
@@ -3074,7 +2959,7 @@ exports.salesAnalyzeDao = async () => {
       WHERE PO.createdAt >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
     `;
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3108,7 +2993,7 @@ exports.salesAnalyzeDao = async () => {
 //       WHERE O.orderApp = 'Marketplace'
 //     `;
 
-//     marketPlace.query(sql, (err, results) => {
+//     collectionofficer.query(sql, (err, results) => {
 //       if (err) {
 //         reject(err);
 //       } else {
@@ -3135,7 +3020,7 @@ exports.totalMarketOrderCountDao = async () => {
       AND PO.createdAt >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
     `;
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3183,7 +3068,7 @@ exports.areaOrderDataDao = async () => {
       ORDER BY monthNum
     `;
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3279,7 +3164,7 @@ exports.pieDataDao = async () => {
       GROUP BY category;
     `;
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3335,7 +3220,7 @@ exports.lastFiveOrdersDao = async () => {
       LIMIT 5
     `;
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3369,7 +3254,7 @@ exports.toDayUserCountDao = async (isToday) => {
       `;
     }
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3433,7 +3318,7 @@ exports.getDefinePackageItemsBeforeDateDAO = async (
       )
     `;
 
-    marketPlace.query(sql, [packageId, formattedDate], (err, results) => {
+    collectionofficer.query(sql, [packageId, formattedDate], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -3464,7 +3349,7 @@ exports.getCouponByCodeDao = async (code) => {
       WHERE code = ?
     `;
 
-    marketPlace.query(sql, [code], (err, results) => {
+    collectionofficer.query(sql, [code], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3479,7 +3364,7 @@ exports.removeMarketplacePckages = async (id) => {
     const sql = `
           DELETE FROM marketplacepackages 
           WHERE id = ?`;
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3504,7 +3389,7 @@ exports.checkMarketProductExistsDaoEdit = async (
       values.push(excludeId);
     }
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3536,7 +3421,7 @@ exports.changePackageStatusDao = async (data) => {
 
     const values = [data.status, data.id];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3571,7 +3456,7 @@ exports.getPosPackageDetailsDAO = (orderId) => {
       GROUP BY mp.id, mp.displayName, mp.productPrice, op.qty;
     `;
 
-    marketPlace.query(sql, [orderId], (err, results) => {
+    collectionofficer.query(sql, [orderId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -3582,7 +3467,7 @@ exports.getPosPackageDetailsDAO = (orderId) => {
 // exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
 //   return new Promise((resolve, reject) => {
 //     const sql = "UPDATE producttypes SET isValid = ?, modifyId = ? WHERE id = ?";
-//     marketPlace.query(sql, [isValid, modifyId, id], (err, results) => {
+//     collectionofficer.query(sql, [isValid, modifyId, id], (err, results) => {
 //       if (err) {
 //         return reject(err);
 //       }
@@ -3698,7 +3583,7 @@ exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
 exports.toggleItemStatus = (id, isEnable, modifyBy) => {
   return new Promise((resolve, reject) => {
     const sql = `UPDATE marketplaceitems SET isEnable = ?, modifyBy = ? WHERE id = ?`;
-    marketPlace.query(sql, [isEnable, modifyBy, id], (err, result) => {
+    collectionofficer.query(sql, [isEnable, modifyBy, id], (err, result) => {
       if (err) return reject(err);
       resolve(result);
     });
@@ -3713,7 +3598,7 @@ exports.disablePackagesByProductId = (productId) => {
                  SET p.status = 'Disabled'
                  WHERE dpi.productId = ?`;
 
-    marketPlace.query(sql, [productId], (err, result) => {
+    collectionofficer.query(sql, [productId], (err, result) => {
       if (err) return reject(err);
       resolve(result);
     });
