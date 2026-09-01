@@ -506,13 +506,6 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
     //   params2.push(`%${search.nic}%`);
     // }
 
-    if (filters.status) {
-      where1 += " AND gj.status = ? ";
-      where2 += " AND fa.status = ? ";
-      params1.push(filters.status);
-      params2.push(filters.status);
-    }
-
     if (filters.district) {
       where1 += " AND f.district = ? ";
       where2 += " AND f.district = ? ";
@@ -534,6 +527,19 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
       params2.push(filters.completedDateTo);
     }
 
+    if (filters.status) {
+      if (filters.status === 'Pending') {
+        where1 += " AND gj.status IN (?, ?) ";
+        params1.push('Pending', 'Assigned');
+      } else {
+        where1 += " AND gj.status = ? ";
+        params1.push(filters.status);
+      }
+
+      where2 += " AND fa.status = ? ";
+      params2.push(filters.status);
+    }
+
     // -------------------------------------------------------------------
     // SPECIAL FIELD-AUDIT-ONLY CONDITIONS
     // -------------------------------------------------------------------
@@ -541,7 +547,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
       AND (
         (fa.propose = 'Cluster' AND fa.status = 'Completed')
         OR
-        (fa.propose IN ('Request', 'Individual') AND fa.status IN ('Completed', 'Pending'))
+        (fa.propose IN ('Request', 'Individual') AND fa.status IN ('Completed', 'Pending', 'Ongoing'))
       )
     `;
 
@@ -564,7 +570,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         gj.status AS status,
         gj.assignBy AS assignBy,
         au.userName AS assignedByName,
-        concat(fo1.firstName, ' ', fo1.lastName) AS AssignedOfficer,
+        concat(fo1.firstName, ' ', fo1.lastName) AS assignedOfficer,
         'Requested Service' AS visitPurpose,
         jao.createdAt AS assignedOn,
         'no' AS onScreenTime
@@ -594,7 +600,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         fa.status AS status,
         fa.assignBy AS assignBy,
         au.userName AS assignedByName,
-        concat(fo1.firstName, ' ', fo1.lastName) AS AssignedOfficer,
+        concat(fo1.firstName, ' ', fo1.lastName) AS assignedOfficer,
         fa.propose AS visitPurpose,
         fa.assignDate AS assignedOn,
         fa.onScreenTime AS onScreenTime
@@ -606,7 +612,7 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
       LEFT JOIN plant_care.feildauditcluster fac ON fac.feildAuditId = fa.id
       LEFT JOIN plant_care.farms f ON fac.farmId = f.id
       LEFT JOIN plant_care.users u2 ON f.userId = u2.id
-      LEFT JOIN plant_care.feildofficer fo1 ON fa.assignByCFO = fo1.id
+      LEFT JOIN plant_care.feildofficer fo1 ON fa.assignOfficerId = fo1.id
       LEFT JOIN plant_care.certificationpaymentfarm cpf ON cp.id = cpf.paymentId
       LEFT JOIN plant_care.farms f2 ON cpf.farmId = f2.id
       LEFT JOIN plant_care.certificationpaymentcrop cpc ON cp.id = cpc.paymentId
@@ -1101,19 +1107,25 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
         sqi.uploadImage,
         sqi.officerTickResult,
         sq.id AS slaveQId,
-        (SELECT COUNT(*) FROM feildauditcluster fac1 WHERE fac1.feildAuditId = fa.id) AS totalFarms,
-        (SELECT COUNT(*) FROM feildauditcluster fac2 WHERE fac2.feildAuditId = fa.id AND fac2.isCompleted = 1) AS completedFarms
-
+        (
+          SELECT COUNT(*)
+          FROM feildauditcluster fac1
+          WHERE fac1.feildAuditId = fa.id
+        ) AS totalFarms,
+        (
+          SELECT COUNT(*)
+          FROM feildauditcluster fac2
+          WHERE fac2.feildAuditId = fa.id
+          AND fac2.isCompleted = 1
+        ) AS completedFarms
       FROM feildaudits fa
-      LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id 
-      LEFT JOIN certificates ct ON ct.id = cp.certificateId 
-      LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id
-      LEFT JOIN certificationpaymentfarm cpf ON cpf.paymentId = cp.id
-      LEFT JOIN farmcluster fc ON fc.id = cp.clusterId 
+      LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
+      LEFT JOIN certificates ct ON ct.id = cp.certificateId
+      LEFT JOIN farmcluster fc ON fc.id = cp.clusterId
       LEFT JOIN farmclusterfarmers fcf ON fcf.clusterId = fc.id
-      LEFT JOIN farms f ON f.id = fcf.farmId 
+      LEFT JOIN farms f ON f.id = fcf.farmId
+      LEFT JOIN slavequestionnaire sq ON sq.crtPaymentId = cp.id AND sq.clusterFarmId = fcf.id
       LEFT JOIN slavequestionnaireitems sqi ON sqi.slaveId = sq.id
-
       WHERE fa.jobId = ?
     `;
 
