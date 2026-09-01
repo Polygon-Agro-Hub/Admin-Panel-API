@@ -1,7 +1,6 @@
 const {
   plantcare,
   collectionofficer,
-  marketPlace,
 } = require("../startup/database");
 
 // exports.getSavedCenterCropsDao = (id, date, state, searchText) => {

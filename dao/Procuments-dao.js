@@ -3,7 +3,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace
 } = require("../startup/database");
 
 exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {

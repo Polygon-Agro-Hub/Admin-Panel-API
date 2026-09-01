@@ -12,7 +12,7 @@ const admin = mysql.createPool({
   port: process.env.DB_PORT,
   charset: 'utf8mb4',
   waitForConnections: true,
-  connectionLimit: 5,
+  connectionLimit: 1,
   maxIdle: 6, 
   queueLimit: 0,
   enableKeepAlive: true,
@@ -27,7 +27,7 @@ const plantcare = mysql.createPool({
   port: process.env.DB_PORT,
   charset: 'utf8mb4',
   waitForConnections: true,
-  connectionLimit: 5,
+  connectionLimit: 4,
   maxIdle: 6, 
   queueLimit: 0,
   enableKeepAlive: true,
@@ -50,20 +50,20 @@ const collectionofficer = mysql.createPool({
   keepAliveInitialDelay : 0,
 });
 
-const marketPlace = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME_MP,
-  port: process.env.DB_PORT,
-  charset: 'utf8mb4',
-  waitForConnections: true,
-  connectionLimit: 5,
-  maxIdle: 6, 
-  queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelay : 0,
-});
+// const marketPlace = mysql.createPool({
+//   host: process.env.DB_HOST,
+//   user: process.env.DB_USER,
+//   password: process.env.DB_PASSWORD,
+//   database: process.env.DB_NAME_MP,
+//   port: process.env.DB_PORT,
+//   charset: 'utf8mb4',
+//   waitForConnections: true,
+//   connectionLimit: 5,
+//   maxIdle: 6, 
+//   queueLimit: 0,
+//   enableKeepAlive: true,
+//   keepAliveInitialDelay : 0,
+// });
 
 
 const investment = mysql.createPool({
@@ -74,7 +74,7 @@ const investment = mysql.createPool({
   port: process.env.DB_PORT,
   charset: 'utf8mb4',
   waitForConnections: true,
-  connectionLimit: 5,
+  connectionLimit: 3,
   maxIdle: 6, 
   queueLimit: 0,
   enableKeepAlive: true,
@@ -89,7 +89,7 @@ const goviShop = mysql.createPool({
   port: process.env.DB_PORT,
   charset: 'utf8mb4',
   waitForConnections: true,
-  connectionLimit: 5,
+  connectionLimit: 3,
   maxIdle: 6, 
   queueLimit: 0,
   enableKeepAlive: true,
@@ -97,4 +97,4 @@ const goviShop = mysql.createPool({
 });
 
 
-module.exports = {admin, plantcare, collectionofficer, marketPlace, investment, goviShop};
+module.exports = {admin, plantcare, collectionofficer, investment, goviShop};
