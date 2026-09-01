@@ -3458,3 +3458,127 @@ exports.updateCopTransactionStatusDao = ({ id, updatedBy }) => {
     });
   });
 };
+
+exports.getCompletedOrders = (page, limit, startDate, endDate, search) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+    let whereClause = `WHERE po.status = 'Delivered'`;
+    const params = [];
+    const countParams = [];
+
+    if (startDate && endDate) {
+      whereClause += " AND DATE(o.createdAt) BETWEEN ? AND ?";
+      params.push(startDate, endDate);
+      countParams.push(startDate, endDate);
+    } else if (startDate) {
+      whereClause += " AND DATE(o.createdAt) >= ?";
+      params.push(startDate);
+      countParams.push(startDate);
+    } else if (endDate) {
+      whereClause += " AND DATE(o.createdAt) <= ?";
+      params.push(endDate);
+      countParams.push(endDate);
+    }
+
+    if (search) {
+      whereClause += ` AND po.invNo LIKE ?`;
+      params.push(`%${search}%`);
+      countParams.push(`%${search}%`);
+    }
+
+    const countSql = `
+      SELECT COUNT(DISTINCT po.id) AS total
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN marketplaceusers mu ON o.userId = mu.id
+      ${whereClause}
+    `;
+
+    const dataSql = `
+      SELECT
+        po.id, 
+        po.orderId, 
+        po.invNo AS invoiceNo,
+        o.fullName AS customerName, 
+        o.phonecode1, o.phone1,
+        o.delivaryMethod AS orderType, 
+        o.fullTotal AS amount,
+        po.paymentMethod, 
+        po.moneyPaid AS cashPaid, 
+        po.creditPaid,
+        o.createdAt AS orderedAt, 
+        po.deliveredTime AS completedAt,
+        o.orderApp AS platform, 
+        mu.buyerType
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN marketplaceusers mu ON o.userId = mu.id
+      ${whereClause}
+      ORDER BY o.createdAt DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    params.push(parseInt(limit), parseInt(offset));
+
+    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+      const total = countResults[0]?.total || 0;
+
+      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+        if (dataErr) return reject(dataErr);
+        resolve({ items: dataResults, total });
+      });
+    });
+  });
+};
+
+exports.downloadCompletedOrders = (startDate, endDate, search) => {
+  return new Promise((resolve, reject) => {
+    let whereClause = "WHERE po.status = 'Delivered'";
+    const params = [];
+
+    if (startDate && endDate) {
+      whereClause += " AND DATE(o.createdAt) BETWEEN ? AND ?";
+      params.push(startDate, endDate);
+    } else if (startDate) {
+      whereClause += " AND DATE(o.createdAt) >= ?";
+      params.push(startDate);
+    } else if (endDate) {
+      whereClause += " AND DATE(o.createdAt) <= ?";
+      params.push(endDate);
+    }
+
+    if (search) {
+      whereClause += ` AND po.invNo LIKE ?`;
+      params.push(`%${search}%`);
+    }
+
+    const dataSql = `
+      SELECT
+        po.id, 
+        po.orderId, 
+        po.invNo AS invoiceNo,
+        o.fullName AS customerName, 
+        o.phonecode1, o.phone1,
+        o.delivaryMethod AS orderType, 
+        o.fullTotal AS amount,
+        po.paymentMethod, 
+        po.moneyPaid, 
+        po.creditPaid,
+        o.createdAt AS orderedAt, 
+        po.deliveredTime AS completedAt,
+        o.orderApp AS platform, 
+        mu.buyerType
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN marketplaceusers mu ON o.userId = mu.id
+      ${whereClause}
+      ORDER BY o.createdAt DESC
+    `;
+
+    marketPlace.query(dataSql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
