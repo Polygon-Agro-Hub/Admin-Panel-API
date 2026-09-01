@@ -1,7 +1,6 @@
 const {
   plantcare,
   collectionofficer,
-  marketPlace,
   investment,
 } = require("../startup/database");
 const { error } = require("console");

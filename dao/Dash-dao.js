@@ -2,7 +2,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace,
   investment,
 } = require("../startup/database");
 

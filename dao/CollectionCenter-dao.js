@@ -2,7 +2,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace,
 } = require("../startup/database");
 const Joi = require("joi");
 
