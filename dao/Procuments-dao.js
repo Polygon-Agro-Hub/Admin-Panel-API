@@ -1924,3 +1924,56 @@ exports.getAllShortageAssignedDetails = (date) => {
     });
   });
 };
+
+exports.createPackingTargetLimitDao = (tarValue) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // Validate inputs
+      if (tarValue === undefined || tarValue === null) {
+        throw new Error("Invalid input parameters");
+      }
+
+      const sql = `
+        INSERT INTO packingtargetlimit (
+          tarValue, createdAt
+        ) VALUES (?, NOW())
+      `;
+
+      // Database query
+      collectionofficer.query(sql, [parseFloat(tarValue)], (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results);
+      });
+    } catch (error) {
+      console.log("Error in createPackingTargetLimitDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.getLatestPackingTargetLimitDao = () => {
+  return new Promise((resolve, reject) => {
+    try {
+      const sql = `
+        SELECT id, tarValue, createdAt
+        FROM packingtargetlimit
+        ORDER BY createdAt DESC
+        LIMIT 1
+      `;
+
+      collectionofficer.query(sql, (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results[0] || null);
+      });
+    } catch (error) {
+      console.log("Error in getLatestPackingTargetLimitDao:", error);
+      reject(error);
+    }
+  });
+};
