@@ -646,7 +646,7 @@ const getAllOrders = (
         po.id,
         po.InvNo AS invNo,
         po.status AS orderStatus,
-        o.sheduleDate AS scheduleDate,
+        po.sheduleDate AS scheduleDate,
         po.paymentMethod,
         po.isPaid AS paymentStatus,
         o.discount AS fullDiscount,
@@ -717,7 +717,7 @@ const getAllOrders = (
     }
 
     if (date) {
-      whereConditions.push(`DATE(o.sheduleDate) = DATE(?)`);
+      whereConditions.push(`DATE(po.sheduleDate) = DATE(?)`);
       let formattedDate = "";
       const d = new Date(date);
       formattedDate = d.toISOString().split("T")[0];
@@ -1004,7 +1004,7 @@ const getUserOrdersDao = async (userId, status) => {
         P.id,
         P.invNo,
         O.sheduleType,
-        O.sheduleDate,
+        P.sheduleDate,
         DATE_ADD(P.createdAt, INTERVAL '5.30' HOUR_MINUTE) AS createdAt,
         P.paymentMethod,
         P.isPaid,

@@ -623,7 +623,7 @@ exports.getAllRequestedItemsDao = (date) => {
 
     // Add conditions for district if provided
     if (date) {
-      whereClause += ` AND DATE(o.sheduleDate) = ?`;
+      whereClause += ` AND DATE(po.sheduleDate) = ?`;
       queryParams.push(date);
     }
 
@@ -635,7 +635,7 @@ exports.getAllRequestedItemsDao = (date) => {
       o.id AS orderId,
       o.centerId,
       o.isPackage,
-      o.sheduleDate,
+      po.sheduleDate,
       oh.city AS houseCity,
       oa.city AS apartmentCity,
       -- Package-level grouping (when packages exist)
@@ -701,7 +701,7 @@ exports.getAllRequestedItemsDao = (date) => {
   LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
   LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
   ${whereClause}
-  GROUP BY po.id, po.invNo, po.status, o.id, o.centerId, o.isPackage, o.sheduleDate, oh.city, oa.city
+  GROUP BY po.id, po.invNo, po.status, o.id, o.centerId, o.isPackage, po.sheduleDate, oh.city, oa.city
       `;
 
     collectionofficer.query(dataSql, queryParams, (dataErr, dataResults) => {

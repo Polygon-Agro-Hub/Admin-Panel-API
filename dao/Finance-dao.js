@@ -2196,13 +2196,13 @@ exports.getAgentCommitionsDao = (data) => {
     let sql = `
       SELECT
         po.invNo,
-        o.sheduleDate,
+        po.sheduleDate,
         po.deliveredTime,
         po.isPaid
     FROM processorders po
     INNER JOIN orders o ON po.orderId = o.id
     INNER JOIN marketplaceusers mu ON o.userId = mu.id 
-    WHERE mu.salesAgent = ? AND (DATE(o.sheduleDate) BETWEEN ? AND ?) AND DATE(po.deliveredTime) < ?
+    WHERE mu.salesAgent = ? AND (DATE(po.sheduleDate) BETWEEN ? AND ?) AND DATE(po.deliveredTime) < ?
     `;
 
     if (data.paymentStatus) {
