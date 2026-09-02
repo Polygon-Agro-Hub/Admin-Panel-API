@@ -22,15 +22,15 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
           queryParams.push(date);
           break;
         case "scheduleDate":
-          whereSql += ` AND DATE(o.sheduleDate) = ?`;
+          whereSql += ` AND DATE(po.sheduleDate) = ?`;
           queryParams.push(date);
           break;
         case "toCollectionCenter":
-          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
+          whereSql += ` AND DATE(DATE_SUB(po.sheduleDate, INTERVAL 1 DAY)) = ?`;
           queryParams.push(date);
           break;
         case "toDispatchCenter":
-          whereSql += ` AND DATE(o.sheduleDate) = ?`;
+          whereSql += ` AND DATE(po.sheduleDate) = ?`;
           queryParams.push(date);
           break;
       }
@@ -42,7 +42,7 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         po.id AS processOrderId,
         o.id AS orderId,
         DATE(po.createdAt) AS createdAt,
-        DATE(o.sheduleDate) AS sheduleDate,
+        DATE(po.sheduleDate) AS sheduleDate,
         mpi.varietyId,
         (opi.qty * op.qty) AS quantity
       FROM collection_officer.processorders po
@@ -59,7 +59,7 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         po.id AS processOrderId,
         o.id AS orderId,
         DATE(po.createdAt) AS createdAt,
-        DATE(o.sheduleDate) AS sheduleDate,
+        DATE(po.sheduleDate) AS sheduleDate,
         mpi.varietyId,
         CASE 
           WHEN oai.unit = 'g' THEN oai.qty / 1000
@@ -166,6 +166,7 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
     let baseJoinSql = `
       FROM collection_officer.orderpackage op 
       JOIN collection_officer.orders o ON op.orderId = o.id
+      JOIN collection_officer.processorders po ON o.id = po.orderId
       JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
       JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id
       JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
@@ -184,15 +185,15 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
           queryParams.push(date);
           break;
         case "scheduleDate":
-          whereSql += ` AND DATE(o.sheduleDate) = ?`;
+          whereSql += ` AND DATE(po.sheduleDate) = ?`;
           queryParams.push(date);
           break;
         case "toCollectionCenter":
-          whereSql += ` AND DATE(DATE_SUB(o.sheduleDate, INTERVAL 1 DAY)) = ?`;
+          whereSql += ` AND DATE(DATE_SUB(po.sheduleDate, INTERVAL 1 DAY)) = ?`;
           queryParams.push(date);
           break;
         case "toDispatchCenter":
-          whereSql += ` AND DATE(o.sheduleDate) = ?`;
+          whereSql += ` AND DATE(po.sheduleDate) = ?`;
           queryParams.push(date);
           break;
       }
@@ -209,7 +210,7 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
     const dataSql = `
       SELECT 
         o.createdAt, 
-        o.sheduleDate AS scheduleDate,
+        po.sheduleDate AS scheduleDate,
         oai.productId, 
         ROUND(
           CASE 
@@ -220,8 +221,8 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
         oai.unit,
         cg.cropNameEnglish, 
         cv.varietyNameEnglish,
-        DATE_SUB(o.sheduleDate, INTERVAL 1 DAY) AS toCollectionCenter,
-        o.sheduleDate AS toDispatchCenter
+        DATE_SUB(po.sheduleDate, INTERVAL 1 DAY) AS toCollectionCenter,
+        po.sheduleDate AS toDispatchCenter
       ${baseJoinSql}
       ${whereSql}
       ORDER BY o.createdAt DESC, cg.cropNameEnglish ASC, cv.varietyNameEnglish ASC
@@ -263,7 +264,7 @@ exports.getAllOrdersWithProcessInfo = (
          FROM orderpackage op2
          JOIN marketplacepackages mp ON op2.packageId = mp.id
          WHERE op2.orderId = po.id) AS total,
-        o.sheduleDate,
+        po.sheduleDate,
         o.orderApp,
         po.id AS processOrderId,
         po.invNo,
@@ -290,7 +291,7 @@ exports.getAllOrdersWithProcessInfo = (
           statusFilter === "Pending" ? " AND po.isPaid = 0 " :
             statusFilter === "Cancelled" ? " AND po.status = 'Cancelled' " : "")
         : ""}
-        ${dateFilter ? " AND DATE(o.sheduleDate) = ? " : ""}
+        ${dateFilter ? " AND DATE(po.sheduleDate) = ? " : ""}
         ${dateFilter1 ? " AND DATE(po.createdAt) = ? " : ""}
         ${searchText ? " AND po.invNo LIKE ? " : ""}
       ORDER BY po.createdAt 
@@ -309,7 +310,7 @@ exports.getAllOrdersWithProcessInfo = (
           statusFilter === "Pending" ? " AND po.isPaid = 0 " :
             statusFilter === "Cancelled" ? " AND po.status = 'Cancelled' " : "")
         : ""}
-        ${dateFilter ? " AND DATE(o.sheduleDate) = ? " : ""}
+        ${dateFilter ? " AND DATE(po.sheduleDate) = ? " : ""}
         ${dateFilter1 ? " AND DATE(po.createdAt) = ? " : ""}
         ${searchText ? " AND po.invNo LIKE ? " : ""}
     `;
@@ -612,8 +613,8 @@ exports.getAllOrdersWithProcessInfoCompleted = (page, limit, dateFilter, searchT
     if (dateFilter) {
       console.log("Date Filter:", dateFilter);
 
-      dataSql += ` AND DATE(o.sheduleDate) = ? `;
-      countSql += ` AND DATE(o.sheduleDate) = ? `;
+      dataSql += ` AND DATE(po.sheduleDate) = ? `;
+      countSql += ` AND DATE(po.sheduleDate) = ? `;
       params.push(dateFilter);
       countParams.push(dateFilter);
     }
@@ -849,7 +850,7 @@ exports.getAllOrdersWithProcessInfoDispatched = (page, limit, dateFilter, search
            FROM orderpackage op2
            JOIN marketplacepackages mp ON op2.packageId = mp.id
            WHERE op2.orderId = po.id) AS total,
-          o.sheduleDate,
+          po.sheduleDate,
           o.orderApp,
           po.invNo,
           po.status,
@@ -1113,8 +1114,8 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
 
     // Add date filter if provided
     if (deliveryDate) {
-      whereClausePackage += ` AND DATE(o.sheduleDate) = ?`;
-      whereClauseAdditional += ` AND DATE(o.sheduleDate) = ?`;
+      whereClausePackage += ` AND DATE(po.sheduleDate) = ?`;
+      whereClauseAdditional += ` AND DATE(po.sheduleDate) = ?`;
       queryParams.push(deliveryDate);
     }
 
@@ -1134,7 +1135,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         o.centerId,
         o.delivaryMethod,
         o.buildingType,
-        o.sheduleDate,
+        po.sheduleDate,
         oh.city as houseCity,
         oa.city as apartmentCity,
         opi.productId,
@@ -1151,7 +1152,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
       LEFT JOIN plant_care.cropvariety v ON mpi.varietyId = v.id
       LEFT JOIN plant_care.cropgroup c ON v.cropGroupId = c.id
       ${whereClausePackage}
-      GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, opi.productId, mpi.displayName
+      GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, po.sheduleDate, oh.city, oa.city, opi.productId, mpi.displayName
       
       UNION ALL
       
@@ -1160,7 +1161,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         o.centerId,
         o.delivaryMethod,
         o.buildingType,
-        o.sheduleDate,
+        po.sheduleDate,
         oh.city as houseCity,
         oa.city as apartmentCity,
         oai.productId,
@@ -1176,7 +1177,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
       LEFT JOIN plant_care.cropvariety v ON mpi.varietyId = v.id
       LEFT JOIN plant_care.cropgroup c ON v.cropGroupId = c.id
       ${whereClauseAdditional}
-      GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, o.sheduleDate, oh.city, oa.city, oai.productId, mpi.displayName, oai.unit
+      GROUP BY o.id, o.centerId, o.delivaryMethod, o.buildingType, po.sheduleDate, oh.city, oa.city, oai.productId, mpi.displayName, oai.unit
     `;
 
     console.log('=== DEBUG SQL ===');
@@ -1594,7 +1595,7 @@ exports.getShortageDetails = () => {
       SELECT 
         s.id,
         s.mpItemId,
-        (s.shortageQty - IFNULL((
+        ((s.shortageQty * 1.02) - IFNULL((
           SELECT SUM(sa.qty)
           FROM collection_officer.shortageassigned sa
           WHERE sa.shortageassigned = s.id
@@ -1631,7 +1632,7 @@ exports.getShortageDetailsById = (id) => {
     }
     const sql = `
       SELECT 
-        (s.shortageQty - IFNULL((
+        ((s.shortageQty * 1.02) - IFNULL((
           SELECT SUM(sa.qty)
           FROM collection_officer.shortageassigned sa
           WHERE sa.shortageassigned = s.id
@@ -1772,7 +1773,7 @@ exports.getShortageToFinalizeDao = () => {
         mpi.displayName AS itemName,
         cv.image AS imageUrl,
         au.userName AS assignedBy,
-        CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS assignOfficerBy
+        co.empId AS assignOfficerBy
       FROM collection_officer.shortageassigned sa
       JOIN collection_officer.shortage s ON sa.shortageassigned = s.id
       JOIN collection_officer.marketplaceitems mpi ON s.mpItemId = mpi.id
@@ -1812,7 +1813,7 @@ exports.getShortageFinalizedDao = () => {
         mpi.displayName AS itemName,
         cv.image AS imageUrl,
         au.userName AS assignedBy,
-         CONCAT(co.firstNameEnglish, ' ', co.lastNameEnglish) AS assignOfficerBy,
+        co.empId AS assignOfficerBy,
         dc.regCode,
         dc.city,
         dc.province
