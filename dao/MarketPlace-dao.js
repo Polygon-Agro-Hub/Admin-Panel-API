@@ -3613,3 +3613,21 @@ function rollbackAndRelease(connection, reject, error) {
     reject(error);
   });
 }
+
+exports.updateWholesaleCustomerCreditBalanceDao = async (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE marketplaceusers
+      SET creditBalance = ?
+      WHERE id = ?
+    `;
+    const values = [data.creditBalance, data.id];
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};

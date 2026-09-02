@@ -351,4 +351,10 @@ router.patch(
   marketPlaceEp.toggleProductStatus,
 );
 
+router.patch(
+  "/update-wholesale-customer-credit-balance",
+  authMiddleware,
+  marketPlaceEp.updateWholesaleCustomerCreditBalance,
+);
+
 module.exports = router;
