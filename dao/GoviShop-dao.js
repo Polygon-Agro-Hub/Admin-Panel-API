@@ -2,7 +2,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace,
   investment,
   goviShop,
 } = require("../startup/database");

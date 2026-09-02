@@ -1,4 +1,4 @@
-const { admin, plantcare, collectionofficer, marketPlace, investment, } = require("../startup/database");
+const { admin, plantcare, collectionofficer, investment, } = require("../startup/database");
 const { Upload } = require("@aws-sdk/lib-storage");
 const Joi = require("joi");
 
@@ -292,8 +292,8 @@ exports.getAllMarketplaceComplaints = (role) => {
         mc.refId AS refNo,
         cc.categoryEnglish,
         au.userName AS replyBy
-      FROM market_place.marcketplacecomplain mc
-      LEFT JOIN market_place.marketplaceusers mu ON mc.userId = mu.id
+      FROM collection_officer.marcketplacecomplain mc
+      LEFT JOIN collection_officer.marketplaceusers mu ON mc.userId = mu.id
       LEFT JOIN agro_world_admin.complaincategory cc ON mc.complaicategoryId = cc.id
       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
       LEFT JOIN agro_world_admin.adminusers au ON mc.replyBy = au.id
@@ -307,7 +307,7 @@ exports.getAllMarketplaceComplaints = (role) => {
       sqlParams.push(role);
     }
 
-    marketPlace.query(sql, sqlParams, (err, results) => {
+    collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.error('SQL error in getAllMarketplaceComplaints:', err);
         return reject({
@@ -344,8 +344,8 @@ exports.getAllMarketplaceComplaintsWholesale = (role) => {
         mc.refId AS refNo,
         cc.categoryEnglish,
         au.userName AS replyBy
-      FROM market_place.marcketplacecomplain mc
-      LEFT JOIN market_place.marketplaceusers mu ON mc.userId = mu.id
+      FROM collection_officer.marcketplacecomplain mc
+      LEFT JOIN collection_officer.marketplaceusers mu ON mc.userId = mu.id
       LEFT JOIN agro_world_admin.complaincategory cc ON mc.complaicategoryId = cc.id
       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
       LEFT JOIN agro_world_admin.adminusers au ON mc.replyBy = au.id
@@ -358,7 +358,7 @@ exports.getAllMarketplaceComplaintsWholesale = (role) => {
       sql += " AND cc.roleId = ? ";
       sqlParams.push(role);
     }
-    marketPlace.query(sql, sqlParams, (err, results) => {
+    collectionofficer.query(sql, sqlParams, (err, results) => {
       if (err) {
         console.error('SQL error in getAllMarketplaceComplaints:', err);
         return reject({
@@ -398,15 +398,15 @@ exports.getMarketplaceComplaintById = (complaintId) => {
         mc.refId AS refNo,
         cc.categoryEnglish,
         GROUP_CONCAT(mci.image) AS imageUrls
-      FROM market_place.marcketplacecomplain mc
-      LEFT JOIN market_place.marketplaceusers mu ON mc.userId = mu.id
+      FROM collection_officer.marcketplacecomplain mc
+      LEFT JOIN collection_officer.marketplaceusers mu ON mc.userId = mu.id
       LEFT JOIN agro_world_admin.complaincategory cc ON mc.complaicategoryId = cc.id
       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
-      LEFT JOIN market_place.marcketplacecomplainimages mci ON mc.id = mci.complainId
+      LEFT JOIN collection_officer.marcketplacecomplainimages mci ON mc.id = mci.complainId
       WHERE sa.id = 3 AND mc.id = ?
       GROUP BY mc.id
     `;
-    marketPlace.query(sql, [complaintId], (err, results) => {
+    collectionofficer.query(sql, [complaintId], (err, results) => {
       if (err) {
         console.error('SQL error in getMarketplaceComplaintById:', err);
         return reject({
@@ -432,11 +432,11 @@ exports.getMarketplaceComplaintById = (complaintId) => {
 exports.updateMarketplaceComplaintReply = (complaintId, reply, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      UPDATE market_place.marcketplacecomplain
+      UPDATE collection_officer.marcketplacecomplain
       SET reply = ?, status = ?, replyBy = ?, replyTime = NOW()
       WHERE id = ?
     `;
-    marketPlace.query(sql, [reply, "Closed", adminId, complaintId], (err, results) => {
+    collectionofficer.query(sql, [reply, "Closed", adminId, complaintId], (err, results) => {
       if (err) {
         console.error('SQL error in updateMarketplaceComplaintReply:', err);
         return reject({
@@ -465,7 +465,7 @@ exports.getComplaintCategoryFromMarketplace = (appId) => {
       SELECT DISTINCT 
         cc.id,
         cc.categoryEnglish
-      FROM market_place.marcketplacecomplain mc
+      FROM collection_officer.marcketplacecomplain mc
       INNER JOIN agro_world_admin.complaincategory cc 
         ON mc.complaicategoryId = cc.id
       WHERE cc.appId = ?

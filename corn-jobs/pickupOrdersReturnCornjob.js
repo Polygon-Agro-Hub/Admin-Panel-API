@@ -1,6 +1,6 @@
 // cronJobs.js
 const cron = require('node-cron');
-const { marketPlace } = require('../startup/database');
+const { collectionofficer } = require('../startup/database');
 const axios = require('axios');
 
 const SHOUTOUT_API_KEY = process.env.SHOUTOUT_API_KEY;
@@ -59,7 +59,7 @@ const pickupOrdersReturnCornjob = () => {
 // ----------------------------------------------------- DAO functions -------------------------------------------------
 const getReadyToPickupOrders = async () => {
   try {
-    const [orders] = await marketPlace.promise().query(
+    const [orders] = await collectionofficer.promise().query(
       `
       SELECT 
         p.id,
@@ -95,7 +95,7 @@ const getReadyToPickupOrders = async () => {
 };
 
 const insertHandlingFee = async (orders) => {
-  const connection = await marketPlace.promise().getConnection();
+  const connection = await collectionofficer.promise().getConnection();
   let successCount = 0;
   let failedCount = 0;
   const failedOrders = [];

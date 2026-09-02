@@ -1,7 +1,6 @@
 const {
   plantcare,
   collectionofficer,
-  marketPlace,
   investment,
 } = require("../startup/database");
 const Joi = require("joi");
@@ -296,17 +295,35 @@ exports.insertXLSXData = (cropId, data) => {
       "Required Images": Joi.number().required(),
     }).required();
 
+    function isEmptyRow(row) {
+      if (!row) return true;
+        return Object.values(row).every(value => {
+          if (value === '' || value === null || value === undefined) return true;
+          if (typeof value === 'string' && value.trim() === '') return true;
+          return false;
+        });
+    }
+
     const validatedData = [];
+
     for (let i = 0; i < data.length; i++) {
-      const { error, value } = schema.validate(data[i]);
-      if (error) {
-        return reject(
-          new Error(
-            `Validation error in row ${i + 1}: ${error.details[0].message}`
-          )
-        );
+      console.log(`Validating row ${i}`, data[i]);
+
+      if (isEmptyRow(data[i])) {
+        continue; 
+      } else {
+        const { error, value } = schema.validate(data[i]);
+        if (error) {
+          return reject(
+            new Error(`Validation error in row ${i + 1}: ${error.details[0].message}`)
+          );
+        }
+        validatedData.push(value);
       }
-      validatedData.push(value);
+    }
+
+    if (validatedData.length === 0) {
+      return reject(new Error("No valid data rows found in the uploaded file."));
     }
 
     const sql = `

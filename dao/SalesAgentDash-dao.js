@@ -2,7 +2,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace
 } = require("../startup/database");
 const { Upload } = require("@aws-sdk/lib-storage");
 const Joi = require("joi");
@@ -70,7 +69,7 @@ exports.getAllSalesAgentsDao = (
     dataParams.push(parseInt(limit), parseInt(offset));
 
     // Execute Count Query
-    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
         return reject(countErr);
@@ -79,7 +78,7 @@ exports.getAllSalesAgentsDao = (
       const total = countResults[0].total;
 
       // Execute Data Query
-      marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
@@ -97,7 +96,7 @@ exports.saveTargetDao = (target, userId) => {
         INSERT INTO target(targetValue, createdBy) VALUES (?, ?)
       `;
 
-    marketPlace.query(sql, [target.targetValue, userId], (err, results) => {
+    collectionofficer.query(sql, [target.targetValue, userId], (err, results) => {
       if (err) {
         return reject(err); 
       }
@@ -110,7 +109,7 @@ exports.saveTargetDao = (target, userId) => {
 exports.getAllTargets = () => {
   return new Promise((resolve, reject) => {
     const sql = `SELECT * FROM target`;
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -131,7 +130,7 @@ exports.restoreTargets = (targets) => {
     // Map data into the format MySQL expects
     const values = targets.map(target => [target.targetValue, target.createdBy, target.createdAt]);
 
-    marketPlace.query(sql, [values], (err, results) => {
+    collectionofficer.query(sql, [values], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -146,7 +145,7 @@ exports.getTotalTargetDao = (date) => {
         SELECT targetValue FROM target 
       `;
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err); 
       }
@@ -169,7 +168,7 @@ exports.removeTargetDao = () => {
         DELETE FROM target
     `;
 
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err); 
       }

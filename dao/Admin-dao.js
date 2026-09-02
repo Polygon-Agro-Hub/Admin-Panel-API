@@ -2,7 +2,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace,
 } = require("../startup/database");
 const bcrypt = require("bcryptjs");
 const { Upload } = require("@aws-sdk/lib-storage");
@@ -2206,6 +2205,21 @@ exports.getSlaveCropCalendarDayById = (id) => {
   });
 };
 
+exports.getTaskCropAndUserDao = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT cropCalendarId, userId
+      FROM slavecropcalendardays
+      WHERE id = ?`;
+    plantcare.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
 exports.editUserTask = (
   taskEnglish,
   taskSinhala,
@@ -2217,6 +2231,7 @@ exports.editUserTask = (
   taskCategorySinhala,
   taskCategoryTamil,
   startingDate,
+  days, 
   reqImages,
   imageLink,
   videoLinkEnglish,
@@ -2228,7 +2243,7 @@ exports.editUserTask = (
     const sql = `
             UPDATE slavecropcalendardays 
             SET taskEnglish=?, taskSinhala=?, taskTamil=?, taskTypeEnglish=?, taskTypeSinhala=?, taskTypeTamil=?, 
-                taskCategoryEnglish=?, taskCategorySinhala=?, taskCategoryTamil=? , startingDate=?, reqImages=?,imageLink=?, videoLinkEnglish= ?, videoLinkSinhala= ?, videoLinkTamil= ?
+                taskCategoryEnglish=?, taskCategorySinhala=?, taskCategoryTamil=? , startingDate=?, days=?, reqImages=?,imageLink=?, videoLinkEnglish= ?, videoLinkSinhala= ?, videoLinkTamil= ?
             WHERE id = ?
         `;
     const values = [
@@ -2242,6 +2257,7 @@ exports.editUserTask = (
       taskCategorySinhala,
       taskCategoryTamil,
       startingDate,
+      days,
       reqImages,
       imageLink,
       videoLinkEnglish,
@@ -2463,20 +2479,36 @@ exports.getAllTaskIdDaoU = (cropId, userId) => {
   });
 };
 
-exports.addNewTaskDaoU = (task, indexId, userId, cropId, onCulscropID) => {
+exports.getFirstStartingDateDaoU = (cropId, userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT MIN(startingDate) as firstStartingDate
+      FROM slavecropcalendardays
+      WHERE cropCalendarId = ? AND userId = ?`;
+    plantcare.query(sql, [cropId, userId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0]?.firstStartingDate || null);
+    });
+  });
+};
+
+exports.addNewTaskDaoU = (task, indexId, userId, cropId, onCulscropID, taskStartingDate) => {
   console.log("Dao Task: ", task);
   const defStatus = "Pending";
 
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO slavecropcalendardays (userId, onCulscropID, cropCalendarId, taskIndex, days, taskTypeEnglish, taskTypeSinhala, taskTypeTamil, taskCategoryEnglish, taskCategorySinhala, taskCategoryTamil, taskEnglish, taskSinhala, taskTamil, taskDescriptionEnglish, taskDescriptionSinhala, taskDescriptionTamil, reqImages, imageLink, videoLinkEnglish, videoLinkSinhala, videoLinkTamil, status) VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?)";
+      "INSERT INTO slavecropcalendardays (userId, onCulscropID, cropCalendarId, taskIndex, startingDate, days, taskTypeEnglish, taskTypeSinhala, taskTypeTamil, taskCategoryEnglish, taskCategorySinhala, taskCategoryTamil, taskEnglish, taskSinhala, taskTamil, taskDescriptionEnglish, taskDescriptionSinhala, taskDescriptionTamil, reqImages, imageLink, videoLinkEnglish, videoLinkSinhala, videoLinkTamil, status) VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?)";
 
     const values = [
       userId,
       onCulscropID,
       cropId,
       indexId,
-      task.startingDate,
+      taskStartingDate,
+      task.days,
       task.taskTypeEnglish,
       task.taskTypeSinhala,
       task.taskTypeTamil,
@@ -2498,7 +2530,7 @@ exports.addNewTaskDaoU = (task, indexId, userId, cropId, onCulscropID) => {
     ];
 
     // Ensure that the values array length matches the expected column count
-    if (values.length !== 23) {
+    if (values.length !== 24) {
       return reject(
         new Error("Mismatch between column count and value count.")
       );
@@ -4786,85 +4818,6 @@ exports.getFOIDforCreateEmpIdDao = (employee) => {
     });
   });
 };
-
-// exports.createFieldOfficer = (
-//   officerData,
-//   profileImageUrl,
-//   nicFrontUrl,
-//   nicBackUrl,
-//   passbookUrl,
-//   contractUrl,
-//   lastId
-// ) => {
-//   return new Promise((resolve, reject) => {
-//     try {
-//       // If no image URLs, set them to null
-//       const profileUrl = profileImageUrl || null;
-//       const frontNicUrl = nicFrontUrl || null;
-//       const backNicUrl = nicBackUrl || null;
-//       const backPassbookUrl = passbookUrl || null;
-//       const contractUrlValue = contractUrl || null;
-
-//       const sql = `
-//                 INSERT INTO feildofficer (
-//                     companyId, irmId, firstName, lastName, empType, empId, jobRole,
-//                     phoneCode1, phoneNumber1, phoneCode2, phoneNumber2, language, email,
-//                     nic, house, street, city, distrct, province, country, comAmount,
-//                     accName, accNumber, bank, branch, profile, frontNic, backNic,
-//                     backPassbook, contract, assignDistrict, status
-//                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-//             `;
-
-//       // Replace 'db' with your actual database connection variable
-//       plantcare.query(
-//         sql,
-//         [
-//           officerData.companyId,
-//           officerData.irmId,
-//           officerData.firstName,
-//           officerData.lastName,
-//           officerData.empType,
-//           lastId,
-//           officerData.jobRole,
-//           officerData.phoneCode1,
-//           officerData.phoneNumber1,
-//           officerData.phoneCode2,
-//           officerData.phoneNumber2,
-//           officerData.language,
-//           officerData.email,
-//           officerData.nic,
-//           officerData.house,
-//           officerData.street,
-//           officerData.city,
-//           officerData.distrct,
-//           officerData.province,
-//           officerData.country,
-//           officerData.comAmount,
-//           officerData.accName,
-//           officerData.accNumber,
-//           officerData.bank,
-//           officerData.branch,
-//           profileUrl,
-//           frontNicUrl,
-//           backNicUrl,
-//           backPassbookUrl,
-//           contractUrlValue,
-//           officerData.assignDistrict,
-//           "Not Aproved",
-//         ],
-//         (err, results) => {
-//           if (err) {
-//             console.log(err);
-//             return reject(err); // Reject promise if an error occurs
-//           }
-//           resolve(results); // Resolve the promise with the query results
-//         }
-//       );
-//     } catch (error) {
-//       reject(error); // Reject if any error occurs
-//     }
-//   });
-// };
 
 exports.createFieldOfficer = (
   officerData,

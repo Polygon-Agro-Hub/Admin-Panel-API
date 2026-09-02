@@ -2,7 +2,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace,
   investment,
   goviShop,
 } = require("../startup/database");
@@ -869,7 +868,7 @@ exports.getAllAgentCommissions = (page, limit, searchTerm = "") => {
     dataParams.push(limit, offset);
 
     // Execute count query
-    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
         return reject(countErr);
@@ -878,7 +877,7 @@ exports.getAllAgentCommissions = (page, limit, searchTerm = "") => {
       const total = countResults[0].total;
 
       // Execute data query
-      marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
@@ -916,7 +915,7 @@ exports.getAgentCommissionById = (id) => {
       WHERE ac.id = ?
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         console.error("Error fetching agent commission:", err);
         return reject(err);
@@ -936,7 +935,7 @@ exports.createAgentCommission = (commissionData) => {
       VALUES (?, ?, ?, ?, NOW())
     `;
 
-    marketPlace.query(
+    collectionofficer.query(
       sql,
       [minRange, maxRange, value, modifyBy],
       (err, results) => {
@@ -1018,7 +1017,7 @@ exports.updateAgentCommission = (id, updateData) => {
       )} WHERE id = ?`;
 
       // Execute update
-      marketPlace.query(sql, values, (err, results) => {
+      collectionofficer.query(sql, values, (err, results) => {
         if (err) {
           console.error("Error updating agent commission:", err);
           return reject(err);
@@ -1040,7 +1039,7 @@ exports.deleteAgentCommission = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `DELETE FROM agentcommission WHERE id = ?`;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         console.error("Error deleting agent commission:", err);
         return reject(err);
@@ -1070,7 +1069,7 @@ exports.checkRangeOverlap = (minRange, maxRange, excludeId = null) => {
       params.push(excludeId);
     }
 
-    marketPlace.query(sql, params, (err, results) => {
+    collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         console.error("Error checking range overlap:", err);
         return reject(err);
@@ -2183,7 +2182,7 @@ exports.getSalesAgentForFilterDao = () => {
       FROM salesagent
     `;
 
-    marketPlace.query(sql, (err, result) => {
+    collectionofficer.query(sql, (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -2214,7 +2213,7 @@ exports.getAgentCommitionsDao = (data) => {
       }
     }
 
-    marketPlace.query(
+    collectionofficer.query(
       sql,
       [data.agentId, data.fromDate, data.toDate, data.deliveredDate],
       (err, result) => {
@@ -2652,8 +2651,8 @@ exports.getAllFinanceDashboardDataDao = () => {
   SELECT
     COALESCE(SUM(o.fullTotal), 0) AS currentMonthLoss
   FROM driverorders dro
-  INNER JOIN market_place.processorders po ON dro.orderId = po.id
-  INNER JOIN market_place.orders o ON po.orderId = o.id
+  INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
+  INNER JOIN collection_officer.orders o ON po.orderId = o.id
   WHERE dro.drvStatus = 'Return Received'
     AND po.paymentMethod = 'Cash'
     AND MONTH(dro.handOverTime) = MONTH(CURRENT_DATE())
@@ -2713,7 +2712,7 @@ exports.getAllFinanceDashboardDataDao = () => {
                         "Error in collection expenses query: " + err7,
                       );
 
-                    marketPlace.query(
+                    collectionofficer.query(
                       goviMartSalesIncomeSql,
                       (err8, goviMartResult) => {
                         if (err8)
@@ -2721,7 +2720,7 @@ exports.getAllFinanceDashboardDataDao = () => {
                             "Error in GoViMart sales income query: " + err8,
                           );
 
-                        marketPlace.query(
+                        collectionofficer.query(
                           salesDashIncomeSql,
                           (err9, salesDashResult) => {
                             if (err9)
@@ -2747,7 +2746,7 @@ exports.getAllFinanceDashboardDataDao = () => {
                                         err11,
                                       );
 
-                                    marketPlace.query(
+                                    collectionofficer.query(
                                       goviShopOrderCommissionSql,
                                       (err12, commissionResult) => {
                                         if (err12)
@@ -3068,7 +3067,7 @@ exports.getTransactionOrdersDao = (id) => {
       FROM collection_officer.driverordertransaction dt
       LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
       LEFT JOIN collection_officer.driverorders do ON dom.id = do.drvOrderMainId
-      LEFT JOIN market_place.processorders po ON do.orderId = po.id
+      LEFT JOIN collection_officer.processorders po ON do.orderId = po.id
       WHERE dt.id = ? AND po.status = 'Delivered' AND po.paymentMethod = 'Cash' AND po.isPaid = 1;
     `;
 
@@ -3113,7 +3112,7 @@ exports.getAllShortageSubmissionsDAO = (
       FROM shortageassigned sa
       LEFT JOIN shortage s ON sa.shortageassigned = s.id
       LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
-      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN collection_officer.marketplaceitems m ON s.mpItemId = m.id
       LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
@@ -3140,7 +3139,7 @@ exports.getAllShortageSubmissionsDAO = (
       FROM shortageassigned sa
       LEFT JOIN shortage s ON sa.shortageassigned = s.id
       LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
-      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN collection_officer.marketplaceitems m ON s.mpItemId = m.id
       LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
@@ -3237,7 +3236,7 @@ exports.getViewSubmissionDocumentDao = (id) => {
       FROM shortageassigned sa
       LEFT JOIN shortage s ON sa.shortageassigned = s.id
       LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
-      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN collection_officer.marketplaceitems m ON s.mpItemId = m.id
       LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
@@ -3399,7 +3398,7 @@ exports.getPickupHandOverSummaryDao = (id) => {
         SUM(po.handOverPrice) OVER (PARTITION BY pt.officerId) AS totalHandOverPrice
       FROM pickuptransaction pt
       LEFT JOIN pickuporders po ON pt.id = po.transId
-      LEFT JOIN market_place.processorders pro ON po.orderId = pro.orderId
+      LEFT JOIN collection_officer.processorders pro ON po.orderId = pro.orderId
       WHERE pt.id = ?;
     `;
     collectionofficer.query(sql, [id], (err, result) => {
@@ -3455,6 +3454,130 @@ exports.updateCopTransactionStatusDao = ({ id, updatedBy }) => {
       }
 
       resolve(result);
+    });
+  });
+};
+
+exports.getCompletedOrders = (page, limit, startDate, endDate, search) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+    let whereClause = `WHERE po.status = 'Delivered'`;
+    const params = [];
+    const countParams = [];
+
+    if (startDate && endDate) {
+      whereClause += " AND DATE(o.createdAt) BETWEEN ? AND ?";
+      params.push(startDate, endDate);
+      countParams.push(startDate, endDate);
+    } else if (startDate) {
+      whereClause += " AND DATE(o.createdAt) >= ?";
+      params.push(startDate);
+      countParams.push(startDate);
+    } else if (endDate) {
+      whereClause += " AND DATE(o.createdAt) <= ?";
+      params.push(endDate);
+      countParams.push(endDate);
+    }
+
+    if (search) {
+      whereClause += ` AND po.invNo LIKE ?`;
+      params.push(`%${search}%`);
+      countParams.push(`%${search}%`);
+    }
+
+    const countSql = `
+      SELECT COUNT(DISTINCT po.id) AS total
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN marketplaceusers mu ON o.userId = mu.id
+      ${whereClause}
+    `;
+
+    const dataSql = `
+      SELECT
+        po.id, 
+        po.orderId, 
+        po.invNo AS invoiceNo,
+        o.fullName AS customerName, 
+        o.phonecode1, o.phone1,
+        o.delivaryMethod AS orderType, 
+        o.fullTotal AS amount,
+        po.paymentMethod, 
+        po.moneyPaid AS cashPaid, 
+        po.creditPaid,
+        o.createdAt AS orderedAt, 
+        po.deliveredTime AS completedAt,
+        o.orderApp AS platform, 
+        mu.buyerType
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN marketplaceusers mu ON o.userId = mu.id
+      ${whereClause}
+      ORDER BY o.createdAt DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    params.push(parseInt(limit), parseInt(offset));
+
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+      const total = countResults[0]?.total || 0;
+
+      collectionofficer.query(dataSql, params, (dataErr, dataResults) => {
+        if (dataErr) return reject(dataErr);
+        resolve({ items: dataResults, total });
+      });
+    });
+  });
+};
+
+exports.downloadCompletedOrders = (startDate, endDate, search) => {
+  return new Promise((resolve, reject) => {
+    let whereClause = "WHERE po.status = 'Delivered'";
+    const params = [];
+
+    if (startDate && endDate) {
+      whereClause += " AND DATE(o.createdAt) BETWEEN ? AND ?";
+      params.push(startDate, endDate);
+    } else if (startDate) {
+      whereClause += " AND DATE(o.createdAt) >= ?";
+      params.push(startDate);
+    } else if (endDate) {
+      whereClause += " AND DATE(o.createdAt) <= ?";
+      params.push(endDate);
+    }
+
+    if (search) {
+      whereClause += ` AND po.invNo LIKE ?`;
+      params.push(`%${search}%`);
+    }
+
+    const dataSql = `
+      SELECT
+        po.id, 
+        po.orderId, 
+        po.invNo AS invoiceNo,
+        o.fullName AS customerName, 
+        o.phonecode1, o.phone1,
+        o.delivaryMethod AS orderType, 
+        o.fullTotal AS amount,
+        po.paymentMethod, 
+        po.moneyPaid, 
+        po.creditPaid,
+        o.createdAt AS orderedAt, 
+        po.deliveredTime AS completedAt,
+        o.orderApp AS platform, 
+        mu.buyerType
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN marketplaceusers mu ON o.userId = mu.id
+      ${whereClause}
+      ORDER BY o.createdAt DESC
+    `;
+
+    collectionofficer.query(dataSql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
     });
   });
 };
