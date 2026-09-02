@@ -2223,6 +2223,7 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
         MP.companyPhoneCode,
         MP.companyPhone,
         MP.rateofCus,
+        MP.creditBalance,
         (
           SELECT COUNT(*)
           FROM orders O
