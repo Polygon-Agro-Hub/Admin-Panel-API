@@ -70,7 +70,7 @@ const getReadyToPickupOrders = async () => {
         p.moneyPaid,
         p.creditPaid,
         p.isPaid,
-        DATE(o.sheduleDate) AS sheduleDate,
+        DATE(p.sheduleDate) AS sheduleDate,
         o.total,
         mu.phoneCode,
         mu.phoneNumber,
@@ -83,7 +83,7 @@ const getReadyToPickupOrders = async () => {
       FROM processorders p
       LEFT JOIN orders o ON p.orderId = o.id
       LEFT JOIN marketplaceusers mu ON o.userId = mu.id
-      WHERE p.status = 'Ready to Pickup' AND o.sheduleDate <= CURDATE()
+      WHERE p.status = 'Ready to Pickup' AND p.sheduleDate <= CURDATE()
       `
     );
     return orders;
