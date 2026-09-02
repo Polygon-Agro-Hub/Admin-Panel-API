@@ -114,7 +114,7 @@ exports.ValidateStatusSchema = Joi.object({
   isValid: Joi.number().valid(0, 1).required()
 });
 
-exports.updateWholesaleCustomerCreditBalanceValidation = Joi.object({
+exports.updateWholesaleCustomerCreditLimiteValidation = Joi.object({
   id: Joi.number().required(),
-  creditBalance: Joi.number().min(0).required(),
+  creditLimit: Joi.number().min(0).required(),
 });

@@ -352,9 +352,9 @@ router.patch(
 );
 
 router.patch(
-  "/update-wholesale-customer-credit-balance",
+  "/update-wholesale-customer-credit-limit",
   authMiddleware,
-  marketPlaceEp.updateWholesaleCustomerCreditBalance,
+  marketPlaceEp.updateWholesaleCustomerCreditLimite,
 );
 
 module.exports = router;

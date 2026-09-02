@@ -2223,7 +2223,7 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
         MP.companyPhoneCode,
         MP.companyPhone,
         MP.rateofCus,
-        MP.creditBalance,
+        MP.creditLimit,
         (
           SELECT COUNT(*)
           FROM orders O
@@ -3614,14 +3614,14 @@ function rollbackAndRelease(connection, reject, error) {
   });
 }
 
-exports.updateWholesaleCustomerCreditBalanceDao = async (data) => {
+exports.updateWholesaleCustomerCreditLimiteDao = async (data) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE marketplaceusers
-      SET creditBalance = ?
+      SET creditLimit = ?
       WHERE id = ?
     `;
-    const values = [data.creditBalance, data.id];
+    const values = [data.creditLimit, data.id];
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         reject(err);

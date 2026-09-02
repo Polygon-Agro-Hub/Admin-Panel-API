@@ -2410,26 +2410,26 @@ exports.toggleProductStatus = async (req, res) => {
   }
 };
 
-exports.updateWholesaleCustomerCreditBalance = async (req, res) => {
+exports.updateWholesaleCustomerCreditLimite = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
     const data =
-      await MarketPriceValidate.updateWholesaleCustomerCreditBalanceValidation.validateAsync(
+      await MarketPriceValidate.updateWholesaleCustomerCreditLimiteValidation.validateAsync(
         req.body,
       );
 
-    const result = await MarketPlaceDao.updateWholesaleCustomerCreditBalanceDao(data);
+    const result = await MarketPlaceDao.updateWholesaleCustomerCreditLimiteDao(data);
     if (result.affectedRows === 0) {
       return res.json({
-        message: "Credit balance update failed",
+        message: "Credit limit update failed",
         status: false,
       });
     }
 
     return res.status(201).json({
-      message: "Credit balance updated successfully",
+      message: "Credit limit updated successfully",
       status: true,
     });
   } catch (err) {
@@ -2441,7 +2441,7 @@ exports.updateWholesaleCustomerCreditBalance = async (req, res) => {
 
     console.error("Error executing query:", err);
     return res.status(500).json({
-      error: "An error occurred while updating credit balance",
+      error: "An error occurred while updating credit limit",
       status: false,
     });
   }
