@@ -54,7 +54,7 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
     }
 
     if (date) {
-      whereClause += " AND DATE(o.sheduleDate) = ?";
+      whereClause += " AND DATE(po.sheduleDate) = ?";
       params.push(date);
       countParams.push(date);
     }
@@ -169,7 +169,7 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
           po.invNo,
           mpi.displayName,
           mpi.productPrice,
-          o.sheduleDate,
+          po.sheduleDate,
           pc.totalItems AS totcount,
           pc.packedItems AS packCount,
           au.userName,
@@ -249,7 +249,7 @@ exports.getSelectedPackages = (page, limit, Status, date, search) => {
     }
 
     if (date) {
-      whereClause += " AND DATE(o.sheduleDate) = ?";
+      whereClause += " AND DATE(po.sheduleDate) = ?";
       params.push(date);
       countParams.push(date);
     }
@@ -292,7 +292,7 @@ exports.getSelectedPackages = (page, limit, Status, date, search) => {
           o.id,
           po.id AS processOrderId,
           po.invNo,
-          o.sheduleDate,
+          po.sheduleDate,
           au.userName,
           CONCAT(coff.firstNameEnglish , '' , coff.lastNameEnglish) AS packOfficer,
           COALESCE(aic.totalAdditionalItems, 0) AS orderAdditionalCount,
@@ -1297,19 +1297,8 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
       }
     }
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
     if (date) {
-      dataWhereClause += " AND DATE(o.sheduleDate) = ?";
+      dataWhereClause += " AND DATE(po.sheduleDate) = ?";
       dataParams.push(date);
     }
 
@@ -1352,19 +1341,9 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
         `;
       }
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
     if (date) {
-      countWhereClause += " AND DATE(o.sheduleDate) = ?";
+      countWhereClause += " AND DATE(po.sheduleDate) = ?";
       countParams.push(date);
     }
 
@@ -1518,7 +1497,7 @@ package_price AS (
           o.id,
           po.id AS processOrderId,
           po.invNo,
-          o.sheduleDate,
+          po.sheduleDate,
           COALESCE(SUM(op.qty), 0) AS packageCount,
           COALESCE(CAST(pp.packagePrice AS DOUBLE), 0) AS packagePrice,
           COALESCE(pic.totalItems, 0) AS totPackageItems,
@@ -1566,7 +1545,7 @@ LEFT JOIN additional_items_counts aic
           o.id,
           po.id,
           po.invNo,
-          o.sheduleDate,
+          po.sheduleDate,
           pic.totalItems,
           pic.packedItems,
           pfs.finalPackageStatus,
@@ -1745,7 +1724,7 @@ exports.getMarketPlaceCustomePackagesDao = (page, limit, packageStatus, date, se
     }
 
     if (date) {
-      whereClause += " AND DATE(o.sheduleDate) = ?";
+      whereClause += " AND DATE(po.sheduleDate) = ?";
       params.push(date);
       countParams.push(date);
     }
@@ -1799,7 +1778,7 @@ ${whereClause}
           o.id,
           po.id AS processOrderId,
           po.invNo,
-          o.sheduleDate,
+          po.sheduleDate,
           COALESCE(aic.price, 0) AS additionalItemPrice,
           COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
           COALESCE(aic.packedAdditionalItems, 0) AS packedAdditionalItems,
@@ -1819,7 +1798,7 @@ ${whereClause}
           o.id,
           po.id,
           po.invNo,
-          o.sheduleDate,
+          po.sheduleDate,
           aic.totalAdditionalItems,
           aic.packedAdditionalItems,
           aic.additionalItemsStatus

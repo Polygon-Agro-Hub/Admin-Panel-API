@@ -1897,7 +1897,7 @@ exports.getDistributedCenterTargetDao = async (
         po.invNo, 
         co.firstNameEnglish, 
         co.lastNameEnglish, 
-        o.sheduleDate, 
+        po.sheduleDate, 
         o.sheduleTime,
         dti.isComplete,
         COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
@@ -1955,7 +1955,7 @@ exports.getDistributedCenterTargetDao = async (
       }
 
       if (dateValue && dateValue !== "") {
-        sql += ` AND DATE(o.sheduleDate) = DATE(?)`;
+        sql += ` AND DATE(po.sheduleDate) = DATE(?)`;
         sqlParams.push(dateValue);
       }
     }
@@ -1968,8 +1968,8 @@ exports.getDistributedCenterTargetDao = async (
 
     if (!date && !status && !searchText) {
       sql += `
-     AND ((o.sheduleDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY))  
-       OR (o.sheduleDate < CURDATE() AND dt.complete != dt.target))
+     AND ((po.sheduleDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY))  
+       OR (po.sheduleDate < CURDATE() AND dt.complete != dt.target))
       `;
     }
 
@@ -1979,13 +1979,13 @@ exports.getDistributedCenterTargetDao = async (
       po.invNo, 
       co.firstNameEnglish, 
       co.lastNameEnglish, 
-      o.sheduleDate, 
+      po.sheduleDate, 
       o.sheduleTime,
       dti.isComplete,
       pic.packageStatus, 
       aic.additionalItemsStatus
     ORDER BY 
-      o.sheduleDate ASC,
+      po.sheduleDate ASC,
       po.invNo ASC
     `;
 
@@ -2091,10 +2091,10 @@ exports.getDistributionOutForDlvrOrderDao = (
             po.invNo,
             cof.firstNameEnglish,
             cof.lastNameEnglish,
-            o.sheduleDate,
+            po.sheduleDate,
             o.sheduleTime,
             po.outDlvrDate,
-            DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE) AS sheduleDateA,
+            DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE) AS sheduleDateA,
             DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE) AS outDlvrDateA
         FROM distributedtarget dt
         JOIN distributedtargetitems dti ON dt.id = dti.targetId
@@ -2119,16 +2119,16 @@ exports.getDistributionOutForDlvrOrderDao = (
       sql += `
         AND (
           (o.sheduleTime = 'Within 8AM - 2PM' AND (
-            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
             OR (
-              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
               AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > '14:00:00'
             )
           )) OR
           (o.sheduleTime = 'Within 2PM - 8PM' AND (
-            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
             OR (
-              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
               AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > '20:00:00'
             )
           ))
@@ -2139,10 +2139,10 @@ exports.getDistributionOutForDlvrOrderDao = (
     if (status === 'On Time') {
       sql += `
         AND (
-          DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) < DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+          DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) < DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
           OR
           (
-            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
             AND (
               (o.sheduleTime = 'Within 8AM - 2PM' AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) <= '14:00:00') OR
               (o.sheduleTime = 'Within 2PM - 8PM' AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) <= '20:00:00')
@@ -2461,10 +2461,10 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
           AND dti.completeTime IS NOT NULL
           AND dti.completeTime <= 
             CASE 
-              WHEN o.sheduleTime = 'Within 8-12 PM' THEN TIMESTAMP(o.sheduleDate, '12:00:00')
-              WHEN o.sheduleTime = 'Within 12-4 PM' THEN TIMESTAMP(o.sheduleDate, '16:00:00')
-              WHEN o.sheduleTime = 'Within 4-8 PM' THEN TIMESTAMP(o.sheduleDate, '20:00:00')
-              ELSE TIMESTAMP(o.sheduleDate, '23:59:59')
+              WHEN o.sheduleTime = 'Within 8-12 PM' THEN TIMESTAMP(po.sheduleDate, '12:00:00')
+              WHEN o.sheduleTime = 'Within 12-4 PM' THEN TIMESTAMP(po.sheduleDate, '16:00:00')
+              WHEN o.sheduleTime = 'Within 4-8 PM' THEN TIMESTAMP(po.sheduleDate, '20:00:00')
+              ELSE TIMESTAMP(po.sheduleDate, '23:59:59')
             END
         `;
       } else if (completingStatus === 'Late') {
@@ -2472,10 +2472,10 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
           AND dti.completeTime IS NOT NULL
           AND dti.completeTime >
             CASE 
-              WHEN o.sheduleTime = 'Within 8-12 PM' THEN TIMESTAMP(o.sheduleDate, '12:00:00')
-              WHEN o.sheduleTime = 'Within 12-4 PM' THEN TIMESTAMP(o.sheduleDate, '16:00:00')
-              WHEN o.sheduleTime = 'Within 4-8 PM' THEN TIMESTAMP(o.sheduleDate, '20:00:00')
-              ELSE TIMESTAMP(o.sheduleDate, '23:59:59')
+              WHEN o.sheduleTime = 'Within 8-12 PM' THEN TIMESTAMP(po.sheduleDate, '12:00:00')
+              WHEN o.sheduleTime = 'Within 12-4 PM' THEN TIMESTAMP(po.sheduleDate, '16:00:00')
+              WHEN o.sheduleTime = 'Within 4-8 PM' THEN TIMESTAMP(po.sheduleDate, '20:00:00')
+              ELSE TIMESTAMP(po.sheduleDate, '23:59:59')
             END
         `;
       } else if (completingStatus === 'Not Completed') {
@@ -2571,7 +2571,7 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
   o.id,
   po.id AS processOrderId,
   po.invNo,
-  o.sheduleDate,
+  po.sheduleDate,
   o.sheduleTime,
   dti.id AS distributedTargetItemId, 
   dt.id AS distributedTargetId, 
@@ -2614,7 +2614,7 @@ GROUP BY
   o.id,
   po.id,
   po.invNo,
-  o.sheduleDate,
+  po.sheduleDate,
   o.sheduleTime,
   dti.id,
   dt.id,
@@ -2794,7 +2794,7 @@ exports.dcmGetSelectedOfficerTargetsDao = (
   o.id,
   po.id AS processOrderId,
   po.invNo,
-  o.sheduleDate,
+  po.sheduleDate,
   o.sheduleTime,
   dti.id AS distributedTargetItemId, 
   dt.id AS distributedTargetId, 
@@ -2828,7 +2828,7 @@ LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
   o.id,
   po.id,
   po.invNo,
-  o.sheduleDate,
+  po.sheduleDate,
   dti.id,
   dt.id,
   dti.isComplete,
@@ -3251,7 +3251,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         COALESCE(dc.regCode, dc2.regCode) AS regCode,
         COALESCE(dc.centerName, dc2.centerName) AS centerName,
         o.sheduleTime,
-        o.sheduleDate,
+        po.sheduleDate,
         po.createdAt,
         po.status,
         TIME(po.outDlvrDate) as outDlvrTime,
@@ -3286,7 +3286,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       LEFT JOIN 
         collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
       WHERE 
-        DATE(o.sheduleDate) = CURDATE()
+        DATE(po.sheduleDate) = CURDATE()
       `;
     // DATE(o.sheduleDate) = CURDATE()
     // Add search conditions if search parameters are provided
@@ -3420,7 +3420,7 @@ exports.getTargetedCustomerOrdersDao = (
           CONCAT(mu.phoneCode, '-', mu.phoneNumber) phoneNum,
           dc.regCode,
           dc.centerName,
-          o.sheduleDate,
+          po.sheduleDate,
           COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
           COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
           cof.empId,
@@ -3442,7 +3442,7 @@ exports.getTargetedCustomerOrdersDao = (
     const dataParams = [];
 
     if (sheduleDate) {
-      const cond = ` AND DATE(o.sheduleDate) = DATE(?) `;
+      const cond = ` AND DATE(po.sheduleDate) = DATE(?) `;
       countSql += cond;
       dataSql += cond;
       countParams.push(sheduleDate);
@@ -3543,7 +3543,7 @@ exports.getReturnRecievedDataDao = (
         o.centerId, 
         mp.phoneCode,
         mp.phoneNumber,
-        o.sheduleDate, 
+        po.sheduleDate, 
         oh.city AS houseCity,
         oa.city AS apartmentCity, 
         rr.rsnEnglish AS reason,
@@ -3971,7 +3971,7 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
     o.phone1 AS receiverPhone1,
     o.phonecode2 AS receiverPhoneCode2,
     o.phone2 AS receiverPhone2,
-    o.sheduleDate,
+    po.sheduleDate,
     o.sheduleTime,
     o.title,
     o.fullName,
@@ -4029,7 +4029,7 @@ WHERE 1=1
 
       if (dateValue && dateValue !== "") {
         // Handle both date-only and datetime strings
-        conditions.push(`DATE(o.sheduleDate) = DATE(?)`);
+        conditions.push(`DATE(po.sheduleDate) = DATE(?)`);
         values.push(dateValue);
       }
     }
@@ -4139,7 +4139,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
 
     dataParams.push(centerId);
 
-    let sortSql = `ORDER BY o.sheduleDate DESC`;
+    let sortSql = `ORDER BY po.sheduleDate DESC`;
     let wheresql = ` WHERE 
     po.isTargetAssigned = 1 
     AND (
@@ -4160,7 +4160,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
       switch (activeTab) {
     
         case 'all':
-          wheresql += " AND DATE(o.sheduleDate) = ? ";
+          wheresql += " AND DATE(po.sheduleDate) = ? ";
           break;
     
         case 'out-for-delivery':
@@ -4236,7 +4236,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
     
         case 'all':
           wheresql += "AND po.status IN ('Out For Delivery', 'Collected', 'On the way', 'Return', 'Hold', 'Delivered', 'Return Received')";
-          sortSql = " ORDER BY o.sheduleDate DESC";
+          sortSql = " ORDER BY po.sheduleDate DESC";
           break;
     
         case 'out-for-delivery':
@@ -4288,7 +4288,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
     po.invNo,
     dc.regCode,
     o.sheduleTime,
-    o.sheduleDate,
+    po.sheduleDate,
     o.phoneCode1,
     o.phone1,
     o.fullTotal AS total,
@@ -4581,11 +4581,11 @@ exports.getRecivedPickUpCashDashbordDao = async (data) => {
     console.log('data', data)
     const sql = `
       SELECT 
-          COUNT(CASE WHEN po.deliveredTime IS NULL AND DATE(o.sheduleDate) <= CURDATE() THEN 1 END) AS total_today,
-          COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
-          COUNT(CASE WHEN DATE(o.sheduleDate) != CURDATE() THEN 1 END) AS not_scheduled_today,
+          COUNT(CASE WHEN po.deliveredTime IS NULL AND DATE(po.sheduleDate) <= CURDATE() THEN 1 END) AS total_today,
+          COUNT(CASE WHEN DATE(po.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
+          COUNT(CASE WHEN DATE(po.sheduleDate) != CURDATE() THEN 1 END) AS not_scheduled_today,
           COUNT(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS all_pickup,
-          COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS today_pickup,
+          COUNT(DISTINCT CASE WHEN DATE(po.sheduleDate) = CURDATE() AND DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS today_pickup,
           COALESCE(SUM(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.handOverPrice END), 0) AS order_price
       FROM market_place.processorders po
       INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup' AND po.paymentMethod = 'Cash'
@@ -4607,10 +4607,10 @@ exports.getRecivedDelivaryCashDashbordDao = async (data, comcenId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-          COUNT(CASE WHEN po.status = 'Out For Delivery' AND DATE(o.sheduleDate) <= CURDATE() THEN 1 END) AS total_today,
-          COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.status = 'Out For Delivery' THEN 1 END) AS scheduled_today,
+          COUNT(CASE WHEN po.status = 'Out For Delivery' AND DATE(po.sheduleDate) <= CURDATE() THEN 1 END) AS total_today,
+          COUNT(CASE WHEN DATE(po.sheduleDate) = CURDATE() AND po.status = 'Out For Delivery' THEN 1 END) AS scheduled_today,
           COUNT(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS all_delivary,
-          COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS today_delivary,
+          COUNT(DISTINCT CASE WHEN DATE(po.sheduleDate) = CURDATE() AND DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS today_delivary,
           COALESCE(SUM(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.handOverPrice END), 0) AS order_price
       FROM market_place.processorders po
       INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
