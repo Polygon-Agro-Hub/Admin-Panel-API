@@ -1105,6 +1105,7 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
         sqi.qEnglish,
         sqi.type,
         sqi.uploadImage,
+        sqi.officerUploadImage,
         sqi.officerTickResult,
         sq.id AS slaveQId,
         (
@@ -1158,6 +1159,7 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
           qEnglish: row.qEnglish,
           type: row.type,
           uploadImage: row.uploadImage,
+          officerUploadImage: row.officerUploadImage,
           officerTickResult: row.officerTickResult,
           slaveQId: row.slaveQId
         });
