@@ -2409,3 +2409,40 @@ exports.toggleProductStatus = async (req, res) => {
     });
   }
 };
+
+exports.updateWholesaleCustomerCreditLimite = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const data =
+      await MarketPriceValidate.updateWholesaleCustomerCreditLimiteValidation.validateAsync(
+        req.body,
+      );
+
+    const result = await MarketPlaceDao.updateWholesaleCustomerCreditLimiteDao(data);
+    if (result.affectedRows === 0) {
+      return res.json({
+        message: "Credit limit update failed",
+        status: false,
+      });
+    }
+
+    return res.status(201).json({
+      message: "Credit limit updated successfully",
+      status: true,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res
+        .status(400)
+        .json({ error: err.details[0].message, status: false });
+    }
+
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error: "An error occurred while updating credit limit",
+      status: false,
+    });
+  }
+};

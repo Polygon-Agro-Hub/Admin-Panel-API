@@ -2223,6 +2223,7 @@ exports.getAllWholesaleCustomersDao = (limit, offset, searchText, ratingFilter) 
         MP.companyPhoneCode,
         MP.companyPhone,
         MP.rateofCus,
+        MP.creditLimit,
         (
           SELECT COUNT(*)
           FROM orders O
@@ -2324,7 +2325,7 @@ exports.getUserOrdersDao = async (userId, status) => {
         P.id,
         P.invNo,
         O.sheduleType,
-        O.sheduleDate,
+        P.sheduleDate,
         P.paymentMethod,
         P.isPaid,
         O.fullTotal,
@@ -2384,7 +2385,7 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         o.delivaryMethod AS deliveryMethod,
         o.discount AS orderDiscount,
         o.createdAt AS invoiceDate,
-        o.sheduleDate AS scheduledDate,
+        po.sheduleDate AS scheduledDate,
         o.buildingType,
         o.title,
         o.fullName,
@@ -3597,3 +3598,21 @@ function rollbackAndRelease(connection, reject, error) {
     reject(error);
   });
 }
+
+exports.updateWholesaleCustomerCreditLimiteDao = async (data) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE marketplaceusers
+      SET creditLimit = ?
+      WHERE id = ?
+    `;
+    const values = [data.creditLimit, data.id];
+    collectionofficer.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};

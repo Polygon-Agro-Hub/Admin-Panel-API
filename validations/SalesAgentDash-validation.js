@@ -6,7 +6,8 @@ exports.getAllSalesAgentsSchema = Joi.object({
     date: Joi.string().optional(),
     status: Joi.string().optional(),
     searchText: Joi.string().optional(),
-    ratingFilter: Joi.string().valid('VVIP', 'VIP', 'COR', 'NOR', 'VVP').allow('').optional()
+    ratingFilter: Joi.string().valid('VVIP', 'VIP', 'COR', 'NOR', 'VVP').allow('').optional(),
+    agentFilter: Joi.number().integer().optional(),
 });
 
 exports.deleteSalesAgentSchema = Joi.object({
