@@ -510,7 +510,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
   }
 };
 
-const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
+const getAllSalesCustomers = (page, limit, searchText, ratingFilter, agentFilter) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
@@ -523,17 +523,9 @@ const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
 
     let dataSql = `
       SELECT
-        CUS.id,
-        CUS.cusId,
-        CUS.phoneNumber,
-        CUS.title,
-        CUS.firstName,
-        CUS.lastName,
-        CUS.email,
-        CUS.rateofCus,
-        SA.empId,
-        SA.firstName  AS salesAgentFirstName,
-        SA.lastName   AS salesAgentLastName,
+        CUS.id, CUS.cusId, CUS.phoneNumber, CUS.title,
+        CUS.firstName, CUS.lastName, CUS.email, CUS.rateofCus,
+        SA.empId, SA.firstName AS salesAgentFirstName, SA.lastName AS salesAgentLastName,
         CUS.created_at,
         (SELECT COUNT(*) FROM orders WHERE userId = CUS.id) AS totOrders
       FROM   marketplaceusers  CUS
@@ -544,15 +536,11 @@ const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
     const countParams = [];
     const dataParams  = [];
 
-    // ── Free-text search ──────────────────────────────────────────────────────
     if (searchText) {
       const searchCondition = `
         AND (
-          CUS.firstName   LIKE ?
-          OR CUS.lastName  LIKE ?
-          OR CUS.phoneNumber LIKE ?
-          OR CUS.cusId     LIKE ?
-          OR SA.empId      LIKE ?
+          CUS.firstName LIKE ? OR CUS.lastName LIKE ? OR
+          CUS.phoneNumber LIKE ? OR CUS.cusId LIKE ? OR SA.empId LIKE ?
         )
       `;
       const v = `%${searchText}%`;
@@ -562,7 +550,6 @@ const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
       dataParams .push(v, v, v, v, v);
     }
 
-    // ── Rating filter ─────────────────────────────────────────────────────────
     if (ratingFilter) {
       const ratingCondition = ` AND CUS.rateofCus = ? `;
       countSql += ratingCondition;
@@ -571,25 +558,23 @@ const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
       dataParams .push(ratingFilter);
     }
 
+    if (agentFilter) {
+      const agentCondition = ` AND SA.id = ? `;
+      countSql += agentCondition;
+      dataSql  += agentCondition;
+      countParams.push(agentFilter);
+      dataParams .push(agentFilter);
+    }
+
     dataSql += ' LIMIT ? OFFSET ?';
     dataParams.push(limit, offset);
 
-    // ── Execute count ─────────────────────────────────────────────────────────
     collectionofficer.query(countSql, countParams, (countErr, countResults) => {
-      if (countErr) {
-        console.error('Error in count query:', countErr);
-        return reject(countErr);
-      }
-
+      if (countErr) return reject(countErr);
       const total = countResults[0].total;
 
-      // ── Execute data ────────────────────────────────────────────────────────
       collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
-        if (dataErr) {
-          console.error('Error in data query:', dataErr);
-          return reject(dataErr);
-        }
-
+        if (dataErr) return reject(dataErr);
         resolve({ items: dataResults, total });
       });
     });
@@ -623,15 +608,14 @@ const getAllOrders = (
   paymentStatus,
   deliveryType,
   searchText,
-  date
+  date,
+  agentFilter
 ) => {
   return new Promise((resolve, reject) => {
-    // Convert page and limit to numbers
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
     const offset = (page - 1) * limit;
 
-    // Use consistent JOIN syntax in both queries
     let baseSql = `
       FROM orders o
       JOIN marketplaceusers c ON o.userId = c.id
@@ -664,7 +648,6 @@ const getAllOrders = (
     `;
 
     const params = [];
-
     let whereConditions = [];
 
     if (searchText) {
@@ -681,7 +664,6 @@ const getAllOrders = (
           OR po.paymentMethod LIKE ?
         )
       `);
-
       const searchValue = `%${searchText}%`;
       params.push(...Array(9).fill(searchValue));
     }
@@ -724,7 +706,12 @@ const getAllOrders = (
       params.push(formattedDate);
     }
 
-    // Append WHERE conditions if any exist
+    // ── Agent filter ────────────────────────────────────────
+    if (agentFilter) {
+      whereConditions.push(`sa.id = ?`);
+      params.push(agentFilter);
+    }
+
     if (whereConditions.length > 0) {
       const whereClause = " AND " + whereConditions.join(" AND ");
       countSql += whereClause;
@@ -733,7 +720,6 @@ const getAllOrders = (
 
     dataSql += " ORDER BY po.createdAt DESC LIMIT ? OFFSET ?";
 
-    // Execute count query first
     collectionofficer.query(countSql, params, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
@@ -742,12 +728,10 @@ const getAllOrders = (
 
       const total = countResults[0].total;
 
-      // Only proceed with data query if there are results
       if (total === 0 || offset >= total) {
         return resolve({ items: [], total });
       }
 
-      // Add pagination parameters (limit and offset)
       const dataQueryParams = [...params, limit, offset];
 
       collectionofficer.query(dataSql, dataQueryParams, (dataErr, dataResults) => {
