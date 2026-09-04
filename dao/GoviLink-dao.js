@@ -196,8 +196,16 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
 
     // Status filter
     if (status && status.trim()) {
-      sql += ` AND gj.status = ?`;
-      params.push(status.trim());
+      const normalizedStatus = status.trim().toLowerCase();
+
+      if (normalizedStatus === "pending") {
+        sql += ` AND gj.status IN ('Pending', 'Assigned')`;
+      } else if (normalizedStatus === "completed") {
+        sql += ` AND gj.status = 'Completed'`;
+      } else {
+        sql += ` AND gj.status = ?`;
+        params.push(status.trim());
+      }
     }
 
     // Assign Status filter (Assigned/Not Assigned)
