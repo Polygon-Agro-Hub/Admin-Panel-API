@@ -196,8 +196,16 @@ exports.getAllGoviLinkJobsDAO = (filters = {}) => {
 
     // Status filter
     if (status && status.trim()) {
-      sql += ` AND gj.status = ?`;
-      params.push(status.trim());
+      const normalizedStatus = status.trim().toLowerCase();
+
+      if (normalizedStatus === "pending") {
+        sql += ` AND gj.status IN ('Pending', 'Assigned')`;
+      } else if (normalizedStatus === "completed") {
+        sql += ` AND gj.status = 'Completed'`;
+      } else {
+        sql += ` AND gj.status = ?`;
+        params.push(status.trim());
+      }
     }
 
     // Assign Status filter (Assigned/Not Assigned)
@@ -238,33 +246,23 @@ exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate, jobId) => {
         fo.JobRole,
         fo.distrct,
         fo.assignDistrict,
-        COUNT(ja.id) AS activeJobCount
-      FROM 
-        feildofficer fo
-      INNER JOIN 
-        govilinkjobs gj_filter 
-        ON gj_filter.id = ?
-      INNER JOIN 
-        farms f 
-        ON f.id = gj_filter.farmId
-      LEFT JOIN 
-        jobassignofficer ja 
-        ON fo.id = ja.officerId 
-        AND ja.isActive = 1
-      LEFT JOIN 
-        govilinkjobs gj 
-        ON gj.id = ja.jobId 
-        AND gj.sheduleDate = ?
-      WHERE 
-        fo.JobRole = ?
-        AND FIND_IN_SET(f.district, fo.assignDistrict) > 0
-      GROUP BY 
-        fo.id, fo.empId, fo.firstName, fo.lastName, fo.JobRole, fo.distrct, fo.assignDistrict
-      ORDER BY 
-        activeJobCount ASC, fo.firstName, fo.lastName
+        (
+          SELECT COUNT(*)
+          FROM jobassignofficer ja2
+          INNER JOIN govilinkjobs gj2 ON gj2.id = ja2.jobId
+          WHERE ja2.officerId = fo.id
+            AND ja2.isActive = 1
+            AND gj2.sheduleDate = ?
+        ) AS activeJobCount
+      FROM feildofficer fo
+      INNER JOIN govilinkjobs gj_filter ON gj_filter.id = ?
+      INNER JOIN farms f ON f.id = gj_filter.farmId
+      WHERE fo.JobRole = ?
+      AND FIND_IN_SET(f.district, fo.assignDistrict) > 0
+      ORDER BY activeJobCount ASC, fo.firstName, fo.lastName
     `;
 
-    const params = [jobId, scheduleDate, jobRole];
+    const params = [scheduleDate, jobId, jobRole];
 
     plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
@@ -555,6 +553,79 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
     // FINAL UNION QUERY
     // -------------------------------------------------------------------
 
+    //old quary
+    // const sql = `
+    // (
+    //   SELECT 
+    //     gj.id,
+    //     gj.jobId AS jobId,
+    //     fo.empId AS empId,
+    //     f.id AS farmId,
+    //     f.regCode AS farmCode,
+    //     u.NICnumber AS farmerNIC,
+    //     f.district AS district,
+    //     gj.sheduleDate AS scheduledDate,
+    //     gj.doneDate AS completedDate,
+    //     gj.status AS status,
+    //     gj.assignBy AS assignBy,
+    //     au.userName AS assignedByName,
+    //     concat(fo1.firstName, ' ', fo1.lastName) AS assignedOfficer,
+    //     'Requested Service' AS visitPurpose,
+    //     jao.createdAt AS assignedOn,
+    //     'no' AS onScreenTime
+    //   FROM plant_care.govilinkjobs gj
+    //   LEFT JOIN plant_care.users u ON gj.farmerId = u.id
+    //   LEFT JOIN plant_care.farms f ON gj.farmId = f.id
+    //   LEFT JOIN agro_world_admin.adminusers au ON gj.assignBy = au.id
+    //   LEFT JOIN plant_care.jobassignofficer jao ON gj.id = jao.jobId AND jao.isActive = 1
+    //   LEFT JOIN plant_care.feildofficer fo ON jao.officerId = fo.id
+    //   LEFT JOIN plant_care.feildofficer fo1 ON gj.assignByCFO = fo1.id
+    //   ${where1}
+    // )
+
+    // UNION ALL
+
+    // (
+    //   SELECT DISTINCT
+    //     fa.id,
+    //     fa.jobId AS jobId,
+    //     fo.empId AS empId,
+    //     COALESCE( f.id, f2.id, f3.id) AS farmId,
+    //     COALESCE(f.regCode, f2.regCode, f3.regCode) AS farmCode,
+    //     COALESCE(u.NICnumber, u2.NICnumber) AS farmerNIC,
+    //     COALESCE(fc.district, f.district, f2.district, f3.district) AS district,
+    //     fa.sheduleDate AS scheduledDate,
+    //     fa.completeDate AS completedDate,
+    //     fa.status AS status,
+    //     fa.assignBy AS assignBy,
+    //     au.userName AS assignedByName,
+    //     concat(fo1.firstName, ' ', fo1.lastName) AS assignedOfficer,
+    //     fa.propose AS visitPurpose,
+    //     fa.assignDate AS assignedOn,
+    //     fa.onScreenTime AS onScreenTime
+    //   FROM plant_care.feildaudits fa
+    //   LEFT JOIN agro_world_admin.adminusers au ON fa.assignBy = au.id
+    //   LEFT JOIN plant_care.feildofficer fo ON fa.assignOfficerId = fo.id
+    //   LEFT JOIN plant_care.certificationpayment cp ON fa.paymentId = cp.id
+    //   LEFT JOIN plant_care.users u ON cp.userId = u.id
+    //   LEFT JOIN plant_care.feildauditcluster fac ON fac.feildAuditId = fa.id
+    //   LEFT JOIN plant_care.farms f ON fac.farmId = f.id
+    //   LEFT JOIN plant_care.users u2 ON f.userId = u2.id
+    //   LEFT JOIN plant_care.feildofficer fo1 ON fa.assignOfficerId = fo1.id
+    //   LEFT JOIN plant_care.certificationpaymentfarm cpf ON cp.id = cpf.paymentId
+    //   LEFT JOIN plant_care.farms f2 ON cpf.farmId = f2.id
+    //   LEFT JOIN plant_care.certificationpaymentcrop cpc ON cp.id = cpc.paymentId
+    //   LEFT JOIN plant_care.ongoingcultivationscrops ongc ON cpc.cropId = ongc.id
+    //   LEFT JOIN plant_care.farms f3 ON ongc.farmId = f3.id
+    //   LEFT JOIN plant_care.farmcluster fc ON cp.certificateId = fc.certificateId
+
+    //   ${where2}
+    // )
+
+    // ORDER BY completedDate DESC, scheduledDate DESC;
+    // `;
+
+    //optimized quary
     const sql = `
     (
       SELECT 
@@ -586,12 +657,11 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
 
     UNION ALL
 
-    (
-      SELECT 
+       ( SELECT DISTINCT
         fa.id,
         fa.jobId AS jobId,
         fo.empId AS empId,
-        COALESCE( f.id, f2.id, f3.id) AS farmId,
+        COALESCE(f.id, f2.id, f3.id) AS farmId,
         COALESCE(f.regCode, f2.regCode, f3.regCode) AS farmCode,
         COALESCE(u.NICnumber, u2.NICnumber) AS farmerNIC,
         COALESCE(fc.district, f.district, f2.district, f3.district) AS district,
@@ -600,25 +670,41 @@ exports.getFieldAuditDetails = (filters = {}, search = {}) => {
         fa.status AS status,
         fa.assignBy AS assignBy,
         au.userName AS assignedByName,
-        concat(fo1.firstName, ' ', fo1.lastName) AS assignedOfficer,
+        CONCAT(fo1.firstName, ' ', fo1.lastName) AS assignedOfficer,
         fa.propose AS visitPurpose,
         fa.assignDate AS assignedOn,
         fa.onScreenTime AS onScreenTime
-      FROM plant_care.feildaudits fa
-      LEFT JOIN agro_world_admin.adminusers au ON fa.assignBy = au.id
-      LEFT JOIN plant_care.feildofficer fo ON fa.assignOfficerId = fo.id
-      LEFT JOIN plant_care.certificationpayment cp ON fa.paymentId = cp.id
-      LEFT JOIN plant_care.users u ON cp.userId = u.id
-      LEFT JOIN plant_care.feildauditcluster fac ON fac.feildAuditId = fa.id
-      LEFT JOIN plant_care.farms f ON fac.farmId = f.id
-      LEFT JOIN plant_care.users u2 ON f.userId = u2.id
-      LEFT JOIN plant_care.feildofficer fo1 ON fa.assignOfficerId = fo1.id
-      LEFT JOIN plant_care.certificationpaymentfarm cpf ON cp.id = cpf.paymentId
-      LEFT JOIN plant_care.farms f2 ON cpf.farmId = f2.id
-      LEFT JOIN plant_care.certificationpaymentcrop cpc ON cp.id = cpc.paymentId
-      LEFT JOIN plant_care.ongoingcultivationscrops ongc ON cpc.cropId = ongc.id
-      LEFT JOIN plant_care.farms f3 ON ongc.farmId = f3.id
-      LEFT JOIN plant_care.farmcluster fc ON cp.certificateId = fc.certificateId
+    FROM plant_care.feildaudits fa
+    LEFT JOIN agro_world_admin.adminusers au ON fa.assignBy = au.id
+    LEFT JOIN plant_care.feildofficer fo ON fa.assignOfficerId = fo.id
+    LEFT JOIN plant_care.certificationpayment cp ON fa.paymentId = cp.id
+    LEFT JOIN plant_care.farmcluster fc ON cp.clusterId = fc.id
+    LEFT JOIN plant_care.users u ON cp.userId = u.id
+      
+    -- Get farms from feildauditcluster (primary source)
+    LEFT JOIN plant_care.feildauditcluster fac ON fac.feildAuditId = fa.id
+    LEFT JOIN plant_care.farms f ON fac.farmId = f.id
+    LEFT JOIN plant_care.users u2 ON f.userId = u2.id
+      
+    -- Get farms from certificationpaymentfarm (secondary source)
+    LEFT JOIN (
+        SELECT DISTINCT paymentId, farmId 
+        FROM plant_care.certificationpaymentfarm
+    ) cpf ON cp.id = cpf.paymentId
+    LEFT JOIN plant_care.farms f2 ON cpf.farmId = f2.id
+      
+    -- Get farms from certificationpaymentcrop (tertiary source)
+    LEFT JOIN (
+        SELECT DISTINCT cpc.paymentId, ongc.farmId
+        FROM plant_care.certificationpaymentcrop cpc
+        LEFT JOIN plant_care.ongoingcultivationscrops ongc ON cpc.cropId = ongc.id
+        WHERE ongc.farmId IS NOT NULL
+    ) cpc_filtered ON cp.id = cpc_filtered.paymentId
+    LEFT JOIN plant_care.farms f3 ON cpc_filtered.farmId = f3.id
+      
+    LEFT JOIN plant_care.feildofficer fo1 ON fa.assignOfficerId = fo1.id
+
+
 
       ${where2}
     )
@@ -1105,7 +1191,6 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
         sqi.qEnglish,
         sqi.type,
         sqi.uploadImage,
-        sqi.officerUploadImage,
         sqi.officerTickResult,
         sq.id AS slaveQId,
         (
@@ -1159,7 +1244,6 @@ exports.getFieldAuditHistoryClusterResponseByIdDAO = (jobId) => {
           qEnglish: row.qEnglish,
           type: row.type,
           uploadImage: row.uploadImage,
-          officerUploadImage: row.officerUploadImage,
           officerTickResult: row.officerTickResult,
           slaveQId: row.slaveQId
         });

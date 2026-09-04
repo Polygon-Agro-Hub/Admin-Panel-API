@@ -1872,8 +1872,8 @@ exports.getDistributedCenterTargetDao = async (
                 WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
                 ELSE 'Unknown'
             END AS packageStatus
-        FROM market_place.orderpackageitems opi
-        JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
+        FROM collection_officer.orderpackageitems opi
+        JOIN collection_officer.orderpackage op ON opi.orderPackageId = op.id
         GROUP BY op.orderId
     ),
     additional_items_counts AS (
@@ -1889,7 +1889,7 @@ exports.getDistributedCenterTargetDao = async (
                 WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
                 ELSE 'Unknown'
             END AS additionalItemsStatus
-        FROM market_place.orderadditionalitems
+        FROM collection_officer.orderadditionalitems
         GROUP BY orderId
     )
 
@@ -1905,8 +1905,8 @@ exports.getDistributedCenterTargetDao = async (
     FROM distributedtarget dt
     JOIN distributedtargetitems dti ON dt.id = dti.targetId
     JOIN collectionofficer co ON dt.userId = co.id
-    JOIN market_place.processorders po ON dti.orderId = po.id
-    JOIN market_place.orders o ON po.orderId = o.id
+    JOIN collection_officer.processorders po ON dti.orderId = po.id
+    JOIN collection_officer.orders o ON po.orderId = o.id
     LEFT JOIN package_item_counts pic ON pic.orderId = po.id
     LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
     WHERE dt.companycenterId = ?
@@ -2098,8 +2098,8 @@ exports.getDistributionOutForDlvrOrderDao = (
             DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE) AS outDlvrDateA
         FROM distributedtarget dt
         JOIN distributedtargetitems dti ON dt.id = dti.targetId
-        JOIN market_place.processorders po ON dti.orderId = po.id
-        JOIN market_place.orders o ON po.orderId = o.id
+        JOIN collection_officer.processorders po ON dti.orderId = po.id
+        JOIN collection_officer.orders o ON po.orderId = o.id
         JOIN collectionofficer cof ON po.outBy = cof.id
         WHERE po.status = 'Out For Delivery'
         AND dt.companycenterId = ?
@@ -2532,8 +2532,8 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
                   WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
                   ELSE 'Unknown'
               END AS packageItemStatus
-          FROM market_place.orderpackageitems opi
-          JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
+          FROM collection_officer.orderpackageitems opi
+          JOIN collection_officer.orderpackage op ON opi.orderPackageId = op.id
           GROUP BY op.orderId, op.id
       ),
       package_item_counts AS (
@@ -2563,7 +2563,7 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
                   WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
                   ELSE 'Unknown'
               END AS additionalItemsStatus
-          FROM market_place.orderadditionalitems
+          FROM collection_officer.orderadditionalitems
           GROUP BY orderId
       )
 
@@ -2601,11 +2601,11 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
 FROM collection_officer.distributedtarget dt  
 JOIN collection_officer.distributedtargetitems dti ON dti.targetId = dt.id
 JOIN collection_officer.collectionofficer coff ON dt.userId = coff.id
-JOIN market_place.processorders po ON dti.orderId = po.id
-LEFT JOIN market_place.orders o ON po.orderId = o.id
-LEFT JOIN market_place.orderpackage op ON op.orderId = po.id 
-LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+JOIN collection_officer.processorders po ON dti.orderId = po.id
+LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+LEFT JOIN collection_officer.orderpackage op ON op.orderId = po.id 
+LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
 LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
 LEFT JOIN package_item_counts pic ON pic.orderId = po.id
 LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
@@ -2815,11 +2815,11 @@ exports.dcmGetSelectedOfficerTargetsDao = (
 FROM collection_officer.distributedtarget dt  
 JOIN collection_officer.distributedtargetitems dti ON dti.targetId = dt.id
 JOIN collection_officer.collectionofficer coff ON dt.userId = coff.id
-JOIN market_place.processorders po ON dti.orderId = po.id
+JOIN collection_officer.processorders po ON dti.orderId = po.id
 LEFT JOIN orders o ON po.orderId = o.id
 LEFT JOIN orderpackage op ON op.orderId = po.id 
-LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
 LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
 LEFT JOIN package_item_counts pic ON pic.orderId = po.id
 LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
@@ -3263,15 +3263,17 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         po.deliveredTime AS deliveryTime,
         dho.createdAt AS holdTime
       FROM 
-        market_place.processorders po
+        collection_officer.driverordermain drm
+      LEFT JOIN
+        collection_officer.driverorders dro ON drm.id = dro.drvOrderMainId
+      LEFT JOIN
+        collection_officer.processorders po ON po.id = dro.orderId
       INNER JOIN 
-        market_place.orders o ON po.orderId = o.id
+        collection_officer.orders o ON po.orderId = o.id
       LEFT JOIN 
         collection_officer.distributedcenter dc ON o.centerId = dc.id
       LEFT JOIN
-        collection_officer.driverorders dro ON po.id = dro.orderId
-      LEFT JOIN
-        collection_officer.collectionofficer drv ON dro.driverId = drv.id
+        collection_officer.collectionofficer drv ON drm.driverId = drv.id
       LEFT JOIN
         collection_officer.driverholdorders dho ON dro.id = dho.drvOrderId
         AND dho.id = (
@@ -3286,7 +3288,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       LEFT JOIN 
         collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
       WHERE 
-        DATE(po.sheduleDate) = CURDATE()
+       1=1
       `;
     // DATE(o.sheduleDate) = CURDATE()
     // Add search conditions if search parameters are provided
@@ -3373,8 +3375,8 @@ exports.getTargetedCustomerOrdersDao = (
                 WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
                 ELSE 'Unknown'
             END AS packageStatus
-        FROM market_place.orderpackageitems opi
-        JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
+        FROM collection_officer.orderpackageitems opi
+        JOIN collection_officer.orderpackage op ON opi.orderPackageId = op.id
         GROUP BY op.orderId
     ),
     additional_items_counts AS (
@@ -3390,7 +3392,7 @@ exports.getTargetedCustomerOrdersDao = (
                 WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
                 ELSE 'Unknown'
             END AS additionalItemsStatus
-        FROM market_place.orderadditionalitems
+        FROM collection_officer.orderadditionalitems
         GROUP BY orderId
     )
     `;
@@ -3403,9 +3405,9 @@ exports.getTargetedCustomerOrdersDao = (
         LEFT JOIN distributedtargetitems dti ON dti.targetId = dt.id
         LEFT JOIN distributedcompanycenter dcc ON dt.companycenterId = dcc.id
         LEFT JOIN distributedcenter dc ON dcc.centerId = dc.id
-        LEFT JOIN market_place.processorders po ON dti.orderId = po.id
-        LEFT JOIN market_place.orders o ON po.orderId = o.id
-        LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+        LEFT JOIN collection_officer.processorders po ON dti.orderId = po.id
+        LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+        LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
         LEFT JOIN collectionofficer cof ON po.packBy = cof.id
         LEFT JOIN package_item_counts pic ON pic.orderId = po.id
         LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
@@ -3429,9 +3431,9 @@ exports.getTargetedCustomerOrdersDao = (
         LEFT JOIN distributedtargetitems dti ON dti.targetId = dt.id
         LEFT JOIN distributedcompanycenter dcc ON dt.companycenterId = dcc.id
         LEFT JOIN distributedcenter dc ON dcc.centerId = dc.id
-        LEFT JOIN market_place.processorders po ON dti.orderId = po.id
-        LEFT JOIN market_place.orders o ON po.orderId = o.id
-        LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+        LEFT JOIN collection_officer.processorders po ON dti.orderId = po.id
+        LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+        LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
         LEFT JOIN collectionofficer cof ON po.packBy = cof.id
         LEFT JOIN package_item_counts pic ON pic.orderId = po.id
         LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
@@ -3549,15 +3551,15 @@ exports.getReturnRecievedDataDao = (
         rr.rsnEnglish AS reason,
         dro.note AS other, 
         dro.createdAt AS returnAt, 
-        do.receivedTime, 
-        do.handOverOfficer
-      FROM collection_officer.driverorders do
-      LEFT JOIN collection_officer.collectionofficer coff ON do.driverId = coff.id
-      LEFT JOIN market_place.processorders po ON do.orderId = po.id
-      LEFT JOIN market_place.orders o ON po.orderId = o.id
-      LEFT JOIN market_place.marketplaceusers mp ON mp.id = o.userId
-      LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-      LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+        do.receivedTime
+      FROM collection_officer.driverordermain drm
+      LEFT JOIN collection_officer.driverorders do on drm.id = do.drvOrderMainId
+      LEFT JOIN collection_officer.collectionofficer coff ON drm.driverId = coff.id
+      LEFT JOIN collection_officer.processorders po ON do.orderId = po.id
+      LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+      LEFT JOIN collection_officer.marketplaceusers mp ON mp.id = o.userId
+      LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+      LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
       LEFT JOIN collection_officer.driverreturnorders dro ON dro.drvOrderId = do.id
       LEFT JOIN collection_officer.returnreason rr ON dro.returnReasonId = rr.id
       LEFT JOIN collection_officer.distributedcenter dc1 ON dc1.id = o.centerId
@@ -3798,11 +3800,11 @@ exports.getTodayDiliveryTrackingCenterDetailsDao = async (id) => {
       SELECT
         po.id,
         po.invNo,   
-      	po.outDlvrDate,
+      	po.packTime AS outDlvrDate,
       	dc.centerName,
       	dc.regCode
       FROM processorders po
-      LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
+      LEFT JOIN collection_officer.collectionofficer cof1 ON po.packBy = cof1.id
       LEFT JOIN collection_officer.distributedcenter dc ON cof1.distributedCenterId = dc.id
       WHERE po.id = ?
     `;
@@ -3832,8 +3834,8 @@ exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
                   JSON_OBJECT(
                   	 'holdId',dho.id,
                      'holdTime', DATE_ADD(dho.createdAt, INTERVAL 330 MINUTE),
-                      'holdReason', hr.rsnEnglish,
-                      'restartedTime', DATE_ADD(dho.restartedTime, INTERVAL 330 MINUTE)
+                     'holdReason', hr.rsnEnglish,
+                     'restartedTime', DATE_ADD(dho.restartedTime, INTERVAL 330 MINUTE)
                   )
               )
               FROM driverholdorders dho
@@ -3845,12 +3847,13 @@ exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
           dro.createdAt AS returnTime,
           dor.receivedTime AS returnRecivedTime,
           po.deliveredTime AS completeTime,
-          dor.handOverTime AS moneyHandoverTime
-      FROM driverorders dor
-      LEFT JOIN collectionofficer drv ON dor.driverId = drv.id
+          (SELECT dot.createdAt FROM driverordertransaction dot WHERE dot.drvOrderMainId = drm.id AND dot.transStatus = 'Approved' LIMIT 1) AS moneyHandoverTime
+      FROM driverordermain drm
+      LEFT JOIN driverorders dor on drm.id = dor.drvOrderMainId
+      LEFT JOIN collectionofficer drv ON drm.driverId = drv.id
       LEFT JOIN driverreturnorders dro ON dor.id = dro.drvOrderId
       LEFT JOIN returnreason rr ON dro.returnReasonId = rr.id
-      LEFT JOIN market_place.processorders po ON dor.orderId = po.id
+      LEFT JOIN collection_officer.processorders po ON dor.orderId = po.id
       WHERE dor.orderId = ?
     `;
 
@@ -3983,9 +3986,9 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
     paymentMethod
 FROM collection_officer.distributedtarget dt
 LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
-LEFT JOIN market_place.processorders po ON dti.orderId = po.id
-LEFT JOIN market_place.orders o ON po.orderId = o.id
-LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+LEFT JOIN collection_officer.processorders po ON dti.orderId = po.id
+LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
 WHERE 1=1
     `;
 
@@ -4316,7 +4319,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
     po.deliveredTime AS completeTime,
     dho.createdAt AS holdTime
 
-FROM market_place.processorders po
+FROM collection_officer.processorders po
 
 LEFT JOIN collection_officer.driverorders dor 
        ON po.id = dor.orderId
@@ -4339,11 +4342,11 @@ LEFT JOIN collection_officer.driverreturnorders dro
            LIMIT 1
        )
 
-LEFT JOIN market_place.orders o ON po.orderId = o.id
-LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
 LEFT JOIN collection_officer.distributedcenter dc ON o.centerId = dc.id
-LEFT JOIN market_place.marketplaceusers mpu ON o.userId = mpu.id
+LEFT JOIN collection_officer.marketplaceusers mpu ON o.userId = mpu.id
 
       ${wheresql}
       ${sortSql}
@@ -4365,7 +4368,7 @@ exports.getPolygonCenterDashbordDetailsDao = (data) => {
       SELECT 
           COALESCE(SUM(dro.handOverPrice), 0) + COALESCE(SUM(pio.handOverPrice), 0) AS total_price,
           COUNT(po.id) AS total_orders
-      FROM market_place.processorders po
+      FROM collection_officer.processorders po
       LEFT JOIN driverorders dro ON po.id = dro.orderId
       LEFT JOIN collectionofficer cof_dro ON dro.handOverOfficer = cof_dro.id 
           AND cof_dro.companyId = ? 
@@ -4411,7 +4414,7 @@ exports.getPickupCashRevenueDao = (data) => {
           cof_issued.empId AS issuedOfficerEmpId,
           cof_handover.empId AS handOverOfficerEmpId
       FROM collection_officer.pickuporders pio 
-      LEFT JOIN market_place.processorders po ON po.id = pio.orderId
+      LEFT JOIN collection_officer.processorders po ON po.id = pio.orderId
       LEFT JOIN collection_officer.collectionofficer cof_issued ON pio.orderIssuedOfficer = cof_issued.id
           AND cof_issued.companyId = ?
           AND cof_issued.distributedCenterId = ?
@@ -4465,8 +4468,8 @@ exports.getDriverCashRevenueDao = (data) => {
           cof_dro.empId AS driverEmpId,
           cof_handover.empId AS handOverOfficerEmpId
       FROM collection_officer.driverorders do 
-      LEFT JOIN market_place.processorders po ON po.id = do.orderId
-      LEFT JOIN market_place.orders o ON po.orderId = o.id
+      LEFT JOIN collection_officer.processorders po ON po.id = do.orderId
+      LEFT JOIN collection_officer.orders o ON po.orderId = o.id
       LEFT JOIN collection_officer.collectionofficer cof_dro ON do.driverId = cof_dro.id
       LEFT JOIN collection_officer.collectionofficer cof_handover ON do.handOverOfficer = cof_handover.id
       WHERE o.assignCoMCenId = ? AND po.paymentMethod = 'Cash' AND do.id IS NOT NULL
@@ -4513,7 +4516,7 @@ exports.getHomeDiliveryTrackingCenterDetailsDao = async (id) => {
       FROM processorders po
       LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
       LEFT JOIN collection_officer.distributedcenter dc ON cof1.distributedCenterId = dc.id
-      LEFT JOIN market_place.orders o ON po.orderId = o.id
+      LEFT JOIN collection_officer.orders o ON po.orderId = o.id
       WHERE po.id = ?
     `;
 
@@ -4561,7 +4564,7 @@ exports.getHomeDiliveryTrackingDriverDetailsDao = async (id) => {
       LEFT JOIN collectionofficer drv ON dor.driverId = drv.id
       LEFT JOIN driverreturnorders dro ON dor.id = dro.drvOrderId
       LEFT JOIN returnreason rr ON dro.returnReasonId = rr.id
-      LEFT JOIN market_place.processorders po ON dor.orderId = po.id
+      LEFT JOIN collection_officer.processorders po ON dor.orderId = po.id
       WHERE dor.orderId = ?
     `;
 
@@ -4587,8 +4590,8 @@ exports.getRecivedPickUpCashDashbordDao = async (data) => {
           COUNT(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS all_pickup,
           COUNT(DISTINCT CASE WHEN DATE(po.sheduleDate) = CURDATE() AND DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS today_pickup,
           COALESCE(SUM(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.handOverPrice END), 0) AS order_price
-      FROM market_place.processorders po
-      INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup' AND po.paymentMethod = 'Cash'
+      FROM collection_officer.processorders po
+      INNER JOIN collection_officer.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup' AND po.paymentMethod = 'Cash'
       LEFT JOIN collection_officer.pickuporders por ON po.id = por.orderId
       WHERE o.centerId = ? AND po.status IN ('Ready to Pickup', 'Picked up')
     `;
@@ -4612,8 +4615,8 @@ exports.getRecivedDelivaryCashDashbordDao = async (data, comcenId) => {
           COUNT(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS all_delivary,
           COUNT(DISTINCT CASE WHEN DATE(po.sheduleDate) = CURDATE() AND DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS today_delivary,
           COALESCE(SUM(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.handOverPrice END), 0) AS order_price
-      FROM market_place.processorders po
-      INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
+      FROM collection_officer.processorders po
+      INNER JOIN collection_officer.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
       LEFT JOIN collection_officer.driverorders dro ON po.id = dro.orderId AND dro.handOverTime IS NOT NULL
       LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
       WHERE o.assignCoMCenId = ? AND po.status IN ('Out For Delivery', 'Delivered') AND po.paymentMethod = 'Cash'
@@ -4662,7 +4665,7 @@ exports.getDistributionDashboardDao = () => {
     // 5. Total Cash Received - Today
     const cashReceivedTodaySql = `
       SELECT COALESCE(SUM(amount), 0) AS totalCashReceivedToday
-      FROM market_place.processorders
+      FROM collection_officer.processorders
       WHERE paymentMethod = 'Cash'
         AND DATE(deliveredTime) = CURDATE()
     `;
@@ -4670,7 +4673,7 @@ exports.getDistributionDashboardDao = () => {
     // 6. Total Delivered Orders - Today
     const deliveredTodaySql = `
       SELECT COUNT(*) AS totalDeliveredToday
-      FROM market_place.processorders
+      FROM collection_officer.processorders
       WHERE status = 'Delivered'
         AND DATE(deliveredTime) = CURDATE()
     `;
@@ -4678,7 +4681,7 @@ exports.getDistributionDashboardDao = () => {
     // 7. Total In-Store Pickup Orders - Today
     const pickupTodaySql = `
       SELECT COUNT(*) AS totalPickupToday
-      FROM market_place.processorders
+      FROM collection_officer.processorders
       WHERE status = 'Picked up'
         AND DATE(deliveredTime) = CURDATE()
     `;
@@ -4688,8 +4691,8 @@ exports.getDistributionDashboardDao = () => {
       FROM collection_officer.driverordermain drm
       INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
       INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id
-      INNER JOIN market_place.processorders po ON dro.orderId = po.id
-      INNER JOIN market_place.orders o ON o.id = po.orderId
+      INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
+      INNER JOIN collection_officer.orders o ON o.id = po.orderId
       WHERE po.status = 'Return Received' AND po.paymentMethod = 'Cash' AND DATE(drr.createdAt) = CURDATE()
 
     `;
@@ -4697,7 +4700,7 @@ exports.getDistributionDashboardDao = () => {
     // 9. Total Delivered Orders - This Month
     const deliveredMonthSql = `
       SELECT COUNT(*) AS totalDeliveredMonth
-      FROM market_place.processorders
+      FROM collection_officer.processorders
       WHERE status = 'Delivered'
         AND MONTH(deliveredTime) = MONTH(CURDATE())
         AND YEAR(deliveredTime) = YEAR(CURDATE())
@@ -4706,7 +4709,7 @@ exports.getDistributionDashboardDao = () => {
     // 10. Total In-Store Pickup Orders - This Month
     const pickupMonthSql = `
       SELECT COUNT(*) AS totalPickupMonth
-      FROM market_place.processorders
+      FROM collection_officer.processorders
       WHERE status = 'Picked up'
         AND MONTH(deliveredTime) = MONTH(CURDATE())
         AND YEAR(deliveredTime) = YEAR(CURDATE())
@@ -4717,8 +4720,8 @@ exports.getDistributionDashboardDao = () => {
       FROM collection_officer.driverordermain drm
       INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
       INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id
-      INNER JOIN market_place.processorders po ON dro.orderId = po.id
-      INNER JOIN market_place.orders o ON o.id = po.orderId
+      INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
+      INNER JOIN collection_officer.orders o ON o.id = po.orderId
       WHERE 
         po.status = 'Return Received' 
         AND po.paymentMethod = 'Cash' 
