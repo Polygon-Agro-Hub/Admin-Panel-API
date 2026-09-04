@@ -238,33 +238,23 @@ exports.getOfficersByJobRoleDAO = (jobRole, scheduleDate, jobId) => {
         fo.JobRole,
         fo.distrct,
         fo.assignDistrict,
-        COUNT(ja.id) AS activeJobCount
-      FROM 
-        feildofficer fo
-      INNER JOIN 
-        govilinkjobs gj_filter 
-        ON gj_filter.id = ?
-      INNER JOIN 
-        farms f 
-        ON f.id = gj_filter.farmId
-      LEFT JOIN 
-        jobassignofficer ja 
-        ON fo.id = ja.officerId 
-        AND ja.isActive = 1
-      LEFT JOIN 
-        govilinkjobs gj 
-        ON gj.id = ja.jobId 
-        AND gj.sheduleDate = ?
-      WHERE 
-        fo.JobRole = ?
-        AND FIND_IN_SET(f.district, fo.assignDistrict) > 0
-      GROUP BY 
-        fo.id, fo.empId, fo.firstName, fo.lastName, fo.JobRole, fo.distrct, fo.assignDistrict
-      ORDER BY 
-        activeJobCount ASC, fo.firstName, fo.lastName
+        (
+          SELECT COUNT(*)
+          FROM jobassignofficer ja2
+          INNER JOIN govilinkjobs gj2 ON gj2.id = ja2.jobId
+          WHERE ja2.officerId = fo.id
+            AND ja2.isActive = 1
+            AND gj2.sheduleDate = ?
+        ) AS activeJobCount
+      FROM feildofficer fo
+      INNER JOIN govilinkjobs gj_filter ON gj_filter.id = ?
+      INNER JOIN farms f ON f.id = gj_filter.farmId
+      WHERE fo.JobRole = ?
+      AND FIND_IN_SET(f.district, fo.assignDistrict) > 0
+      ORDER BY activeJobCount ASC, fo.firstName, fo.lastName
     `;
 
-    const params = [jobId, scheduleDate, jobRole];
+    const params = [scheduleDate, jobId, jobRole];
 
     plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
