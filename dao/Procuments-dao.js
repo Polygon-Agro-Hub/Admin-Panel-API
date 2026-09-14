@@ -1726,8 +1726,7 @@ exports.getDistributionCentersForShortageDao = () => {
       SELECT 
         dcc.id AS comCenId,
         dc.regCode,
-        dc.city,
-        dc.province
+        dc.centerName
       FROM collection_officer.distributedcompanycenter dcc
       JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
       ORDER BY dc.regCode ASC
@@ -1740,7 +1739,7 @@ exports.getDistributionCentersForShortageDao = () => {
       }
  
       const centers = results.map((row) => {
-        const parts = [row.regCode, row.city, row.province].filter(Boolean);
+        const parts = [row.regCode, row.centerName].filter(Boolean);
         const label = parts.join(" - ");
         return {
           comCenId: row.comCenId,
