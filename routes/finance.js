@@ -277,4 +277,16 @@ router.get("/pickup-handover-summary/:id", authMiddleware, financeController.get
 router.get("/view-cop-transaction-document/:id",authMiddleware, financeController.viewCopTransactionDocumentEp);
 router.put("/update-cop-transaction-status/:id",authMiddleware, financeController.updateCopTransactionStatusEp);
 
+router.get(
+  "/get-all-completed-orders", 
+  authMiddleware, 
+  financeController.getAllCompletedOrdersEp
+);
+
+router.get(
+  '/download-completed-orders', 
+  authMiddleware, 
+  financeController.downloadCompletedOrders
+);
+
 module.exports = router;

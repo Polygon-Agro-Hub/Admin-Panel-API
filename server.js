@@ -25,7 +25,7 @@ require("dotenv").config();
 const express = require('express');
 const http = require("http");
 const { Server } = require("socket.io");
-const { admin, plantcare, collectionofficer, marketPlace, investment, goviShop } = require('./startup/database');
+const { admin, plantcare, collectionofficer } = require('./startup/database');
 const routes = require('./routes/Admin');
 const collectionOfficerRoutes = require('./routes/CollectionOfficer');
 const routesNewws = require('./routes/News');
@@ -143,37 +143,37 @@ collectionofficer.getConnection((err, connection) => {
   connection.release();
 });
 
-marketPlace.getConnection((err, connection) => {
-  if (err) {
-    console.error(
-      "Error connecting to the database in index.js (marketPlace):",
-      err
-    );
-    return;
-  }
-  console.log(
-    "Connected to the MySQL database in server.js.(marketPlace)  ✅  "
-  );
-  connection.release();
-});
+// marketPlace.getConnection((err, connection) => {
+//   if (err) {
+//     console.error(
+//       "Error connecting to the database in index.js (marketPlace):",
+//       err
+//     );
+//     return;
+//   }
+//   console.log(
+//     "Connected to the MySQL database in server.js.(marketPlace)  ✅  "
+//   );
+//   connection.release();
+// });
 
-investment.getConnection((err, connection) => {
-  if (err) {
-    console.error("Error connecting to the database in index.js (investments):", err);
-    return;
-  }
-  console.log("Connected to the MySQL database in server.js.(investments)  ✅  ");
-  connection.release();
-});
+// investment.getConnection((err, connection) => {
+//   if (err) {
+//     console.error("Error connecting to the database in index.js (investments):", err);
+//     return;
+//   }
+//   console.log("Connected to the MySQL database in server.js.(investments)  ✅  ");
+//   connection.release();
+// });
 
-goviShop.getConnection((err, connection) => {
-  if (err) {
-    console.error("Error connecting to the database in index.js (goviShop):", err);
-    return;
-  }
-  console.log("Connected to the MySQL database in server.js.(goviShop)  ✅  ");
-  connection.release();
-});
+// goviShop.getConnection((err, connection) => {
+//   if (err) {
+//     console.error("Error connecting to the database in index.js (goviShop):", err);
+//     return;
+//   }
+//   console.log("Connected to the MySQL database in server.js.(goviShop)  ✅  ");
+//   connection.release();
+// });
 
 //corn jobs
 pickupOrdersReturnCornjob();

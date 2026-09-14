@@ -15,12 +15,15 @@ const {
   getAllTransactionsSchema,
   IdParamSchema,
   getAllShortageSubmissionsSchema,
-  getAllCOPTransactionsSchema
+  getAllCOPTransactionsSchema,
+  getAllCompletedOrders,
+  downloadCompletedOrders
 } = require("../validations/finance-validation");
 
 const uploadFileToS3 = require("../middlewares/s3upload");
 const deleteFromS3 = require("../middlewares/s3delete");
 const { IdParamShema } = require("../validations/Admin-validation");
+const XLSX = require('xlsx');
 
 exports.getDashboardData = async (req, res) => {
   try {
@@ -2367,5 +2370,126 @@ exports.updateCopTransactionStatusEp = async (req, res) => {
       success: false,
       message: "Internal Server Error",
     });
+  }
+};
+
+exports.getAllCompletedOrdersEp = async (req, res) => {
+  try {
+    const validatedQuery = await getAllCompletedOrders.validateAsync(req.query);
+
+    const { page, limit, startDate, endDate, search } = validatedQuery;
+
+    const reportData = await financeDao.getCompletedOrders(
+      page,
+      limit,
+      startDate,
+      endDate,
+      search
+    );
+    res.json(reportData);
+  } catch (err) {
+    console.error("Error fetching completed orders report:", err);
+    res.status(500).send("An error occurred while fetching the report.");
+  }
+};
+
+const splitPayment = (paymentMethod, moneyPaid, creditPaid) => {
+  const money = parseFloat(moneyPaid) || 0;
+  const credit = parseFloat(creditPaid) || 0;
+
+  let cashPaid = 0;
+  let cardPaid = 0;
+
+  if (paymentMethod === 'Card') {
+    cardPaid = money;
+  } else {
+    cashPaid = money;
+  }
+
+  return { cashPaid, cardPaid, creditPaid: credit };
+};
+
+const mapOrderType = (orderType) => {
+  const map = {
+    'Delivery': 'Home Delivery',
+    'Pickup': 'In Store Pickup',
+  };
+  return map[orderType] || orderType || 'N/A';
+};
+
+const mapPlatform = (platform) => {
+  const map = {
+    'Marketplace': 'Polygon',
+    'Dash': 'SalesDash',
+  };
+  return map[platform] || platform || 'N/A';
+};
+
+exports.downloadCompletedOrders = async (req, res) => {
+  try {
+    const validatedQuery = await downloadCompletedOrders.validateAsync(req.query);
+    const { startDate, endDate, search } = validatedQuery;
+
+    const data = await financeDao.downloadCompletedOrders(startDate, endDate, search);
+
+    const formattedData = data.map(item => {
+    const { cashPaid, cardPaid, creditPaid } = splitPayment(
+      item.paymentMethod,
+      item.moneyPaid,
+      item.creditPaid
+    );
+
+     return {
+        'Invoice No': item.invoiceNo,
+        'Customer Name': item.customerName,
+        'Contact No': `${item.phonecode1 || ''}${item.phone1 || ''}`,
+        'Order Type': mapOrderType(item.orderType),
+        'Amount (Rs.)': Number(parseFloat(item.amount || 0).toFixed(2)),
+        'Cash Paid (Rs.)': Number(cashPaid.toFixed(2)),
+        'Card Paid (Rs.)': Number(cardPaid.toFixed(2)),
+        'Credit Paid (Rs.)': Number(creditPaid.toFixed(2)),
+        'Ordered At': item.orderedAt,
+        'Completed At': item.completedAt,
+        'Platform': mapPlatform(item.platform),
+        'Buyer Type': item.buyerType,
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(formattedData);
+
+    const numberFormatCols = ['E', 'F', 'G', 'H'];
+    const range = XLSX.utils.decode_range(worksheet['!ref']);
+
+    for (let row = range.s.r + 1; row <= range.e.r; row++) { 
+      numberFormatCols.forEach(col => {
+        const cellAddress = `${col}${row + 1}`;
+        if (worksheet[cellAddress]) {
+          worksheet[cellAddress].z = '0.00';
+        }
+      });
+    }
+
+    worksheet['!cols'] = [
+      { wch: 20 }, { wch: 25 }, { wch: 18 }, { wch: 18 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+      { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Completed Sales');
+
+    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    const formattedFrom = startDate.replace(/-/g, '.');
+    const formattedTo = endDate.replace(/-/g, '.');
+    const fileName = `${formattedFrom} - ${formattedTo} Completed Sales.xlsx`;
+
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    res.send(excelBuffer);
+  } catch (err) {
+    console.error('Error generating Excel file:', err);
+    res.status(500).send('An error occurred while generating the file.');
   }
 };

@@ -211,4 +211,16 @@ router.get(
   ProcumentsEP.getAllShortageAssignedDetails
 );
 
+router.post(
+  "/add-packing-target-limit",
+  authMiddleware,
+  ProcumentsEP.createPackingTargetLimit
+);
+
+router.get(
+  "/get-latest-packing-target-limit",
+  authMiddleware,
+  ProcumentsEP.getLatestPackingTargetLimit
+);
+
 module.exports = router;

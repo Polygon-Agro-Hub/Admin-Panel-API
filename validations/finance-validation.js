@@ -175,6 +175,56 @@ const getAllCOPTransactionsSchema = Joi.object({
   searchItem: Joi.string().allow("").optional(),
 })
 
+const getAllCompletedOrders = Joi.object({
+  page: Joi.number().integer().min(1).default(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).default(10).optional(),
+  search: Joi.string().allow('').optional(),
+  startDate: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .required()
+    .custom((value, helpers) => {
+      const date = new Date(value);
+        if (isNaN(date.getTime())) {
+          return helpers.error('any.invalid');
+        }
+        return value;
+    }, 'Custom date validation'),
+  endDate: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .required()
+    .custom((value, helpers) => {
+      const date = new Date(value);
+        if (isNaN(date.getTime())) {
+          return helpers.error('any.invalid');
+        }
+        return value;
+    }, 'Custom date validation'),
+});
+
+const downloadCompletedOrders = Joi.object({
+  search: Joi.string().allow('').optional(),
+  startDate: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .required()
+    .custom((value, helpers) => {
+      const date = new Date(value);
+        if (isNaN(date.getTime())) {
+          return helpers.error('any.invalid');
+        }
+        return value;
+      }, 'Custom date validation'),
+  endDate: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .required()
+    .custom((value, helpers) => {
+      const date = new Date(value);
+        if (isNaN(date.getTime())) {
+          return helpers.error('any.invalid');
+        }
+        return value;
+    }, 'Custom date validation'),
+});
+
 module.exports = {
   createAgentCommissionSchema,
   updateAgentCommissionSchema,
@@ -191,5 +241,7 @@ module.exports = {
   getAllInvestmentUsersSchema,
   getAllTransactionsSchema,
   getAllShortageSubmissionsSchema,
-  getAllCOPTransactionsSchema
+  getAllCOPTransactionsSchema,
+  getAllCompletedOrders,
+  downloadCompletedOrders
 };

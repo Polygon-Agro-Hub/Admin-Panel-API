@@ -2,7 +2,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace,
 } = require("../startup/database");
 const { Upload } = require("@aws-sdk/lib-storage");
 const Joi = require("joi");
@@ -213,7 +212,7 @@ exports.getActiveSalesAgents = () => {
     const sql = `
       SELECT COUNT(*) AS activeSalesAgents FROM salesagent WHERE status = 'active'
             `;
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -230,7 +229,7 @@ exports.getNewSalesAgents = () => {
       SELECT COUNT(*) AS newSalesAgents FROM salesagent WHERE DATE(createdAt) = CURDATE() 
 
             `;
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -246,7 +245,7 @@ exports.getAllSalesAgents = () => {
     const sql = `
       SELECT COUNT(*) AS totalSaleAgents FROM salesagent
     `;
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -419,7 +418,7 @@ exports.SendGeneratedPasswordDao = async (
       .moveDown()
       .text(
         "If you need assistance, please reach out to our support team at polygonagro.inf@gmail.com",
-        { align: "justify" }
+        
       )
       .moveDown()
       .text("Best Regards,")

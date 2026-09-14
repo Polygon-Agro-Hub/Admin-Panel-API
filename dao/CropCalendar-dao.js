@@ -1,8 +1,6 @@
 const {
   plantcare,
   collectionofficer,
-  marketPlace,
-  investment,
 } = require("../startup/database");
 const Joi = require("joi");
 const path = require("path");
@@ -78,12 +76,15 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
     let dataSql = `
         SELECT 
           cg.*,
+          au.userName AS AdminmodifyBy,
           COUNT(cv.id) as varietyCount,
           GROUP_CONCAT(DISTINCT cv.varietyNameEnglish) as varietyList
         FROM 
           cropgroup cg
         LEFT JOIN 
           cropvariety cv ON cg.id = cv.cropGroupId
+        LEFT JOIN
+          agro_world_admin.adminusers au ON cg.modifyBy = au.id
       `;
 
     const whereConditions = [];
@@ -296,17 +297,35 @@ exports.insertXLSXData = (cropId, data) => {
       "Required Images": Joi.number().required(),
     }).required();
 
+    function isEmptyRow(row) {
+      if (!row) return true;
+        return Object.values(row).every(value => {
+          if (value === '' || value === null || value === undefined) return true;
+          if (typeof value === 'string' && value.trim() === '') return true;
+          return false;
+        });
+    }
+
     const validatedData = [];
+
     for (let i = 0; i < data.length; i++) {
-      const { error, value } = schema.validate(data[i]);
-      if (error) {
-        return reject(
-          new Error(
-            `Validation error in row ${i + 1}: ${error.details[0].message}`
-          )
-        );
+      console.log(`Validating row ${i}`, data[i]);
+
+      if (isEmptyRow(data[i])) {
+        continue; 
+      } else {
+        const { error, value } = schema.validate(data[i]);
+        if (error) {
+          return reject(
+            new Error(`Validation error in row ${i + 1}: ${error.details[0].message}`)
+          );
+        }
+        validatedData.push(value);
       }
-      validatedData.push(value);
+    }
+
+    if (validatedData.length === 0) {
+      return reject(new Error("No valid data rows found in the uploaded file."));
     }
 
     const sql = `
@@ -356,8 +375,21 @@ exports.insertXLSXData = (cropId, data) => {
 
 exports.getAllVarietyByGroup = (cropGroupId) => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT * FROM cropvariety WHERE cropGroupId = ?";
-
+    const sql = `SELECT 
+    cv.cropGroupId,
+    cv.varietyNameEnglish,
+    cv.varietyNameSinhala,
+    cv.varietyNameTamil,
+    cv.descriptionEnglish,
+    cv.descriptionSinhala,
+    cv.descriptionTamil,
+    cv.image,
+    cv.bgColor,
+    au.userName AS modifyBy,
+    cv.modifyAt 
+    FROM cropvariety cv
+    LEFT JOIN agro_world_admin.adminusers au ON cv.modifyBy = au.id
+    WHERE cv.cropGroupId = ?`;
     plantcare.query(sql, [cropGroupId], (err, results) => {
       if (err) {
         return reject(err);
@@ -365,7 +397,6 @@ exports.getAllVarietyByGroup = (cropGroupId) => {
       const processedDataResults = results.map((variety) => {
         return variety;
       });
-
       resolve(processedDataResults);
     });
   });

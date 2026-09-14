@@ -1022,3 +1022,74 @@ exports.getAllShortageAssignedDetails = async (req, res) => {
     });
   }
 };
+
+exports.createPackingTargetLimit = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+    console.log("Request body:", req.body);
+
+    // Validate request body structure
+    if (!req.body || req.body.tarValue === undefined || req.body.tarValue === null) {
+      return res.status(400).json({
+        error: "Invalid request format. Expected { tarValue: number }",
+        status: false,
+      });
+    }
+
+    const { tarValue } = req.body;
+
+    // Additional validation for tarValue
+    if (isNaN(parseFloat(tarValue))) {
+      return res.status(400).json({
+        error: "tarValue must be a valid number",
+        status: false,
+      });
+    }
+
+    const result = await procumentDao.createPackingTargetLimitDao(tarValue);
+    console.log(result);
+
+    res.status(201).json({
+      message: "Packing target limit created successfully",
+      results: result,
+      status: true,
+    });
+  } catch (err) {
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error:
+        err.message || "An error occurred while creating packing target limit",
+      status: false,
+    });
+  }
+};
+
+exports.getLatestPackingTargetLimit = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const result = await procumentDao.getLatestPackingTargetLimitDao();
+
+    if (!result) {
+      return res.status(404).json({
+        error: "No packing target limit found",
+        status: false,
+      });
+    }
+
+    res.status(200).json({
+      message: "Latest packing target limit fetched successfully",
+      results: result,
+      status: true,
+    });
+  } catch (err) {
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error:
+        err.message || "An error occurred while fetching packing target limit",
+      status: false,
+    });
+  }
+};

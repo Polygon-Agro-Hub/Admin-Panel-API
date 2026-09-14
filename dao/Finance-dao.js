@@ -2,9 +2,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace,
-  investment,
-  goviShop,
 } = require("../startup/database");
 const bcrypt = require("bcryptjs");
 const { Upload } = require("@aws-sdk/lib-storage");
@@ -869,7 +866,7 @@ exports.getAllAgentCommissions = (page, limit, searchTerm = "") => {
     dataParams.push(limit, offset);
 
     // Execute count query
-    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
         return reject(countErr);
@@ -878,7 +875,7 @@ exports.getAllAgentCommissions = (page, limit, searchTerm = "") => {
       const total = countResults[0].total;
 
       // Execute data query
-      marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
@@ -916,7 +913,7 @@ exports.getAgentCommissionById = (id) => {
       WHERE ac.id = ?
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         console.error("Error fetching agent commission:", err);
         return reject(err);
@@ -936,7 +933,7 @@ exports.createAgentCommission = (commissionData) => {
       VALUES (?, ?, ?, ?, NOW())
     `;
 
-    marketPlace.query(
+    collectionofficer.query(
       sql,
       [minRange, maxRange, value, modifyBy],
       (err, results) => {
@@ -1018,7 +1015,7 @@ exports.updateAgentCommission = (id, updateData) => {
       )} WHERE id = ?`;
 
       // Execute update
-      marketPlace.query(sql, values, (err, results) => {
+      collectionofficer.query(sql, values, (err, results) => {
         if (err) {
           console.error("Error updating agent commission:", err);
           return reject(err);
@@ -1040,7 +1037,7 @@ exports.deleteAgentCommission = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `DELETE FROM agentcommission WHERE id = ?`;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         console.error("Error deleting agent commission:", err);
         return reject(err);
@@ -1070,7 +1067,7 @@ exports.checkRangeOverlap = (minRange, maxRange, excludeId = null) => {
       params.push(excludeId);
     }
 
-    marketPlace.query(sql, params, (err, results) => {
+    collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         console.error("Error checking range overlap:", err);
         return reject(err);
@@ -1323,7 +1320,10 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
         COALESCE(co.empId, '--') AS Officer_ID,
         ir.nicFront AS NIC_Front_Image,
         ir.nicBack AS NIC_Back_Image,
-        DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time,
+        DATE_FORMAT(
+          DATE_ADD(ir.createdAt, INTERVAL 330 MINUTE),
+          'At %h:%i%p on %M %d, %Y'
+        ) AS Request_Date_Time,
         DATE_FORMAT(ir.createdAt, '%M %d, %Y') AS Requested_On,
         COALESCE(ao.userName, '--') AS Assigned_By,
         ir.officerStatus
@@ -1359,7 +1359,7 @@ exports.GetAllInvestmentRequestsDAO = (filters = {}) => {
     // Order by most recent first
     sql += ` ORDER BY ir.id`;
 
-    investment.query(sql, params, (err, results) => {
+    plantcare.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1383,7 +1383,10 @@ exports.GetInvestmentRequestByIdDAO = (requestId) => {
         ir.investment AS Expected_Investment,
         ir.expectedYield AS Expected_Yield,
         DATE_FORMAT(ir.startDate, '%M %d, %Y') AS Expected_Start_Date,
-        DATE_FORMAT(ir.createdAt, 'At %h:%i%p on %M %d, %Y') AS Request_Date_Time
+        DATE_FORMAT(
+          DATE_ADD(ir.createdAt, INTERVAL 330 MINUTE),
+          'At %h:%i%p on %M %d, %Y'
+        ) AS Request_Date_Time 
       FROM investmentrequest ir
       INNER JOIN plant_care.users u ON ir.farmerId = u.id
       LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
@@ -1391,7 +1394,7 @@ exports.GetInvestmentRequestByIdDAO = (requestId) => {
       LIMIT 1
     `;
 
-    investment.query(sql, [requestId], (err, results) => {
+    plantcare.query(sql, [requestId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1425,7 +1428,7 @@ exports.GetApprovedInvestmentRequestByIdDAO = (requestId) => {
       LIMIT 1
     `;
 
-    investment.query(sql, [requestId], (err, results) => {
+    plantcare.query(sql, [requestId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1443,7 +1446,7 @@ exports.assignOfficerToInvestmentRequestDAO = (
     let connection;
 
     try {
-      connection = await investment.promise().getConnection();
+      connection = await plantcare.promise().getConnection();
       await connection.beginTransaction();
 
       // Check if investment request exists
@@ -1552,7 +1555,7 @@ exports.getOfficersByDistrictAndRoleForInvestmentDAO = (
 
     const params = [Farmer_ID, jobRole];
 
-    investment.query(sql, params, (err, results) => {
+    plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
@@ -1592,7 +1595,7 @@ exports.getAllPublishedProjectsDAO = (searchText) => {
       LEFT JOIN agro_world_admin.adminusers au ON ir.publishBy = au.id
       LEFT JOIN approvedinvestmentrequest air ON ir.id = air.reqId
       WHERE ir.reqStatus = 'Approved'
-      AND ir.publishStatus = 'Published';
+      AND ir.publishStatus = 'Published'
     `;
 
     const params = [];
@@ -1610,7 +1613,7 @@ exports.getAllPublishedProjectsDAO = (searchText) => {
       params.push(searchValue, searchValue, searchValue);
     }
 
-    investment.query(sql, params, (err, results) => {
+    plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
@@ -1631,7 +1634,7 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
     (ir.extentac + ir.extentha * 2.47105 + ir.extentp / 160) AS extentac,
     ir.investment,
     ir.expectedYield,
-    ir.startDate,
+    DATE(ir.startDate) AS startDate,
     ir.nicFront,
     ir.nicBack,
     ir.assignDate,
@@ -1649,8 +1652,8 @@ exports.GetAllRejectedInvestmentRequestsDAO = (filters = {}) => {
     u.NICnumber,
     cg.cropNameEnglish,
     au.userName AS rejectedBy
-FROM investments.investmentrequest ir
-LEFT JOIN investments.rejectinvestmentrequest rir ON ir.id = rir.reqId
+FROM plant_care.investmentrequest ir
+LEFT JOIN plant_care.rejectinvestmentrequest rir ON ir.id = rir.reqId
 LEFT JOIN plant_care.users u ON ir.farmerId = u.id
 LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
 LEFT JOIN agro_world_admin.adminusers au ON rir.rejectedBy = au.id
@@ -1669,7 +1672,7 @@ WHERE ir.reqStatus = 'Rejected'
     // Order by most recent rejection first
     sql += ` ORDER BY rir.createdAt DESC`;
 
-    investment.query(sql, params, (err, results) => {
+    plantcare.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1756,7 +1759,7 @@ exports.GetAllApprovedInvestmentRequestsDAO = (filters = {}) => {
     // Order by most recent approval first
     sql += ` ORDER BY ir.createdAt DESC`;
 
-    investment.query(sql, params, (err, results) => {
+    plantcare.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1775,7 +1778,7 @@ exports.UpdateInvestmentRequestPublishStatusDAO = (requestId, publishBy) => {
       WHERE id = ?
     `;
 
-    investment.query(sql, [publishBy, requestId], (err, result) => {
+    plantcare.query(sql, [publishBy, requestId], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -1818,7 +1821,7 @@ exports.GetProjectInvesmentDAO = (filters = {}) => {
 
     sql += ` ORDER BY cg.cropNameEnglish, (fillShares/ai.defineShares) DESC`;
 
-    investment.query(sql, params, (err, results) => {
+    plantcare.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1871,7 +1874,7 @@ exports.getAllInvestmentsDao = (id, status, search) => {
 
     dataSql += " ORDER BY i.createdAt DESC";
 
-    investment.query(dataSql, params, (dataErr, dataResults) => {
+    plantcare.query(dataSql, params, (dataErr, dataResults) => {
       if (dataErr) {
         console.error("Error in data query:", dataErr);
         return reject(dataErr);
@@ -1891,7 +1894,7 @@ exports.approveInvestmentRequestDao = (id) => {
       WHERE id = ?
     `;
 
-    investment.query(sql, [id], (err, result) => {
+    plantcare.query(sql, [id], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -1908,7 +1911,7 @@ exports.RejectInvestmentRequestDao = (id) => {
       WHERE id = ?
     `;
 
-    investment.query(sql, [id], (err, result) => {
+    plantcare.query(sql, [id], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -1974,7 +1977,7 @@ exports.getInspectionDerailsDao = async (id) => {
     let completedQueries = 0;
 
     queries.forEach((query, index) => {
-      investment.query(query.sql, [id], (err, queryResult) => {
+      plantcare.query(query.sql, [id], (err, queryResult) => {
         if (err) {
           return reject(err);
         }
@@ -2007,7 +2010,7 @@ exports.GetAllAuditedInvestmentRequestsDAO = (filters = {}) => {
         ir.nicBack AS NIC_Back_Image,
         co.empId,
         ir.auditedDate AS reqCahangeTime
-    FROM investments.investmentrequest ir
+    FROM plant_care.investmentrequest ir
     INNER JOIN plant_care.users u 
         ON ir.farmerId = u.id
     LEFT JOIN plant_care.feildofficer co 
@@ -2033,7 +2036,7 @@ exports.GetAllAuditedInvestmentRequestsDAO = (filters = {}) => {
     // Order by most recent approval first
     sql += ` ORDER BY ir.createdAt DESC`;
 
-    investment.query(sql, params, (err, results) => {
+    plantcare.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2054,15 +2057,15 @@ exports.getDetailsForDivideShareDao = (id) => {
     CONCAT(fo.phoneCode1, ' ',fo.phoneNumber1) AS officerPhone,
     (COALESCE(cg.costFeild, 0)* ( ir.extentac + COALESCE(ir.extentha, 0)*2.47105 + COALESCE(extentp, 0)/160 )) AS totalValue,
     air.totValue, air.defineShares, air.maxShare, air.minShare
-  FROM investments.investmentrequest ir
+  FROM plant_care.investmentrequest ir
   LEFT JOIN plant_care.cropgroup cg ON ir.cropId = cg.id
   LEFT JOIN plant_care.users u ON ir.farmerId = u.id
   LEFT JOIN plant_care.feildofficer fo ON ir.officerId = fo.id
-  LEFT JOIN investments.approvedinvestmentrequest air ON air.reqId = ir.id
+  LEFT JOIN plant_care.approvedinvestmentrequest air ON air.reqId = ir.id
       WHERE ir.id = ?
     `;
 
-    investment.query(sql, [id], (err, result) => {
+    plantcare.query(sql, [id], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -2074,7 +2077,7 @@ exports.getDetailsForDivideShareDao = (id) => {
 exports.devideSharesDao = (sharesData, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      INSERT INTO investments.approvedinvestmentrequest
+      INSERT INTO plant_care.approvedinvestmentrequest
       (reqId, totValue, defineShares, minShare, maxShare, defineBy)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
@@ -2088,7 +2091,7 @@ exports.devideSharesDao = (sharesData, adminId) => {
       adminId,
     ];
 
-    investment.query(sql, values, (err, result) => {
+    plantcare.query(sql, values, (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -2105,7 +2108,7 @@ exports.ApproveRequestDao = (id, adminId) => {
       WHERE ir.id = ?
     `;
 
-    investment.query(sql, [adminId, id], (err, result) => {
+    plantcare.query(sql, [adminId, id], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -2117,12 +2120,12 @@ exports.ApproveRequestDao = (id, adminId) => {
 exports.updateRejectReasonDao = (id, reason, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      INSERT INTO investments.rejectinvestmentrequest
+      INSERT INTO plant_care.rejectinvestmentrequest
       (reqId, reason, rejectedBy)
       VALUES (?, ?, ?)
     `;
 
-    investment.query(sql, [id, reason, adminId], (err, result) => {
+    plantcare.query(sql, [id, reason, adminId], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -2139,7 +2142,7 @@ exports.rejectRequestDao = (id) => {
       WHERE ir.id = ?
     `;
 
-    investment.query(sql, [id], (err, result) => {
+    plantcare.query(sql, [id], (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -2151,7 +2154,7 @@ exports.rejectRequestDao = (id) => {
 exports.editDevideSharesDao = (sharesData, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      UPDATE investments.approvedinvestmentrequest
+      UPDATE plant_care.approvedinvestmentrequest
       SET totValue = ?, defineShares = ?, minShare = ?, maxShare = ?, defineBy = ?, createdAt = NOW()
       WHERE reqId = ?
     `;
@@ -2165,7 +2168,7 @@ exports.editDevideSharesDao = (sharesData, adminId) => {
       sharesData.id,
     ];
 
-    investment.query(sql, values, (err, result) => {
+    plantcare.query(sql, values, (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -2183,7 +2186,7 @@ exports.getSalesAgentForFilterDao = () => {
       FROM salesagent
     `;
 
-    marketPlace.query(sql, (err, result) => {
+    collectionofficer.query(sql, (err, result) => {
       if (err) {
         return reject(err);
       }
@@ -2197,13 +2200,13 @@ exports.getAgentCommitionsDao = (data) => {
     let sql = `
       SELECT
         po.invNo,
-        o.sheduleDate,
+        po.sheduleDate,
         po.deliveredTime,
         po.isPaid
     FROM processorders po
     INNER JOIN orders o ON po.orderId = o.id
     INNER JOIN marketplaceusers mu ON o.userId = mu.id 
-    WHERE mu.salesAgent = ? AND (DATE(o.sheduleDate) BETWEEN ? AND ?) AND DATE(po.deliveredTime) < ?
+    WHERE mu.salesAgent = ? AND (DATE(po.sheduleDate) BETWEEN ? AND ?) AND DATE(po.deliveredTime) < ?
     `;
 
     if (data.paymentStatus) {
@@ -2214,7 +2217,7 @@ exports.getAgentCommitionsDao = (data) => {
       }
     }
 
-    marketPlace.query(
+    collectionofficer.query(
       sql,
       [data.agentId, data.fromDate, data.toDate, data.deliveredDate],
       (err, result) => {
@@ -2531,7 +2534,7 @@ exports.getGocicareAllInvestmentUsersDao = (
     }
 
     // Execute count query first
-    investment.query(countSql, params, (countErr, countResults) => {
+    plantcare.query(countSql, params, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
         return reject(countErr);
@@ -2546,7 +2549,7 @@ exports.getGocicareAllInvestmentUsersDao = (
       }
 
       // Execute data query with pagination
-      investment.query(dataSql, dataParams, (dataErr, dataResults) => {
+      plantcare.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
@@ -2564,7 +2567,7 @@ exports.getGocicareAllInvestmentUsersDao = (
 // ───────────────────────────────────────────── Daos for the finance dashboard ─────────────────────────────────────────────
 
 exports.getAllFinanceDashboardDataDao = () => {
-  console.log("goviShop connection:", goviShop);
+  console.log("goviShop connection:", plantcare);
   return new Promise((resolve, reject) => {
     // ── Count Cards ──────────────────────────────────────────────────────────
 
@@ -2652,8 +2655,8 @@ exports.getAllFinanceDashboardDataDao = () => {
   SELECT
     COALESCE(SUM(o.fullTotal), 0) AS currentMonthLoss
   FROM driverorders dro
-  INNER JOIN market_place.processorders po ON dro.orderId = po.id
-  INNER JOIN market_place.orders o ON po.orderId = o.id
+  INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
+  INNER JOIN collection_officer.orders o ON po.orderId = o.id
   WHERE dro.drvStatus = 'Return Received'
     AND po.paymentMethod = 'Cash'
     AND MONTH(dro.handOverTime) = MONTH(CURRENT_DATE())
@@ -2683,15 +2686,15 @@ exports.getAllFinanceDashboardDataDao = () => {
     plantcare.query(pensionCountSql, (err1, pensionResult) => {
       if (err1) return reject("Error in pension count query: " + err1);
 
-      goviShop.query(supplierUpgradeSql, (err2, supplierResult) => {
+      plantcare.query(supplierUpgradeSql, (err2, supplierResult) => {
         if (err2)
           return reject("Error in supplier upgrade count query: " + err2);
 
-        investment.query(projectRequestSql, (err3, projectResult) => {
+        plantcare.query(projectRequestSql, (err3, projectResult) => {
           if (err3)
             return reject("Error in project request count query: " + err3);
 
-          investment.query(publishedProjectSql, (err4, publishedResult) => {
+          plantcare.query(publishedProjectSql, (err4, publishedResult) => {
             if (err4)
               return reject("Error in published project count query: " + err4);
 
@@ -2713,7 +2716,7 @@ exports.getAllFinanceDashboardDataDao = () => {
                         "Error in collection expenses query: " + err7,
                       );
 
-                    marketPlace.query(
+                    collectionofficer.query(
                       goviMartSalesIncomeSql,
                       (err8, goviMartResult) => {
                         if (err8)
@@ -2721,7 +2724,7 @@ exports.getAllFinanceDashboardDataDao = () => {
                             "Error in GoViMart sales income query: " + err8,
                           );
 
-                        marketPlace.query(
+                        collectionofficer.query(
                           salesDashIncomeSql,
                           (err9, salesDashResult) => {
                             if (err9)
@@ -2738,7 +2741,7 @@ exports.getAllFinanceDashboardDataDao = () => {
                                     err10,
                                   );
 
-                                goviShop.query(
+                                plantcare.query(
                                   goviShopPremiumIncomeSql,
                                   (err11, premiumResult) => {
                                     if (err11)
@@ -2747,7 +2750,7 @@ exports.getAllFinanceDashboardDataDao = () => {
                                         err11,
                                       );
 
-                                    marketPlace.query(
+                                    collectionofficer.query(
                                       goviShopOrderCommissionSql,
                                       (err12, commissionResult) => {
                                         if (err12)
@@ -3068,11 +3071,11 @@ exports.getTransactionOrdersDao = (id) => {
       FROM collection_officer.driverordertransaction dt
       LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
       LEFT JOIN collection_officer.driverorders do ON dom.id = do.drvOrderMainId
-      LEFT JOIN market_place.processorders po ON do.orderId = po.id
+      LEFT JOIN collection_officer.processorders po ON do.orderId = po.id
       WHERE dt.id = ? AND po.status = 'Delivered' AND po.paymentMethod = 'Cash' AND po.isPaid = 1;
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3113,7 +3116,7 @@ exports.getAllShortageSubmissionsDAO = (
       FROM shortageassigned sa
       LEFT JOIN shortage s ON sa.shortageassigned = s.id
       LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
-      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN collection_officer.marketplaceitems m ON s.mpItemId = m.id
       LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
@@ -3140,7 +3143,7 @@ exports.getAllShortageSubmissionsDAO = (
       FROM shortageassigned sa
       LEFT JOIN shortage s ON sa.shortageassigned = s.id
       LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
-      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN collection_officer.marketplaceitems m ON s.mpItemId = m.id
       LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
@@ -3237,7 +3240,7 @@ exports.getViewSubmissionDocumentDao = (id) => {
       FROM shortageassigned sa
       LEFT JOIN shortage s ON sa.shortageassigned = s.id
       LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
-      LEFT JOIN market_place.marketplaceitems m ON s.mpItemId = m.id
+      LEFT JOIN collection_officer.marketplaceitems m ON s.mpItemId = m.id
       LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       LEFT JOIN collectionofficer co ON sa.assignOfficerId = co.id
@@ -3399,7 +3402,7 @@ exports.getPickupHandOverSummaryDao = (id) => {
         SUM(po.handOverPrice) OVER (PARTITION BY pt.officerId) AS totalHandOverPrice
       FROM pickuptransaction pt
       LEFT JOIN pickuporders po ON pt.id = po.transId
-      LEFT JOIN market_place.processorders pro ON po.orderId = pro.orderId
+      LEFT JOIN collection_officer.processorders pro ON po.orderId = pro.orderId
       WHERE pt.id = ?;
     `;
     collectionofficer.query(sql, [id], (err, result) => {
@@ -3455,6 +3458,130 @@ exports.updateCopTransactionStatusDao = ({ id, updatedBy }) => {
       }
 
       resolve(result);
+    });
+  });
+};
+
+exports.getCompletedOrders = (page, limit, startDate, endDate, search) => {
+  return new Promise((resolve, reject) => {
+    const offset = (page - 1) * limit;
+    let whereClause = `WHERE po.status = 'Delivered'`;
+    const params = [];
+    const countParams = [];
+
+    if (startDate && endDate) {
+      whereClause += " AND DATE(o.createdAt) BETWEEN ? AND ?";
+      params.push(startDate, endDate);
+      countParams.push(startDate, endDate);
+    } else if (startDate) {
+      whereClause += " AND DATE(o.createdAt) >= ?";
+      params.push(startDate);
+      countParams.push(startDate);
+    } else if (endDate) {
+      whereClause += " AND DATE(o.createdAt) <= ?";
+      params.push(endDate);
+      countParams.push(endDate);
+    }
+
+    if (search) {
+      whereClause += ` AND po.invNo LIKE ?`;
+      params.push(`%${search}%`);
+      countParams.push(`%${search}%`);
+    }
+
+    const countSql = `
+      SELECT COUNT(DISTINCT po.id) AS total
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN marketplaceusers mu ON o.userId = mu.id
+      ${whereClause}
+    `;
+
+    const dataSql = `
+      SELECT
+        po.id, 
+        po.orderId, 
+        po.invNo AS invoiceNo,
+        o.fullName AS customerName, 
+        o.phonecode1, o.phone1,
+        o.delivaryMethod AS orderType, 
+        o.fullTotal AS amount,
+        po.paymentMethod, 
+        po.moneyPaid AS cashPaid, 
+        po.creditPaid,
+        o.createdAt AS orderedAt, 
+        po.deliveredTime AS completedAt,
+        o.orderApp AS platform, 
+        mu.buyerType
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN marketplaceusers mu ON o.userId = mu.id
+      ${whereClause}
+      ORDER BY o.createdAt DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    params.push(parseInt(limit), parseInt(offset));
+
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+      const total = countResults[0]?.total || 0;
+
+      collectionofficer.query(dataSql, params, (dataErr, dataResults) => {
+        if (dataErr) return reject(dataErr);
+        resolve({ items: dataResults, total });
+      });
+    });
+  });
+};
+
+exports.downloadCompletedOrders = (startDate, endDate, search) => {
+  return new Promise((resolve, reject) => {
+    let whereClause = "WHERE po.status = 'Delivered'";
+    const params = [];
+
+    if (startDate && endDate) {
+      whereClause += " AND DATE(o.createdAt) BETWEEN ? AND ?";
+      params.push(startDate, endDate);
+    } else if (startDate) {
+      whereClause += " AND DATE(o.createdAt) >= ?";
+      params.push(startDate);
+    } else if (endDate) {
+      whereClause += " AND DATE(o.createdAt) <= ?";
+      params.push(endDate);
+    }
+
+    if (search) {
+      whereClause += ` AND po.invNo LIKE ?`;
+      params.push(`%${search}%`);
+    }
+
+    const dataSql = `
+      SELECT
+        po.id, 
+        po.orderId, 
+        po.invNo AS invoiceNo,
+        o.fullName AS customerName, 
+        o.phonecode1, o.phone1,
+        o.delivaryMethod AS orderType, 
+        o.fullTotal AS amount,
+        po.paymentMethod, 
+        po.moneyPaid, 
+        po.creditPaid,
+        o.createdAt AS orderedAt, 
+        po.deliveredTime AS completedAt,
+        o.orderApp AS platform, 
+        mu.buyerType
+      FROM processorders po
+      LEFT JOIN orders o ON po.orderId = o.id
+      LEFT JOIN marketplaceusers mu ON o.userId = mu.id
+      ${whereClause}
+      ORDER BY o.createdAt DESC
+    `;
+
+    collectionofficer.query(dataSql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
     });
   });
 };

@@ -1,8 +1,6 @@
 const {
   plantcare,
-  collectionofficer,
-  marketPlace,
-  investment,
+  collectionofficer
 } = require("../startup/database");
 const { error } = require("console");
 const Joi = require("joi");
@@ -1873,8 +1871,8 @@ exports.getDistributedCenterTargetDao = async (
                 WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
                 ELSE 'Unknown'
             END AS packageStatus
-        FROM market_place.orderpackageitems opi
-        JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
+        FROM collection_officer.orderpackageitems opi
+        JOIN collection_officer.orderpackage op ON opi.orderPackageId = op.id
         GROUP BY op.orderId
     ),
     additional_items_counts AS (
@@ -1890,7 +1888,7 @@ exports.getDistributedCenterTargetDao = async (
                 WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
                 ELSE 'Unknown'
             END AS additionalItemsStatus
-        FROM market_place.orderadditionalitems
+        FROM collection_officer.orderadditionalitems
         GROUP BY orderId
     )
 
@@ -1898,7 +1896,7 @@ exports.getDistributedCenterTargetDao = async (
         po.invNo, 
         co.firstNameEnglish, 
         co.lastNameEnglish, 
-        o.sheduleDate, 
+        po.sheduleDate, 
         o.sheduleTime,
         dti.isComplete,
         COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
@@ -1906,8 +1904,8 @@ exports.getDistributedCenterTargetDao = async (
     FROM distributedtarget dt
     JOIN distributedtargetitems dti ON dt.id = dti.targetId
     JOIN collectionofficer co ON dt.userId = co.id
-    JOIN market_place.processorders po ON dti.orderId = po.id
-    JOIN market_place.orders o ON po.orderId = o.id
+    JOIN collection_officer.processorders po ON dti.orderId = po.id
+    JOIN collection_officer.orders o ON po.orderId = o.id
     LEFT JOIN package_item_counts pic ON pic.orderId = po.id
     LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
     WHERE dt.companycenterId = ?
@@ -1956,7 +1954,7 @@ exports.getDistributedCenterTargetDao = async (
       }
 
       if (dateValue && dateValue !== "") {
-        sql += ` AND DATE(o.sheduleDate) = DATE(?)`;
+        sql += ` AND DATE(po.sheduleDate) = DATE(?)`;
         sqlParams.push(dateValue);
       }
     }
@@ -1969,8 +1967,8 @@ exports.getDistributedCenterTargetDao = async (
 
     if (!date && !status && !searchText) {
       sql += `
-     AND ((o.sheduleDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY))  
-       OR (o.sheduleDate < CURDATE() AND dt.complete != dt.target))
+     AND ((po.sheduleDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY))  
+       OR (po.sheduleDate < CURDATE() AND dt.complete != dt.target))
       `;
     }
 
@@ -1980,13 +1978,13 @@ exports.getDistributedCenterTargetDao = async (
       po.invNo, 
       co.firstNameEnglish, 
       co.lastNameEnglish, 
-      o.sheduleDate, 
+      po.sheduleDate, 
       o.sheduleTime,
       dti.isComplete,
       pic.packageStatus, 
       aic.additionalItemsStatus
     ORDER BY 
-      o.sheduleDate ASC,
+      po.sheduleDate ASC,
       po.invNo ASC
     `;
 
@@ -2092,15 +2090,15 @@ exports.getDistributionOutForDlvrOrderDao = (
             po.invNo,
             cof.firstNameEnglish,
             cof.lastNameEnglish,
-            o.sheduleDate,
+            po.sheduleDate,
             o.sheduleTime,
             po.outDlvrDate,
-            DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE) AS sheduleDateA,
+            DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE) AS sheduleDateA,
             DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE) AS outDlvrDateA
         FROM distributedtarget dt
         JOIN distributedtargetitems dti ON dt.id = dti.targetId
-        JOIN market_place.processorders po ON dti.orderId = po.id
-        JOIN market_place.orders o ON po.orderId = o.id
+        JOIN collection_officer.processorders po ON dti.orderId = po.id
+        JOIN collection_officer.orders o ON po.orderId = o.id
         JOIN collectionofficer cof ON po.outBy = cof.id
         WHERE po.status = 'Out For Delivery'
         AND dt.companycenterId = ?
@@ -2120,16 +2118,16 @@ exports.getDistributionOutForDlvrOrderDao = (
       sql += `
         AND (
           (o.sheduleTime = 'Within 8AM - 2PM' AND (
-            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
             OR (
-              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
               AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > '14:00:00'
             )
           )) OR
           (o.sheduleTime = 'Within 2PM - 8PM' AND (
-            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
             OR (
-              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+              DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
               AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) > '20:00:00'
             )
           ))
@@ -2140,10 +2138,10 @@ exports.getDistributionOutForDlvrOrderDao = (
     if (status === 'On Time') {
       sql += `
         AND (
-          DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) < DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+          DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) < DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
           OR
           (
-            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(o.sheduleDate, INTERVAL 330 MINUTE))
+            DATE(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(po.sheduleDate, INTERVAL 330 MINUTE))
             AND (
               (o.sheduleTime = 'Within 8AM - 2PM' AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) <= '14:00:00') OR
               (o.sheduleTime = 'Within 2PM - 8PM' AND TIME(DATE_ADD(po.outDlvrDate, INTERVAL 330 MINUTE)) <= '20:00:00')
@@ -2432,108 +2430,6 @@ exports.getOfficerDailyDistributionTargetDao = async (id, date) => {
   });
 };
 
-// exports.getSelectTargetItems = (targetId, searchText = "", status = "") => {
-//   return new Promise((resolve, reject) => {
-//     let sql = `
-//       WITH package_item_statuses AS (
-//         SELECT 
-//           op.orderId,
-//           op.id AS packageId,
-//           COUNT(*) AS totalItems,
-//           SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) AS packedItems,
-//           CASE
-//             WHEN COUNT(*) = 0 THEN 'Unknown'
-//             WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
-//             WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
-//             WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
-//             ELSE 'Unknown'
-//           END AS packageItemStatus
-//         FROM market_place.orderpackageitems opi
-//         JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
-//         GROUP BY op.orderId, op.id
-//       ),
-//       package_item_counts AS (
-//         SELECT
-//           orderId,
-//           CASE
-//             WHEN SUM(CASE WHEN packageItemStatus = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
-//             WHEN SUM(CASE WHEN packageItemStatus = 'Opened' THEN 1 ELSE 0 END) > 0 THEN 'Opened'
-//             WHEN SUM(CASE WHEN packageItemStatus = 'Completed' THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
-//             ELSE 'Unknown'
-//           END AS packageStatus,
-//           SUM(totalItems) AS totalItems,
-//           SUM(packedItems) AS packedItems
-//         FROM package_item_statuses
-//         GROUP BY orderId
-//       ),
-//       additional_items_counts AS (
-//         SELECT 
-//           orderId,
-//           COUNT(*) AS totalAdditionalItems,
-//           SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
-//           CASE
-//             WHEN COUNT(*) = 0 THEN 'Unknown'
-//             WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = 0 THEN 'Pending'
-//             WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) > 0 
-//               AND SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) < COUNT(*) THEN 'Opened'
-//             WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
-//             ELSE 'Unknown'
-//           END AS additionalItemsStatus
-//         FROM market_place.orderadditionalitems
-//         GROUP BY orderId
-//       )
-//       SELECT
-//         dti.id,
-//         dti.orderId as processOrderId,
-//         dti.isComplete,
-//         dti.completeTime,
-//         po.id as orderId,
-//         po.invNo,
-//         o.sheduleDate,
-//         o.sheduleTime,
-//         dt.userId as officerId,
-//         e.empId,
-//         e.firstNameEnglish,
-//         e.lastNameEnglish,
-//         COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
-//         COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
-//         CASE 
-//           WHEN dti.isComplete = 0 THEN 'Not Complete'
-//           WHEN dti.completeTime IS NULL THEN 'Not Complete'
-//           WHEN dti.completeTime < o.sheduleDate THEN 'On Time'
-//           WHEN dti.completeTime >= o.sheduleDate THEN 'Late'
-//           ELSE 'Not Complete'
-//         END AS completeTimeStatus
-//       FROM distributedtargetitems dti
-//       LEFT JOIN market_place.processorders po ON dti.orderId = po.id
-//       LEFT JOIN package_item_counts pic ON pic.orderId = po.id
-//       LEFT JOIN additional_items_counts aic ON aic.orderId = po.id
-//       LEFT JOIN market_place.orders o ON po.orderId = o.id
-//       LEFT JOIN distributedtarget dt ON dti.targetId = dt.id
-//       LEFT JOIN collectionofficer e ON dt.userId = e.id
-//       WHERE dti.targetId = ?
-//     `;
-
-//     const params = [targetId];
-
-//     // Add search filter
-//     if (searchText) {
-//       sql += ` AND po.invNo LIKE ?`;
-//       params.push(`%${searchText}%`);
-//     }
-
-//     collectionofficer.query(sql, params, (err, results) => {
-//       if (err) {
-//         return reject(err);
-//       }
-//       resolve(results);
-//     });
-//   });
-// };
-
-
-
-
 exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatus ) => {
   return new Promise((resolve, reject) => {
 
@@ -2564,10 +2460,10 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
           AND dti.completeTime IS NOT NULL
           AND dti.completeTime <= 
             CASE 
-              WHEN o.sheduleTime = 'Within 8-12 PM' THEN TIMESTAMP(o.sheduleDate, '12:00:00')
-              WHEN o.sheduleTime = 'Within 12-4 PM' THEN TIMESTAMP(o.sheduleDate, '16:00:00')
-              WHEN o.sheduleTime = 'Within 4-8 PM' THEN TIMESTAMP(o.sheduleDate, '20:00:00')
-              ELSE TIMESTAMP(o.sheduleDate, '23:59:59')
+              WHEN o.sheduleTime = 'Within 8-12 PM' THEN TIMESTAMP(po.sheduleDate, '12:00:00')
+              WHEN o.sheduleTime = 'Within 12-4 PM' THEN TIMESTAMP(po.sheduleDate, '16:00:00')
+              WHEN o.sheduleTime = 'Within 4-8 PM' THEN TIMESTAMP(po.sheduleDate, '20:00:00')
+              ELSE TIMESTAMP(po.sheduleDate, '23:59:59')
             END
         `;
       } else if (completingStatus === 'Late') {
@@ -2575,10 +2471,10 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
           AND dti.completeTime IS NOT NULL
           AND dti.completeTime >
             CASE 
-              WHEN o.sheduleTime = 'Within 8-12 PM' THEN TIMESTAMP(o.sheduleDate, '12:00:00')
-              WHEN o.sheduleTime = 'Within 12-4 PM' THEN TIMESTAMP(o.sheduleDate, '16:00:00')
-              WHEN o.sheduleTime = 'Within 4-8 PM' THEN TIMESTAMP(o.sheduleDate, '20:00:00')
-              ELSE TIMESTAMP(o.sheduleDate, '23:59:59')
+              WHEN o.sheduleTime = 'Within 8-12 PM' THEN TIMESTAMP(po.sheduleDate, '12:00:00')
+              WHEN o.sheduleTime = 'Within 12-4 PM' THEN TIMESTAMP(po.sheduleDate, '16:00:00')
+              WHEN o.sheduleTime = 'Within 4-8 PM' THEN TIMESTAMP(po.sheduleDate, '20:00:00')
+              ELSE TIMESTAMP(po.sheduleDate, '23:59:59')
             END
         `;
       } else if (completingStatus === 'Not Completed') {
@@ -2635,8 +2531,8 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
                   WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
                   ELSE 'Unknown'
               END AS packageItemStatus
-          FROM market_place.orderpackageitems opi
-          JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
+          FROM collection_officer.orderpackageitems opi
+          JOIN collection_officer.orderpackage op ON opi.orderPackageId = op.id
           GROUP BY op.orderId, op.id
       ),
       package_item_counts AS (
@@ -2666,7 +2562,7 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
                   WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
                   ELSE 'Unknown'
               END AS additionalItemsStatus
-          FROM market_place.orderadditionalitems
+          FROM collection_officer.orderadditionalitems
           GROUP BY orderId
       )
 
@@ -2674,7 +2570,7 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
   o.id,
   po.id AS processOrderId,
   po.invNo,
-  o.sheduleDate,
+  po.sheduleDate,
   o.sheduleTime,
   dti.id AS distributedTargetItemId, 
   dt.id AS distributedTargetId, 
@@ -2704,11 +2600,11 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
 FROM collection_officer.distributedtarget dt  
 JOIN collection_officer.distributedtargetitems dti ON dti.targetId = dt.id
 JOIN collection_officer.collectionofficer coff ON dt.userId = coff.id
-JOIN market_place.processorders po ON dti.orderId = po.id
-LEFT JOIN market_place.orders o ON po.orderId = o.id
-LEFT JOIN market_place.orderpackage op ON op.orderId = po.id 
-LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+JOIN collection_officer.processorders po ON dti.orderId = po.id
+LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+LEFT JOIN collection_officer.orderpackage op ON op.orderId = po.id 
+LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
 LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
 LEFT JOIN package_item_counts pic ON pic.orderId = po.id
 LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
@@ -2717,7 +2613,7 @@ GROUP BY
   o.id,
   po.id,
   po.invNo,
-  o.sheduleDate,
+  po.sheduleDate,
   o.sheduleTime,
   dti.id,
   dt.id,
@@ -2736,7 +2632,7 @@ GROUP BY
 
       `;
 
-      marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
@@ -2897,7 +2793,7 @@ exports.dcmGetSelectedOfficerTargetsDao = (
   o.id,
   po.id AS processOrderId,
   po.invNo,
-  o.sheduleDate,
+  po.sheduleDate,
   o.sheduleTime,
   dti.id AS distributedTargetItemId, 
   dt.id AS distributedTargetId, 
@@ -2918,11 +2814,11 @@ exports.dcmGetSelectedOfficerTargetsDao = (
 FROM collection_officer.distributedtarget dt  
 JOIN collection_officer.distributedtargetitems dti ON dti.targetId = dt.id
 JOIN collection_officer.collectionofficer coff ON dt.userId = coff.id
-JOIN market_place.processorders po ON dti.orderId = po.id
+JOIN collection_officer.processorders po ON dti.orderId = po.id
 LEFT JOIN orders o ON po.orderId = o.id
 LEFT JOIN orderpackage op ON op.orderId = po.id 
-LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
 LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
 LEFT JOIN package_item_counts pic ON pic.orderId = po.id
 LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
@@ -2931,7 +2827,7 @@ LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
   o.id,
   po.id,
   po.invNo,
-  o.sheduleDate,
+  po.sheduleDate,
   dti.id,
   dt.id,
   dti.isComplete,
@@ -2950,7 +2846,7 @@ LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
       `;
 
     console.log("Executing Data Query...");
-    marketPlace.query(dataSql, params, (dataErr, dataResults) => {
+    collectionofficer.query(dataSql, params, (dataErr, dataResults) => {
       if (dataErr) {
         console.error("Error in data query:", dataErr);
         return reject(dataErr);
@@ -3354,7 +3250,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         COALESCE(dc.regCode, dc2.regCode) AS regCode,
         COALESCE(dc.centerName, dc2.centerName) AS centerName,
         o.sheduleTime,
-        o.sheduleDate,
+        po.sheduleDate,
         po.createdAt,
         po.status,
         TIME(po.outDlvrDate) as outDlvrTime,
@@ -3366,15 +3262,17 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         po.deliveredTime AS deliveryTime,
         dho.createdAt AS holdTime
       FROM 
-        market_place.processorders po
+        collection_officer.driverordermain drm
+      LEFT JOIN
+        collection_officer.driverorders dro ON drm.id = dro.drvOrderMainId
+      LEFT JOIN
+        collection_officer.processorders po ON po.id = dro.orderId
       INNER JOIN 
-        market_place.orders o ON po.orderId = o.id
+        collection_officer.orders o ON po.orderId = o.id
       LEFT JOIN 
         collection_officer.distributedcenter dc ON o.centerId = dc.id
       LEFT JOIN
-        collection_officer.driverorders dro ON po.id = dro.orderId
-      LEFT JOIN
-        collection_officer.collectionofficer drv ON dro.driverId = drv.id
+        collection_officer.collectionofficer drv ON drm.driverId = drv.id
       LEFT JOIN
         collection_officer.driverholdorders dho ON dro.id = dho.drvOrderId
         AND dho.id = (
@@ -3389,7 +3287,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       LEFT JOIN 
         collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
       WHERE 
-        DATE(o.sheduleDate) = CURDATE()
+       DATE(po.sheduleDate) = CURDATE()
       `;
     // DATE(o.sheduleDate) = CURDATE()
     // Add search conditions if search parameters are provided
@@ -3443,7 +3341,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
     // Add ORDER BY clause
     sql += ` ORDER BY po.createdAt DESC`;
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -3476,8 +3374,8 @@ exports.getTargetedCustomerOrdersDao = (
                 WHEN SUM(CASE WHEN opi.isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) AND COUNT(*) > 0 THEN 'Completed'
                 ELSE 'Unknown'
             END AS packageStatus
-        FROM market_place.orderpackageitems opi
-        JOIN market_place.orderpackage op ON opi.orderPackageId = op.id
+        FROM collection_officer.orderpackageitems opi
+        JOIN collection_officer.orderpackage op ON opi.orderPackageId = op.id
         GROUP BY op.orderId
     ),
     additional_items_counts AS (
@@ -3493,7 +3391,7 @@ exports.getTargetedCustomerOrdersDao = (
                 WHEN SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
                 ELSE 'Unknown'
             END AS additionalItemsStatus
-        FROM market_place.orderadditionalitems
+        FROM collection_officer.orderadditionalitems
         GROUP BY orderId
     )
     `;
@@ -3506,9 +3404,9 @@ exports.getTargetedCustomerOrdersDao = (
         LEFT JOIN distributedtargetitems dti ON dti.targetId = dt.id
         LEFT JOIN distributedcompanycenter dcc ON dt.companycenterId = dcc.id
         LEFT JOIN distributedcenter dc ON dcc.centerId = dc.id
-        LEFT JOIN market_place.processorders po ON dti.orderId = po.id
-        LEFT JOIN market_place.orders o ON po.orderId = o.id
-        LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+        LEFT JOIN collection_officer.processorders po ON dti.orderId = po.id
+        LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+        LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
         LEFT JOIN collectionofficer cof ON po.packBy = cof.id
         LEFT JOIN package_item_counts pic ON pic.orderId = po.id
         LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
@@ -3523,7 +3421,7 @@ exports.getTargetedCustomerOrdersDao = (
           CONCAT(mu.phoneCode, '-', mu.phoneNumber) phoneNum,
           dc.regCode,
           dc.centerName,
-          o.sheduleDate,
+          po.sheduleDate,
           COALESCE(pic.packageStatus, 'Unknown') AS packageStatus,
           COALESCE(aic.additionalItemsStatus, 'Unknown') AS additionalItemsStatus,
           cof.empId,
@@ -3532,9 +3430,9 @@ exports.getTargetedCustomerOrdersDao = (
         LEFT JOIN distributedtargetitems dti ON dti.targetId = dt.id
         LEFT JOIN distributedcompanycenter dcc ON dt.companycenterId = dcc.id
         LEFT JOIN distributedcenter dc ON dcc.centerId = dc.id
-        LEFT JOIN market_place.processorders po ON dti.orderId = po.id
-        LEFT JOIN market_place.orders o ON po.orderId = o.id
-        LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+        LEFT JOIN collection_officer.processorders po ON dti.orderId = po.id
+        LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+        LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
         LEFT JOIN collectionofficer cof ON po.packBy = cof.id
         LEFT JOIN package_item_counts pic ON pic.orderId = po.id
         LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
@@ -3545,7 +3443,7 @@ exports.getTargetedCustomerOrdersDao = (
     const dataParams = [];
 
     if (sheduleDate) {
-      const cond = ` AND DATE(o.sheduleDate) = DATE(?) `;
+      const cond = ` AND DATE(po.sheduleDate) = DATE(?) `;
       countSql += cond;
       dataSql += cond;
       countParams.push(sheduleDate);
@@ -3646,21 +3544,21 @@ exports.getReturnRecievedDataDao = (
         o.centerId, 
         mp.phoneCode,
         mp.phoneNumber,
-        o.sheduleDate, 
+        po.sheduleDate, 
         oh.city AS houseCity,
         oa.city AS apartmentCity, 
         rr.rsnEnglish AS reason,
         dro.note AS other, 
         dro.createdAt AS returnAt, 
-        do.receivedTime, 
-        do.handOverOfficer
-      FROM collection_officer.driverorders do
-      LEFT JOIN collection_officer.collectionofficer coff ON do.driverId = coff.id
-      LEFT JOIN market_place.processorders po ON do.orderId = po.id
-      LEFT JOIN market_place.orders o ON po.orderId = o.id
-      LEFT JOIN market_place.marketplaceusers mp ON mp.id = o.userId
-      LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-      LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+        do.receivedTime
+      FROM collection_officer.driverordermain drm
+      LEFT JOIN collection_officer.driverorders do on drm.id = do.drvOrderMainId
+      LEFT JOIN collection_officer.collectionofficer coff ON drm.driverId = coff.id
+      LEFT JOIN collection_officer.processorders po ON do.orderId = po.id
+      LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+      LEFT JOIN collection_officer.marketplaceusers mp ON mp.id = o.userId
+      LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+      LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
       LEFT JOIN collection_officer.driverreturnorders dro ON dro.drvOrderId = do.id
       LEFT JOIN collection_officer.returnreason rr ON dro.returnReasonId = rr.id
       LEFT JOIN collection_officer.distributedcenter dc1 ON dc1.id = o.centerId
@@ -3901,16 +3799,16 @@ exports.getTodayDiliveryTrackingCenterDetailsDao = async (id) => {
       SELECT
         po.id,
         po.invNo,   
-      	po.outDlvrDate,
+      	po.packTime AS outDlvrDate,
       	dc.centerName,
       	dc.regCode
       FROM processorders po
-      LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
+      LEFT JOIN collection_officer.collectionofficer cof1 ON po.packBy = cof1.id
       LEFT JOIN collection_officer.distributedcenter dc ON cof1.distributedCenterId = dc.id
       WHERE po.id = ?
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -3935,8 +3833,8 @@ exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
                   JSON_OBJECT(
                   	 'holdId',dho.id,
                      'holdTime', DATE_ADD(dho.createdAt, INTERVAL 330 MINUTE),
-                      'holdReason', hr.rsnEnglish,
-                      'restartedTime', DATE_ADD(dho.restartedTime, INTERVAL 330 MINUTE)
+                     'holdReason', hr.rsnEnglish,
+                     'restartedTime', DATE_ADD(dho.restartedTime, INTERVAL 330 MINUTE)
                   )
               )
               FROM driverholdorders dho
@@ -3948,12 +3846,13 @@ exports.getTodayDiliveryTrackingDriverDetailsDao = async (id) => {
           dro.createdAt AS returnTime,
           dor.receivedTime AS returnRecivedTime,
           po.deliveredTime AS completeTime,
-          dor.handOverTime AS moneyHandoverTime
-      FROM driverorders dor
-      LEFT JOIN collectionofficer drv ON dor.driverId = drv.id
+          (SELECT dot.createdAt FROM driverordertransaction dot WHERE dot.drvOrderMainId = drm.id AND dot.transStatus = 'Approved' LIMIT 1) AS moneyHandoverTime
+      FROM driverordermain drm
+      LEFT JOIN driverorders dor on drm.id = dor.drvOrderMainId
+      LEFT JOIN collectionofficer drv ON drm.driverId = drv.id
       LEFT JOIN driverreturnorders dro ON dor.id = dro.drvOrderId
       LEFT JOIN returnreason rr ON dro.returnReasonId = rr.id
-      LEFT JOIN market_place.processorders po ON dor.orderId = po.id
+      LEFT JOIN collection_officer.processorders po ON dor.orderId = po.id
       WHERE dor.orderId = ?
     `;
 
@@ -4056,152 +3955,6 @@ exports.getDistributedDriversAndVehiclesDao = (
   });
 };
 
-// exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
-//   return new Promise((resolve, reject) => {
-//     // Base SQL query
-//     let sql = `
-//     SELECT
-//     po.id AS processOrderId,
-//     po.invNo,
-//     o.fullTotal,
-//     po.status,
-//     mu.title AS customerTitle,
-//     mu.firstName,
-//     mu.lastName,
-//     mu.phoneCode AS customerPhoneCode,
-//     mu.phoneNumber AS customerPhoneNumber,
-//     o.phonecode1 AS receiverPhoneCode1,
-//     o.phone1 AS receiverPhone1,
-//     o.phonecode2 AS receiverPhoneCode2,
-//     o.phone2 AS receiverPhone2,
-//     o.sheduleDate,
-//     o.sheduleTime,
-//     o.title,
-//     o.fullName,
-//     o.orderApp,
-//     o.createdAt AS orderCreatedAt,
-//     po.isPaid,
-//     paymentMethod
-// FROM collection_officer.distributedtarget dt
-// LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
-// LEFT JOIN market_place.processorders po ON dti.orderId = po.id
-// LEFT JOIN market_place.orders o ON po.orderId = o.id
-// LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
-// WHERE 1=1
-//     `;
-
-//     const conditions = [];
-//     const values = [];
-
-//     // Required parameter: companycenterId
-//     if (searchParams.companycenterId) {
-//       conditions.push(`dt.companycenterId = ?`);
-//       values.push(searchParams.companycenterId);
-//     } else {
-//       return reject(new Error("companycenterId is required"));
-//     }
-
-//     // Filter by status based on activeTab
-//     if (searchParams.activeTab) {
-//       if (searchParams.activeTab === 'Ready to Pickup') {
-//         conditions.push(`po.status = ?`);
-//         values.push('Ready to Pickup');
-//       } else if (searchParams.activeTab === 'Picked Up') {
-//         conditions.push(`po.status = ?`);
-//         values.push('Picked up');
-//       } else if (searchParams.activeTab === 'All') {
-//         // For "All" tab, show both statuses
-//         conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
-//       }
-//     } else {
-//       // Default to both statuses
-//       conditions.push(`po.status IN ('Ready to Pickup', 'Picked up')`);
-//     }
-
-//     // Date filter - FIXED: Use proper date handling
-//     if (searchParams.date) {
-//       let dateValue;
-
-//       if (typeof searchParams.date === "string") {
-//         dateValue = searchParams.date.trim();
-//       } else if (searchParams.date instanceof Date) {
-//         dateValue = searchParams.date.toISOString().split("T")[0];
-//       }
-
-//       if (dateValue && dateValue !== "") {
-//         // Handle both date-only and datetime strings
-//         conditions.push(`DATE(o.sheduleDate) = DATE(?)`);
-//         values.push(dateValue);
-//       }
-//     }
-
-//     // Time filter - FIXED: Match time slot values
-//     if (searchParams.time && searchParams.time.trim() !== "") {
-//       const timeValue = searchParams.time.trim();
-//       // Try to match common time formats
-//       const timeMap = {
-//         "8AM-12PM": "8AM-12PM",
-//         "12PM-4PM": "12PM-4PM",
-//         "4PM-8PM": "4PM-8PM",
-//         "8AM - 12PM": "8AM-12PM",
-//         "12PM - 4PM": "12PM-4PM",
-//         "4PM - 8PM": "4PM-8PM",
-//       };
-
-//       const normalizedTime = timeMap[timeValue] || timeValue;
-//       conditions.push(`o.sheduleTime = ?`);
-//       values.push(normalizedTime);
-//     }
-
-//     // Search text filter - FIXED: Better phone number concatenation
-//     if (searchParams.searchText && searchParams.searchText.trim() !== "") {
-//       const searchPattern = `%${searchParams.searchText.trim()}%`;
-//       conditions.push(`(
-//         po.invNo LIKE ? OR 
-//         mu.phoneNumber LIKE ? OR
-//         o.phone1 LIKE ? OR
-//         CONCAT(mu.phoneCode, mu.phoneNumber) LIKE ? OR
-//         CONCAT(o.phonecode1, o.phone1) LIKE ?
-//       )`);
-//       values.push(
-//         searchPattern,
-//         searchPattern,
-//         searchPattern,
-//         searchPattern,
-//         searchPattern
-//       );
-//     }
-
-//     // Append all conditions to the WHERE clause
-//     if (conditions.length > 0) {
-//       sql += ` AND (${conditions.join(" AND ")})`;
-//     }
-
-//     // Add ORDER BY clause
-//     sql += `
-//     ORDER BY 
-//         o.sheduleDate ASC,
-//         o.sheduleTime ASC,
-//         po.invNo DESC
-//     `;
-
-//     // Debug logging
-//     console.log("SQL Query:", sql);
-//     console.log("SQL Parameters:", values);
-//     console.log("Search Params Received:", searchParams);
-
-//     collectionofficer.query(sql, values, (err, results) => {
-//       if (err) {
-//         console.error("Database query error:", err);
-//         reject(err);
-//       } else {
-//         console.log(`Query returned ${results.length} results`);
-//         resolve(results);
-//       }
-//     });
-//   });
-// };
-
 exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
   return new Promise((resolve, reject) => {
     // Base SQL query
@@ -4220,7 +3973,7 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
     o.phone1 AS receiverPhone1,
     o.phonecode2 AS receiverPhoneCode2,
     o.phone2 AS receiverPhone2,
-    o.sheduleDate,
+    po.sheduleDate,
     o.sheduleTime,
     o.title,
     o.fullName,
@@ -4232,9 +3985,9 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
     paymentMethod
 FROM collection_officer.distributedtarget dt
 LEFT JOIN collection_officer.distributedtargetitems dti ON dt.id = dti.targetId
-LEFT JOIN market_place.processorders po ON dti.orderId = po.id
-LEFT JOIN market_place.orders o ON po.orderId = o.id
-LEFT JOIN market_place.marketplaceusers mu ON o.userId = mu.id
+LEFT JOIN collection_officer.processorders po ON dti.orderId = po.id
+LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
 WHERE 1=1
     `;
 
@@ -4278,7 +4031,7 @@ WHERE 1=1
 
       if (dateValue && dateValue !== "") {
         // Handle both date-only and datetime strings
-        conditions.push(`DATE(o.sheduleDate) = DATE(?)`);
+        conditions.push(`DATE(po.sheduleDate) = DATE(?)`);
         values.push(dateValue);
       }
     }
@@ -4365,7 +4118,7 @@ exports.getPikupOderRecordsDetailsDao = async (id) => {
       WHERE po.id = ?
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -4388,7 +4141,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
 
     dataParams.push(centerId);
 
-    let sortSql = `ORDER BY o.sheduleDate DESC`;
+    let sortSql = `ORDER BY po.sheduleDate DESC`;
     let wheresql = ` WHERE 
     po.isTargetAssigned = 1 
     AND (
@@ -4409,7 +4162,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
       switch (activeTab) {
     
         case 'all':
-          wheresql += " AND DATE(o.sheduleDate) = ? ";
+          wheresql += " AND DATE(po.sheduleDate) = ? ";
           break;
     
         case 'out-for-delivery':
@@ -4485,7 +4238,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
     
         case 'all':
           wheresql += "AND po.status IN ('Out For Delivery', 'Collected', 'On the way', 'Return', 'Hold', 'Delivered', 'Return Received')";
-          sortSql = " ORDER BY o.sheduleDate DESC";
+          sortSql = " ORDER BY po.sheduleDate DESC";
           break;
     
         case 'out-for-delivery':
@@ -4537,7 +4290,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
     po.invNo,
     dc.regCode,
     o.sheduleTime,
-    o.sheduleDate,
+    po.sheduleDate,
     o.phoneCode1,
     o.phone1,
     o.fullTotal AS total,
@@ -4565,7 +4318,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
     po.deliveredTime AS completeTime,
     dho.createdAt AS holdTime
 
-FROM market_place.processorders po
+FROM collection_officer.processorders po
 
 LEFT JOIN collection_officer.driverorders dor 
        ON po.id = dor.orderId
@@ -4588,17 +4341,17 @@ LEFT JOIN collection_officer.driverreturnorders dro
            LIMIT 1
        )
 
-LEFT JOIN market_place.orders o ON po.orderId = o.id
-LEFT JOIN market_place.orderhouse oh ON oh.orderId = o.id
-LEFT JOIN market_place.orderapartment oa ON oa.orderId = o.id
+LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
 LEFT JOIN collection_officer.distributedcenter dc ON o.centerId = dc.id
-LEFT JOIN market_place.marketplaceusers mpu ON o.userId = mpu.id
+LEFT JOIN collection_officer.marketplaceusers mpu ON o.userId = mpu.id
 
       ${wheresql}
       ${sortSql}
       `;
 
-    marketPlace.query(sql, dataParams, (err, results) => {
+    collectionofficer.query(sql, dataParams, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -4608,122 +4361,13 @@ LEFT JOIN market_place.marketplaceusers mpu ON o.userId = mpu.id
 };
 
 
-// exports.getCenterHomeDeliveryOrdersDao = (searchParams = {}) => {
-//   return new Promise((resolve, reject) => {
-//     // Base SQL query
-//     let sql = `
-//       SELECT 
-//         po.id,
-//         po.invNo,
-//         COALESCE(dc.regCode, dc2.regCode) AS regCode,
-//         COALESCE(dc.centerName, dc2.centerName) AS centerName,
-//         o.sheduleTime,
-//         o.sheduleDate,
-//         po.createdAt,
-//         po.status,
-//         TIME(po.outDlvrDate) as outDlvrTime,
-//         dro.createdAt AS collectTime,
-//         drv.empId AS driverEmpId,
-//         CONCAT(drv.phoneCode01, drv.phoneNumber01) AS driverPhone,
-//         dro.startTime AS driverStartTime,
-//         drr.createdAt AS returnTime,
-//         po.deliveredTime AS deliveryTime,
-//         dho.createdAt AS holdTime
-//       FROM 
-//         market_place.processorders po
-//       INNER JOIN 
-//         market_place.orders o ON po.orderId = o.id
-//       LEFT JOIN 
-//         collection_officer.distributedcenter dc ON o.centerId = dc.id
-//       LEFT JOIN
-//         collection_officer.driverorders dro ON po.id = dro.orderId
-//       LEFT JOIN
-//         collection_officer.collectionofficer drv ON dro.driverId = drv.id
-//       LEFT JOIN
-//         collection_officer.driverholdorders dho ON dro.id = dho.drvOrderId
-//         AND dho.id = (
-//             SELECT MAX(id) 
-//             FROM collection_officer.driverholdorders 
-//             WHERE drvOrderId = dro.id
-//         )
-//       LEFT JOIN 
-//         collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
-//       LEFT JOIN 
-//         collection_officer.collectionofficer cof2 ON po.outBy = cof2.id
-//       LEFT JOIN
-//         collection_officer.distributedcenter dc2 ON cof2.distributedCenterId = dc2.id
-//       WHERE 
-//         DATE(o.sheduleDate) = CURDATE()
-//       `;
-//     // DATE(o.sheduleDate) = CURDATE()
-//     // Add search conditions if search parameters are provided
-//     const conditions = [];
-//     const values = [];
-
-//     if (searchParams.activeTab) {
-//       console.log(searchParams.activeTab);
-//       if (searchParams.activeTab === "out-for-delivery") {
-//         conditions.push(`po.status = ?`);
-//         values.push("Out For Delivery");
-//       } else if (searchParams.activeTab === "collected") {
-//         conditions.push(`po.status = ?`);
-//         values.push("Collected");
-//       } else if (searchParams.activeTab === "on-the-way") {
-//         conditions.push(`po.status = ?`);
-//         values.push("On the way");
-//       } else if (searchParams.activeTab === "hold") {
-//         conditions.push(`po.status = ?`);
-//         values.push("Hold");
-//       } else if (searchParams.activeTab === "return") {
-//         conditions.push(`po.status = ?`);
-//         values.push("Return");
-//       } else if (searchParams.activeTab === "delivered") {
-//         conditions.push(`po.status = ?`);
-//         values.push("Delivered");
-//       } else if (searchParams.activeTab === "all") {
-//         conditions.push(
-//           ` po.status IN ('Out For Delivery', 'Collected', 'On the way', 'Hold', 'Return', 'Delivered') `
-//         );
-//       }
-//     }
-
-//     if (searchParams.regCode) {
-//       console.log("searchParams.regCode", searchParams.regCode);
-
-//       conditions.push(`(dc.id = ? OR dc2.id = ?)`);
-//       values.push(searchParams.regCode, searchParams.regCode);
-//     }
-
-//     if (searchParams.invNo) {
-//       conditions.push(`po.invNo LIKE ?`);
-//       values.push(`%${searchParams.invNo}%`);
-//     }
-
-//     // Append search conditions to the WHERE clause
-//     if (conditions.length > 0) {
-//       sql += ` AND (${conditions.join(" AND ")})`;
-//     }
-
-//     // Add ORDER BY clause
-//     sql += ` ORDER BY po.createdAt DESC`;
-
-//     marketPlace.query(sql, values, (err, results) => {
-//       if (err) {
-//         return reject(err);
-//       }
-//       resolve(results);
-//     });
-//   });
-// };
-
-
 exports.getPolygonCenterDashbordDetailsDao = (data) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
           COALESCE(SUM(dro.handOverPrice), 0) + COALESCE(SUM(pio.handOverPrice), 0) AS total_price,
           COUNT(po.id) AS total_orders
-      FROM market_place.processorders po
+      FROM collection_officer.processorders po
       LEFT JOIN driverorders dro ON po.id = dro.orderId
       LEFT JOIN collectionofficer cof_dro ON dro.handOverOfficer = cof_dro.id 
           AND cof_dro.companyId = ? 
@@ -4769,7 +4413,7 @@ exports.getPickupCashRevenueDao = (data) => {
           cof_issued.empId AS issuedOfficerEmpId,
           cof_handover.empId AS handOverOfficerEmpId
       FROM collection_officer.pickuporders pio 
-      LEFT JOIN market_place.processorders po ON po.id = pio.orderId
+      LEFT JOIN collection_officer.processorders po ON po.id = pio.orderId
       LEFT JOIN collection_officer.collectionofficer cof_issued ON pio.orderIssuedOfficer = cof_issued.id
           AND cof_issued.companyId = ?
           AND cof_issued.distributedCenterId = ?
@@ -4823,31 +4467,12 @@ exports.getDriverCashRevenueDao = (data) => {
           cof_dro.empId AS driverEmpId,
           cof_handover.empId AS handOverOfficerEmpId
       FROM collection_officer.driverorders do 
-      LEFT JOIN market_place.processorders po ON po.id = do.orderId
-      LEFT JOIN market_place.orders o ON po.orderId = o.id
+      LEFT JOIN collection_officer.processorders po ON po.id = do.orderId
+      LEFT JOIN collection_officer.orders o ON po.orderId = o.id
       LEFT JOIN collection_officer.collectionofficer cof_dro ON do.driverId = cof_dro.id
       LEFT JOIN collection_officer.collectionofficer cof_handover ON do.handOverOfficer = cof_handover.id
       WHERE o.assignCoMCenId = ? AND po.paymentMethod = 'Cash' AND do.id IS NOT NULL
     `;
-
-    // SELECT
-    //       do.id,
-    //       po.invNo,
-    //       do.handOverPrice,
-    //       do.handOverTime,
-    //       cof_dro.empId AS driverEmpId,
-    //       cof_handover.empId AS handOverOfficerEmpId
-    //   FROM collection_officer.driverorders do 
-    //   LEFT JOIN market_place.processorders po ON po.id = do.orderId
-    //   LEFT JOIN collection_officer.collectionofficer cof_dro ON do.driverId = cof_dro.id
-    //       AND cof_dro.companyId = ?
-    //       AND cof_dro.distributedCenterId = ?
-    //   LEFT JOIN collection_officer.collectionofficer cof_handover ON do.handOverOfficer = cof_handover.id
-    //       AND cof_handover.companyId = ?
-    //       AND cof_handover.distributedCenterId = ?
-    //   WHERE do.id IS NOT NULL
-
-    // const params = [companyId, centerId, companyId, centerId];
     const params = [comCenId];
     
     if (filterDate) {
@@ -4890,11 +4515,11 @@ exports.getHomeDiliveryTrackingCenterDetailsDao = async (id) => {
       FROM processorders po
       LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
       LEFT JOIN collection_officer.distributedcenter dc ON cof1.distributedCenterId = dc.id
-      LEFT JOIN market_place.orders o ON po.orderId = o.id
+      LEFT JOIN collection_officer.orders o ON po.orderId = o.id
       WHERE po.id = ?
     `;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -4938,7 +4563,7 @@ exports.getHomeDiliveryTrackingDriverDetailsDao = async (id) => {
       LEFT JOIN collectionofficer drv ON dor.driverId = drv.id
       LEFT JOIN driverreturnorders dro ON dor.id = dro.drvOrderId
       LEFT JOIN returnreason rr ON dro.returnReasonId = rr.id
-      LEFT JOIN market_place.processorders po ON dor.orderId = po.id
+      LEFT JOIN collection_officer.processorders po ON dor.orderId = po.id
       WHERE dor.orderId = ?
     `;
 
@@ -4958,34 +4583,19 @@ exports.getRecivedPickUpCashDashbordDao = async (data) => {
     console.log('data', data)
     const sql = `
       SELECT 
-          COUNT(CASE WHEN po.deliveredTime IS NULL AND DATE(o.sheduleDate) <= CURDATE() THEN 1 END) AS total_today,
-          COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
-          COUNT(CASE WHEN DATE(o.sheduleDate) != CURDATE() THEN 1 END) AS not_scheduled_today,
+          COUNT(CASE WHEN po.deliveredTime IS NULL AND DATE(po.sheduleDate) <= CURDATE() THEN 1 END) AS total_today,
+          COUNT(CASE WHEN DATE(po.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
+          COUNT(CASE WHEN DATE(po.sheduleDate) != CURDATE() THEN 1 END) AS not_scheduled_today,
           COUNT(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS all_pickup,
-          COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS today_pickup,
+          COUNT(DISTINCT CASE WHEN DATE(po.sheduleDate) = CURDATE() AND DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS today_pickup,
           COALESCE(SUM(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.handOverPrice END), 0) AS order_price
-      FROM market_place.processorders po
-      INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup' AND po.paymentMethod = 'Cash'
+      FROM collection_officer.processorders po
+      INNER JOIN collection_officer.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup' AND po.paymentMethod = 'Cash'
       LEFT JOIN collection_officer.pickuporders por ON po.id = por.orderId
       WHERE o.centerId = ? AND po.status IN ('Ready to Pickup', 'Picked up')
     `;
-    // DATE(po.outDlvrDate) = CURDATE()
-    //COALESCE(SUM(DISTINCT por.handOverPrice), 0) AS order_price,
 
-    // SELECT 
-    //       COUNT(CASE WHEN po.deliveredTime IS NULL THEN 1 END) AS total_today,
-    //       COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
-    //       COUNT(CASE WHEN DATE(o.sheduleDate) != CURDATE() THEN 1 END) AS not_scheduled_today,
-    //       COUNT(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS all_pickup,
-    //       COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(por.handOverTime) = CURDATE() THEN por.orderId END) AS today_pickup,
-    //       COALESCE(SUM(DISTINCT CASE WHEN DATE(por.handOverTime) = CURDATE() THEN por.handOverPrice END), 0) AS order_price
-    //   FROM market_place.processorders po
-    //   INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Pickup' AND po.paymentMethod = 'Cash'
-    //   LEFT JOIN collection_officer.pickuporders por ON po.id = por.orderId
-    //   LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
-    //   WHERE cof1.companyId = ? AND cof1.distributedCenterId = ?
-
-    marketPlace.query(sql, [data.centerId], (err, results) => {
+    collectionofficer.query(sql, [data.centerId], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -4999,31 +4609,19 @@ exports.getRecivedDelivaryCashDashbordDao = async (data, comcenId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
-          COUNT(CASE WHEN po.status = 'Out For Delivery' AND DATE(o.sheduleDate) <= CURDATE() THEN 1 END) AS total_today,
-          COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.status = 'Out For Delivery' THEN 1 END) AS scheduled_today,
+          COUNT(CASE WHEN po.status = 'Out For Delivery' AND DATE(po.sheduleDate) <= CURDATE() THEN 1 END) AS total_today,
+          COUNT(CASE WHEN DATE(po.sheduleDate) = CURDATE() AND po.status = 'Out For Delivery' THEN 1 END) AS scheduled_today,
           COUNT(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS all_delivary,
-          COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS today_delivary,
+          COUNT(DISTINCT CASE WHEN DATE(po.sheduleDate) = CURDATE() AND DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS today_delivary,
           COALESCE(SUM(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.handOverPrice END), 0) AS order_price
-      FROM market_place.processorders po
-      INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
+      FROM collection_officer.processorders po
+      INNER JOIN collection_officer.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
       LEFT JOIN collection_officer.driverorders dro ON po.id = dro.orderId AND dro.handOverTime IS NOT NULL
       LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
       WHERE o.assignCoMCenId = ? AND po.status IN ('Out For Delivery', 'Delivered') AND po.paymentMethod = 'Cash'
     `;
-    // SELECT 
-    //       COUNT(CASE WHEN po.deliveredTime IS NULL THEN 1 END) AS total_today,
-    //       COUNT(CASE WHEN DATE(o.sheduleDate) = CURDATE() AND po.deliveredTime IS NULL THEN 1 END) AS scheduled_today,
-    //       COUNT(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS all_delivary,
-    //       COUNT(DISTINCT CASE WHEN DATE(o.sheduleDate) = CURDATE() AND DATE(dro.handOverTime) = CURDATE() THEN dro.orderId END) AS today_delivary,
-    //       COALESCE(SUM(DISTINCT CASE WHEN DATE(dro.handOverTime) = CURDATE() THEN dro.handOverPrice END), 0) AS order_price
-    //   FROM market_place.processorders po
-    //   INNER JOIN market_place.orders o ON po.orderId = o.id AND o.delivaryMethod = 'Delivery'
-    //   LEFT JOIN collection_officer.driverorders dro ON po.id = dro.orderId AND dro.handOverTime IS NOT NULL
-    //   LEFT JOIN collection_officer.collectionofficer cof1 ON po.outBy = cof1.id
-    //   WHERE cof1.companyId = ? AND cof1.distributedCenterId = ?
-    // DATE(po.outDlvrDate) = CURDATE()
 
-    marketPlace.query(sql, [comcenId], (err, results) => {
+    collectionofficer.query(sql, [comcenId], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -5066,7 +4664,7 @@ exports.getDistributionDashboardDao = () => {
     // 5. Total Cash Received - Today
     const cashReceivedTodaySql = `
       SELECT COALESCE(SUM(amount), 0) AS totalCashReceivedToday
-      FROM market_place.processorders
+      FROM collection_officer.processorders
       WHERE paymentMethod = 'Cash'
         AND DATE(deliveredTime) = CURDATE()
     `;
@@ -5074,7 +4672,7 @@ exports.getDistributionDashboardDao = () => {
     // 6. Total Delivered Orders - Today
     const deliveredTodaySql = `
       SELECT COUNT(*) AS totalDeliveredToday
-      FROM market_place.processorders
+      FROM collection_officer.processorders
       WHERE status = 'Delivered'
         AND DATE(deliveredTime) = CURDATE()
     `;
@@ -5082,31 +4680,18 @@ exports.getDistributionDashboardDao = () => {
     // 7. Total In-Store Pickup Orders - Today
     const pickupTodaySql = `
       SELECT COUNT(*) AS totalPickupToday
-      FROM market_place.processorders
+      FROM collection_officer.processorders
       WHERE status = 'Picked up'
         AND DATE(deliveredTime) = CURDATE()
     `;
-
-    // 8. Loss Due to Returned Orders - Today
-    // Join orders (market_place) with processorders for Return Received + Cash,
-    // filtered by driverorders.handOverTime = today (collection_officer db)
-    // const returnLossTodaySql = `
-    //   SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossToday
-    //   FROM market_place.orders o
-    //   INNER JOIN market_place.processorders po ON po.orderId = o.id
-    //   INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
-    //   WHERE po.status = 'Return Received'
-    //     AND po.paymentMethod = 'Cash'
-    //     AND DATE(dor.handOverTime) = CURDATE() 
-    // `;
 
     const returnLossTodaySql = `
       SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossToday
       FROM collection_officer.driverordermain drm
       INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
       INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id
-      INNER JOIN market_place.processorders po ON dro.orderId = po.id
-      INNER JOIN market_place.orders o ON o.id = po.orderId
+      INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
+      INNER JOIN collection_officer.orders o ON o.id = po.orderId
       WHERE po.status = 'Return Received' AND po.paymentMethod = 'Cash' AND DATE(drr.createdAt) = CURDATE()
 
     `;
@@ -5114,7 +4699,7 @@ exports.getDistributionDashboardDao = () => {
     // 9. Total Delivered Orders - This Month
     const deliveredMonthSql = `
       SELECT COUNT(*) AS totalDeliveredMonth
-      FROM market_place.processorders
+      FROM collection_officer.processorders
       WHERE status = 'Delivered'
         AND MONTH(deliveredTime) = MONTH(CURDATE())
         AND YEAR(deliveredTime) = YEAR(CURDATE())
@@ -5123,31 +4708,19 @@ exports.getDistributionDashboardDao = () => {
     // 10. Total In-Store Pickup Orders - This Month
     const pickupMonthSql = `
       SELECT COUNT(*) AS totalPickupMonth
-      FROM market_place.processorders
+      FROM collection_officer.processorders
       WHERE status = 'Picked up'
         AND MONTH(deliveredTime) = MONTH(CURDATE())
         AND YEAR(deliveredTime) = YEAR(CURDATE())
     `;
-
-    // 11. Loss Due to Returned Orders - This Month
-    // const returnLossMonthSql = `
-    //   SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossMonth
-    //   FROM market_place.orders o
-    //   INNER JOIN market_place.processorders po ON po.orderId = o.id
-    //   INNER JOIN collection_officer.driverorders dor ON dor.orderId = po.id
-    //   WHERE po.status = 'Return Received'
-    //     AND po.paymentMethod = 'Cash'
-    //     AND MONTH(dor.handOverTime) = MONTH(CURDATE())
-    //     AND YEAR(dor.handOverTime) = YEAR(CURDATE())
-    // `;
 
     const returnLossMonthSql = `
       SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossMonth
       FROM collection_officer.driverordermain drm
       INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
       INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id
-      INNER JOIN market_place.processorders po ON dro.orderId = po.id
-      INNER JOIN market_place.orders o ON o.id = po.orderId
+      INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
+      INNER JOIN collection_officer.orders o ON o.id = po.orderId
       WHERE 
         po.status = 'Return Received' 
         AND po.paymentMethod = 'Cash' 
@@ -5169,25 +4742,25 @@ exports.getDistributionDashboardDao = () => {
           collectionofficer.query(driverSql, (err4, driverResult) => {
             if (err4) return reject(err4);
 
-            marketPlace.query(cashReceivedTodaySql, (err5, cashResult) => {
+            collectionofficer.query(cashReceivedTodaySql, (err5, cashResult) => {
               if (err5) return reject(err5);
 
-              marketPlace.query(deliveredTodaySql, (err6, deliveredTodayResult) => {
+              collectionofficer.query(deliveredTodaySql, (err6, deliveredTodayResult) => {
                 if (err6) return reject(err6);
 
-                marketPlace.query(pickupTodaySql, (err7, pickupTodayResult) => {
+                collectionofficer.query(pickupTodaySql, (err7, pickupTodayResult) => {
                   if (err7) return reject(err7);
 
-                  marketPlace.query(returnLossTodaySql, (err8, returnLossTodayResult) => {
+                  collectionofficer.query(returnLossTodaySql, (err8, returnLossTodayResult) => {
                     if (err8) return reject(err8);
 
-                    marketPlace.query(deliveredMonthSql, (err9, deliveredMonthResult) => {
+                    collectionofficer.query(deliveredMonthSql, (err9, deliveredMonthResult) => {
                       if (err9) return reject(err9);
 
-                      marketPlace.query(pickupMonthSql, (err10, pickupMonthResult) => {
+                      collectionofficer.query(pickupMonthSql, (err10, pickupMonthResult) => {
                         if (err10) return reject(err10);
 
-                        marketPlace.query(returnLossMonthSql, (err11, returnLossMonthResult) => {
+                        collectionofficer.query(returnLossMonthSql, (err11, returnLossMonthResult) => {
                           if (err11) return reject(err11);
 
                           resolve({

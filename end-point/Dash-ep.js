@@ -9,7 +9,7 @@ exports.getAllCustomers = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
     console.log('Request URL:', fullUrl);
  
-    const { page, limit, searchText } =
+    const { page, limit, searchText, agentFilter } =
       await ValidateSchema.getAllSalesAgentsSchema.validateAsync(req.query);
  
     // ratingFilter is optional – validate allowed values manually
@@ -26,6 +26,7 @@ exports.getAllCustomers = async (req, res) => {
       limit,
       searchText,
       ratingFilter,
+      agentFilter,
     );
  
     return res.json({ items, total });
@@ -447,7 +448,7 @@ exports.getAllOrders = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    const { page, limit, orderStatus, paymentMethod, paymentStatus, deliveryType, searchText, date } = req.query;
+    const { page, limit, orderStatus, paymentMethod, paymentStatus, deliveryType, searchText, date, agentFilter } = req.query;
 
     // Call the DAO to get all collection officers
     const result = await DashDao.getAllOrders(
@@ -458,8 +459,8 @@ exports.getAllOrders = async (req, res) => {
       paymentStatus,
       deliveryType,
       searchText,
-      date
-
+      date,
+      agentFilter,
     );
 
     return res.status(200).json(result);

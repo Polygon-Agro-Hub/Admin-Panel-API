@@ -2,8 +2,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace,
-  investment,
 } = require("../startup/database");
 
 const QRCode = require("qrcode");
@@ -96,7 +94,7 @@ const getAllSalesAgents = (page, limit, searchText, status) => {
     dataParams.push(parseInt(limit), parseInt(offset)); // Ensure they are integers
 
     // Execute count query
-    marketPlace.query(countSql, countParams, (countErr, countResults) => {
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
         return reject(countErr);
@@ -105,7 +103,7 @@ const getAllSalesAgents = (page, limit, searchText, status) => {
       const total = countResults[0].total;
 
       // Execute data query
-      marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
@@ -120,7 +118,7 @@ const getAllSalesAgents = (page, limit, searchText, status) => {
 const deleteSalesAgent = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = "DELETE FROM salesagent WHERE id = ?";
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -134,7 +132,7 @@ const getForCreateId = (role) => {
   return new Promise((resolve, reject) => {
     const sql =
       "SELECT empId FROM salesagent WHERE empId LIKE ? ORDER BY empId DESC LIMIT 1";
-    marketPlace.query(sql, [`${role}%`], (err, results) => {
+    collectionofficer.query(sql, [`${role}%`], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -160,7 +158,7 @@ const checkNICExist = (nic) => {
               WHERE nic = ?
           `;
 
-    marketPlace.query(sql, [nic], (err, results) => {
+    collectionofficer.query(sql, [nic], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -177,7 +175,7 @@ const checkEmailExist = (email) => {
               WHERE email = ?
           `;
 
-    marketPlace.query(sql, [email], (err, results) => {
+    collectionofficer.query(sql, [email], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -194,7 +192,7 @@ const checkPhoneExist = (phoneNumber) => {
       WHERE phoneNumber1 = ? OR phoneNumber2 = ?
     `;
 
-    marketPlace.query(sql, [phoneNumber, phoneNumber], (err, results) => {
+    collectionofficer.query(sql, [phoneNumber, phoneNumber], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -206,26 +204,6 @@ const checkPhoneExist = (phoneNumber) => {
 const createSalesAgent = (officerData, profileImageUrl, newSalseAgentId) => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Prepare data for QR code generation
-      // const qrData = `
-      //       {
-      //           "empId": "${officerData.empId}"
-      //       }
-      //       `;
-
-      // const qrCodeBase64 = await QRCode.toDataURL(qrData);
-      // const qrCodeBuffer = Buffer.from(
-      //   qrCodeBase64.replace(/^data:image\/png;base64,/, ""),
-      //   "base64"
-      // );
-      // const qrcodeURL = await uploadFileToS3(
-      //   qrCodeBuffer,
-      //   `${officerData.empId}.png`,
-      //   "collectionofficer/QRcode"
-      // );
-      // console.log(qrcodeURL);
-
-      // If no image URL, set it to null
       const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
 
       const sql = `
@@ -239,7 +217,7 @@ const createSalesAgent = (officerData, profileImageUrl, newSalseAgentId) => {
               `;
 
       // Database query with QR image data added
-      marketPlace.query(
+      collectionofficer.query(
         sql,
         [
           officerData.firstName,
@@ -288,7 +266,7 @@ const getSalesAgentDataById = (id) => {
               WHERE 
                   id = ?`;
 
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -355,7 +333,7 @@ const updateSalesAgentDetails = (
     sql += ` WHERE id = ?`;
     values.push(id);
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -371,7 +349,7 @@ const getSalesAgentEmailDao = (id) => {
               FROM salesagent
               WHERE id = ?
           `;
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -395,7 +373,7 @@ const UpdateSalesAgentStatusAndPasswordDao = (params) => {
               SET status = ?, password = ?, passwordUpdate = 0
               WHERE id = ?
           `;
-    marketPlace.query(
+    collectionofficer.query(
       sql,
       [params.status, params.password, parseInt(params.id)],
       (err, results) => {
@@ -509,19 +487,6 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
       },
     });
 
-    // const transporter = nodemailer.createTransport({
-    //   host: "smtp.gmail.com",
-    //   port: 465, // or 587
-    //   secure: true,
-    //   auth: {
-    //     user: process.env.EMAIL_USER,
-    //     pass: process.env.EMAIL_PASS,
-    //   },
-    //   tls: {
-    //     rejectUnauthorized: false, // Allow self-signed certificates
-    //   },
-    // });
-
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -544,108 +509,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
   }
 };
 
-// const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
-//   return new Promise((resolve, reject) => {
-//     const offset = (page - 1) * limit;
- 
-//     let countSql = `
-//       SELECT COUNT(*) AS total
-//       FROM   marketplaceusers  CUS
-//       INNER JOIN salesagent    SA  ON CUS.salesAgent = SA.id
-//       WHERE  CUS.isDashUser = 1
-//     `;
- 
-//     let dataSql = `
-//       SELECT
-//         CUS.id,
-//         CUS.cusId,
-//         CUS.phoneNumber,
-//         CUS.title,
-//         CUS.firstName,
-//         CUS.lastName,
-//         CUS.buildingType,
-//         CUS.email,
-//         CUS.rateofCus,
-//         SA.empId,
-//         SA.firstName  AS salesAgentFirstName,
-//         SA.lastName   AS salesAgentLastName,
-//         CUS.created_at,
-//         (SELECT COUNT(*) FROM orders WHERE userId = CUS.id) AS totOrders,
-//         -- House details
-//         H.houseNo     AS houseHouseNo,
-//         H.streetName  AS houseStreetName,
-//         H.city        AS houseCity,
-//         -- Apartment details
-//         A.buildingNo  AS apartmentBuildingNo,
-//         A.buildingName AS apartmentBuildingName,
-//         A.unitNo      AS apartmentUnitNo,
-//         A.houseNo     AS apartmentHouseNo,
-//         A.streetName  AS apartmentStreetName,
-//         A.city        AS apartmentCity,
-//         A.floorNo     AS apartmentFloorNo
-//       FROM   marketplaceusers  CUS
-//       INNER JOIN salesagent    SA  ON CUS.salesAgent = SA.id
-//       LEFT  JOIN house         H   ON CUS.id = H.customerId  AND CUS.buildingType = 'House'
-//       LEFT  JOIN apartment     A   ON CUS.id = A.customerId  AND CUS.buildingType = 'Apartment'
-//       WHERE  CUS.isDashUser = 1
-//     `;
- 
-//     const countParams = [];
-//     const dataParams  = [];
- 
-//     // ── Free-text search ──────────────────────────────────────────────────────
-//     if (searchText) {
-//       const searchCondition = `
-//         AND (
-//           CUS.firstName   LIKE ?
-//           OR CUS.lastName  LIKE ?
-//           OR CUS.phoneNumber LIKE ?
-//           OR CUS.cusId     LIKE ?
-//           OR SA.empId      LIKE ?
-//         )
-//       `;
-//       const v = `%${searchText}%`;
-//       countSql += searchCondition;
-//       dataSql  += searchCondition;
-//       countParams.push(v, v, v, v, v);
-//       dataParams .push(v, v, v, v, v);
-//     }
- 
-//     // ── Rating filter ─────────────────────────────────────────────────────────
-//     if (ratingFilter) {
-//       const ratingCondition = ` AND CUS.rateofCus = ? `;
-//       countSql += ratingCondition;
-//       dataSql  += ratingCondition;
-//       countParams.push(ratingFilter);
-//       dataParams .push(ratingFilter);
-//     }
- 
-//     dataSql += ' LIMIT ? OFFSET ?';
-//     dataParams.push(limit, offset);
- 
-//     // ── Execute count ─────────────────────────────────────────────────────────
-//     marketPlace.query(countSql, countParams, (countErr, countResults) => {
-//       if (countErr) {
-//         console.error('Error in count query:', countErr);
-//         return reject(countErr);
-//       }
- 
-//       const total = countResults[0].total;
- 
-//       // ── Execute data ────────────────────────────────────────────────────────
-//       marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
-//         if (dataErr) {
-//           console.error('Error in data query:', dataErr);
-//           return reject(dataErr);
-//         }
- 
-//         resolve({ items: dataResults, total });
-//       });
-//     });
-//   });
-// };
- 
-const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
+const getAllSalesCustomers = (page, limit, searchText, ratingFilter, agentFilter) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
@@ -658,17 +522,9 @@ const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
 
     let dataSql = `
       SELECT
-        CUS.id,
-        CUS.cusId,
-        CUS.phoneNumber,
-        CUS.title,
-        CUS.firstName,
-        CUS.lastName,
-        CUS.email,
-        CUS.rateofCus,
-        SA.empId,
-        SA.firstName  AS salesAgentFirstName,
-        SA.lastName   AS salesAgentLastName,
+        CUS.id, CUS.cusId, CUS.phoneNumber, CUS.title,CUS.nearesCity,
+        CUS.firstName, CUS.lastName, CUS.email, CUS.rateofCus,
+        SA.empId, SA.firstName AS salesAgentFirstName, SA.lastName AS salesAgentLastName,
         CUS.created_at,
         (SELECT COUNT(*) FROM orders WHERE userId = CUS.id) AS totOrders
       FROM   marketplaceusers  CUS
@@ -679,25 +535,20 @@ const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
     const countParams = [];
     const dataParams  = [];
 
-    // ── Free-text search ──────────────────────────────────────────────────────
     if (searchText) {
       const searchCondition = `
         AND (
-          CUS.firstName   LIKE ?
-          OR CUS.lastName  LIKE ?
-          OR CUS.phoneNumber LIKE ?
-          OR CUS.cusId     LIKE ?
-          OR SA.empId      LIKE ?
+          CUS.firstName LIKE ? OR CUS.lastName LIKE ? OR
+          CUS.phoneNumber LIKE ? OR CUS.cusId LIKE ? OR SA.empId LIKE ? OR CUS.nearesCity LIKE ?
         )
       `;
       const v = `%${searchText}%`;
       countSql += searchCondition;
       dataSql  += searchCondition;
-      countParams.push(v, v, v, v, v);
-      dataParams .push(v, v, v, v, v);
+      countParams.push(v, v, v, v, v, v);
+      dataParams .push(v, v, v, v, v, v);
     }
 
-    // ── Rating filter ─────────────────────────────────────────────────────────
     if (ratingFilter) {
       const ratingCondition = ` AND CUS.rateofCus = ? `;
       countSql += ratingCondition;
@@ -706,25 +557,23 @@ const getAllSalesCustomers = (page, limit, searchText, ratingFilter) => {
       dataParams .push(ratingFilter);
     }
 
+    if (agentFilter) {
+      const agentCondition = ` AND SA.id = ? `;
+      countSql += agentCondition;
+      dataSql  += agentCondition;
+      countParams.push(agentFilter);
+      dataParams .push(agentFilter);
+    }
+
     dataSql += ' LIMIT ? OFFSET ?';
     dataParams.push(limit, offset);
 
-    // ── Execute count ─────────────────────────────────────────────────────────
-    marketPlace.query(countSql, countParams, (countErr, countResults) => {
-      if (countErr) {
-        console.error('Error in count query:', countErr);
-        return reject(countErr);
-      }
-
+    collectionofficer.query(countSql, countParams, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
       const total = countResults[0].total;
 
-      // ── Execute data ────────────────────────────────────────────────────────
-      marketPlace.query(dataSql, dataParams, (dataErr, dataResults) => {
-        if (dataErr) {
-          console.error('Error in data query:', dataErr);
-          return reject(dataErr);
-        }
-
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) return reject(dataErr);
         resolve({ items: dataResults, total });
       });
     });
@@ -740,7 +589,7 @@ const updateDashCustomerRatingDao = (id, rateofCus) => {
         AND  isDashUser = 1
     `;
  
-    marketPlace.query(sql, [rateofCus, id], (err, result) => {
+    collectionofficer.query(sql, [rateofCus, id], (err, result) => {
       if (err) {
         console.error('Error updating dash customer rating:', err);
         return reject(err);
@@ -758,15 +607,14 @@ const getAllOrders = (
   paymentStatus,
   deliveryType,
   searchText,
-  date
+  date,
+  agentFilter
 ) => {
   return new Promise((resolve, reject) => {
-    // Convert page and limit to numbers
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
     const offset = (page - 1) * limit;
 
-    // Use consistent JOIN syntax in both queries
     let baseSql = `
       FROM orders o
       JOIN marketplaceusers c ON o.userId = c.id
@@ -781,7 +629,7 @@ const getAllOrders = (
         po.id,
         po.InvNo AS invNo,
         po.status AS orderStatus,
-        o.sheduleDate AS scheduleDate,
+        po.sheduleDate AS scheduleDate,
         po.paymentMethod,
         po.isPaid AS paymentStatus,
         o.discount AS fullDiscount,
@@ -799,7 +647,6 @@ const getAllOrders = (
     `;
 
     const params = [];
-
     let whereConditions = [];
 
     if (searchText) {
@@ -816,7 +663,6 @@ const getAllOrders = (
           OR po.paymentMethod LIKE ?
         )
       `);
-
       const searchValue = `%${searchText}%`;
       params.push(...Array(9).fill(searchValue));
     }
@@ -852,14 +698,19 @@ const getAllOrders = (
     }
 
     if (date) {
-      whereConditions.push(`DATE(o.sheduleDate) = DATE(?)`);
+      whereConditions.push(`DATE(po.sheduleDate) = DATE(?)`);
       let formattedDate = "";
       const d = new Date(date);
       formattedDate = d.toISOString().split("T")[0];
       params.push(formattedDate);
     }
 
-    // Append WHERE conditions if any exist
+    // ── Agent filter ────────────────────────────────────────
+    if (agentFilter) {
+      whereConditions.push(`sa.id = ?`);
+      params.push(agentFilter);
+    }
+
     if (whereConditions.length > 0) {
       const whereClause = " AND " + whereConditions.join(" AND ");
       countSql += whereClause;
@@ -868,8 +719,7 @@ const getAllOrders = (
 
     dataSql += " ORDER BY po.createdAt DESC LIMIT ? OFFSET ?";
 
-    // Execute count query first
-    marketPlace.query(countSql, params, (countErr, countResults) => {
+    collectionofficer.query(countSql, params, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
         return reject(countErr);
@@ -877,15 +727,13 @@ const getAllOrders = (
 
       const total = countResults[0].total;
 
-      // Only proceed with data query if there are results
       if (total === 0 || offset >= total) {
         return resolve({ items: [], total });
       }
 
-      // Add pagination parameters (limit and offset)
       const dataQueryParams = [...params, limit, offset];
 
-      marketPlace.query(dataSql, dataQueryParams, (dataErr, dataResults) => {
+      collectionofficer.query(dataSql, dataQueryParams, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
@@ -1003,7 +851,7 @@ const GetAllSalesAgentComplainDAO = (
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
     // Execute count query to get total records
-    marketPlace.query(countSql, Counterparams, (countErr, countResults) => {
+    collectionofficer.query(countSql, Counterparams, (countErr, countResults) => {
       if (countErr) {
         console.log(countErr);
         return reject(countErr);
@@ -1012,7 +860,7 @@ const GetAllSalesAgentComplainDAO = (
       const total = countResults[0]?.total || 0;
 
       // Execute main query to get paginated results
-      marketPlace.query(sql, Sqlparams, (dataErr, results) => {
+      collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
         if (dataErr) {
           console.log(dataErr);
           return reject(dataErr);
@@ -1032,7 +880,7 @@ const getComplainById = (id) => {
     LEFT JOIN agro_world_admin.complaincategory cc ON dc.complainCategory = cc.id
     WHERE dc.id = ? 
     `;
-    marketPlace.query(sql, [id], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1062,7 +910,7 @@ const sendComplainReply = (complainId, reply, adminId) => {
     const adminStatus = "Closed";
     const values = [reply, status, adminStatus, adminId, complainId];
 
-    marketPlace.query(sql, values, (err, results) => {
+    collectionofficer.query(sql, values, (err, results) => {
       if (err) {
         console.error("Database error details:", err);
         return reject(err);
@@ -1089,7 +937,7 @@ const checkNICExistSaEdit = (nic, id) => {
       WHERE nic = ? AND id != ?
     `;
 
-    marketPlace.query(sql, [nic, id], (err, results) => {
+    collectionofficer.query(sql, [nic, id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1106,7 +954,7 @@ const checkPhoneExistSaEdit = (phoneNumber, id) => {
       WHERE (phoneNumber1 = ? OR phoneNumber2 = ?) AND id != ?
     `;
 
-    marketPlace.query(sql, [phoneNumber, phoneNumber, id], (err, results) => {
+    collectionofficer.query(sql, [phoneNumber, phoneNumber, id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1123,7 +971,7 @@ const checkEmailExistSaEdit = (email, id) => {
       WHERE email = ? AND id != ?
     `;
 
-    marketPlace.query(sql, [email, id], (err, results) => {
+    collectionofficer.query(sql, [email, id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1139,7 +987,7 @@ const getUserOrdersDao = async (userId, status) => {
         P.id,
         P.invNo,
         O.sheduleType,
-        O.sheduleDate,
+        P.sheduleDate,
         DATE_ADD(P.createdAt, INTERVAL '5.30' HOUR_MINUTE) AS createdAt,
         P.paymentMethod,
         P.isPaid,
@@ -1177,7 +1025,7 @@ const getUserOrdersDao = async (userId, status) => {
       sql += " AND P.status = 'Cancelled'";
     }
 
-    marketPlace.query(sql, [userId, status], (err, results) => {
+    collectionofficer.query(sql, [userId, status], (err, results) => {
       if (err) {
         console.log("Error", err);
         reject(err);
@@ -1197,7 +1045,7 @@ const genarateNewSalesAgentIdDao = async () => {
         CAST(SUBSTRING(empId FROM 4) AS UNSIGNED) DESC
       LIMIT 1
     `;
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1231,7 +1079,7 @@ const createSalesTarget = (id) => {
       WHERE s.salesagentId = ? AND DATE(s.date) = CURDATE()
     `;
 
-    marketPlace.query(checkSql, [id], (err, results) => {
+    collectionofficer.query(checkSql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1259,7 +1107,7 @@ const createSalesTarget = (id) => {
         )
       `;
 
-      marketPlace.query(insertSql, [id], (err, insertResults) => {
+      collectionofficer.query(insertSql, [id], (err, insertResults) => {
         if (err) {
           return reject(err);
         }
