@@ -3242,7 +3242,6 @@ exports.getNextHoldReasonIndex = async () => {
 
 exports.getAllTodaysDeliveries = (searchParams = {}) => {
   return new Promise((resolve, reject) => {
-    // Base SQL query
     let sql = `
       SELECT 
         po.id,
@@ -3262,15 +3261,13 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         po.deliveredTime AS deliveryTime,
         dho.createdAt AS holdTime
       FROM 
-        collection_officer.driverordermain drm
-      LEFT JOIN
-        collection_officer.driverorders dro ON drm.id = dro.drvOrderMainId
-      LEFT JOIN
-        collection_officer.processorders po ON po.id = dro.orderId
+        collection_officer.processorders po
       INNER JOIN 
         collection_officer.orders o ON po.orderId = o.id
-      LEFT JOIN 
-        collection_officer.distributedcenter dc ON o.centerId = dc.id
+      LEFT JOIN
+        collection_officer.driverorders dro ON po.id = dro.orderId
+      LEFT JOIN
+        collection_officer.driverordermain drm ON dro.drvOrderMainId = drm.id
       LEFT JOIN
         collection_officer.collectionofficer drv ON drm.driverId = drv.id
       LEFT JOIN
@@ -3283,14 +3280,15 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       LEFT JOIN 
         collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
       LEFT JOIN 
+        collection_officer.distributedcenter dc ON o.centerId = dc.id
+      LEFT JOIN 
         collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id
       LEFT JOIN 
         collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
       WHERE 
-       DATE(po.sheduleDate) = CURDATE()
+        DATE(po.sheduleDate) = CURDATE()
       `;
-    // DATE(o.sheduleDate) = CURDATE()
-    // Add search conditions if search parameters are provided
+
     const conditions = [];
     const values = [];
 
@@ -3323,7 +3321,6 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
 
     if (searchParams.regCode) {
       console.log("searchParams.regCode", searchParams.regCode);
-
       conditions.push(`(dc.id = ? OR dcc.centerId = ?)`);
       values.push(searchParams.regCode, searchParams.regCode);
     }
@@ -3333,12 +3330,10 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       values.push(`%${searchParams.invNo}%`);
     }
 
-    // Append search conditions to the WHERE clause
     if (conditions.length > 0) {
       sql += ` AND (${conditions.join(" AND ")})`;
     }
 
-    // Add ORDER BY clause
     sql += ` ORDER BY po.createdAt DESC`;
 
     collectionofficer.query(sql, values, (err, results) => {
