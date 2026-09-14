@@ -1441,7 +1441,7 @@ exports.SendGeneratedPasswordDao = async (
       text: `Dear ${firstNameEnglish},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {
-          filename: `Password_${empId}.pdf`, // PDF file name
+          filename: `Registration_${empId}.pdf`, // PDF file name
           content: pdfData, // Attach the PDF buffer directly
         },
       ],
