@@ -3252,7 +3252,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         po.sheduleDate,
         po.createdAt,
         po.status,
-        TIME(po.outDlvrDate) as outDlvrTime,
+        TIME(DATE_ADD(dti.completeTime, INTERVAL 330 MINUTE)) AS outDlvrTime,
         dro.createdAt AS collectTime,
         drv.empId AS driverEmpId,
         CONCAT(drv.phoneCode01, drv.phoneNumber01) AS driverPhone,
@@ -3260,34 +3260,24 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         drr.createdAt AS returnTime,
         po.deliveredTime AS deliveryTime,
         dho.createdAt AS holdTime
-      FROM 
-        collection_officer.processorders po
-      INNER JOIN 
-        collection_officer.orders o ON po.orderId = o.id
-      LEFT JOIN
-        collection_officer.driverorders dro ON po.id = dro.orderId
-      LEFT JOIN
-        collection_officer.driverordermain drm ON dro.drvOrderMainId = drm.id
-      LEFT JOIN
-        collection_officer.collectionofficer drv ON drm.driverId = drv.id
-      LEFT JOIN
-        collection_officer.driverholdorders dho ON dro.id = dho.drvOrderId
+      FROM collection_officer.processorders po
+      INNER JOIN collection_officer.orders o ON po.orderId = o.id
+      LEFT JOIN collection_officer.driverorders dro ON po.id = dro.orderId
+      LEFT JOIN collection_officer.driverordermain drm ON dro.drvOrderMainId = drm.id
+      LEFT JOIN collection_officer.collectionofficer drv ON drm.driverId = drv.id
+      LEFT JOIN collection_officer.driverholdorders dho ON dro.id = dho.drvOrderId
         AND dho.id = (
             SELECT MAX(id) 
             FROM collection_officer.driverholdorders 
             WHERE drvOrderId = dro.id
         )
-      LEFT JOIN 
-        collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
-      LEFT JOIN 
-        collection_officer.distributedcenter dc ON o.centerId = dc.id
-      LEFT JOIN 
-        collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id
-      LEFT JOIN 
-        collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
-      WHERE 
-        DATE(po.sheduleDate) = CURDATE()
-      `;
+      LEFT JOIN collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
+      LEFT JOIN collection_officer.distributedcenter dc ON o.centerId = dc.id
+      LEFT JOIN collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id
+      LEFT JOIN collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
+      LEFT JOIN collection_officer.distributedtargetitems dti ON po.id = dti.orderId 
+      WHERE DATE(po.sheduleDate) = CURDATE()
+    `;
 
     const conditions = [];
     const values = [];
