@@ -981,6 +981,13 @@ exports.createCenterHead = async (req, res) => {
       officerData.email
     );
 
+    const isExistingPhoneNumber01 = await collectionofficerDao.checkPhoneNumberExist(
+      officerData.phoneNumber01
+    );
+    const isExistingPhoneNumber02 = await collectionofficerDao.checkPhoneNumberExist(
+      officerData.phoneNumber02
+    );
+
     if (isExistingNIC) {
       return res.status(500).json({
         error: "NIC already exists",
@@ -990,6 +997,18 @@ exports.createCenterHead = async (req, res) => {
     if (isExistingEmail) {
       return res.status(500).json({
         error: "Email already exists",
+      });
+    }
+
+    if (isExistingPhoneNumber01) {
+      return res.status(500).json({
+        error: "Mobile Number - 01 already exists",
+      });
+    }
+
+    if (isExistingPhoneNumber02) {
+      return res.status(500).json({
+        error: "Mobile Number - 02 already exists",
       });
     }
 
@@ -1427,7 +1446,7 @@ exports.getAllDrivers = async (req, res) => {
         req.query
       );
 
-    const { page, limit, centerStatus, status, nic, centerId, driverCatId } =
+    const { page, limit, centerStatus, status, nic, centerId, driverCatId, driverRole } =
       validatedQuery;
 
     console.log(centerStatus, status);
@@ -1440,7 +1459,8 @@ exports.getAllDrivers = async (req, res) => {
       centerStatus,
       status,
       centerId,
-      driverCatId
+      driverCatId,
+      driverRole
     );
 
     // Call the DAO to get all driver category slaves

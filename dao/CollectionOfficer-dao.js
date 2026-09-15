@@ -70,6 +70,21 @@ exports.checkEmailExist = async (email, excludeId = null) => {
   });
 };
 
+exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE phoneNumber01 = ? OR phoneNumber02 = ?`;
+    const params = [phoneNumber, phoneNumber];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
 // Check if phone number exists, excluding the current officer
 exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
   console.log("officer", excludeId);
@@ -2414,7 +2429,8 @@ exports.getAllDrivers = (
   centerStatus,
   status,
   centerId,
-  driverCatId
+  driverCatId,
+  driverRole
 ) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
@@ -2427,7 +2443,7 @@ exports.getAllDrivers = (
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
             LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
-            WHERE (coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}') AND cm.id = 2
+            WHERE coff.jobRole IN ('Light Weight Driver', 'Heavy Weight Driver') AND cm.id = 2
         `;
 
     let dataSql = `
@@ -2475,11 +2491,18 @@ exports.getAllDrivers = (
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
             LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
-            WHERE (coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}') AND cm.id = 2
+            WHERE coff.jobRole IN ('Light Weight Driver', 'Heavy Weight Driver') AND cm.id = 2
         `;
 
     const countParams = [];
     const dataParams = [];
+
+    if (driverRole) {
+      countSql += " AND coff.jobRole = ? ";
+      dataSql += " AND coff.jobRole = ? ";
+      countParams.push(driverRole);
+      dataParams.push(driverRole);
+    }
 
     if (centerStatus) {
       let claimStatusValue;
