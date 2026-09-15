@@ -66,6 +66,21 @@ exports.checkEmailExist = async (email, excludeId = null) => {
   });
 };
 
+exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE phoneNumber01 = ? OR phoneNumber02 = ?`;
+    const params = [phoneNumber, phoneNumber];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
 // Check if phone number exists, excluding the current officer
 exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
   console.log("officer", excludeId);

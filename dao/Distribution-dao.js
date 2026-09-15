@@ -3519,13 +3519,14 @@ exports.getReturnRecievedDataDao = (
 ) => {
   return new Promise((resolve, reject) => {
     let dataSql = `
-      SELECT do.id, 
+      SELECT 
+        do.id, 
         coff.id AS driverId, 
         coff.empId, 
         po.id AS processOrderId, 
         po.invNO, 
         o.id AS orderId, 
-        o.total, 
+        o.fullTotal As total, 
         o.centerId, 
         mp.phoneCode,
         mp.phoneNumber,

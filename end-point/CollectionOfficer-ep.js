@@ -981,6 +981,13 @@ exports.createCenterHead = async (req, res) => {
       officerData.email
     );
 
+    const isExistingPhoneNumber01 = await collectionofficerDao.checkPhoneNumberExist(
+      officerData.phoneNumber01
+    );
+    const isExistingPhoneNumber02 = await collectionofficerDao.checkPhoneNumberExist(
+      officerData.phoneNumber02
+    );
+
     if (isExistingNIC) {
       return res.status(500).json({
         error: "NIC already exists",
@@ -990,6 +997,18 @@ exports.createCenterHead = async (req, res) => {
     if (isExistingEmail) {
       return res.status(500).json({
         error: "Email already exists",
+      });
+    }
+
+    if (isExistingPhoneNumber01) {
+      return res.status(500).json({
+        error: "Mobile Number - 01 already exists",
+      });
+    }
+
+    if (isExistingPhoneNumber02) {
+      return res.status(500).json({
+        error: "Mobile Number - 02 already exists",
       });
     }
 
