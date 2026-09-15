@@ -1427,7 +1427,7 @@ exports.getAllDrivers = async (req, res) => {
         req.query
       );
 
-    const { page, limit, centerStatus, status, nic, centerId, driverCatId } =
+    const { page, limit, centerStatus, status, nic, centerId, driverCatId, driverRole } =
       validatedQuery;
 
     console.log(centerStatus, status);
@@ -1440,7 +1440,8 @@ exports.getAllDrivers = async (req, res) => {
       centerStatus,
       status,
       centerId,
-      driverCatId
+      driverCatId,
+      driverRole
     );
 
     // Call the DAO to get all driver category slaves
