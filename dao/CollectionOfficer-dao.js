@@ -9,6 +9,10 @@ const fs = require("fs");
 const uploadFileToS3 = require("../middlewares/s3upload");
 const { resolve } = require("path");
 const path = require("path");
+const DriverJobRoles = require ('./../assets/json/driverJobRole.json')
+
+const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
+const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
 
 exports.getCollectionOfficerDistrictReports = (district) => {
   return new Promise((resolve, reject) => {
@@ -2423,7 +2427,7 @@ exports.getAllDrivers = (
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
             LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
-            WHERE coff.jobRole = 'Driver' AND cm.id = 2
+            WHERE (coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}') AND cm.id = 2
         `;
 
     let dataSql = `
@@ -2471,7 +2475,7 @@ exports.getAllDrivers = (
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
             LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
-            WHERE coff.jobRole = 'Driver' AND cm.id = 2
+            WHERE (coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}') AND cm.id = 2
         `;
 
     const countParams = [];

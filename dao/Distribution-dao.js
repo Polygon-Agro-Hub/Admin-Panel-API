@@ -9,6 +9,10 @@ const QRCode = require("qrcode");
 const uploadFileToS3 = require("../middlewares/s3upload");
 const PDFDocument = require("pdfkit");
 const nodemailer = require("nodemailer");
+const DriverJobRoles = require ('./../assets/json/driverJobRole.json')
+
+const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
+const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
 
 exports.checkExistingDistributionCenter = (checkData) => {
   return new Promise((resolve, reject) => {
@@ -1516,7 +1520,7 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
           return resolve("DCM00001");
         } else if (employee === "Distribution Officer") {
           return resolve("DIO00001");
-        } else if (employee === "Driver") {
+        } else if (employee === HEAVY_WEIGHT_DRIVER || employee === LIGHT_WEIGHT_DRIVER) {
           return resolve("DRV00001");
         }
       }
@@ -3704,7 +3708,7 @@ exports.getDistributedVehiclesDao = (
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      WHERE co.jobRole = 'Driver'
+      WHERE coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}'
     `;
 
     let dataSql = `
@@ -3719,7 +3723,7 @@ exports.getDistributedVehiclesDao = (
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      WHERE co.jobRole = 'Driver'
+      WHERE coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}'
     `;
 
     const countParams = [];
@@ -4643,7 +4647,7 @@ exports.getDistributionDashboardDao = () => {
     const driverSql = `
       SELECT COUNT(*) AS totalDrivers
       FROM collectionofficer
-      WHERE jobRole = 'Driver' AND status = 'Approved'
+      WHERE (coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}') AND status = 'Approved'
     `;
 
     // 5. Total Cash Received - Today

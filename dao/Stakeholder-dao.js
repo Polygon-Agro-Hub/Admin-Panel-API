@@ -8,6 +8,10 @@ const Joi = require("joi");
 const PDFDocument = require("pdfkit");
 const path = require("path");
 const nodemailer = require("nodemailer");
+const DriverJobRoles = require ('./../assets/json/driverJobRole.json')
+
+const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
+const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
 
 exports.getAdminUsersByPosition = () => {
   return new Promise((resolve, reject) => {
@@ -478,7 +482,7 @@ exports.getDistributionOfficersByPosition = () => {
           WHEN jobRole = 'Distribution Centre Head' AND companyId = '2' AND status = 'Approved' THEN 'DCH'
           WHEN jobRole = 'Distribution Centre Manager' AND companyId = '2' AND status = 'Approved' THEN 'DCM'
           WHEN jobRole = 'Distribution Officer' AND companyId = '2' AND status = 'Approved' THEN 'DOO'
-          WHEN jobRole = 'Driver' AND companyId = '2' AND status = 'Approved' THEN 'DRV'
+          WHEN (coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}') AND companyId = '2' AND status = 'Approved' THEN 'DRV'
         END AS job,
         COUNT(id) AS officerCount
       FROM collectionofficer
