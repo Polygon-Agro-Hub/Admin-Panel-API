@@ -486,7 +486,7 @@ exports.getDistributionOfficersByPosition = () => {
         END AS job,
         COUNT(id) AS officerCount
       FROM collectionofficer
-      WHERE jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', 'Driver')
+      WHERE jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', '${LIGHT_WEIGHT_DRIVER}', '${HEAVY_WEIGHT_DRIVER}')
       GROUP BY job;
     `;
     collectionofficer.query(sql, (err, results) => {
@@ -511,7 +511,7 @@ exports.getNewDistributionOfficers = () => {
       WHERE DATE(createdAt) = CURDATE() 
         AND companyId = '2' 
         AND status = 'Approved'
-        AND jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', 'Driver');
+        AND jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', '${LIGHT_WEIGHT_DRIVER}', '${HEAVY_WEIGHT_DRIVER}');
     `;
     collectionofficer.query(sql, (err, results) => {
       if (err) {
