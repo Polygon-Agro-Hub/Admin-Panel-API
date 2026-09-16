@@ -1977,3 +1977,114 @@ exports.getLatestPackingTargetLimitDao = () => {
     }
   });
 };
+
+exports.getTransportLoadDetailsByLoadedItemIdDao = (loadedItemId) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const sql = `
+        SELECT 
+          tl.id AS transportId,
+          tl.transferCode,
+          tl.createdAt,
+          tl.unloadTime,
+          cc.centerName,
+          dr.empId AS driverEmpId,
+          dr.firstNameEnglish AS driverFirstName,
+          dr.lastNameEnglish AS driverLastName,
+          dr.phoneCode01 AS driverPhoneCode,
+          dr.phoneNumber01 AS driverPhone,
+          uo.empId AS unloadOfficerEmpId,
+          uo.firstNameEnglish AS unloadOfficerFirstName,
+          uo.lastNameEnglish AS unloadOfficerLastName,
+          uo.phoneCode01 AS unloadOfficerPhoneCode,
+          uo.phoneNumber01 AS unloadOfficerPhone
+        FROM loadeditems li
+        JOIN transportload tl ON tl.id = li.transportId
+        LEFT JOIN collectioncenter cc ON cc.id = tl.comCenId
+        LEFT JOIN collectionofficer dr ON dr.id = tl.driverId
+        LEFT JOIN collectionofficer uo ON uo.id = tl.unloadOfficerId
+        WHERE li.id = ?
+      `;
+
+      collectionofficer.query(sql, [loadedItemId], (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results[0] || null);
+      });
+    } catch (error) {
+      console.log("Error in getTransportLoadDetailsByLoadedItemIdDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.getLoadedItemWeightSummaryDao = (loadedItemId) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const sql = `
+        SELECT 
+          li.id AS loadedItemId,
+          cv.varietyNameEnglish,
+          cv.image,
+          lc.grade,
+          lc.totalLoadedCrates,
+          lc.totalLoadedWeight,
+          uc.totalUnloadedCrates,
+          uc.totalUnloadedWeight
+        FROM loadeditems li
+        JOIN plant_care.cropvariety cv ON cv.id = li.varietyId
+        LEFT JOIN (
+          SELECT loadId, grade, 
+                 SUM(crateCount) AS totalLoadedCrates, 
+                 SUM(qty) AS totalLoadedWeight
+          FROM loadedcrates
+          GROUP BY loadId, grade
+        ) lc ON lc.loadId = li.id
+        LEFT JOIN (
+          SELECT loadId, grade, 
+                 SUM(crateCount) AS totalUnloadedCrates, 
+                 SUM(qty) AS totalUnloadedWeight
+          FROM unloadedcrates
+          GROUP BY loadId, grade
+        ) uc ON uc.loadId = li.id AND uc.grade = lc.grade
+        WHERE li.id = ?
+      `;
+
+      collectionofficer.query(sql, [loadedItemId], (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results || []);
+      });
+    } catch (error) {
+      console.log("Error in getLoadedItemWeightSummaryDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.updateTransportLoadRecommendationDao = (transportId, recomandation, rcmdBy) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const sql = `
+        UPDATE transportload
+        SET recomandation = ?, rcmdBy = ?
+        WHERE id = ?
+      `;
+
+      collectionofficer.query(sql, [recomandation, rcmdBy, transportId], (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results);
+      });
+    } catch (error) {
+      console.log("Error in updateTransportLoadRecommendationDao:", error);
+      reject(error);
+    }
+  });
+};

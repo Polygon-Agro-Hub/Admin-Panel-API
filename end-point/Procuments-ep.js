@@ -1093,3 +1093,88 @@ exports.getLatestPackingTargetLimit = async (req, res) => {
     });
   }
 };
+
+exports.getTransportLoadFullDetails = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { id: loadedItemId } = req.params; // <-- fixed: match the route's :id
+
+    if (!loadedItemId) {
+      return res.status(400).json({
+        error: "loadedItemId is required",
+        status: false,
+      });
+    }
+
+    const [transportDetails, weightSummary] = await Promise.all([
+      procumentDao.getTransportLoadDetailsByLoadedItemIdDao(loadedItemId),
+      procumentDao.getLoadedItemWeightSummaryDao(loadedItemId),
+    ]);
+
+    if (!transportDetails) {
+      return res.status(404).json({
+        error: "No transport load details found",
+        status: false,
+      });
+    }
+
+    res.status(200).json({
+      message: "Transport load full details fetched successfully",
+      results: {
+        transportDetails,
+        weightSummary,
+      },
+      status: true,
+    });
+  } catch (err) {
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error:
+        err.message || "An error occurred while fetching transport load full details",
+      status: false,
+    });
+  }
+};
+
+exports.updateTransportLoadRecommendation = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { transportId, recomandation } = req.body;
+    const rcmdBy = req.user.userId; // logged-in admin, set by auth middleware
+
+    if (!transportId || !recomandation) {
+      return res.status(400).json({
+        success: false,
+        message: "transportId and recomandation are required",
+      });
+    }
+
+    const result = await procumentDao.updateTransportLoadRecommendationDao(
+      transportId,
+      recomandation,
+      rcmdBy
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({
+        success: false,
+        message: "Transport load not found or not updated",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Transport load recommendation updated successfully",
+    });
+  } catch (err) {
+    console.error("Error updating transport load recommendation:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while updating the transport load recommendation.",
+    });
+  }
+};
