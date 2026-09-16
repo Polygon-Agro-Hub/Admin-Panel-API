@@ -482,7 +482,7 @@ exports.getDistributionOfficersByPosition = () => {
           WHEN jobRole = 'Distribution Centre Head' AND companyId = '2' AND status = 'Approved' THEN 'DCH'
           WHEN jobRole = 'Distribution Centre Manager' AND companyId = '2' AND status = 'Approved' THEN 'DCM'
           WHEN jobRole = 'Distribution Officer' AND companyId = '2' AND status = 'Approved' THEN 'DOO'
-          WHEN (coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}') AND companyId = '2' AND status = 'Approved' THEN 'DRV'
+          WHEN jobRole IN ('${LIGHT_WEIGHT_DRIVER}', '${HEAVY_WEIGHT_DRIVER}') AND companyId = '2' AND status = 'Approved' THEN 'DRV'
         END AS job,
         COUNT(id) AS officerCount
       FROM collectionofficer

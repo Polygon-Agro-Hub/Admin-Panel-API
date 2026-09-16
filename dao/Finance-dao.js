@@ -3081,16 +3081,24 @@ exports.getTransactionOrdersDao = (id) => {
       } else {
         const orders = results.map((order) => ({
           ...order,
-          toReceive: order.amount - order.earnPrice,
+          amount: parseFloat(order.amount),
+          earnPrice: parseFloat(order.earnPrice),
+          toReceive: parseFloat(order.amount) - parseFloat(order.earnPrice),
         }));
 
         const totalToReceive = orders.reduce(
-          (total, order) => total + order.toReceive,
+          (sum, order) => sum + order.toReceive,
+          0,
+        );
+
+        const total = orders.reduce(
+          (sum, order) => sum + order.amount,
           0,
         );
 
         resolve({
           orders,
+          total,
           totalToReceive,
         });
       }
