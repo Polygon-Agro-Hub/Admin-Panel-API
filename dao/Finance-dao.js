@@ -3135,8 +3135,8 @@ exports.getAllShortageSubmissionsDAO = (
 
     let sql = `
       SELECT
-        cg.cropNameEnglish AS product,
-        cg.image,
+        m.displayName AS product,
+        cv.image,
         sp.id,
         sp.prchQty,
         sp.reqStatus,
@@ -3236,7 +3236,7 @@ exports.getViewSubmissionDocumentDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT
-        cg.cropNameEnglish AS product,
+        m.displayName AS product,
         sp.id,
         sp.prchQty,
         sp.prchPrice,
