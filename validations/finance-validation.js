@@ -151,7 +151,7 @@ const getAllTransactionsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).optional(),
   limit: Joi.number().integer().min(1).max(100).default(10).optional(),
   status: Joi.string().optional(),
-  date: Joi.string().required(),
+  date: Joi.string().optional(),
   searchItem: Joi.string().optional(),
 });
 
