@@ -3469,7 +3469,7 @@ exports.getPosPackageDetailsDAO = (orderId) => {
 exports.UpdateProductTypeStatusDao = async (id, isValid, modifyId) => {
   // Start a transaction
   return new Promise((resolve, reject) => {
-    marketPlace.getConnection((err, connection) => {
+    collectionofficer.getConnection((err, connection) => {
       if (err) {
         return reject(err);
       }

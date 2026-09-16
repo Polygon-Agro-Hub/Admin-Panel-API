@@ -9,6 +9,10 @@ const fs = require("fs");
 const uploadFileToS3 = require("../middlewares/s3upload");
 const { resolve } = require("path");
 const path = require("path");
+const DriverJobRoles = require ('./../assets/json/driverJobRole.json')
+
+const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
+const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
 
 exports.getCollectionOfficerDistrictReports = (district) => {
   return new Promise((resolve, reject) => {
@@ -55,6 +59,21 @@ exports.checkEmailExist = async (email, excludeId = null) => {
   return new Promise((resolve, reject) => {
     let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE email = ?`;
     const params = [email];
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT COUNT(*) as count FROM collectionofficer WHERE phoneNumber01 = ? OR phoneNumber02 = ?`;
+    const params = [phoneNumber, phoneNumber];
     if (excludeId) {
       sql += ` AND id != ?`;
       params.push(excludeId);
@@ -995,7 +1014,7 @@ exports.SendGeneratedPasswordDao = async (
       text: `Dear ${firstNameEnglish},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {
-          filename: `password_${empId}.pdf`, // PDF file name
+          filename: `Registration_${empId}.pdf`, // PDF file name
           content: pdfData, // Attach the PDF buffer directly
         },
       ],
@@ -2410,7 +2429,8 @@ exports.getAllDrivers = (
   centerStatus,
   status,
   centerId,
-  driverCatId
+  driverCatId,
+  driverRole
 ) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
@@ -2423,7 +2443,7 @@ exports.getAllDrivers = (
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
             LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
-            WHERE coff.jobRole = 'Driver' AND cm.id = 2
+            WHERE coff.jobRole IN ('Light Weight Driver', 'Heavy Weight Driver') AND cm.id = 2
         `;
 
     let dataSql = `
@@ -2471,11 +2491,18 @@ exports.getAllDrivers = (
             LEFT JOIN collectionofficer coff_modify ON coff.officerModiyBy = coff_modify.id
             LEFT JOIN agro_world_admin.adminusers admin_users ON coff.adminModifyBy = admin_users.id
             LEFT JOIN drivercategoryslave dcs ON coff.driverCatId = dcs.id
-            WHERE coff.jobRole = 'Driver' AND cm.id = 2
+            WHERE coff.jobRole IN ('Light Weight Driver', 'Heavy Weight Driver') AND cm.id = 2
         `;
 
     const countParams = [];
     const dataParams = [];
+
+    if (driverRole) {
+      countSql += " AND coff.jobRole = ? ";
+      dataSql += " AND coff.jobRole = ? ";
+      countParams.push(driverRole);
+      dataParams.push(driverRole);
+    }
 
     if (centerStatus) {
       let claimStatusValue;

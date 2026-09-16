@@ -142,6 +142,7 @@ exports.getAllDriversSchema = Joi.object({
     nic: Joi.string().allow('').optional(), 
     centerId: Joi.number().optional(),
     driverCatId: Joi.number().integer().optional(),
+    driverRole: Joi.string().valid("Light Weight Driver", "Heavy Weight Driver").optional(),
 });
 
 exports.getAllManagersSchema = Joi.object({

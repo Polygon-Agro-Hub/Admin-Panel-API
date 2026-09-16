@@ -4,6 +4,10 @@ const collectionofficerDao = require("../dao/CollectionOfficer-dao");
 const uploadFileToS3 = require("../middlewares/s3upload");
 const DistributionValidation = require("../validations/distribution-validation");
 const deleteFromS3 = require("../middlewares/s3delete");
+const DriverJobRoles = require ('./../assets/json/driverJobRole.json')
+
+const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
+const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
 
 exports.createDistributionCenter = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -1383,8 +1387,7 @@ exports.createDistributionOfficer = async (req, res) => {
     }
 
     officerId = result.insertId;
-
-    if (officerData.jobRole === "Driver") {
+    if (officerData.jobRole === LIGHT_WEIGHT_DRIVER || officerData.jobRole === HEAVY_WEIGHT_DRIVER) {
       if (!req.body.driverData) {
         throw new Error("Driver data is required for Driver role");
       }
@@ -1491,20 +1494,11 @@ exports.getAllDistributionManagerList = async (req, res) => {
   try {
     const companyId = req.params.companyId;
     const centerId = req.params.centerId;
-    console.log(companyId, centerId);
 
     const result = await DistributionDao.GetAllDistributionManagerList(
       companyId,
       centerId,
     );
-
-    console.log("result", result);
-
-    // if (result.length === 0) {
-    //   return res
-    //     .status(404)
-    //     .json({ message: "No collection Managers found", data: result });
-    // }
 
     console.log("Successfully retrieved all collection Managers");
     res.json(result);
@@ -1526,11 +1520,15 @@ exports.getForCreateId = async (req, res) => {
     const { role } = await DistributionValidation.getRoleShema.validateAsync(
       req.params,
     );
+
+    console.log('role', role)
     const results = await DistributionDao.getForCreateId(role);
 
     if (results.length === 0) {
       return res.json({ result: { empId: "00001" }, status: true });
     }
+
+    console.log('results', results)
 
     res.status(200).json({ result: results[0], status: true });
   } catch (err) {
@@ -1791,6 +1789,8 @@ exports.getOfficerByIdMonthly = async (req, res) => {
 exports.updateDistributionOfficerDetails = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log("Update Request URL:", fullUrl);
+
+  console.log('req', req.body)
   const { id } = req.params;
   const adminId = req.user.userId;
 
@@ -1901,7 +1901,7 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
 
     console.log("Officer details updated successfully");
 
-    if (officerData.jobRole === "Driver") {
+    if (officerData.jobRole === LIGHT_WEIGHT_DRIVER || officerData.jobRole === HEAVY_WEIGHT_DRIVER) {
       try {
         if (!req.body.driverData) {
           throw new Error("Driver data is required for Driver role");
@@ -1986,8 +1986,9 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
         });
       }
     } else if (
-      existingOfficer.jobRole === "Driver" &&
-      officerData.jobRole !== "Driver"
+      
+      (existingOfficer.jobRole === LIGHT_WEIGHT_DRIVER || existingOfficer.jobRole === HEAVY_WEIGHT_DRIVER) &&
+      (officerData.jobRole !== LIGHT_WEIGHT_DRIVER && officerData.jobRole !== HEAVY_WEIGHT_DRIVER)
     ) {
       try {
         const existingDriverData =
@@ -2266,15 +2267,18 @@ exports.getOfficerById = async (req, res) => {
       status: true,
     };
 
+    console.log('role', officerData[0].jobRole)
+
     // If job role is Driver, fetch driver data with images
-    if (officerData[0].jobRole === "Driver") {
+    if (officerData[0].jobRole === LIGHT_WEIGHT_DRIVER || officerData[0].jobRole === HEAVY_WEIGHT_DRIVER) {
+      console.log('calling')
       const driverData = await DistributionDao.getDriverDataByOfficerId(id);
 
       if (driverData) {
-        console.log("Driver Data found for officer:", id);
+        console.log("Driver Data found for officer:", id, driverData);
         response.driverData = [driverData];
       } else {
-        console.log("No driver data found for officer:", id);
+        console.log("No driver data found for officer:", id, driverData);
         response.driverData = [];
       }
     }
@@ -2306,12 +2310,6 @@ exports.getAllDistributionCenterList = async (req, res) => {
 
     const result =
       await DistributionDao.GetAllDistributionCenterList(companyId);
-
-    // if (result.length === 0) {
-    //   return res
-    //     .status(404)
-    //     .json({ message: "No collection Managers found", data: result });
-    // }
 
     console.log("Successfully retrieved all collection center");
     res.json(result);
