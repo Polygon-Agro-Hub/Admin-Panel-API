@@ -223,4 +223,16 @@ router.get(
   ProcumentsEP.getLatestPackingTargetLimit
 );
 
+router.get(
+  "/get-transport-load-full-details/:id",
+  authMiddleware,
+  ProcumentsEP.getTransportLoadFullDetails
+);
+
+router.put(
+  "/transport-load/update-recommendation",
+  authMiddleware,
+  ProcumentsEP.updateTransportLoadRecommendation
+);
+
 module.exports = router;
