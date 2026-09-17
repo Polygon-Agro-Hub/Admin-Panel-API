@@ -2329,14 +2329,14 @@ exports.getUserOrdersDao = async (userId, status) => {
         P.id,
         P.invNo,
         O.sheduleType,
-        P.sheduleDate,
+        DATE(P.sheduleDate) AS sheduleDate,
         P.paymentMethod,
         P.isPaid,
         O.fullTotal,
         P.createdAt,
         P.status
       FROM processorders P
-      JOIN orders O ON P.orderId = O.id
+      LEFT JOIN orders O ON P.orderId = O.id
       WHERE O.userId = ? 
     `;
 

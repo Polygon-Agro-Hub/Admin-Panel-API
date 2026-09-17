@@ -3315,7 +3315,7 @@ exports.getAllCOPTransactionsDAO = (
         CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS officerName,
         co.phoneCode01,
         co.phoneNumber01,
-       au.userName AS finalizedBy,
+        au.userName AS finalizedBy,
         pt.approvedAt AS finalizeAt,
         pt.officerId,
         po.orderId,
