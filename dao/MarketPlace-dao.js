@@ -1711,11 +1711,11 @@ exports.editDeliveryChargeDAO = async (data, id, userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE deliverycharge 
-      SET charge = ? , editBy = ?
+      SET charge = ? , editBy = ? , district = ?, province = ?
       WHERE id = ?
     `;
 
-    const values = [data.charge, userId, id];
+    const values = [data.charge, userId, data.district, data.province, id];
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
