@@ -1178,3 +1178,26 @@ exports.updateTransportLoadRecommendation = async (req, res) => {
     });
   }
 };
+
+
+exports.getLoadMismatchReportsToday = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const reports = await procumentDao.getLoadMismatchReportsTodayDao();
+
+    res.json({
+      success: true,
+      total: reports.length,
+      data: reports,
+    });
+  } catch (err) {
+    console.error("Error fetching load mismatch reports today:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching load mismatch reports",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};

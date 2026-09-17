@@ -235,4 +235,9 @@ router.put(
   ProcumentsEP.updateTransportLoadRecommendation
 );
 
+router.get(
+  "/get-load-mismatch-reports-today",
+  ProcumentsEP.getLoadMismatchReportsToday
+);
+
 module.exports = router;

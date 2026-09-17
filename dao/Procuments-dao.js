@@ -2088,3 +2088,78 @@ exports.updateTransportLoadRecommendationDao = (transportId, recomandation, rcmd
     }
   });
 };
+
+exports.getLoadMismatchReportsTodayDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        tl.id AS transportId,
+        tl.driverId,
+        tl.transferCode AS driverCode,
+        tl.disComCenId,
+        dc.regCode AS distributionCentre,
+        dc.centerName AS distributionCentreName,
+        tl.unloadTime,
+        DATE_FORMAT(tl.unloadTime, '%h:%i %p') AS reportedAt,
+        COALESCE(lt.totalLoaded, 0) AS loaded,
+        COALESCE(ut.totalUnloaded, 0) AS unloaded,
+        COALESCE(lt.totalLoadedCrates, 0) AS loadedCrateCount,
+        COALESCE(ut.totalUnloadedCrates, 0) AS unloadedCrateCount
+      FROM collection_officer.transportload tl
+      LEFT JOIN collection_officer.collectionofficer co 
+        ON co.id = tl.driverId
+      LEFT JOIN collection_officer.distributedcompanycenter dcc 
+        ON dcc.id = tl.disComCenId
+      LEFT JOIN collection_officer.distributedcenter dc 
+        ON dc.id = dcc.centerId
+      LEFT JOIN (
+        SELECT li.transportId,
+          SUM(lc.qty) AS totalLoaded,
+          SUM(lc.crateCount) AS totalLoadedCrates
+        FROM collection_officer.loadeditems li
+        JOIN collection_officer.loadedcrates lc ON lc.loadId = li.id
+        GROUP BY li.transportId
+      ) lt ON lt.transportId = tl.id
+      LEFT JOIN (
+        SELECT li.transportId,
+          SUM(uc.qty) AS totalUnloaded,
+          SUM(uc.crateCount) AS totalUnloadedCrates
+        FROM collection_officer.loadeditems li
+        JOIN collection_officer.unloadedcrates uc ON uc.loadId = li.id
+        GROUP BY li.transportId
+      ) ut ON ut.transportId = tl.id
+      WHERE DATE(tl.createdAt) = CURDATE()
+      HAVING (loaded - unloaded) <> 0 
+          OR (loadedCrateCount - unloadedCrateCount) <> 0
+      ORDER BY tl.unloadTime DESC
+    `;
+
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error("Error fetching load mismatch reports:", err);
+        return reject(err);
+      }
+
+      const processed = results.map((row) => {
+        const loaded = parseFloat(row.loaded) || 0;
+        const unloaded = parseFloat(row.unloaded) || 0;
+        const missing = parseFloat((loaded - unloaded).toFixed(2));
+        const missingCrates =
+          (row.loadedCrateCount || 0) - (row.unloadedCrateCount || 0);
+
+        return {
+          id: row.transportId,
+          driverId: row.driverCode || `DRV-${row.driverId}`,
+          loaded,
+          unloaded,
+          missing,
+          crates: missingCrates > 0 ? `${missingCrates} Missing` : "All Found",
+          distributionCentre: row.distributionCentre || "N/A",
+          reportedAt: row.reportedAt || "-",
+        };
+      });
+
+      resolve(processed);
+    });
+  });
+};
