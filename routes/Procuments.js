@@ -223,4 +223,9 @@ router.get(
   ProcumentsEP.getLatestPackingTargetLimit
 );
 
+router.get(
+  "/get-load-mismatch-reports-today",
+  ProcumentsEP.getLoadMismatchReportsToday
+);
+
 module.exports = router;
