@@ -1113,6 +1113,9 @@ exports.getTransportLoadFullDetails = async (req, res) => {
       procumentDao.getLoadedItemWeightSummaryDao(loadedItemId),
     ]);
 
+    console.log("Transport Details:", transportDetails);
+    console.log("Weight Summary:", weightSummary);
+
     if (!transportDetails) {
       return res.status(404).json({
         error: "No transport load details found",
