@@ -2330,8 +2330,11 @@ exports.getUserOrdersDao = async (userId, status) => {
         P.invNo,
         O.sheduleType,
         DATE(P.sheduleDate) AS sheduleDate,
+        O.delivaryMethod AS deliveryMethod,
         P.paymentMethod,
         P.isPaid,
+        P.creditPaid,
+        P.moneyPaid,
         O.fullTotal,
         P.createdAt,
         P.status
