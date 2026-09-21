@@ -528,7 +528,15 @@ exports.updateGroup = async (req, res) => {
 
   const id = req.params.id;
   const Existname = req.params.name;
+  const userId = req.user?.userId;
   let image = null;
+
+  if (!userId) {
+    return res.status(401).json({
+      message: "Unauthorized: admin user not found in token",
+      status: false,
+    });
+  }
 
   try {
     const cropGroup = await cropCalendarDao.getGroupByIds3(id);
@@ -553,7 +561,9 @@ exports.updateGroup = async (req, res) => {
     if (req.file) {
       const fileBuffer = req.file.buffer;
       const fileName = req.file.originalname;
-      await deleteFromS3(imageUrl);
+      if (imageUrl) {
+        await deleteFromS3(imageUrl);
+      }
       image = await uploadFileToS3(fileBuffer, fileName, "cropgroup/image");
     }
 
@@ -574,6 +584,7 @@ exports.updateGroup = async (req, res) => {
         nitrogen,
         phosphorus,
         potassium,
+        userId,
       },
       id,
     );
