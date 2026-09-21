@@ -1711,11 +1711,11 @@ exports.editDeliveryChargeDAO = async (data, id, userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE deliverycharge 
-      SET charge = ? , editBy = ?
+      SET charge = ? , editBy = ? , district = ?, province = ?
       WHERE id = ?
     `;
 
-    const values = [data.charge, userId, id];
+    const values = [data.charge, userId, data.district, data.province, id];
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
@@ -2329,14 +2329,17 @@ exports.getUserOrdersDao = async (userId, status) => {
         P.id,
         P.invNo,
         O.sheduleType,
-        P.sheduleDate,
+        DATE(P.sheduleDate) AS sheduleDate,
+        O.delivaryMethod AS deliveryMethod,
         P.paymentMethod,
         P.isPaid,
+        P.creditPaid,
+        P.moneyPaid,
         O.fullTotal,
         P.createdAt,
         P.status
       FROM processorders P
-      JOIN orders O ON P.orderId = O.id
+      LEFT JOIN orders O ON P.orderId = O.id
       WHERE O.userId = ? 
     `;
 
