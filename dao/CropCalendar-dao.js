@@ -376,6 +376,7 @@ exports.insertXLSXData = (cropId, data) => {
 exports.getAllVarietyByGroup = (cropGroupId) => {
   return new Promise((resolve, reject) => {
     const sql = `SELECT 
+    cv.id,
     cv.cropGroupId,
     cv.varietyNameEnglish,
     cv.varietyNameSinhala,
