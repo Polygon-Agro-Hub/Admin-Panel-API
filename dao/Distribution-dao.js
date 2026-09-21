@@ -1683,6 +1683,51 @@ exports.vehicleRegisterDao = (
   });
 };
 
+exports.checkLicenseNumberExists = (licenseNumber) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM vehicleregistration
+      WHERE licNo = ?
+    `;
+
+    collectionofficer.query(sql, [licenseNumber], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkInsuranceNumberExists = (insuranceNumber) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM vehicleregistration
+      WHERE insNo = ?
+    `;
+
+    collectionofficer.query(sql, [insuranceNumber], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
+exports.checkVehicleRegistrationNumberExists = (registrationNumber) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM vehicleregistration
+      WHERE vRegNo = ?
+    `;
+
+    collectionofficer.query(sql, [registrationNumber], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+    });
+  });
+};
+
 exports.DeleteOfficerDao = (officerId) => {
   return new Promise((resolve, reject) => {
     const sql = `DELETE FROM collectionofficer WHERE id = ?`;
