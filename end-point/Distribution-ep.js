@@ -1889,6 +1889,50 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       });
     }
 
+    if (
+      officerData.jobRole === LIGHT_WEIGHT_DRIVER ||
+      officerData.jobRole === HEAVY_WEIGHT_DRIVER
+    ) {
+      if (!req.body.driverData) {
+        return res.status(400).json({
+          error: "Driver data is required for Driver role",
+          status: false,
+        });
+      }
+
+      const driverData = req.body.driverData;
+      const [isExistingLicense, isExistingInsurance, isExistingRegistration] =
+        await Promise.all([
+          DistributionDao.checkLicenseNumberExists(driverData.licNo, id),
+          DistributionDao.checkInsuranceNumberExists(driverData.insNo, id),
+          DistributionDao.checkVehicleRegistrationNumberExists(
+            driverData.vRegNo,
+            id,
+          ),
+        ]);
+
+      const vehicleValidationErrors = [];
+      if (isExistingLicense) {
+        vehicleValidationErrors.push("Driving License ID is already registered");
+      }
+      if (isExistingInsurance) {
+        vehicleValidationErrors.push("Insurance Number is already registered");
+      }
+      if (isExistingRegistration) {
+        vehicleValidationErrors.push(
+          "Vehicle Registration Number is already registered",
+        );
+      }
+
+      if (vehicleValidationErrors.length > 0) {
+        return res.status(409).json({
+          error: "Vehicle validation failed",
+          errors: vehicleValidationErrors,
+          status: false,
+        });
+      }
+    }
+
     let profileImageUrl = existingOfficer.image;
 
     if (req.body.profileImageUrl) {
@@ -1939,10 +1983,6 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
 
     if (officerData.jobRole === LIGHT_WEIGHT_DRIVER || officerData.jobRole === HEAVY_WEIGHT_DRIVER) {
       try {
-        if (!req.body.driverData) {
-          throw new Error("Driver data is required for Driver role");
-        }
-
         const driverData = req.body.driverData;
         const existingDriverData =
           await DistributionDao.getDriverDataByOfficerId(id);

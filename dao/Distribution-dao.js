@@ -1683,48 +1683,63 @@ exports.vehicleRegisterDao = (
   });
 };
 
-exports.checkLicenseNumberExists = (licenseNumber) => {
+exports.checkLicenseNumberExists = (licenseNumber, excludeOfficerId = null) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT COUNT(*) AS count
       FROM vehicleregistration
-      WHERE licNo = ?
+      WHERE licNo = ? AND (? IS NULL OR coId != ?)
     `;
 
-    collectionofficer.query(sql, [licenseNumber], (err, results) => {
+    collectionofficer.query(
+      sql,
+      [licenseNumber, excludeOfficerId, excludeOfficerId],
+      (err, results) => {
       if (err) return reject(err);
       resolve(results[0].count > 0);
-    });
+      },
+    );
   });
 };
 
-exports.checkInsuranceNumberExists = (insuranceNumber) => {
+exports.checkInsuranceNumberExists = (insuranceNumber, excludeOfficerId = null) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT COUNT(*) AS count
       FROM vehicleregistration
-      WHERE insNo = ?
+      WHERE insNo = ? AND (? IS NULL OR coId != ?)
     `;
 
-    collectionofficer.query(sql, [insuranceNumber], (err, results) => {
+    collectionofficer.query(
+      sql,
+      [insuranceNumber, excludeOfficerId, excludeOfficerId],
+      (err, results) => {
       if (err) return reject(err);
       resolve(results[0].count > 0);
-    });
+      },
+    );
   });
 };
 
-exports.checkVehicleRegistrationNumberExists = (registrationNumber) => {
+exports.checkVehicleRegistrationNumberExists = (
+  registrationNumber,
+  excludeOfficerId = null,
+) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT COUNT(*) AS count
       FROM vehicleregistration
-      WHERE vRegNo = ?
+      WHERE vRegNo = ? AND (? IS NULL OR coId != ?)
     `;
 
-    collectionofficer.query(sql, [registrationNumber], (err, results) => {
+    collectionofficer.query(
+      sql,
+      [registrationNumber, excludeOfficerId, excludeOfficerId],
+      (err, results) => {
       if (err) return reject(err);
       resolve(results[0].count > 0);
-    });
+      },
+    );
   });
 };
 
