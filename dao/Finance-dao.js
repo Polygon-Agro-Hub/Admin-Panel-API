@@ -3081,16 +3081,24 @@ exports.getTransactionOrdersDao = (id) => {
       } else {
         const orders = results.map((order) => ({
           ...order,
-          toReceive: order.amount - order.earnPrice,
+          amount: parseFloat(order.amount),
+          earnPrice: parseFloat(order.earnPrice),
+          toReceive: parseFloat(order.amount) - parseFloat(order.earnPrice),
         }));
 
         const totalToReceive = orders.reduce(
-          (total, order) => total + order.toReceive,
+          (sum, order) => sum + order.toReceive,
+          0,
+        );
+
+        const total = orders.reduce(
+          (sum, order) => sum + order.amount,
           0,
         );
 
         resolve({
           orders,
+          total,
           totalToReceive,
         });
       }
@@ -3127,8 +3135,8 @@ exports.getAllShortageSubmissionsDAO = (
 
     let sql = `
       SELECT
-        cg.cropNameEnglish AS product,
-        cg.image,
+        m.displayName AS product,
+        cv.image,
         sp.id,
         sp.prchQty,
         sp.reqStatus,
@@ -3228,7 +3236,7 @@ exports.getViewSubmissionDocumentDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT
-        cg.cropNameEnglish AS product,
+        m.displayName AS product,
         sp.id,
         sp.prchQty,
         sp.prchPrice,
@@ -3307,7 +3315,7 @@ exports.getAllCOPTransactionsDAO = (
         CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS officerName,
         co.phoneCode01,
         co.phoneNumber01,
-       au.userName AS finalizedBy,
+        au.userName AS finalizedBy,
         pt.approvedAt AS finalizeAt,
         pt.officerId,
         po.orderId,

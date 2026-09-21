@@ -2058,11 +2058,11 @@ exports.getAllTransactionOrdersEp = async (req, res) => {
       return res.status(400).json({ success: false, message: "transaction id required" });
     }
 
-    const { orders, totalToReceive } = await financeDao.getTransactionOrdersDao(id);
+    const { orders, total, totalToReceive } = await financeDao.getTransactionOrdersDao(id);
 
     console.log('orders', orders)
 
-    return res.status(200).json({ orders: orders, total: totalToReceive });
+    return res.status(200).json({ orders: orders, total: total, totalToReceive: totalToReceive });
 
   } catch (error) {
     console.error("Update Govi Shop User Status Error:", error);
@@ -2080,13 +2080,18 @@ exports.getViewTransactionDocument = async (req, res) => {
 
     const document = await financeDao.getTransactionDocumentByIdDao(id);
 
-    if (!document) {
+    if (!document || document.length === 0) {
       return res.status(404).json({ error: "Transaction document not found" });
     }
 
+    const { total } = await financeDao.getTransactionOrdersDao(id);
+
+    const data = Array.isArray(document) ? document[0] : document;
+    data.transAmount = total;
+
     return res.status(200).json({
       success: true,
-      data: document,
+      data: data,
     });
   } catch (err) {
     console.error("Error fetching transaction document:", err);

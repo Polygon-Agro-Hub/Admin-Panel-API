@@ -494,7 +494,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
       text: `Dear ${firstName},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {
-          filename: `password_${empId}.pdf`, // PDF file name
+          filename: `Registration_${empId}.pdf`, // PDF file name
           content: pdfData, // Attach the PDF buffer directly
         },
       ],

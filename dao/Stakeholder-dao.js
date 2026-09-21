@@ -8,6 +8,10 @@ const Joi = require("joi");
 const PDFDocument = require("pdfkit");
 const path = require("path");
 const nodemailer = require("nodemailer");
+const DriverJobRoles = require ('./../assets/json/driverJobRole.json')
+
+const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
+const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
 
 exports.getAdminUsersByPosition = () => {
   return new Promise((resolve, reject) => {
@@ -453,7 +457,7 @@ exports.SendGeneratedPasswordDao = async (
       text: `Dear ${firstName},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {
-          filename: `password_${empId}.pdf`,
+          filename: `Registration_${empId}.pdf`,
           content: pdfData,
         },
       ],
@@ -478,11 +482,11 @@ exports.getDistributionOfficersByPosition = () => {
           WHEN jobRole = 'Distribution Centre Head' AND companyId = '2' AND status = 'Approved' THEN 'DCH'
           WHEN jobRole = 'Distribution Centre Manager' AND companyId = '2' AND status = 'Approved' THEN 'DCM'
           WHEN jobRole = 'Distribution Officer' AND companyId = '2' AND status = 'Approved' THEN 'DOO'
-          WHEN jobRole = 'Driver' AND companyId = '2' AND status = 'Approved' THEN 'DRV'
+          WHEN jobRole IN ('${LIGHT_WEIGHT_DRIVER}', '${HEAVY_WEIGHT_DRIVER}') AND companyId = '2' AND status = 'Approved' THEN 'DRV'
         END AS job,
         COUNT(id) AS officerCount
       FROM collectionofficer
-      WHERE jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', 'Driver')
+      WHERE jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', '${LIGHT_WEIGHT_DRIVER}', '${HEAVY_WEIGHT_DRIVER}')
       GROUP BY job;
     `;
     collectionofficer.query(sql, (err, results) => {
@@ -507,7 +511,7 @@ exports.getNewDistributionOfficers = () => {
       WHERE DATE(createdAt) = CURDATE() 
         AND companyId = '2' 
         AND status = 'Approved'
-        AND jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', 'Driver');
+        AND jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', '${LIGHT_WEIGHT_DRIVER}', '${HEAVY_WEIGHT_DRIVER}');
     `;
     collectionofficer.query(sql, (err, results) => {
       if (err) {

@@ -9,6 +9,10 @@ const QRCode = require("qrcode");
 const uploadFileToS3 = require("../middlewares/s3upload");
 const PDFDocument = require("pdfkit");
 const nodemailer = require("nodemailer");
+const DriverJobRoles = require ('./../assets/json/driverJobRole.json')
+
+const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
+const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
 
 exports.checkExistingDistributionCenter = (checkData) => {
   return new Promise((resolve, reject) => {
@@ -199,8 +203,8 @@ exports.getAllDistributionCentre = (
     if (searchItem) {
       const searchQuery = `%${searchItem}%`;
       whereClause +=
-        " AND (dc.regCode LIKE ? OR c.companyNameEnglish LIKE ? OR dc.city LIKE ?)"; // Added city to search
-      searchParams.push(searchQuery, searchQuery, searchQuery);
+        " AND (dc.regCode LIKE ? OR c.companyNameEnglish LIKE ? OR dc.city LIKE ? OR dc.centerName LIKE ?)"; // Added city to search
+      searchParams.push(searchQuery, searchQuery, searchQuery, searchQuery);
     }
 
     if (district) {
@@ -1441,7 +1445,7 @@ exports.SendGeneratedPasswordDao = async (
       text: `Dear ${firstNameEnglish},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {
-          filename: `Password_${empId}.pdf`, // PDF file name
+          filename: `Registration_${empId}.pdf`, // PDF file name
           content: pdfData, // Attach the PDF buffer directly
         },
       ],
@@ -1494,15 +1498,30 @@ exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
 
 exports.getDCIDforCreateEmpIdDao = (employee) => {
   return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT empId 
-      FROM collectionofficer
-      WHERE jobRole = ?
-      ORDER BY 
-        CAST(SUBSTRING(empId FROM 4) AS UNSIGNED) DESC
-      LIMIT 1
-    `;
-    const values = [employee];
+    let sql;
+    let values;
+
+    if (employee === HEAVY_WEIGHT_DRIVER || employee === LIGHT_WEIGHT_DRIVER) {
+      sql = `
+        SELECT empId 
+        FROM collectionofficer
+        WHERE jobRole IN (?, ?)
+        ORDER BY 
+          CAST(SUBSTRING(empId FROM 4) AS UNSIGNED) DESC
+        LIMIT 1
+      `;
+      values = [LIGHT_WEIGHT_DRIVER, HEAVY_WEIGHT_DRIVER];
+    } else {
+      sql = `
+        SELECT empId 
+        FROM collectionofficer
+        WHERE jobRole = ?
+        ORDER BY 
+          CAST(SUBSTRING(empId FROM 4) AS UNSIGNED) DESC
+        LIMIT 1
+      `;
+      values = [employee];
+    }
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
@@ -1516,21 +1535,20 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
           return resolve("DCM00001");
         } else if (employee === "Distribution Officer") {
           return resolve("DIO00001");
-        } else if (employee === "Driver") {
+        } else if (employee === HEAVY_WEIGHT_DRIVER || employee === LIGHT_WEIGHT_DRIVER) {
           return resolve("DRV00001");
         }
+        return reject(new Error(`Unknown job role: ${employee}`));
       }
 
       const highestId = results[0].empId;
 
-      // Extract the numeric part
-      const prefix = highestId.substring(0, 3); // Get "CCM"
-      const numberStr = highestId.substring(3); // Get "00007"
-      const number = parseInt(numberStr, 10); // Convert to number 7
+      const prefix = highestId.substring(0, 3);
+      const numberStr = highestId.substring(3);
+      const number = parseInt(numberStr, 10);
 
-      // Increment and format back to 5 digits
       const nextNumber = number + 1;
-      const nextId = `${prefix}${nextNumber.toString().padStart(5, "0")}`; // "CCM00008"
+      const nextId = `${prefix}${nextNumber.toString().padStart(5, "0")}`;
 
       resolve(nextId);
     });
@@ -1675,6 +1693,66 @@ exports.vehicleRegisterDao = (
         }
         resolve(results);
       }
+    );
+  });
+};
+
+exports.checkLicenseNumberExists = (licenseNumber, excludeOfficerId = null) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM vehicleregistration
+      WHERE licNo = ? AND (? IS NULL OR coId != ?)
+    `;
+
+    collectionofficer.query(
+      sql,
+      [licenseNumber, excludeOfficerId, excludeOfficerId],
+      (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+      },
+    );
+  });
+};
+
+exports.checkInsuranceNumberExists = (insuranceNumber, excludeOfficerId = null) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM vehicleregistration
+      WHERE insNo = ? AND (? IS NULL OR coId != ?)
+    `;
+
+    collectionofficer.query(
+      sql,
+      [insuranceNumber, excludeOfficerId, excludeOfficerId],
+      (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+      },
+    );
+  });
+};
+
+exports.checkVehicleRegistrationNumberExists = (
+  registrationNumber,
+  excludeOfficerId = null,
+) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM vehicleregistration
+      WHERE vRegNo = ? AND (? IS NULL OR coId != ?)
+    `;
+
+    collectionofficer.query(
+      sql,
+      [registrationNumber, excludeOfficerId, excludeOfficerId],
+      (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+      },
     );
   });
 };
@@ -3242,7 +3320,6 @@ exports.getNextHoldReasonIndex = async () => {
 
 exports.getAllTodaysDeliveries = (searchParams = {}) => {
   return new Promise((resolve, reject) => {
-    // Base SQL query
     let sql = `
       SELECT 
         po.id,
@@ -3253,7 +3330,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         po.sheduleDate,
         po.createdAt,
         po.status,
-        TIME(po.outDlvrDate) as outDlvrTime,
+        TIME(DATE_ADD(dti.completeTime, INTERVAL 330 MINUTE)) AS outDlvrTime,
         dro.createdAt AS collectTime,
         drv.empId AS driverEmpId,
         CONCAT(drv.phoneCode01, drv.phoneNumber01) AS driverPhone,
@@ -3261,36 +3338,25 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         drr.createdAt AS returnTime,
         po.deliveredTime AS deliveryTime,
         dho.createdAt AS holdTime
-      FROM 
-        collection_officer.driverordermain drm
-      LEFT JOIN
-        collection_officer.driverorders dro ON drm.id = dro.drvOrderMainId
-      LEFT JOIN
-        collection_officer.processorders po ON po.id = dro.orderId
-      INNER JOIN 
-        collection_officer.orders o ON po.orderId = o.id
-      LEFT JOIN 
-        collection_officer.distributedcenter dc ON o.centerId = dc.id
-      LEFT JOIN
-        collection_officer.collectionofficer drv ON drm.driverId = drv.id
-      LEFT JOIN
-        collection_officer.driverholdorders dho ON dro.id = dho.drvOrderId
+      FROM collection_officer.processorders po
+      INNER JOIN collection_officer.orders o ON po.orderId = o.id
+      LEFT JOIN collection_officer.driverorders dro ON po.id = dro.orderId
+      LEFT JOIN collection_officer.driverordermain drm ON dro.drvOrderMainId = drm.id
+      LEFT JOIN collection_officer.collectionofficer drv ON drm.driverId = drv.id
+      LEFT JOIN collection_officer.driverholdorders dho ON dro.id = dho.drvOrderId
         AND dho.id = (
             SELECT MAX(id) 
             FROM collection_officer.driverholdorders 
             WHERE drvOrderId = dro.id
         )
-      LEFT JOIN 
-        collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
-      LEFT JOIN 
-        collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id
-      LEFT JOIN 
-        collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
-      WHERE 
-       DATE(po.sheduleDate) = CURDATE()
-      `;
-    // DATE(o.sheduleDate) = CURDATE()
-    // Add search conditions if search parameters are provided
+      LEFT JOIN collection_officer.driverreturnorders drr ON dro.id = drr.drvOrderId
+      LEFT JOIN collection_officer.distributedcenter dc ON o.centerId = dc.id
+      LEFT JOIN collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id
+      LEFT JOIN collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
+      LEFT JOIN collection_officer.distributedtargetitems dti ON po.id = dti.orderId 
+      WHERE DATE(po.sheduleDate) = CURDATE()
+    `;
+
     const conditions = [];
     const values = [];
 
@@ -3323,7 +3389,6 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
 
     if (searchParams.regCode) {
       console.log("searchParams.regCode", searchParams.regCode);
-
       conditions.push(`(dc.id = ? OR dcc.centerId = ?)`);
       values.push(searchParams.regCode, searchParams.regCode);
     }
@@ -3333,12 +3398,10 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       values.push(`%${searchParams.invNo}%`);
     }
 
-    // Append search conditions to the WHERE clause
     if (conditions.length > 0) {
       sql += ` AND (${conditions.join(" AND ")})`;
     }
 
-    // Add ORDER BY clause
     sql += ` ORDER BY po.createdAt DESC`;
 
     collectionofficer.query(sql, values, (err, results) => {
@@ -3534,13 +3597,14 @@ exports.getReturnRecievedDataDao = (
 ) => {
   return new Promise((resolve, reject) => {
     let dataSql = `
-      SELECT do.id, 
+      SELECT 
+        do.id, 
         coff.id AS driverId, 
         coff.empId, 
         po.id AS processOrderId, 
         po.invNO, 
         o.id AS orderId, 
-        o.total, 
+        o.fullTotal As total, 
         o.centerId, 
         mp.phoneCode,
         mp.phoneNumber,
@@ -3719,7 +3783,7 @@ exports.getDistributedVehiclesDao = (
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      WHERE co.jobRole = 'Driver'
+      WHERE coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}'
     `;
 
     let dataSql = `
@@ -3734,7 +3798,7 @@ exports.getDistributedVehiclesDao = (
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      WHERE co.jobRole = 'Driver'
+      WHERE coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}'
     `;
 
     const countParams = [];
@@ -4658,7 +4722,7 @@ exports.getDistributionDashboardDao = () => {
     const driverSql = `
       SELECT COUNT(*) AS totalDrivers
       FROM collectionofficer
-      WHERE jobRole = 'Driver' AND status = 'Approved'
+      WHERE (coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}') AND status = 'Approved'
     `;
 
     // 5. Total Cash Received - Today

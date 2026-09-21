@@ -29,10 +29,8 @@ exports.getAllSalesAgentsDao = (
             SA.lastName,
             SAS.completed AS targetComplete,
             SAS.target AS target
-        FROM 
-            salesagent SA
-        JOIN
-            salesagentstars SAS ON SA.id = SAS.salesagentId
+        FROM salesagent SA
+        JOIN salesagentstars SAS ON SA.id = SAS.salesagentId
         WHERE SA.status = 'Approved' AND SAS.date = ?
         `;
     const countParams = [];
