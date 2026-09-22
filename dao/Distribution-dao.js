@@ -3783,7 +3783,7 @@ exports.getDistributedVehiclesDao = (
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      WHERE coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}'
+      WHERE (co.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR co.jobRole = '${HEAVY_WEIGHT_DRIVER}')
     `;
 
     let dataSql = `
@@ -3798,7 +3798,7 @@ exports.getDistributedVehiclesDao = (
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      WHERE coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}'
+      WHERE (co.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR co.jobRole = '${HEAVY_WEIGHT_DRIVER}')
     `;
 
     const countParams = [];
