@@ -421,7 +421,7 @@ exports.SendGeneratedPasswordDao = async (
       .text(`Your Password: ${password}`)
       .moveDown()
       .text(
-        "If you need assistance, please reach out to our support team at polygonagro.inf@gmail.com",
+        "If you need assistance, please reach out to our support team at polygon.admin@gmail.com",
         
       )
       .moveDown()
@@ -430,7 +430,7 @@ exports.SendGeneratedPasswordDao = async (
       .text("Polygon Holdings (Pvt) Ltd. | All rights reserved.")
       .moveDown()
       .text("Address: No:14, Sir Baron Jayathilake Mawatha, Colombo 01.")
-      .text("Email: polygonagro.inf@gmail.com");
+      .text("Email: polygon.admin@gmail.com");
 
     doc.end();
     await new Promise((resolve) => doc.on("end", resolve));

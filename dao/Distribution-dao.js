@@ -1381,7 +1381,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(12)
       .text(
-        "If you have any questions or need assistance, feel free to reach out to our support team at polygonagro.inf@gmail.com",
+        "If you have any questions or need assistance, feel free to reach out to our support team at polygon.admin@gmail.com",
         {
           align: "justify",
         }
@@ -1402,7 +1402,7 @@ exports.SendGeneratedPasswordDao = async (
     doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
     doc.fontSize(12).text(`            Colombo 01.`);
     doc.moveDown();
-    doc.fontSize(12).text(`Email: polygonagro.inf@gmail.com`);
+    doc.fontSize(12).text(`Email: polygon.admin@gmail.com`);
 
     doc.end();
 
@@ -3783,7 +3783,7 @@ exports.getDistributedVehiclesDao = (
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      WHERE coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}'
+      WHERE (co.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR co.jobRole = '${HEAVY_WEIGHT_DRIVER}')
     `;
 
     let dataSql = `
@@ -3798,7 +3798,7 @@ exports.getDistributedVehiclesDao = (
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      WHERE coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}'
+      WHERE (co.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR co.jobRole = '${HEAVY_WEIGHT_DRIVER}')
     `;
 
     const countParams = [];
