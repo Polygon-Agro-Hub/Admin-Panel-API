@@ -51,7 +51,7 @@ const heathRoutes = require("./routes/heathRoutes");
 const DashRoutes = require("./routes/Dash");
 
 // Import the cron job function
-const { pickupOrdersReturnCornjob } = require('./corn-jobs/pickupOrdersReturnCornjob');
+const { pickupOrdersReturnCornjob, processPickupOrdersReturn } = require('./corn-jobs/pickupOrdersReturnCornjob');
 
 require("dotenv").config();
 const cors = require("cors");
@@ -211,6 +211,13 @@ app.use("/uploads", express.static("uploads"));
 app.get(BASE_PATH + "/test", (req, res) => {
   res.send(new Date().toLocaleString());
   console.log("test route is working");
+});
+
+app.get(BASE_PATH + "/api/return-pickup-orders", (req, res) => {
+  // res.send(new Date().toLocaleString());
+  const result = processPickupOrdersReturn();
+  console.log("result", result);
+  res.send({ message: "Pickup orders return process initiated.", result });
 });
 
 // Attach io and mainApp to server instance

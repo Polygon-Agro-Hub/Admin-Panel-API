@@ -14,39 +14,7 @@ const pickupOrdersReturnCornjob = () => {
 
   // ✅ CRON JOB: Enable marketplace items every day at 9:30 PM
   cron.schedule('00 16 * * *', async () => {
-    console.log('🔄 Running scheduled job: Enabling marketplace items...');
-    console.log(`⏰ Time: ${new Date().toLocaleString()}`);
-
-    try {
-      const orders = await getReadyToPickupOrders();
-
-      if (orders && orders.length > 0) {
-        console.log(`📊 Found ${orders.length} orders to process`);
-        const result = await insertHandlingFee(orders);
-        console.log(`✅ Successfully processed ${result.successCount} orders`);
-        
-        if (result.failedCount > 0) {
-          console.log(`⚠️ Failed to process ${result.failedCount} orders`);
-          console.log('❌ Failed orders:', result.failedOrders);
-        }
-
-        if (result.successCount > 0) {
-          console.log(`📱 Sending SMS notifications for ${result.successCount} orders...`);
-          try {
-            const smsResult = await sendBulkSMSNotification(orders);
-            console.log(`✅ SMS notifications sent: ${smsResult.successCount} succeeded, ${smsResult.failedCount} failed`);
-          } catch (smsError) {
-            console.error('⚠️ SMS notifications failed but orders were processed:', smsError.message);
-          }
-        }
-      } else {
-        console.log('ℹ️ No orders found to process');
-      }
-
-    } catch (error) {
-      console.error('❌ Error executing cron job:', error.message);
-      console.error('Stack trace:', error.stack);
-    }
+    processPickupOrdersReturn();
   }, {
     scheduled: true,
     timezone: "Asia/Colombo"
@@ -242,15 +210,15 @@ const sendBulkSMSNotification = async (orders) => {
         if (order.phoneCode) {
           phoneNumber = order.phoneCode + order.phoneNumber;
         }
-        
+
         const formattedNumber = formatPhoneNumber(phoneNumber);
-        
+
         if (!formattedNumber) {
           throw new Error(`Invalid phone number: ${phoneNumber}`);
         }
 
         // Prepare message (matching your working code format)
-const message = `Your order ${order.invNo} has been marked as return.
+        const message = `Your order ${order.invNo} has been marked as return.
 Reason: "Customer did not picked up the order during the day."`;
 
         // Prepare request data (matching your working code)
@@ -295,11 +263,11 @@ Reason: "Customer did not picked up the order during the day."`;
       } catch (error) {
         failedCount++;
         console.error(`❌ Error sending SMS to ${order.phoneNumber}:`, error.message);
-        
+
         if (error.response) {
           console.error('Response status:', error.response.status);
           console.error('Response data:', JSON.stringify(error.response.data, null, 2));
-          
+
           // Check for common API errors
           if (error.response.status === 401) {
             console.error('AUTHENTICATION ERROR: Check your API key');
@@ -339,4 +307,40 @@ Reason: "Customer did not picked up the order during the day."`;
   }
 };
 
-module.exports = { pickupOrdersReturnCornjob };
+const processPickupOrdersReturn = async () => {
+  console.log('🔄 Running scheduled job: Enabling marketplace items...');
+  console.log(`⏰ Time: ${new Date().toLocaleString()}`);
+
+  try {
+    const orders = await getReadyToPickupOrders();
+
+    if (orders && orders.length > 0) {
+      console.log(`📊 Found ${orders.length} orders to process`);
+      const result = await insertHandlingFee(orders);
+      console.log(`✅ Successfully processed ${result.successCount} orders`);
+
+      if (result.failedCount > 0) {
+        console.log(`⚠️ Failed to process ${result.failedCount} orders`);
+        console.log('❌ Failed orders:', result.failedOrders);
+      }
+
+      if (result.successCount > 0) {
+        console.log(`📱 Sending SMS notifications for ${result.successCount} orders...`);
+        try {
+          const smsResult = await sendBulkSMSNotification(orders);
+          console.log(`✅ SMS notifications sent: ${smsResult.successCount} succeeded, ${smsResult.failedCount} failed`);
+        } catch (smsError) {
+          console.error('⚠️ SMS notifications failed but orders were processed:', smsError.message);
+        }
+      }
+    } else {
+      console.log('ℹ️ No orders found to process');
+    }
+
+  } catch (error) {
+    console.error('❌ Error executing cron job:', error.message);
+    console.error('Stack trace:', error.stack);
+  }
+};
+
+module.exports = { pickupOrdersReturnCornjob, processPickupOrdersReturn };
