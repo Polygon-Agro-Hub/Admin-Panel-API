@@ -1354,6 +1354,45 @@ exports.createDistributionOfficer = async (req, res) => {
       return res.status(400).json({ errors: validationErrors, status: false });
     }
 
+    if (
+      officerData.jobRole === LIGHT_WEIGHT_DRIVER ||
+      officerData.jobRole === HEAVY_WEIGHT_DRIVER
+    ) {
+      if (!req.body.driverData) {
+        await Promise.all(uploadedImageUrls.map((url) => deleteFromS3(url)));
+        return res
+          .status(400)
+          .json({ error: "Driver data is required for Driver role", status: false });
+      }
+
+      const driverData = req.body.driverData;
+      const [isExistingLicense, isExistingInsurance, isExistingRegistration] =
+        await Promise.all([
+          DistributionDao.checkLicenseNumberExists(driverData.licNo),
+          DistributionDao.checkInsuranceNumberExists(driverData.insNo),
+          DistributionDao.checkVehicleRegistrationNumberExists(driverData.vRegNo),
+        ]);
+      const vehicleValidationErrors = [];
+
+      if (isExistingLicense) {
+        vehicleValidationErrors.push("Driving License ID is already registered");
+      }
+      if (isExistingInsurance) {
+        vehicleValidationErrors.push("Insurance Number is already registered");
+      }
+      if (isExistingRegistration) {
+        vehicleValidationErrors.push("Vehicle Registration Number is already registered");
+      }
+
+      if (vehicleValidationErrors.length > 0) {
+        await Promise.all(uploadedImageUrls.map((url) => deleteFromS3(url)));
+        return res.status(400).json({
+          errors: vehicleValidationErrors,
+          status: false,
+        });
+      }
+    }
+
     const lastId = await DistributionDao.getDCIDforCreateEmpIdDao(
       officerData.jobRole,
     );
@@ -1388,9 +1427,6 @@ exports.createDistributionOfficer = async (req, res) => {
 
     officerId = result.insertId;
     if (officerData.jobRole === LIGHT_WEIGHT_DRIVER || officerData.jobRole === HEAVY_WEIGHT_DRIVER) {
-      if (!req.body.driverData) {
-        throw new Error("Driver data is required for Driver role");
-      }
       const driverData = req.body.driverData;
 
       const driverResult = await DistributionDao.vehicleRegisterDao(
@@ -1853,6 +1889,50 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
       });
     }
 
+    if (
+      officerData.jobRole === LIGHT_WEIGHT_DRIVER ||
+      officerData.jobRole === HEAVY_WEIGHT_DRIVER
+    ) {
+      if (!req.body.driverData) {
+        return res.status(400).json({
+          error: "Driver data is required for Driver role",
+          status: false,
+        });
+      }
+
+      const driverData = req.body.driverData;
+      const [isExistingLicense, isExistingInsurance, isExistingRegistration] =
+        await Promise.all([
+          DistributionDao.checkLicenseNumberExists(driverData.licNo, id),
+          DistributionDao.checkInsuranceNumberExists(driverData.insNo, id),
+          DistributionDao.checkVehicleRegistrationNumberExists(
+            driverData.vRegNo,
+            id,
+          ),
+        ]);
+
+      const vehicleValidationErrors = [];
+      if (isExistingLicense) {
+        vehicleValidationErrors.push("Driving License ID is already registered");
+      }
+      if (isExistingInsurance) {
+        vehicleValidationErrors.push("Insurance Number is already registered");
+      }
+      if (isExistingRegistration) {
+        vehicleValidationErrors.push(
+          "Vehicle Registration Number is already registered",
+        );
+      }
+
+      if (vehicleValidationErrors.length > 0) {
+        return res.status(409).json({
+          error: "Vehicle validation failed",
+          errors: vehicleValidationErrors,
+          status: false,
+        });
+      }
+    }
+
     let profileImageUrl = existingOfficer.image;
 
     if (req.body.profileImageUrl) {
@@ -1903,10 +1983,6 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
 
     if (officerData.jobRole === LIGHT_WEIGHT_DRIVER || officerData.jobRole === HEAVY_WEIGHT_DRIVER) {
       try {
-        if (!req.body.driverData) {
-          throw new Error("Driver data is required for Driver role");
-        }
-
         const driverData = req.body.driverData;
         const existingDriverData =
           await DistributionDao.getDriverDataByOfficerId(id);

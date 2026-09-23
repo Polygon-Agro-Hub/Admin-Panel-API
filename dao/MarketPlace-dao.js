@@ -1711,7 +1711,7 @@ exports.editDeliveryChargeDAO = async (data, id, userId) => {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE deliverycharge 
-      SET charge = ? , editBy = ? , district = ?, province = ?
+      SET charge = ? , editBy = ? , district = ?, province = ?, createdAt = NOW() 
       WHERE id = ?
     `;
 

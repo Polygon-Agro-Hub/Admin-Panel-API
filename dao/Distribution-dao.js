@@ -1381,7 +1381,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(12)
       .text(
-        "If you have any questions or need assistance, feel free to reach out to our support team at polygonagro.inf@gmail.com",
+        "If you have any questions or need assistance, feel free to reach out to our support team at polygon.admin@gmail.com",
         {
           align: "justify",
         }
@@ -1402,7 +1402,7 @@ exports.SendGeneratedPasswordDao = async (
     doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
     doc.fontSize(12).text(`            Colombo 01.`);
     doc.moveDown();
-    doc.fontSize(12).text(`Email: polygonagro.inf@gmail.com`);
+    doc.fontSize(12).text(`Email: polygon.admin@gmail.com`);
 
     doc.end();
 
@@ -1498,15 +1498,30 @@ exports.checkPhoneNumberExist = async (phoneNumber, excludeId = null) => {
 
 exports.getDCIDforCreateEmpIdDao = (employee) => {
   return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT empId 
-      FROM collectionofficer
-      WHERE jobRole = ?
-      ORDER BY 
-        CAST(SUBSTRING(empId FROM 4) AS UNSIGNED) DESC
-      LIMIT 1
-    `;
-    const values = [employee];
+    let sql;
+    let values;
+
+    if (employee === HEAVY_WEIGHT_DRIVER || employee === LIGHT_WEIGHT_DRIVER) {
+      sql = `
+        SELECT empId 
+        FROM collectionofficer
+        WHERE jobRole IN (?, ?)
+        ORDER BY 
+          CAST(SUBSTRING(empId FROM 4) AS UNSIGNED) DESC
+        LIMIT 1
+      `;
+      values = [LIGHT_WEIGHT_DRIVER, HEAVY_WEIGHT_DRIVER];
+    } else {
+      sql = `
+        SELECT empId 
+        FROM collectionofficer
+        WHERE jobRole = ?
+        ORDER BY 
+          CAST(SUBSTRING(empId FROM 4) AS UNSIGNED) DESC
+        LIMIT 1
+      `;
+      values = [employee];
+    }
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
@@ -1523,18 +1538,17 @@ exports.getDCIDforCreateEmpIdDao = (employee) => {
         } else if (employee === HEAVY_WEIGHT_DRIVER || employee === LIGHT_WEIGHT_DRIVER) {
           return resolve("DRV00001");
         }
+        return reject(new Error(`Unknown job role: ${employee}`));
       }
 
       const highestId = results[0].empId;
 
-      // Extract the numeric part
-      const prefix = highestId.substring(0, 3); // Get "CCM"
-      const numberStr = highestId.substring(3); // Get "00007"
-      const number = parseInt(numberStr, 10); // Convert to number 7
+      const prefix = highestId.substring(0, 3);
+      const numberStr = highestId.substring(3);
+      const number = parseInt(numberStr, 10);
 
-      // Increment and format back to 5 digits
       const nextNumber = number + 1;
-      const nextId = `${prefix}${nextNumber.toString().padStart(5, "0")}`; // "CCM00008"
+      const nextId = `${prefix}${nextNumber.toString().padStart(5, "0")}`;
 
       resolve(nextId);
     });
@@ -1679,6 +1693,66 @@ exports.vehicleRegisterDao = (
         }
         resolve(results);
       }
+    );
+  });
+};
+
+exports.checkLicenseNumberExists = (licenseNumber, excludeOfficerId = null) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM vehicleregistration
+      WHERE licNo = ? AND (? IS NULL OR coId != ?)
+    `;
+
+    collectionofficer.query(
+      sql,
+      [licenseNumber, excludeOfficerId, excludeOfficerId],
+      (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+      },
+    );
+  });
+};
+
+exports.checkInsuranceNumberExists = (insuranceNumber, excludeOfficerId = null) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM vehicleregistration
+      WHERE insNo = ? AND (? IS NULL OR coId != ?)
+    `;
+
+    collectionofficer.query(
+      sql,
+      [insuranceNumber, excludeOfficerId, excludeOfficerId],
+      (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+      },
+    );
+  });
+};
+
+exports.checkVehicleRegistrationNumberExists = (
+  registrationNumber,
+  excludeOfficerId = null,
+) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM vehicleregistration
+      WHERE vRegNo = ? AND (? IS NULL OR coId != ?)
+    `;
+
+    collectionofficer.query(
+      sql,
+      [registrationNumber, excludeOfficerId, excludeOfficerId],
+      (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].count > 0);
+      },
     );
   });
 };
@@ -3709,7 +3783,7 @@ exports.getDistributedVehiclesDao = (
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      WHERE coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}'
+      WHERE (co.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR co.jobRole = '${HEAVY_WEIGHT_DRIVER}')
     `;
 
     let dataSql = `
@@ -3724,7 +3798,7 @@ exports.getDistributedVehiclesDao = (
       FROM collectionofficer co
       LEFT JOIN vehicleregistration vr ON co.id = vr.coId
       INNER JOIN distributedcenter dc ON co.distributedCenterId = dc.id
-      WHERE coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}'
+      WHERE (co.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR co.jobRole = '${HEAVY_WEIGHT_DRIVER}')
     `;
 
     const countParams = [];

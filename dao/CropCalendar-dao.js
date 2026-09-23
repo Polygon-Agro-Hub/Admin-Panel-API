@@ -376,6 +376,7 @@ exports.insertXLSXData = (cropId, data) => {
 exports.getAllVarietyByGroup = (cropGroupId) => {
   return new Promise((resolve, reject) => {
     const sql = `SELECT 
+    cv.id,
     cv.cropGroupId,
     cv.varietyNameEnglish,
     cv.varietyNameSinhala,
@@ -495,7 +496,12 @@ exports.updateGroup = (newsData, id) => {
       nitrogen,
       phosphorus,
       potassium,
+      userId,
     } = newsData;
+
+    if (!userId) {
+      return reject(new Error("userId is required to update a crop group"));
+    }
 
     let sql = `
             UPDATE cropgroup 
@@ -513,7 +519,9 @@ exports.updateGroup = (newsData, id) => {
                 AvgYield = ?,
                 nitrogen = ?,
                 phosphorus = ?,
-                potassium = ?
+                potassium = ?,
+                modifyBy = ?,
+                modifyAt = NOW()
         `;
 
     let values = [
@@ -531,6 +539,7 @@ exports.updateGroup = (newsData, id) => {
       nitrogen,
       phosphorus,
       potassium,
+      userId,
     ];
 
     if (image) {

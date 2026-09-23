@@ -444,7 +444,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     doc
       .fontSize(12)
       .text(
-        "If you have any questions or need assistance, feel free to reach out to our support team at polygonagro.inf@gmail.com",
+        "If you have any questions or need assistance, feel free to reach out to our support team at polygon.admin@gmail.com",
         {
           align: "justify",
         }
@@ -465,7 +465,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
     doc.fontSize(12).text(`            Colombo 01.`);
     doc.moveDown();
-    doc.fontSize(12).text(`Email: polygonagro.inf@gmail.com`);
+    doc.fontSize(12).text(`Email: polygon.admin@gmail.com`);
 
     doc.end();
 
