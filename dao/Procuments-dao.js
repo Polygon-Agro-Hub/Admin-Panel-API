@@ -1875,6 +1875,11 @@ exports.getAllShortageAssignedDetails = (date) => {
         cc.centerName,
         cc.regCode,
         sa.assignOfficerId,
+        CONCAT(
+          COALESCE(officer.firstNameEnglish, ''),
+          ' ',
+          COALESCE(officer.lastNameEnglish, '')
+        ) AS assignOfficerName,
         sa.qty AS assignedQty,
         sa.ceilling,
         sa.status,
@@ -1901,6 +1906,7 @@ exports.getAllShortageAssignedDetails = (date) => {
       LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
       LEFT JOIN collection_officer.distributedcompanycenter dcc ON sa.comCenId = dcc.id
       LEFT JOIN collection_officer.distributedcenter cc ON cc.id = dcc.centerId
+      LEFT JOIN collection_officer.collectionofficer officer ON officer.id = sa.assignOfficerId
       LEFT JOIN agro_world_admin.adminusers assignedByUser ON assignedByUser.id = sa.assignedBy
       LEFT JOIN agro_world_admin.adminusers finalizedByUser ON finalizedByUser.id = sa.finalizedBy
       WHERE 1 = 1

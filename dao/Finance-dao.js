@@ -3426,17 +3426,25 @@ exports.viewCopTransactionDocumentDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT
-	      co.empId,
-	      CONCAT(co.firstNameEnglish,' ',co.lastNameEnglish) AS officerName,
-	      co.phoneCode01,
+        co.empId,
+        CONCAT(co.firstNameEnglish,' ',co.lastNameEnglish) AS officerName,
+        co.phoneCode01,
         co.phoneNumber01,
-	      po.handOverPrice,
-	      pt.transactionStatus,
-	      pt.slip
+        SUM(po.handOverPrice) AS handOverPrice,
+        pt.transactionStatus,
+        pt.slip
       FROM pickuptransaction pt
       LEFT JOIN collectionofficer co ON pt.officerId = co.id
-      LEFT JOIN pickuporders po ON pt.id = po.transId 
+      LEFT JOIN pickuporders po ON pt.id = po.transId
       WHERE pt.id = ?
+      GROUP BY
+        co.empId,
+        co.firstNameEnglish,
+        co.lastNameEnglish,
+        co.phoneCode01,
+        co.phoneNumber01,
+        pt.transactionStatus,
+        pt.slip
     `;
 
     collectionofficer.query(sql, [id], (err, result) => {
