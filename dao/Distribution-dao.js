@@ -4721,8 +4721,8 @@ exports.getDistributionDashboardDao = () => {
     // 4. Total Drivers
     const driverSql = `
       SELECT COUNT(*) AS totalDrivers
-      FROM collectionofficer
-      WHERE (coff.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR coff.jobRole = '${HEAVY_WEIGHT_DRIVER}') AND status = 'Approved'
+      FROM collectionofficer co
+      WHERE (co.jobRole = '${LIGHT_WEIGHT_DRIVER}' OR co.jobRole = '${HEAVY_WEIGHT_DRIVER}') AND status = 'Approved'
     `;
 
     // 5. Total Cash Received - Today

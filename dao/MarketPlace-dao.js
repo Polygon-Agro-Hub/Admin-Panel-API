@@ -1642,13 +1642,14 @@ exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
 
       if (chargesToInsert.length > 0) {
         const insertSql =
-          "INSERT INTO deliverycharge (province, district, city, charge, editBy) VALUES ?";
+          "INSERT INTO deliverycharge (province, district, city, charge, editBy, createdAt) VALUES ?";
         const insertValues = chargesToInsert.map((charge) => [
           charge.province,
           charge.district,
           charge.city,
           charge.charge,
           userId,
+          new Date(), 
         ]);
 
         insertedCount = await new Promise((resolve, reject) => {
