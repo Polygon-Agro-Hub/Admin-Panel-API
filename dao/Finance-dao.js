@@ -2652,16 +2652,29 @@ exports.getAllFinanceDashboardDataDao = () => {
     `;
 
     const returnedOrdersLossSql = `
-  SELECT
-    COALESCE(SUM(o.fullTotal), 0) AS currentMonthLoss
-  FROM driverorders dro
-  INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
-  INNER JOIN collection_officer.orders o ON po.orderId = o.id
-  WHERE dro.drvStatus = 'Return Received'
-    AND po.paymentMethod = 'Cash'
-    AND MONTH(dro.handOverTime) = MONTH(CURRENT_DATE())
-    AND YEAR(dro.handOverTime)  = YEAR(CURRENT_DATE())
-`;
+      SELECT
+        COALESCE(SUM(o.fullTotal), 0) AS currentMonthLoss
+      FROM driverorders dro
+      INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
+      INNER JOIN collection_officer.orders o ON po.orderId = o.id
+      WHERE dro.drvStatus = 'Return Received'
+      AND po.paymentMethod = 'Cash'
+      AND MONTH(dro.receivedTime) = MONTH(CURRENT_DATE())
+      AND YEAR(dro.receivedTime)  = YEAR(CURRENT_DATE())
+    `;
+
+
+//     const returnedOrdersLossSql = `
+//   SELECT
+//     COALESCE(SUM(o.fullTotal), 0) AS currentMonthLoss
+//   FROM driverorders dro
+//   INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
+//   INNER JOIN collection_officer.orders o ON po.orderId = o.id
+//   WHERE dro.drvStatus = 'Return Received'
+//     AND po.paymentMethod = 'Cash'
+//     AND MONTH(dro.handOverTime) = MONTH(CURRENT_DATE())
+//     AND YEAR(dro.handOverTime)  = YEAR(CURRENT_DATE())
+// `;
 
     const goviShopPremiumIncomeSql = `
       SELECT
@@ -3426,17 +3439,25 @@ exports.viewCopTransactionDocumentDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT
-	      co.empId,
-	      CONCAT(co.firstNameEnglish,' ',co.lastNameEnglish) AS officerName,
-	      co.phoneCode01,
+        co.empId,
+        CONCAT(co.firstNameEnglish,' ',co.lastNameEnglish) AS officerName,
+        co.phoneCode01,
         co.phoneNumber01,
-	      po.handOverPrice,
-	      pt.transactionStatus,
-	      pt.slip
+        SUM(po.handOverPrice) AS handOverPrice,
+        pt.transactionStatus,
+        pt.slip
       FROM pickuptransaction pt
       LEFT JOIN collectionofficer co ON pt.officerId = co.id
-      LEFT JOIN pickuporders po ON pt.id = po.transId 
+      LEFT JOIN pickuporders po ON pt.id = po.transId
       WHERE pt.id = ?
+      GROUP BY
+        co.empId,
+        co.firstNameEnglish,
+        co.lastNameEnglish,
+        co.phoneCode01,
+        co.phoneNumber01,
+        pt.transactionStatus,
+        pt.slip
     `;
 
     collectionofficer.query(sql, [id], (err, result) => {
