@@ -2652,16 +2652,29 @@ exports.getAllFinanceDashboardDataDao = () => {
     `;
 
     const returnedOrdersLossSql = `
-  SELECT
-    COALESCE(SUM(o.fullTotal), 0) AS currentMonthLoss
-  FROM driverorders dro
-  INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
-  INNER JOIN collection_officer.orders o ON po.orderId = o.id
-  WHERE dro.drvStatus = 'Return Received'
-    AND po.paymentMethod = 'Cash'
-    AND MONTH(dro.handOverTime) = MONTH(CURRENT_DATE())
-    AND YEAR(dro.handOverTime)  = YEAR(CURRENT_DATE())
-`;
+      SELECT
+        COALESCE(SUM(o.fullTotal), 0) AS currentMonthLoss
+      FROM driverorders dro
+      INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
+      INNER JOIN collection_officer.orders o ON po.orderId = o.id
+      WHERE dro.drvStatus = 'Return Received'
+      AND po.paymentMethod = 'Cash'
+      AND MONTH(dro.receivedTime) = MONTH(CURRENT_DATE())
+      AND YEAR(dro.receivedTime)  = YEAR(CURRENT_DATE())
+    `;
+
+
+//     const returnedOrdersLossSql = `
+//   SELECT
+//     COALESCE(SUM(o.fullTotal), 0) AS currentMonthLoss
+//   FROM driverorders dro
+//   INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
+//   INNER JOIN collection_officer.orders o ON po.orderId = o.id
+//   WHERE dro.drvStatus = 'Return Received'
+//     AND po.paymentMethod = 'Cash'
+//     AND MONTH(dro.handOverTime) = MONTH(CURRENT_DATE())
+//     AND YEAR(dro.handOverTime)  = YEAR(CURRENT_DATE())
+// `;
 
     const goviShopPremiumIncomeSql = `
       SELECT
