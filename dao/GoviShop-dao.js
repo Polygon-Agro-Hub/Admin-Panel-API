@@ -2,9 +2,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace,
-  investment,
-  goviShop,
 } = require("../startup/database");
 const nodemailer = require("nodemailer");
 const fs = require("fs");
@@ -14,7 +11,7 @@ const uploadFileToS3 = require("../middlewares/s3upload");
 const PDFDocument = require("pdfkit");
 
 // -----------------------------------------------------------------------------------
-//example dao check line 19 instance (goviShop.query) carefully before copy pasting
+//example dao check line 19 instance (plantcare.query) carefully before copy pasting
 //------------------------------------------------------------------------------------
 
 // exports.forexample = () => {
@@ -28,7 +25,7 @@ const PDFDocument = require("pdfkit");
 //       WHERE os.isValid = 1
 //     `;
 
-//     goviShop.query(sql, (err, results) => {
+//     plantcare.query(sql, (err, results) => {
 //       if (err) {
 //         reject(err);
 //       } else {
@@ -54,14 +51,14 @@ exports.getAllGoviShopUsers = (limit, offset, search, currentPlanFilter) => {
         DATE_ADD(su.activatedAt, INTERVAL 330 MINUTE) AS activatedAt,
         su.onbordStatus,
         su.createdAt AS createdAt        
-      FROM govi_shop.shopowners su 
+      FROM plant_care.shopowners su 
       WHERE su.isAvailable = 1
     `;
 
     // Base SQL for count query
     let countSql = `
       SELECT COUNT(*) as total 
-      FROM govi_shop.shopowners su
+      FROM plant_care.shopowners su
       WHERE su.isAvailable = 1
       
     `;
@@ -91,13 +88,13 @@ exports.getAllGoviShopUsers = (limit, offset, search, currentPlanFilter) => {
     dataParams.push(parseInt(limit), parseInt(offset));
 
     // First execute count query to get total records
-    goviShop.query(countSql, countParams, (countErr, countResults) => {
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) return reject(countErr);
 
       const total = countResults[0].total;
 
       // Then execute data query with pagination
-      goviShop.query(dataSql, dataParams, (dataErr, results) => {
+      plantcare.query(dataSql, dataParams, (dataErr, results) => {
         if (dataErr) return reject(dataErr);
 
         // const processedResults = results.map((user) => ({
@@ -121,11 +118,11 @@ exports.getGoviShopUserById = (id) => {
     const sql = `
       SELECT 
         su.id
-      FROM govi_shop.shopowners su
+      FROM plant_care.shopowners su
       WHERE su.id = ?
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) return reject(err);
       resolve(results[0]);
     });
@@ -134,8 +131,8 @@ exports.getGoviShopUserById = (id) => {
 
 exports.deleteGoviShopUserDao = (id) => {
   return new Promise((resolve, reject) => {
-    const sql = "UPDATE govi_shop.shopowners SET isAvailable = 0 WHERE id = ?";
-    goviShop.query(sql, [id], (err, results) => {
+    const sql = "UPDATE plant_care.shopowners SET isAvailable = 0 WHERE id = ?";
+    plantcare.query(sql, [id], (err, results) => {
       if (err) return reject(err);
       resolve(results.affectedRows > 0);
     });
@@ -145,8 +142,8 @@ exports.deleteGoviShopUserDao = (id) => {
 exports.InsertReason = (id, reason) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO govi_shop.removeownerreson (`ownerId`, `reason`) VALUES (?, ?)";
-    goviShop.query(sql, [id, reason], (err, results) => {
+      "INSERT INTO plant_care.removeownerreson (`ownerId`, `reason`) VALUES (?, ?)";
+    plantcare.query(sql, [id, reason], (err, results) => {
       if (err) return reject(err);
       resolve(results.affectedRows > 0);
     });
@@ -158,7 +155,7 @@ exports.getShopOwnerEmailDao = (id) => {
     const sql = `
         SELECT 
           su.email, su.ownername AS ownerName
-        FROM govi_shop.shopowners su
+        FROM plant_care.shopowners su
         WHERE su.id = ?
         `;
     collectionofficer.query(sql, [id], (err, results) => {
@@ -192,7 +189,7 @@ exports.createGoviShopUser = (supplierData, adminId, accessStatus) => {
       // 2. Get last regCode for today
       const getLastCodeSql = `
         SELECT regCode 
-        FROM govi_shop.shopowners 
+        FROM plant_care.shopowners 
         WHERE regCode LIKE ? 
         ORDER BY regCode DESC 
         LIMIT 1
@@ -218,7 +215,7 @@ exports.createGoviShopUser = (supplierData, adminId, accessStatus) => {
 
         // 3. Insert query (add regCode column)
         const insertSql = `
-            INSERT INTO govi_shop.shopowners (
+            INSERT INTO plant_care.shopowners (
               ownername, shopPhone, email, nic, isAvailable, currentPlan, 
               onbordStatus, onbordedAdmin, regCode, accessStatus, isActivated, activatedBy, activatedAt
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
@@ -262,10 +259,10 @@ exports.createGoviShopUser = (supplierData, adminId, accessStatus) => {
 exports.deleteGoviShopSupplierRecordDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-        Delete FROM govi_shop.shopowners so
+        Delete FROM plant_care.shopowners so
         WHERE so.id = ?
         `;
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -279,7 +276,7 @@ exports.insertUserPaymentDetails = (slipUrl, id, regCode) => {
     // Step 1: Get last transaction for this regCode
     const getLastIdSql = `
       SELECT transactionId 
-      FROM govi_shop.paymentplan 
+      FROM plant_care.paymentplan 
       WHERE transactionId LIKE ?
       ORDER BY id DESC 
       LIMIT 1
@@ -288,7 +285,7 @@ exports.insertUserPaymentDetails = (slipUrl, id, regCode) => {
     // Match IDs starting with this regCode (or userId if that's your base)
     const likePattern = `${regCode}%`;
 
-    goviShop.query(getLastIdSql, [likePattern], (err, result) => {
+    plantcare.query(getLastIdSql, [likePattern], (err, result) => {
       if (err) return reject(err);
 
       const today = new Date();
@@ -316,12 +313,12 @@ exports.insertUserPaymentDetails = (slipUrl, id, regCode) => {
 
       // Step 4: Insert
       const insertSql = `
-        INSERT INTO govi_shop.paymentplan 
+        INSERT INTO plant_care.paymentplan 
         (ownerId, planPrice, transactionId, paymentSlip) 
         VALUES (?, ?, ?, ?)
       `;
 
-      goviShop.query(
+      plantcare.query(
         insertSql,
         [id, 1200, transactionId, slipUrl],
         (err, results) => {
@@ -454,7 +451,7 @@ exports.SendGeneratedPasswordDao = async (
         align: "center",
       });
 
-    doc.link(80, btnY, 440, 40, `${process.env.GOVI_SHOP_DEV_URL}login`); // ← clickable overlay
+    doc.link(80, btnY, 440, 40, `${process.env.plant_care_DEV_URL}login`); // ← clickable overlay
 
     doc.moveDown(2);
 
@@ -481,7 +478,7 @@ exports.SendGeneratedPasswordDao = async (
       .fillColor("#3177FF")
       .font("Helvetica")
       .fontSize(12)
-      .text(`${process.env.GOVI_SHOP_DEV_URL}login`, 95, urlBoxY + 13, {
+      .text(`${process.env.plant_care_DEV_URL}login`, 95, urlBoxY + 13, {
         width: 420,
         underline: true,
       });
@@ -579,7 +576,7 @@ exports.updateGovieShopPassword = (password, id) => {
             SET password = ?, isPasswordChanged = 0
             WHERE id = ?
         `;
-    goviShop.query(sql, [password, id], (err, results) => {
+    plantcare.query(sql, [password, id], (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -632,7 +629,7 @@ exports.viewGoviShopSupplierByIdDao = (id) => {
       WHERE su.id = ?
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -661,7 +658,7 @@ exports.getAllShowViewActionDAO = (
 
     let countSql = `
       SELECT COUNT(*) as total 
-       FROM govi_shop.shopowners so
+       FROM plant_care.shopowners so
     `;
 
     let dataSql = `
@@ -675,7 +672,7 @@ exports.getAllShowViewActionDAO = (
         so.currentPlan,
         DATE_ADD(so.activatedAt, INTERVAL '5:30' HOUR_MINUTE) AS activatedAt, 
         a.userName AS updatedAt
-      FROM govi_shop.shopowners so 
+      FROM plant_care.shopowners so 
       LEFT JOIN agro_world_admin.adminusers a ON so.activatedBy = a.id
 
     `;
@@ -722,7 +719,7 @@ exports.getAllShowViewActionDAO = (
     console.log("dataSql", dataSql);
 
     // Execute count query first
-    goviShop.query(countSql, countParams, (countErr, countResults) => {
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
         console.error("Error in count query:", countErr);
         return reject(countErr);
@@ -730,7 +727,7 @@ exports.getAllShowViewActionDAO = (
 
       const total = countResults[0].total;
 
-      goviShop.query(dataSql, params, (dataErr, dataResults) => {
+      plantcare.query(dataSql, params, (dataErr, dataResults) => {
         if (dataErr) {
           console.error("Error in data query:", dataErr);
           return reject(dataErr);
@@ -763,7 +760,7 @@ exports.goviShopViewDocumentDAO = (id) => {
       WHERE so.id = ?;
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -781,7 +778,7 @@ exports.renewGoviShopUserDAO = (id, status, adminId) => {
     WHERE id = ?
     `;
 
-    goviShop.query(sql, [adminId, id], (err, results) => {
+    plantcare.query(sql, [adminId, id], (err, results) => {
       if (err) return reject(err);
       resolve(results.affectedRows > 0);
     });
@@ -798,7 +795,7 @@ exports.renewGoviShopUserDAO = (id, status, adminId) => {
 //       WHERE id = ?
 //     `;
 
-//     goviShop.query(updateSql, [id], (err, result) => {
+//     plantcare.query(updateSql, [id], (err, result) => {
 //       if (err) return reject(err);
 
 //       if (result.affectedRows === 0) {
@@ -811,7 +808,7 @@ exports.renewGoviShopUserDAO = (id, status, adminId) => {
 //         WHERE id = ?
 //       `;
 
-//       goviShop.query(selectSql, [id], (err, rows) => {
+//       plantcare.query(selectSql, [id], (err, rows) => {
 //         if (err) return reject(err);
 
 //         resolve(rows[0]);
@@ -828,7 +825,7 @@ exports.rejectGoviShopUserDAO = (id, status) => {
       WHERE id = ?
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) return reject(err);
       resolve(results.affectedRows > 0);
     });
@@ -842,7 +839,7 @@ exports.getGoviShopUserByIdDAO = (id) => {
       FROM shopowners
       WHERE id = ?
     `;
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) return reject(err);
       resolve(results[0] || null);
     });
@@ -1326,7 +1323,7 @@ exports.deleteGoviShopSupplierDao = (id) => {
             SET isAvailable = 0
             WHERE id = ?
         `;
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -1352,7 +1349,7 @@ exports.GetAllShopsByOwnerDAO = (
     // SQL to count total records - Added missing JOINs
     let countSql = `
       SELECT COUNT(*) AS total
-      FROM govi_shop.govishops gs
+      FROM plant_care.govishops gs
       WHERE gs.ownerId = ? AND gs.isAvailable = 1
     `;
 
@@ -1368,7 +1365,7 @@ exports.GetAllShopsByOwnerDAO = (
         gs.logo AS logo,
         gs.isActive,
         gs.approvedStatus
-      FROM govi_shop.govishops gs
+      FROM plant_care.govishops gs
       WHERE gs.ownerId = ? AND gs.isAvailable = 1
     `;
 
@@ -1440,7 +1437,7 @@ exports.checkExistShopOwnerCreateDao = (nic) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT id
-      FROM govi_shop.shopowners
+      FROM plant_care.shopowners
       WHERE nic = ?
       LIMIT 1
     `;
@@ -1463,7 +1460,7 @@ exports.checkExistEmailsCreateDao = (email) => {
   return new Promise((resolve, reject) => {
     const sql = `
           SELECT *
-          FROM govi_shop.shopowners
+          FROM plant_care.shopowners
           WHERE email = ?
       `;
 
@@ -1484,7 +1481,7 @@ exports.checkExistPhoneCreateDao = (phone1) => {
   return new Promise((resolve, reject) => {
     const sql = `
           SELECT *
-          FROM govi_shop.shopowners
+          FROM plant_care.shopowners
           WHERE shopPhone = ?
       `;
 
@@ -1511,11 +1508,11 @@ exports.getGoViShopSupplierById = (id) => {
         su.nic,
         su.shopPhone AS mobileNumber
 
-      FROM govi_shop.shopowners su
+      FROM plant_care.shopowners su
       WHERE su.id = ?
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1529,7 +1526,7 @@ exports.checkExistShopOwnerDao = (nic, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT *
-      FROM govi_shop.shopowners
+      FROM plant_care.shopowners
       WHERE nic = ? AND id != ?       
     `;
 
@@ -1544,7 +1541,7 @@ exports.checkExistEmailsDao = (email, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT *
-      FROM govi_shop.shopowners
+      FROM plant_care.shopowners
       WHERE email = ? AND id != ?  
     `;
 
@@ -1559,7 +1556,7 @@ exports.checkExistPhoneDao = (phone1, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT *
-      FROM govi_shop.shopowners
+      FROM plant_care.shopowners
       WHERE shopPhone = ? AND id != ?  
     `;
 
@@ -1573,7 +1570,7 @@ exports.checkExistPhoneDao = (phone1, id) => {
 exports.updateGoviShopUserDao = (supplierData) => {
   return new Promise((resolve, reject) => {
     let sql = `
-      UPDATE govi_shop.shopowners
+      UPDATE plant_care.shopowners
       SET 
         ownerName = ?, email = ?, shopPhone = ?, nic = ?
       WHERE id = ?
@@ -1601,7 +1598,7 @@ exports.updateGoviShopUserDao = (supplierData) => {
 exports.updateGoviShopDao = (shopData, adminId) => {
   return new Promise((resolve, reject) => {
     let sql = `
-      UPDATE govi_shop.govishops
+      UPDATE plant_care.govishops
       SET 
         shopName = ?, email = ?, phone = ?, address = ?, updatedby = ?, updatedAt = NOW()
       WHERE id = ?
@@ -1642,8 +1639,8 @@ exports.GetAllShopRequestsDAO = (
     // SQL to count total records - Added missing JOINs
     let countSql = `
       SELECT COUNT(*) AS total
-      FROM govi_shop.govishops gs
-      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
+      FROM plant_care.govishops gs
+      LEFT JOIN plant_care.shopowners so ON gs.ownerId = so.id
       WHERE gs.approvedStatus != 'Approved' AND gs.isAvailable = 1
     `;
 
@@ -1665,8 +1662,8 @@ exports.GetAllShopRequestsDAO = (
         END AS actionStatus,
         so.ownerName,
         so.shopPhone As ownerPhone
-      FROM govi_shop.govishops gs
-      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
+      FROM plant_care.govishops gs
+      LEFT JOIN plant_care.shopowners so ON gs.ownerId = so.id
       WHERE gs.approvedStatus != 'Approved' AND gs.isAvailable = 1
     `;
 
@@ -1737,11 +1734,11 @@ exports.getGoViShopById = (id) => {
         gs.address,
         gs.phone AS mobileNumber
 
-      FROM govi_shop.govishops gs
+      FROM plant_care.govishops gs
       WHERE gs.id = ?
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1755,7 +1752,7 @@ exports.checkExistShopEmailsDao = (email, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT *
-      FROM govi_shop.govishops
+      FROM plant_care.govishops
       WHERE email = ? AND id != ?  
     `;
 
@@ -1770,7 +1767,7 @@ exports.checkExistShopPhoneDao = (phone1, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT *
-      FROM govi_shop.govishops
+      FROM plant_care.govishops
       WHERE phone = ? AND id != ?  
     `;
 
@@ -1805,14 +1802,14 @@ exports.getGoViShopByIdDao = (id) => {
         au2.userName AS updatedBy,
         gs.approvedAt
 
-      FROM govi_shop.govishops gs
-      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
+      FROM plant_care.govishops gs
+      LEFT JOIN plant_care.shopowners so ON gs.ownerId = so.id
       LEFT JOIN agro_world_admin.adminusers au1 ON gs.approvedBy = au1.id
       LEFT JOIN agro_world_admin.adminusers au2 ON gs.updatedBy = au2.id
       WHERE gs.id = ?
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1831,11 +1828,11 @@ exports.getGoViShopForUpdateDao = (id) => {
         gs.address,
         gs.email,
         gs.phone AS mobileNumber
-      FROM govi_shop.govishops gs
+      FROM plant_care.govishops gs
       WHERE gs.id = ?
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1857,11 +1854,11 @@ exports.getBranchForUpdateDao = (id) => {
         b.LandPhone,
         b.district,
         b.province
-      FROM govi_shop.branches b
+      FROM plant_care.branches b
       WHERE b.id = ?
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1897,7 +1894,7 @@ exports.getUsersDao = async (search = "", role = "Manager") => {
       LEFT JOIN branches b ON bs.branchId = b.id
       LEFT JOIN govishops g ON b.shopId = g.id
       LEFT JOIN agro_world_admin.adminusers au ON bs.adminUpdatedBy = au.id
-      LEFT JOIN govi_shop.shopowners so ON bs.ownerUpdatedBy = so.id
+      LEFT JOIN plant_care.shopowners so ON bs.ownerUpdatedBy = so.id
       WHERE bs.role = ?
     `;
 
@@ -1921,7 +1918,7 @@ exports.getUsersDao = async (search = "", role = "Manager") => {
     console.log("Executing SQL:", sql);
     console.log("With params:", params);
 
-    goviShop.query(sql, params, (err, results) => {
+    plantcare.query(sql, params, (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1944,13 +1941,13 @@ exports.getPosUserByIdDao = (id) => {
         bs.role,
         b.branchName
  
-      FROM govi_shop.branchstaff bs
-      LEFT JOIN govi_shop.branches b ON bs.branchId = b.id
-      LEFT JOIN govi_shop.govishops gs ON b.shopId = gs.id
+      FROM plant_care.branchstaff bs
+      LEFT JOIN plant_care.branches b ON bs.branchId = b.id
+      LEFT JOIN plant_care.govishops gs ON b.shopId = gs.id
       WHERE bs.id = ?
     `;
 
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
       } else {
@@ -1967,7 +1964,7 @@ exports.updateGovieShopPosUserPasswordDao = (password, id) => {
             SET password = ?
             WHERE id = ?
         `;
-    goviShop.query(sql, [password, id], (err, results) => {
+    plantcare.query(sql, [password, id], (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -2170,8 +2167,8 @@ exports.SendGeneratedPasswordPosUserDao = async (
 exports.getGoViShopBranchesByShopIdDao = (shopId) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT b.id, b.branchName FROM govi_shop.branches b WHERE b.shopId = ? ";
-    goviShop.query(sql, [shopId], (err, results) => {
+      "SELECT b.id, b.branchName FROM plant_care.branches b WHERE b.shopId = ? ";
+    plantcare.query(sql, [shopId], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2183,7 +2180,7 @@ exports.getGoViShopBranchesByShopIdDao = (shopId) => {
 exports.updateGoviShopPOSUserDao = (userData, adminId) => {
   return new Promise((resolve, reject) => {
     let sql = `
-      UPDATE govi_shop.branchstaff
+      UPDATE plant_care.branchstaff
       SET 
         branchId = ?, userName = ?, email = ?, phone = ?, adminUpdatedBy = ?, updatedAt = CURRENT_TIMESTAMP
       WHERE id = ?
@@ -2212,11 +2209,11 @@ exports.updateGoviShopPOSUserDao = (userData, adminId) => {
 exports.rejecGoviShopUserDao = (id, text, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            UPDATE govi_shop.shopowners
+            UPDATE plant_care.shopowners
             SET accessStatus = 'Rejected', activatedBy = ?, activatedAt = NOW()
             WHERE id = ?
         `;
-    goviShop.query(sql, [adminId, id], (err, results) => {
+    plantcare.query(sql, [adminId, id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2228,9 +2225,9 @@ exports.rejecGoviShopUserDao = (id, text, adminId) => {
 exports.updaterejecReasonGoviShopUserDao = (id, text) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO govi_shop.removeownerreson (`ownerId`, `reason`) VALUES (?, ?)";
+      "INSERT INTO plant_care.removeownerreson (`ownerId`, `reason`) VALUES (?, ?)";
 
-    goviShop.query(sql, [id, text], (err, results) => {
+    plantcare.query(sql, [id, text], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2474,7 +2471,7 @@ exports.approveGoviShopDAO = (id, adminId) => {
     WHERE id = ?
     `;
 
-    goviShop.query(sql, [adminId, id], (err, results) => {
+    plantcare.query(sql, [adminId, id], (err, results) => {
       if (err) return reject(err);
       resolve(results.affectedRows > 0);
     });
@@ -2484,11 +2481,11 @@ exports.approveGoviShopDAO = (id, adminId) => {
 exports.rejectGoviShopDao = (id, text, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            UPDATE govi_shop.govishops
+            UPDATE plant_care.govishops
             SET approvedStatus = 'Rejected', approvedBy = ?, approvedAt = NOW()
             WHERE id = ?
         `;
-    goviShop.query(sql, [adminId, id], (err, results) => {
+    plantcare.query(sql, [adminId, id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2500,9 +2497,9 @@ exports.rejectGoviShopDao = (id, text, adminId) => {
 exports.updateRejectReasonGoviShopDao = (id, text) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO govi_shop.removeshopreason (`shopId`, `reason`) VALUES (?, ?)";
+      "INSERT INTO plant_care.removeshopreason (`shopId`, `reason`) VALUES (?, ?)";
 
-    goviShop.query(sql, [id, text], (err, results) => {
+    plantcare.query(sql, [id, text], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2515,7 +2512,7 @@ exports.checkExistPOSUserEmailsDao = (email, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT *
-      FROM govi_shop.branchstaff
+      FROM plant_care.branchstaff
       WHERE email = ? AND id != ?  
     `;
 
@@ -2530,7 +2527,7 @@ exports.checkExistPOSUserPhoneDao = (phone1, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT *
-      FROM govi_shop.branchstaff
+      FROM plant_care.branchstaff
       WHERE phone = ? AND id != ?  
     `;
 
@@ -2545,11 +2542,11 @@ exports.checkExistPOSUserPhoneDao = (phone1, id) => {
 exports.deleteGoviShopDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      UPDATE govi_shop.govishops
+      UPDATE plant_care.govishops
       SET isAvailable = 0
       WHERE id = ?
     `;
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2561,11 +2558,11 @@ exports.deleteGoviShopDao = (id) => {
 exports.updateReasonGoviShopDao = (id, reason) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      INSERT INTO govi_shop.removeshopreason (shopId, reason)
+      INSERT INTO plant_care.removeshopreason (shopId, reason)
       VALUES (?, ?)
     `;
 
-    goviShop.query(sql, [id, reason], (err, results) => {
+    plantcare.query(sql, [id, reason], (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -2620,12 +2617,12 @@ exports.getAllDeletedSuppliersDao = (page, limit, searchItem) => {
     sql += ` ORDER BY r.createdAt DESC LIMIT ? OFFSET ?`;
     sqlParams.push(parseInt(limit), parseInt(offset));
 
-    goviShop.query(countSql, counterParams, (countErr, countResults) => {
+    plantcare.query(countSql, counterParams, (countErr, countResults) => {
       if (countErr) return reject(countErr);
 
       const total = countResults[0]?.total || 0;
 
-      goviShop.query(sql, sqlParams, (dataErr, results) => {
+      plantcare.query(sql, sqlParams, (dataErr, results) => {
         if (dataErr) return reject(dataErr);
 
         resolve({ results, total });
@@ -2636,12 +2633,12 @@ exports.getAllDeletedSuppliersDao = (page, limit, searchItem) => {
 exports.toggleShopActiveStatusDAO = (id, isActive) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      UPDATE govi_shop.govishops
+      UPDATE plant_care.govishops
       SET isActive = ?, updatedAt = NOW()
       WHERE id = ? AND isAvailable = 1
     `;
 
-    goviShop.query(sql, [isActive, id], (err, results) => {
+    plantcare.query(sql, [isActive, id], (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
@@ -2663,7 +2660,7 @@ exports.GetAllShopsDAO = (
 
     let countSql = `
       SELECT COUNT(*) AS total
-      FROM govi_shop.govishops gs
+      FROM plant_care.govishops gs
       WHERE gs.isAvailable = 1
     `;
 
@@ -2680,8 +2677,8 @@ exports.GetAllShopsDAO = (
         gs.approvedStatus,
         so.ownerName,
         au.userName AS updatedBy
-      FROM govi_shop.govishops gs
-      LEFT JOIN govi_shop.shopowners so ON gs.ownerId = so.id
+      FROM plant_care.govishops gs
+      LEFT JOIN plant_care.shopowners so ON gs.ownerId = so.id
       LEFT JOIN agro_world_admin.adminusers au ON gs.updatedBy = au.id
       WHERE gs.isAvailable = 1
     `;
@@ -2719,11 +2716,11 @@ exports.GetAllShopsDAO = (
     sql += " ORDER BY gs.shopName LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
-    goviShop.query(countSql, Counterparams, (countErr, countResults) => {
+    plantcare.query(countSql, Counterparams, (countErr, countResults) => {
       if (countErr) return reject(countErr);
       const total = countResults[0]?.total || 0;
 
-      goviShop.query(sql, Sqlparams, (dataErr, results) => {
+      plantcare.query(sql, Sqlparams, (dataErr, results) => {
         if (dataErr) return reject(dataErr);
         resolve({ results, total });
       });
@@ -2770,7 +2767,7 @@ exports.getShopBranchDetailsByIdDao = (branchId) => {
       WHERE b.id = ?
     `;
 
-    goviShop.query(sql, [branchId], (err, results) => {
+    plantcare.query(sql, [branchId], (err, results) => {
       if (err) return reject(err);
       resolve(results[0] || null);
     });
@@ -2793,7 +2790,7 @@ exports.GetBranchesByShopIdDAO = (
     // ── Count query ──────────────────────────────────────────────────────────
     let countSql = `
       SELECT COUNT(*) AS total
-      FROM govi_shop.branches b
+      FROM plant_care.branches b
       WHERE b.shopId = ?
     `;
 
@@ -2810,8 +2807,8 @@ exports.GetBranchesByShopIdDAO = (
         COUNT(DISTINCT CASE WHEN bs.role = 'POS'     THEN bs.id END) AS posCount,
         au.userName  AS updatedBy,
         b.updatedAt AS updatedAt
-      FROM govi_shop.branches b
-      LEFT JOIN govi_shop.branchstaff bs ON bs.branchId = b.id
+      FROM plant_care.branches b
+      LEFT JOIN plant_care.branchstaff bs ON bs.branchId = b.id
       LEFT JOIN agro_world_admin.adminusers au ON b.updatedBy = au.id
       WHERE b.shopId = ?
     `;
@@ -2839,23 +2836,23 @@ exports.GetBranchesByShopIdDAO = (
       countParams.push(like, like);
     }
 
-   dataSql += `
+    dataSql += `
       GROUP BY
         b.id, b.branchName, b.mobilePhone, b.district, b.province,
         b.isActive, b.createdAt, au.userName, b.updatedAt
       ORDER BY b.branchName ASC
       LIMIT ? OFFSET ?
     `;
-    
+
     sqlParams.push(parseInt(limit), parseInt(offset));
 
     // ── Execute count first ──────────────────────────────────────────────────
-    goviShop.query(countSql, countParams, (countErr, countResults) => {
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) return reject(countErr);
 
       const total = countResults[0]?.total || 0;
 
-      goviShop.query(dataSql, sqlParams, (dataErr, results) => {
+      plantcare.query(dataSql, sqlParams, (dataErr, results) => {
         if (dataErr) return reject(dataErr);
         resolve({ results, total });
       });
@@ -2866,7 +2863,7 @@ exports.GetBranchesByShopIdDAO = (
 exports.toggleBranchActiveStatusDAO = (branchId, isActive, updatedBy) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      UPDATE govi_shop.branches
+      UPDATE plant_care.branches
       SET 
         isActive  = ?,
         updatedBy = ?,
@@ -2874,7 +2871,7 @@ exports.toggleBranchActiveStatusDAO = (branchId, isActive, updatedBy) => {
       WHERE id = ?
     `;
 
-    goviShop.query(sql, [isActive, updatedBy, branchId], (err, results) => {
+    plantcare.query(sql, [isActive, updatedBy, branchId], (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
@@ -2890,9 +2887,9 @@ exports.GetProductsByBranchIdDAO = (branchId, categoryId, searchItem) => {
         sp.prodName,
         sp.thumbnail,
         sc.catName
-      FROM govi_shop.shopproducts sp
-      INNER JOIN govi_shop.branchproducts bp ON bp.productId = sp.id
-      LEFT JOIN govi_shop.shopcategories sc ON sc.id = sp.categoryId
+      FROM plant_care.shopproducts sp
+      INNER JOIN plant_care.branchproducts bp ON bp.productId = sp.id
+      LEFT JOIN plant_care.shopcategories sc ON sc.id = sp.categoryId
       WHERE bp.branchId = ?
     `;
 
@@ -2909,7 +2906,7 @@ exports.GetProductsByBranchIdDAO = (branchId, categoryId, searchItem) => {
 
     dataSql += ' ORDER BY sp.createdAt DESC';
 
-    goviShop.query(dataSql, sqlParams, (err, results) => {
+    plantcare.query(dataSql, sqlParams, (err, results) => {
       if (err) return reject(err);
       resolve({ results, total: results.length });
     });
@@ -2923,14 +2920,14 @@ exports.GetCategoriesByBranchIdWithTableDAO = (branchId) => {
         c.id AS categoryId,
         c.catName,
         c.thumbnail
-      FROM govi_shop.shopcategories c
-      INNER JOIN govi_shop.shopproducts sp ON sp.categoryId = c.id
-      INNER JOIN govi_shop.branchproducts bp ON bp.productId = sp.id
+      FROM plant_care.shopcategories c
+      INNER JOIN plant_care.shopproducts sp ON sp.categoryId = c.id
+      INNER JOIN plant_care.branchproducts bp ON bp.productId = sp.id
       WHERE bp.branchId = ?
       ORDER BY c.catName ASC
     `;
 
-    goviShop.query(sql, [branchId], (err, results) => {
+    plantcare.query(sql, [branchId], (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
@@ -2942,11 +2939,11 @@ exports.getShopEmailDao = (id) => {
     const sql = `
         SELECT 
           gs.email, su.ownername AS ownerName, gs.shopName
-        FROM govi_shop.govishops gs
-        LEFT JOIN govi_shop.shopowners su ON gs.ownerId = su.id
+        FROM plant_care.govishops gs
+        LEFT JOIN plant_care.shopowners su ON gs.ownerId = su.id
         WHERE gs.id = ?
         `;
-    goviShop.query(sql, [id], (err, results) => {
+    plantcare.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -2979,7 +2976,7 @@ exports.GetBranchesDAO = (
     // ── Count query ──────────────────────────────────────────────────────────
     let countSql = `
       SELECT COUNT(*) AS total
-      FROM govi_shop.branches b
+      FROM plant_care.branches b
       WHERE 1=1 
     `;
 
@@ -2997,10 +2994,10 @@ exports.GetBranchesDAO = (
         COUNT(DISTINCT CASE WHEN bs.role = 'POS'     THEN bs.id END) AS posCount,
         au.userName  AS updatedBy,
         b.updatedAt AS updatedAt
-      FROM govi_shop.branches b
-      LEFT JOIN govi_shop.branchstaff bs ON bs.branchId = b.id
+      FROM plant_care.branches b
+      LEFT JOIN plant_care.branchstaff bs ON bs.branchId = b.id
       LEFT JOIN agro_world_admin.adminusers au ON b.updatedBy = au.id
-      LEFT JOIN govi_shop.govishops gs ON b.shopId = gs.id
+      LEFT JOIN plant_care.govishops gs ON b.shopId = gs.id
       WHERE 1=1 
     `;
 
@@ -3027,7 +3024,7 @@ exports.GetBranchesDAO = (
       countParams.push(like, like);
     }
 
-   dataSql += `
+    dataSql += `
       GROUP BY
         b.id, b.branchName, b.mobilePhone, b.district, b.province,
         b.isActive, b.createdAt, au.userName, b.updatedAt
@@ -3037,12 +3034,12 @@ exports.GetBranchesDAO = (
     sqlParams.push(parseInt(limit), parseInt(offset));
 
     // ── Execute count first ──────────────────────────────────────────────────
-    goviShop.query(countSql, countParams, (countErr, countResults) => {
+    plantcare.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) return reject(countErr);
 
       const total = countResults[0]?.total || 0;
 
-      goviShop.query(dataSql, sqlParams, (dataErr, results) => {
+      plantcare.query(dataSql, sqlParams, (dataErr, results) => {
         if (dataErr) return reject(dataErr);
         resolve({ results, total });
       });
@@ -3055,7 +3052,7 @@ exports.checkExistBranchMobilePhoneDao = (phone1, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT *
-      FROM govi_shop.branches
+      FROM plant_care.branches
       WHERE mobilePhone = ? AND id != ?  
     `;
 
@@ -3071,7 +3068,7 @@ exports.checkExistBranchLandPhoneDao = (phone1, id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT *
-      FROM govi_shop.branches
+      FROM plant_care.branches
       WHERE LandPhone = ? AND id != ?  
     `;
 
@@ -3087,7 +3084,7 @@ exports.checkExistBranchLandPhoneDao = (phone1, id) => {
 exports.updateGoviShopBranchDao = (branchData, adminId) => {
   return new Promise((resolve, reject) => {
     let sql = `
-      UPDATE govi_shop.branches
+      UPDATE plant_care.branches
       SET 
         branchName = ?, mobilePhone = ?, LandPhone = ?, address = ?, district = ?, province = ?, updatedby = ?, updatedAt = NOW()
       WHERE id = ?
@@ -3133,8 +3130,8 @@ exports.GetAllRemovedShopsDAO = (
         gs.isActive,
         gs.isAvailable,
         rr.reason AS removalReason
-      FROM govi_shop.govishops gs
-      LEFT JOIN govi_shop.removeshopreason rr ON gs.id = rr.shopId
+      FROM plant_care.govishops gs
+      LEFT JOIN plant_care.removeshopreason rr ON gs.id = rr.shopId
       WHERE gs.isAvailable = 0
     `;
 
@@ -3151,7 +3148,7 @@ exports.GetAllRemovedShopsDAO = (
 
     sql += " ORDER BY rr.createdAt DESC, gs.updatedAt DESC";
 
-    goviShop.query(sql, Sqlparams, (dataErr, results) => {
+    plantcare.query(sql, Sqlparams, (dataErr, results) => {
       if (dataErr) return reject(dataErr);
       resolve({ results, total: results.length });
     });

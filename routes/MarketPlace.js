@@ -351,4 +351,10 @@ router.patch(
   marketPlaceEp.toggleProductStatus,
 );
 
+router.patch(
+  "/update-wholesale-customer-credit-limit",
+  authMiddleware,
+  marketPlaceEp.updateWholesaleCustomerCreditLimite,
+);
+
 module.exports = router;

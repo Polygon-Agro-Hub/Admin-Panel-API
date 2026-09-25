@@ -21,8 +21,8 @@ exports.createCertificateCompany = (
     `;
     const values = [
       companyName,
-      regNumber,
-      taxId,
+      regNumber || null,
+      taxId || null,
       phoneCode1,
       phoneNumber1,
       phoneCode2 || null,
@@ -604,7 +604,10 @@ exports.getAllFarmerClusters = async (connection, search = "") => {
       COUNT(fcf.farmId) AS memberCount,
       fc.clsStatus AS status,
       au.userName AS lastModifiedBy,
-      DATE_FORMAT(fc.modifyDate, '%Y-%m-%d %H:%i:%s') AS lastModifiedOn,
+      DATE_FORMAT(
+        DATE_ADD(fc.modifyDate, INTERVAL 330 MINUTE),
+        '%Y-%m-%d %H:%i:%s'
+      ) AS lastModifiedOn,
       fc.modifyDate AS rawModifyDate
     FROM farmcluster fc
     LEFT JOIN farmclusterfarmers fcf ON fc.id = fcf.clusterId
@@ -860,7 +863,6 @@ exports.updateFarmerCluster = async (
   try {
     const { clusterName, district, certificateId, farmersToAdd } = updateData;
 
-    // Get current cluster data
     const [currentCluster] = await connection.query(
       `SELECT clsName, district, certificateId FROM farmcluster WHERE id = ?`,
       [clusterId]
@@ -875,45 +877,81 @@ exports.updateFarmerCluster = async (
     const updateFields = [];
     const updateValues = [];
 
-    // Build dynamic update query based on provided fields
     if (clusterName !== undefined && clusterName !== currentData.clsName) {
       updateFields.push("clsName = ?");
       updateValues.push(clusterName.trim());
-      changes.clusterName = {
-        old: currentData.clsName,
-        new: clusterName.trim(),
-      };
+      changes.clusterName = { old: currentData.clsName, new: clusterName.trim() };
     }
 
     if (district !== undefined && district !== currentData.district) {
       updateFields.push("district = ?");
       updateValues.push(district);
-      changes.district = {
-        old: currentData.district,
-        new: district,
-      };
+      changes.district = { old: currentData.district, new: district };
     }
 
-    if (
-      certificateId !== undefined &&
-      certificateId !== currentData.certificateId
-    ) {
+    if (certificateId !== undefined && certificateId !== currentData.certificateId) {
       updateFields.push("certificateId = ?");
       updateValues.push(certificateId);
-      changes.certificateId = {
-        old: currentData.certificateId,
-        new: certificateId,
-      };
+      changes.certificateId = { old: currentData.certificateId, new: certificateId };
     }
 
-    // Update cluster if there are changes
-    if (updateFields.length > 0) {
-      // Add modifyBy and modifyDate
+    const farmersAdded = [];
+    const farmerErrors = [];
+
+    if (farmersToAdd && Array.isArray(farmersToAdd) && farmersToAdd.length > 0) {
+      for (const farmer of farmersToAdd) {
+        try {
+          const { nic, farmId } = farmer;
+
+          if (!nic || !farmId) {
+            farmerErrors.push({ nic: nic || 'N/A', farmId: farmId || 'N/A', error: 'NIC and Farm ID are required' });
+            continue;
+          }
+
+          const [farmerExists] = await connection.query(
+            `SELECT u.id as userId, u.NICnumber, u.firstName, u.lastName, f.id as farmId, f.regCode 
+             FROM users u 
+             INNER JOIN farms f ON u.id = f.userId 
+             WHERE u.NICnumber = ? AND f.regCode = ?`,
+            [nic.trim(), farmId.trim()]
+          );
+
+          if (farmerExists.length === 0) {
+            farmerErrors.push({ nic: nic.trim(), farmId: farmId.trim(), error: 'Farmer or farm not found with the provided NIC and Farm Registration Code' });
+            continue;
+          }
+
+          const farmerData = farmerExists[0];
+          const farmerFullName = `${farmerData.firstName || ''} ${farmerData.lastName || ''}`.trim();
+
+          const [alreadyInCluster] = await connection.query(
+            `SELECT id FROM farmclusterfarmers WHERE clusterId = ? AND farmId = ?`,
+            [clusterId, farmerData.farmId]
+          );
+
+          if (alreadyInCluster.length > 0) {
+            farmerErrors.push({ nic: nic.trim(), farmId: farmId.trim(), farmerName: farmerFullName, error: 'Farmer is already in this cluster' });
+            continue;
+          }
+
+          await connection.query(
+            `INSERT INTO farmclusterfarmers (clusterId, farmId, createdAt) VALUES (?, ?, NOW())`,
+            [clusterId, farmerData.farmId]
+          );
+
+          farmersAdded.push({ nic: nic.trim(), farmId: farmId.trim(), farmerName: farmerFullName, farmRegCode: farmerData.regCode });
+
+        } catch (error) {
+          console.error('Error processing farmer:', error);
+          farmerErrors.push({ nic: farmer.nic || 'N/A', farmId: farmer.farmId || 'N/A', error: error.message || 'Failed to add farmer' });
+        }
+      }
+    }
+
+    if (updateFields.length > 0 || farmersAdded.length > 0) {
       updateFields.push("modifyBy = ?");
       updateValues.push(userId);
       updateFields.push("modifyDate = NOW()");
-
-      // Add clusterId for WHERE clause
       updateValues.push(clusterId);
 
       const updateQuery = `
@@ -929,106 +967,6 @@ exports.updateFarmerCluster = async (
       }
     }
 
-    // Handle bulk farmer additions
-    const farmersAdded = [];
-    const farmerErrors = [];
-
-    if (farmersToAdd && Array.isArray(farmersToAdd) && farmersToAdd.length > 0) {
-      for (const farmer of farmersToAdd) {
-        try {
-          const { nic, farmId } = farmer;
-
-          // Validate farmer data
-          if (!nic || !farmId) {
-            farmerErrors.push({
-              nic: nic || 'N/A',
-              farmId: farmId || 'N/A',
-              error: 'NIC and Farm ID are required'
-            });
-            continue;
-          }
-
-          // Check if farmer exists - matching against regCode (farm registration code)
-          const [farmerExists] = await connection.query(
-            `SELECT u.id as userId, u.NICnumber, u.firstName, u.lastName, f.id as farmId, f.regCode 
-             FROM users u 
-             INNER JOIN farms f ON u.id = f.userId 
-             WHERE u.NICnumber = ? AND f.regCode = ?`,
-            [nic.trim(), farmId.trim()]
-          );
-
-          if (farmerExists.length === 0) {
-            farmerErrors.push({
-              nic: nic.trim(),
-              farmId: farmId.trim(),
-              error: 'Farmer or farm not found with the provided NIC and Farm Registration Code'
-            });
-            continue;
-          }
-
-          const farmerData = farmerExists[0];
-          const farmerFullName = `${farmerData.firstName || ''} ${farmerData.lastName || ''}`.trim();
-
-          // Check if farmer is already in this cluster
-          const [alreadyInCluster] = await connection.query(
-            `SELECT id FROM farmclusterfarmers WHERE clusterId = ? AND farmId = ?`,
-            [clusterId, farmerData.farmId]
-          );
-
-          if (alreadyInCluster.length > 0) {
-            farmerErrors.push({
-              nic: nic.trim(),
-              farmId: farmId.trim(),
-              farmerName: farmerFullName,
-              error: 'Farmer is already in this cluster'
-            });
-            continue;
-          }
-
-          // // Check if farmer is in another cluster
-          // const [inOtherCluster] = await connection.query(
-          //   `SELECT fc.clsName 
-          //    FROM farmclusterfarmers fcf
-          //    INNER JOIN farmcluster fc ON fcf.clusterId = fc.id
-          //    WHERE fcf.farmId = ? AND fcf.clusterId != ?`,
-          //   [farmerData.farmId, clusterId]
-          // );
-
-          // if (inOtherCluster.length > 0) {
-          //   farmerErrors.push({
-          //     nic: nic.trim(),
-          //     farmId: farmId.trim(),
-          //     farmerName: farmerFullName,
-          //     error: `Farmer is already in cluster: ${inOtherCluster[0].clsName}`
-          //   });
-          //   continue;
-          // }
-
-          // Add farmer to cluster
-          await connection.query(
-            `INSERT INTO farmclusterfarmers (clusterId, farmId, createdAt) VALUES (?, ?, NOW())`,
-            [clusterId, farmerData.farmId]
-          );
-
-          farmersAdded.push({
-            nic: nic.trim(),
-            farmId: farmId.trim(),
-            farmerName: farmerFullName,
-            farmRegCode: farmerData.regCode
-          });
-
-        } catch (error) {
-          console.error('Error processing farmer:', error);
-          farmerErrors.push({
-            nic: farmer.nic || 'N/A',
-            farmId: farmer.farmId || 'N/A',
-            error: error.message || 'Failed to add farmer'
-          });
-        }
-      }
-    }
-
-    // Get updated cluster data
     const [updatedCluster] = await connection.query(
       `
       SELECT 
@@ -1053,7 +991,6 @@ exports.updateFarmerCluster = async (
       [clusterId]
     );
 
-    // Build response message
     let message = "Cluster updated successfully";
     if (farmersAdded.length > 0) {
       message += `. ${farmersAdded.length} farmer(s) added`;
@@ -1065,9 +1002,9 @@ exports.updateFarmerCluster = async (
     return {
       message,
       updatedCluster: updatedCluster[0],
-      changes: changes,
-      farmersAdded: farmersAdded,
-      farmerErrors: farmerErrors,
+      changes,
+      farmersAdded,
+      farmerErrors,
     };
   } catch (error) {
     console.error("DAO Error updating farmer cluster:", error);
@@ -1148,9 +1085,8 @@ exports.validateFarmersWithFarms = async (
   farmers,
   connection
 ) => {
-  // Check NICs existence
   const [userRows] = await connection.query(
-    `SELECT id, NICnumber FROM users WHERE NICnumber IN (?)`,
+    `SELECT id, NICnumber, farmerQr FROM users WHERE NICnumber IN (?)`,
     [nicList]
   );
 
@@ -1158,11 +1094,13 @@ exports.validateFarmersWithFarms = async (
   const missingNICs = nicList.filter((nic) => !existingNICs.includes(nic));
   const validNICs = existingNICs;
 
-  // Create user ID to NIC mapping
+  const registeredNICs = userRows
+    .filter((r) => r.farmerQr && r.farmerQr.length > 0)
+    .map((r) => r.NICnumber);
+
   const userMap = {};
   userRows.forEach((r) => (userMap[r.NICnumber] = r.id));
 
-  // Check if farms exist for these users with provided regCodes
   const [farmRows] = await connection.query(
     `SELECT f.id, f.regCode, f.userId, u.NICnumber 
      FROM farms f 
@@ -1171,16 +1109,14 @@ exports.validateFarmersWithFarms = async (
     [nicList, regCodeList]
   );
 
-  // Create validation result - PROCESS EACH FARMER-REGCODE PAIR INDIVIDUALLY
   const validFarmers = [];
   const mismatchedFarmers = [];
+  const unregisteredFarmers = [];
 
-  // Process each farmer-regCode pair from the original farmers array
   farmers.forEach((farmer) => {
     const nic = farmer.farmerNIC.trim();
     const regCode = farmer.regCode.trim();
 
-    // Check if NIC exists
     if (!existingNICs.includes(nic)) {
       mismatchedFarmers.push({
         farmerNIC: nic,
@@ -1190,17 +1126,21 @@ exports.validateFarmersWithFarms = async (
       return;
     }
 
-    // Check if this specific farmer has a farm with this specific regCode
+    if (!registeredNICs.includes(nic)) {
+      unregisteredFarmers.push({
+        farmerNIC: nic,
+        regCode: regCode,
+        reason: "Farmer has not completed registration",
+      });
+      return;
+    }
+
     const userFarms = farmRows.filter(
       (farm) => farm.NICnumber === nic && farm.regCode === regCode
     );
 
     if (userFarms.length > 0) {
-      validFarmers.push({
-        farmerNIC: nic,
-        regCode: regCode,
-        userId: userMap[nic],
-      });
+      validFarmers.push({ farmerNIC: nic, regCode: regCode, userId: userMap[nic] });
     } else {
       mismatchedFarmers.push({
         farmerNIC: nic,
@@ -1215,6 +1155,7 @@ exports.validateFarmersWithFarms = async (
     validNICs,
     validFarmers,
     mismatchedFarmers,
+    unregisteredFarmers, 
   };
 };
 
@@ -1625,7 +1566,7 @@ exports.getFieldAudits = async (searchTerm, connection) => {
       fo.empId as officerEmpId,
       fo.JobRole as officerJobRole,
       au.userName,
-      CONCAT(fo2.firstName, ' ', fo2.lastName) as assignedByCFO
+      fo2.empId as assignedByCFO
     FROM feildaudits fa
     LEFT JOIN certificationpayment cp ON fa.paymentId = cp.id
     LEFT JOIN users u ON cp.userId = u.id
@@ -1846,8 +1787,29 @@ exports.getOfficersByDistrictAndRoleDAO = (district, jobRole, scheduleDate) => {
         fo.distrct as district,
         (
           SELECT COUNT(*)
-          FROM feildaudits fa 
-          WHERE fa.assignOfficerId = fo.id AND DATE(fa.sheduleDate) = ? 
+          FROM jobassignofficer ja
+          INNER JOIN govilinkjobs gj ON gj.id = ja.jobId
+          WHERE ja.officerId = fo.id
+            AND ja.isActive = 1
+            AND DATE(gj.sheduleDate) = DATE(?)
+        )
+        +
+        (
+          SELECT COUNT(*)
+          FROM feildaudits fa
+          WHERE fa.assignOfficerId = fo.id
+            AND fa.propose = 'Cluster'
+            AND fa.status IN ('Pending', 'Ongoing')
+            AND DATE(fa.sheduleDate) = DATE(?)
+        )
+        +
+        (
+          SELECT COUNT(*)
+          FROM feildaudits fa2
+          WHERE fa2.assignOfficerId = fo.id
+            AND fa2.propose = 'Individual'
+            AND fa2.status IN ('Pending', 'Ongoing')
+            AND DATE(fa2.sheduleDate) = DATE(?)
         ) AS jobCount
       FROM 
         feildofficer fo
@@ -1858,9 +1820,7 @@ exports.getOfficersByDistrictAndRoleDAO = (district, jobRole, scheduleDate) => {
       ORDER BY 
         fo.firstName, fo.lastName
     `;
-
-    const params = [scheduleDate, `%${district}%`, jobRole];
-
+    const params = [scheduleDate, scheduleDate, scheduleDate, `%${district}%`, jobRole];
     plantcare.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);

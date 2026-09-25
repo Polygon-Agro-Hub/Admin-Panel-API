@@ -3,8 +3,8 @@ const Joi = require("joi");
 // Certificate Company Validation
 exports.createCertificateCompanyValidation = Joi.object({
   companyName: Joi.string().trim().min(2).max(255).required(),
-  regNumber: Joi.string().trim().max(50).required(),
-  taxId: Joi.string().trim().max(50).required(),
+  regNumber: Joi.string().trim().max(50).allow(""),
+  taxId: Joi.string().trim().max(50).allow(""),
   phoneCode1: Joi.string().trim().required(),
   phoneNumber1: Joi.string()
     .trim()

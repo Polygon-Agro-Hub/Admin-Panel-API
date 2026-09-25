@@ -1,1 +1,15 @@
-{ "version": 2, "rewrites": [{ "source": "/(.*)", "destination": "/api" }] }
+{
+    "version": 2,
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/api"
+        }
+    ],
+    "crons": [
+        {
+            "path": "/api/return-pickup-orders",
+            "schedule": "30 12 * * *"
+        }
+    ]
+}

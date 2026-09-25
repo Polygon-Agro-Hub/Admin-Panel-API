@@ -113,3 +113,8 @@ exports.changePackageStatusValidation = Joi.object({
 exports.ValidateStatusSchema = Joi.object({
   isValid: Joi.number().valid(0, 1).required()
 });
+
+exports.updateWholesaleCustomerCreditLimiteValidation = Joi.object({
+  id: Joi.number().required(),
+  creditLimit: Joi.number().min(0).required(),
+});

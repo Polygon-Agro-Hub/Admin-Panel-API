@@ -2,13 +2,16 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace,
 } = require("../startup/database");
 const { Upload } = require("@aws-sdk/lib-storage");
 const Joi = require("joi");
 const PDFDocument = require("pdfkit");
 const path = require("path");
 const nodemailer = require("nodemailer");
+const DriverJobRoles = require ('./../assets/json/driverJobRole.json')
+
+const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
+const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
 
 exports.getAdminUsersByPosition = () => {
   return new Promise((resolve, reject) => {
@@ -213,7 +216,7 @@ exports.getActiveSalesAgents = () => {
     const sql = `
       SELECT COUNT(*) AS activeSalesAgents FROM salesagent WHERE status = 'active'
             `;
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -230,7 +233,7 @@ exports.getNewSalesAgents = () => {
       SELECT COUNT(*) AS newSalesAgents FROM salesagent WHERE DATE(createdAt) = CURDATE() 
 
             `;
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -246,7 +249,7 @@ exports.getAllSalesAgents = () => {
     const sql = `
       SELECT COUNT(*) AS totalSaleAgents FROM salesagent
     `;
-    marketPlace.query(sql, (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
@@ -418,8 +421,8 @@ exports.SendGeneratedPasswordDao = async (
       .text(`Your Password: ${password}`)
       .moveDown()
       .text(
-        "If you need assistance, please reach out to our support team at polygonagro.inf@gmail.com",
-        { align: "justify" }
+        "If you need assistance, please reach out to our support team at polygon.admin@gmail.com",
+        
       )
       .moveDown()
       .text("Best Regards,")
@@ -427,7 +430,7 @@ exports.SendGeneratedPasswordDao = async (
       .text("Polygon Holdings (Pvt) Ltd. | All rights reserved.")
       .moveDown()
       .text("Address: No:14, Sir Baron Jayathilake Mawatha, Colombo 01.")
-      .text("Email: polygonagro.inf@gmail.com");
+      .text("Email: polygon.admin@gmail.com");
 
     doc.end();
     await new Promise((resolve) => doc.on("end", resolve));
@@ -454,7 +457,7 @@ exports.SendGeneratedPasswordDao = async (
       text: `Dear ${firstName},\n\nYour registration details are attached in the PDF.`,
       attachments: [
         {
-          filename: `password_${empId}.pdf`,
+          filename: `Registration_${empId}.pdf`,
           content: pdfData,
         },
       ],
@@ -479,11 +482,11 @@ exports.getDistributionOfficersByPosition = () => {
           WHEN jobRole = 'Distribution Centre Head' AND companyId = '2' AND status = 'Approved' THEN 'DCH'
           WHEN jobRole = 'Distribution Centre Manager' AND companyId = '2' AND status = 'Approved' THEN 'DCM'
           WHEN jobRole = 'Distribution Officer' AND companyId = '2' AND status = 'Approved' THEN 'DOO'
-          WHEN jobRole = 'Driver' AND companyId = '2' AND status = 'Approved' THEN 'DRV'
+          WHEN jobRole IN ('${LIGHT_WEIGHT_DRIVER}', '${HEAVY_WEIGHT_DRIVER}') AND companyId = '2' AND status = 'Approved' THEN 'DRV'
         END AS job,
         COUNT(id) AS officerCount
       FROM collectionofficer
-      WHERE jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', 'Driver')
+      WHERE jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', '${LIGHT_WEIGHT_DRIVER}', '${HEAVY_WEIGHT_DRIVER}')
       GROUP BY job;
     `;
     collectionofficer.query(sql, (err, results) => {
@@ -508,7 +511,7 @@ exports.getNewDistributionOfficers = () => {
       WHERE DATE(createdAt) = CURDATE() 
         AND companyId = '2' 
         AND status = 'Approved'
-        AND jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', 'Driver');
+        AND jobRole IN ('Distribution Centre Head', 'Distribution Centre Manager', 'Distribution Officer', '${LIGHT_WEIGHT_DRIVER}', '${HEAVY_WEIGHT_DRIVER}');
     `;
     collectionofficer.query(sql, (err, results) => {
       if (err) {

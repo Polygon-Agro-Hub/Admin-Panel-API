@@ -2,7 +2,6 @@ const {
   admin,
   plantcare,
   collectionofficer,
-  marketPlace,
 } = require("../startup/database");
 const Joi = require("joi");
 
@@ -1331,80 +1330,193 @@ exports.getTransactionAmountCountDao = (centerId) => {
   });
 };
 
+
 exports.getReseantCollectionDao = (centerId) => {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT CG.cropNameEnglish, CV.varietyNameEnglish, 
-             SUM(FPC.gradeAprice) AS totAprice, SUM(FPC.gradeBprice) AS totBprice, SUM(FPC.gradeCprice) AS totCprice, 
-             SUM(FPC.gradeAquan) AS totAqty, SUM(FPC.gradeBquan) AS totBqty, SUM(FPC.gradeCquan) AS totCqty, 
-             DATE(RFP.createdAt) AS date 
-      FROM registeredfarmerpayments RFP
-      JOIN farmerpaymentscrops FPC ON RFP.id = FPC.registerFarmerId
-      JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
-      JOIN plant_care.cropvariety CV ON FPC.cropId = CV.id
-      JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
-      JOIN (
-        SELECT DISTINCT DATE(RFP2.createdAt) AS recentDate
-        FROM registeredfarmerpayments RFP2
-        JOIN collectionofficer COF2 ON RFP2.collectionOfficerId = COF2.id
-        WHERE COF2.centerId = ?
-        ORDER BY DATE(RFP2.createdAt) DESC
-        LIMIT 5
-      ) AS RecentDates ON DATE(RFP.createdAt) = RecentDates.recentDate
-      WHERE COF.centerId = ?
-      GROUP BY CG.cropNameEnglish, CV.varietyNameEnglish, DATE(RFP.createdAt)
-      ORDER BY DATE(RFP.createdAt) DESC
-    `;
+    return new Promise((resolve, reject) => {
+        const sql = `
+            WITH recentRFP AS (
+                SELECT RFP.id
+                FROM collection_officer.registeredfarmerpayments RFP
+                JOIN collection_officer.collectionofficer COF
+                    ON RFP.collectionOfficerId = COF.id
+                WHERE COF.centerId = ?
+                ORDER BY RFP.createdAt DESC
+                LIMIT 5
+            )
 
-    collectionofficer.query(sql, [centerId, centerId], (err, results) => {
-      if (err) {
-        return reject(err);
-      }
+            SELECT
+                RFP.id,
+                CC.id AS centerId,
+                RFP.invNo,
+                RFP.createdAt,
+                FPC.cropId,
+                CG.cropNameEnglish,
+                CV.varietyNameEnglish,
 
-      const transformData = results.flatMap((item) => {
-        const entries = [];
+                CASE grade
+                    WHEN 'A' THEN FPC.gradeAprice
+                    WHEN 'B' THEN FPC.gradeBprice
+                    WHEN 'C' THEN FPC.gradeCprice
+                END AS price,
 
-        if (item.totAqty && item.totAprice) {
-          entries.push({
-            cropNameEnglish: item.cropNameEnglish,
-            varietyNameEnglish: item.varietyNameEnglish,
-            totQty: item.totAqty,
-            totPrice: item.totAprice * item.totAqty,
-            grade: "A",
-            date: item.date,
-          });
-        }
+                CASE grade
+                    WHEN 'A' THEN FPC.gradeAquan
+                    WHEN 'B' THEN FPC.gradeBquan
+                    WHEN 'C' THEN FPC.gradeCquan
+                END AS quantity,
 
-        if (item.totBqty && item.totBprice) {
-          entries.push({
-            cropNameEnglish: item.cropNameEnglish,
-            varietyNameEnglish: item.varietyNameEnglish,
-            totQty: item.totBqty,
-            totPrice: item.totBprice * item.totBqty,
-            grade: "B",
-            date: item.date,
-          });
-        }
+                grade,
 
-        if (item.totCqty && item.totCprice) {
-          entries.push({
-            cropNameEnglish: item.cropNameEnglish,
-            varietyNameEnglish: item.varietyNameEnglish,
-            totQty: item.totCqty,
-            totPrice: item.totCprice * item.totCqty,
-            grade: "C",
-            date: item.date,
-          });
-        }
+                CASE grade
+                    WHEN 'A' THEN COALESCE(FPC.gradeAprice, 0) * COALESCE(FPC.gradeAquan, 0)
+                    WHEN 'B' THEN COALESCE(FPC.gradeBprice, 0) * COALESCE(FPC.gradeBquan, 0)
+                    WHEN 'C' THEN COALESCE(FPC.gradeCprice, 0) * COALESCE(FPC.gradeCquan, 0)
+                END AS totalPrice,
 
-        return entries;
-      });
+                RFP.createdAt AS date
 
-      console.log('transformData', transformData);
-      resolve(transformData);
+            FROM collection_officer.registeredfarmerpayments RFP
+
+            JOIN recentRFP
+                ON RFP.id = recentRFP.id
+
+            JOIN collection_officer.farmerpaymentscrops FPC
+                ON RFP.id = FPC.registerFarmerId
+
+            JOIN collection_officer.collectionofficer COF
+                ON RFP.collectionOfficerId = COF.id
+
+            LEFT JOIN collection_officer.collectioncenter CC
+                ON COF.centerId = CC.id
+
+            JOIN plant_care.cropvariety CV
+                ON FPC.cropId = CV.id
+
+            JOIN plant_care.cropgroup CG
+                ON CV.cropGroupId = CG.id
+
+            CROSS JOIN (
+                SELECT 'A' AS grade
+                UNION ALL SELECT 'B'
+                UNION ALL SELECT 'C'
+            ) grades
+
+            WHERE
+                (
+                    (grade = 'A' AND COALESCE(FPC.gradeAquan, 0) > 0)
+                    OR
+                    (grade = 'B' AND COALESCE(FPC.gradeBquan, 0) > 0)
+                    OR
+                    (grade = 'C' AND COALESCE(FPC.gradeCquan, 0) > 0)
+                )
+
+            ORDER BY RFP.createdAt DESC, RFP.id, grade
+        `;
+
+        collectionofficer.query(sql, [centerId], (err, results) => {
+            if (err) {
+                return reject(err);
+            }
+
+            const transformData = results.map((item) => {
+
+                return {
+                    rfpId: item.id,
+                    centerId: item.centerId,
+                    invNo: item.invNo,
+
+                    cropId: item.cropId,
+                    cropNameEnglish: item.cropNameEnglish,
+                    varietyNameEnglish: item.varietyNameEnglish,
+
+                    grade: item.grade,
+                    totQty: item.quantity,
+                    price: item.price,
+                    totPrice: item.totalPrice,
+
+                    date: item.date
+                };
+            });
+
+            resolve(transformData);
+        });
     });
-  });
 };
+
+// exports.getReseantCollectionDao = (centerId) => {
+//   return new Promise((resolve, reject) => {
+//     const sql = `
+//       SELECT CG.cropNameEnglish, CV.varietyNameEnglish, 
+//              SUM(FPC.gradeAprice) AS totAprice, SUM(FPC.gradeBprice) AS totBprice, SUM(FPC.gradeCprice) AS totCprice, 
+//              SUM(FPC.gradeAquan) AS totAqty, SUM(FPC.gradeBquan) AS totBqty, SUM(FPC.gradeCquan) AS totCqty, 
+//              RFP.createdAt AS date 
+//       FROM registeredfarmerpayments RFP
+//       JOIN farmerpaymentscrops FPC ON RFP.id = FPC.registerFarmerId
+//       JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
+//       JOIN plant_care.cropvariety CV ON FPC.cropId = CV.id
+//       JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
+//       JOIN (
+//         SELECT DISTINCT DATE(RFP2.createdAt) AS recentDate
+//         FROM registeredfarmerpayments RFP2
+//         JOIN collectionofficer COF2 ON RFP2.collectionOfficerId = COF2.id
+//         WHERE COF2.centerId = ?
+//         ORDER BY DATE(RFP2.createdAt) DESC
+//         LIMIT 5
+//       ) AS RecentDates ON DATE(RFP.createdAt) = RecentDates.recentDate
+//       WHERE COF.centerId = ?
+//       GROUP BY CG.cropNameEnglish, CV.varietyNameEnglish, RFP.createdAt
+//       ORDER BY RFP.createdAt DESC
+//     `;
+
+//     collectionofficer.query(sql, [centerId, centerId], (err, results) => {
+//       if (err) {
+//         return reject(err);
+//       }
+
+//       const transformData = results.flatMap((item) => {
+//         const entries = [];
+
+//         if (item.totAqty && item.totAprice) {
+//           entries.push({
+//             cropNameEnglish: item.cropNameEnglish,
+//             varietyNameEnglish: item.varietyNameEnglish,
+//             totQty: item.totAqty,
+//             totPrice: item.totAprice * item.totAqty,
+//             grade: "A",
+//             date: item.date,
+//           });
+//         }
+
+//         if (item.totBqty && item.totBprice) {
+//           entries.push({
+//             cropNameEnglish: item.cropNameEnglish,
+//             varietyNameEnglish: item.varietyNameEnglish,
+//             totQty: item.totBqty,
+//             totPrice: item.totBprice * item.totBqty,
+//             grade: "B",
+//             date: item.date,
+//           });
+//         }
+
+//         if (item.totCqty && item.totCprice) {
+//           entries.push({
+//             cropNameEnglish: item.cropNameEnglish,
+//             varietyNameEnglish: item.varietyNameEnglish,
+//             totQty: item.totCqty,
+//             totPrice: item.totCprice * item.totCqty,
+//             grade: "C",
+//             date: item.date,
+//           });
+//         }
+
+//         return entries;
+//       });
+
+//       console.log('transformData', transformData);
+//       resolve(transformData);
+//     });
+//   });
+// };
 
 
 exports.getTotExpencesDao = (centerId) => {

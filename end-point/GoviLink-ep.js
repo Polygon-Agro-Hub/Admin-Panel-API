@@ -512,8 +512,6 @@ exports.getFieldAuditHistoryResponseById = async (req, res) => {
   }
 };
 
-
-
 exports.getServiceRequestResponseEp = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
@@ -592,7 +590,6 @@ exports.getFieldAuditHistoryClusterResponseById = async (req, res) => {
     });
   }
 };
-
 
 exports.getGoviLinkDashbordData = async (req, res) => {
   try {

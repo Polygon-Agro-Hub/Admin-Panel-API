@@ -1022,3 +1022,185 @@ exports.getAllShortageAssignedDetails = async (req, res) => {
     });
   }
 };
+
+exports.createPackingTargetLimit = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+    console.log("Request body:", req.body);
+
+    // Validate request body structure
+    if (!req.body || req.body.tarValue === undefined || req.body.tarValue === null) {
+      return res.status(400).json({
+        error: "Invalid request format. Expected { tarValue: number }",
+        status: false,
+      });
+    }
+
+    const { tarValue } = req.body;
+
+    // Additional validation for tarValue
+    if (isNaN(parseFloat(tarValue))) {
+      return res.status(400).json({
+        error: "tarValue must be a valid number",
+        status: false,
+      });
+    }
+
+    const result = await procumentDao.createPackingTargetLimitDao(tarValue);
+    console.log(result);
+
+    res.status(201).json({
+      message: "Packing target limit created successfully",
+      results: result,
+      status: true,
+    });
+  } catch (err) {
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error:
+        err.message || "An error occurred while creating packing target limit",
+      status: false,
+    });
+  }
+};
+
+exports.getLatestPackingTargetLimit = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const result = await procumentDao.getLatestPackingTargetLimitDao();
+
+    if (!result) {
+      return res.status(404).json({
+        error: "No packing target limit found",
+        status: false,
+      });
+    }
+
+    res.status(200).json({
+      message: "Latest packing target limit fetched successfully",
+      results: result,
+      status: true,
+    });
+  } catch (err) {
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error:
+        err.message || "An error occurred while fetching packing target limit",
+      status: false,
+    });
+  }
+};
+
+exports.getTransportLoadFullDetails = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+
+    const { id: loadedItemId } = req.params; // <-- fixed: match the route's :id
+
+    if (!loadedItemId) {
+      return res.status(400).json({
+        error: "loadedItemId is required",
+        status: false,
+      });
+    }
+
+    const [transportDetails, weightSummary] = await Promise.all([
+      procumentDao.getTransportLoadDetailsByLoadedItemIdDao(loadedItemId),
+      procumentDao.getLoadedItemWeightSummaryDao(loadedItemId),
+    ]);
+
+    console.log("Transport Details:", transportDetails);
+    console.log("Weight Summary:", weightSummary);
+
+    if (!transportDetails) {
+      return res.status(404).json({
+        error: "No transport load details found",
+        status: false,
+      });
+    }
+
+    res.status(200).json({
+      message: "Transport load full details fetched successfully",
+      results: {
+        transportDetails,
+        weightSummary,
+      },
+      status: true,
+    });
+  } catch (err) {
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error:
+        err.message || "An error occurred while fetching transport load full details",
+      status: false,
+    });
+  }
+};
+
+exports.updateTransportLoadRecommendation = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { transportId, recomandation } = req.body;
+    const rcmdBy = req.user.userId; // logged-in admin, set by auth middleware
+
+    if (!transportId || !recomandation) {
+      return res.status(400).json({
+        success: false,
+        message: "transportId and recomandation are required",
+      });
+    }
+
+    const result = await procumentDao.updateTransportLoadRecommendationDao(
+      transportId,
+      recomandation,
+      rcmdBy
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({
+        success: false,
+        message: "Transport load not found or not updated",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Transport load recommendation updated successfully",
+    });
+  } catch (err) {
+    console.error("Error updating transport load recommendation:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while updating the transport load recommendation.",
+    });
+  }
+};
+
+
+exports.getLoadMismatchReportsToday = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const reports = await procumentDao.getLoadMismatchReportsTodayDao();
+
+    res.json({
+      success: true,
+      total: reports.length,
+      data: reports,
+    });
+  } catch (err) {
+    console.error("Error fetching load mismatch reports today:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching load mismatch reports",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};

@@ -1,4 +1,4 @@
-const { plantcare, collectionofficer, marketPlace, admin} = require('../startup/database');
+const { plantcare, collectionofficer, admin} = require('../startup/database');
 const Joi = require('joi');
 const path = require('path');
 
@@ -340,6 +340,7 @@ exports.getAllMarketPriceAgroDAO = (crop, grade, search, centerId, companyId) =>
     cg.cropNameEnglish AS cropName,
     cv.varietyNameEnglish AS varietyName,
     m.grade,
+    m.averagePrice,
     ms.price,
     ms.updatedPrice,
     ms.updateAt,

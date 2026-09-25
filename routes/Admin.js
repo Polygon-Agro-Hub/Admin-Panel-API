@@ -445,4 +445,10 @@ router.post('/block-words', authMiddleware, AdminEp.addBlockWord);
 router.delete('/block-words/:id', authMiddleware, AdminEp.deleteBlockWord);
 router.delete('/block-words', authMiddleware, AdminEp.deleteMultipleBlockWords);
 
+router.get(
+  "/check-block-word/:word",
+  // authMiddleware,
+  AdminEp.checkBlockWord
+);
+
 module.exports = router;

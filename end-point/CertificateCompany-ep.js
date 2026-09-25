@@ -1269,6 +1269,16 @@ exports.createFarmerCluster = async (req, res) => {
       });
     }
 
+    if (farmerValidation.unregisteredFarmers.length > 0) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "Some farmers have not completed their registration and cannot be added to a cluster",
+        status: false,
+        unregisteredFarmers: farmerValidation.unregisteredFarmers,
+        validFarmers: farmerValidation.validFarmers,
+      });
+}
+
     if (farmerValidation.mismatchedFarmers.length > 0) {
       await connection.rollback();
       return res.status(400).json({
@@ -1450,10 +1460,19 @@ exports.addSingleFarmerToCluster = async (req, res) => {
       nic.trim(),
       connection
     );
+
     if (!farmerInfo) {
       await connection.rollback();
       return res.status(400).json({
         message: `No farmer exists using this NIC`,
+        status: false,
+      });
+    }
+
+    if (!farmerInfo.farmerQr || farmerInfo.farmerQr.length === 0) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: `This farmer has not completed registration and cannot be added to a cluster`,
         status: false,
       });
     }

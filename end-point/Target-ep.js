@@ -107,6 +107,9 @@ console.log(plusTwoDate);  // 2026-08-11
       TargetDAO.getCenterAssignedTargetsDao(companyCenterId, originalDate)
     ]);
 
+
+    console.log('requestedItems', requestedItems)
+
     const { grouped: centerAssignedMap, officerName } = centerAssignedResult;
 
     let productMap = aggregateRequestedItemsByVariety(requestedItems);
