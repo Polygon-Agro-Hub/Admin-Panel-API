@@ -949,34 +949,27 @@ exports.DeleteDistributionCenter = (id) => {
 };
 
 exports.generateRegCode = (province, district, city, callback) => {
-  // Generate the prefix based on province and district with "P" after province initial
   const prefix =
+    "D-" +
     province.charAt(0).toUpperCase() +
     province.charAt(1).toUpperCase() +
     district.charAt(0).toUpperCase() +
     city.charAt(0).toUpperCase();
 
-  // SQL query to get the latest regCode
-  const query = `SELECT regCode FROM distributedcenter WHERE regCode LIKE ? ORDER BY regCode DESC LIMIT 1`;
+  const query = `
+    SELECT MAX(CAST(SUBSTRING_INDEX(regCode, '-', -1) AS UNSIGNED)) AS lastNumber
+    FROM distributedcenter
+    WHERE regCode LIKE ?
+  `;
 
-  // Execute the query
   collectionofficer.execute(query, [`${prefix}-%`], (err, results) => {
     if (err) {
       console.error("Error executing query:", err);
       return callback(err);
     }
 
-    let newRegCode = `${prefix}-01`; // Default to 01 if no regCode found
-
-    if (results.length > 0) {
-      // Get the last regCode and extract the number
-      const lastRegCode = results[0].regCode;
-      const lastNumber = parseInt(lastRegCode.split("-")[1]);
-      const newNumber = lastNumber + 1;
-      newRegCode = `${prefix}-${String(newNumber).padStart(2, "0")}`;
-    }
-
-    // Return the new regCode
+    const lastNumber = results[0].lastNumber || 0;
+    const newRegCode = `${prefix}-${String(lastNumber + 1).padStart(2, "0")}`;
     callback(null, newRegCode);
   });
 };
