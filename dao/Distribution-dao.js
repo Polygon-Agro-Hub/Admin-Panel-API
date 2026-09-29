@@ -408,15 +408,19 @@ exports.getCompanyDAO = () => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-      c.id,
-      c.companyNameEnglish
+        c.id,
+        c.companyNameEnglish
       FROM 
         company c
-      WHERE c.status = 1 AND c.isDistributed = true
+      WHERE c.status = 1 
+        AND c.isDistributed = true
+        AND c.companyNameEnglish <> ?
       ORDER BY c.companyNameEnglish ASC
     `;
 
-    collectionofficer.query(sql, (err, results) => {
+    const params = ["Polygon Holdings Private Limited"];
+
+    collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
