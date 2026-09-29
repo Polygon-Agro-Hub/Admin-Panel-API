@@ -1524,6 +1524,9 @@ exports.createDistributionOfficer = async (req, res) => {
       }
     }
 
+     // Notify mobile APIs based on job role
+    await notifyMobileApis(officerData.jobRole, Number(officerId));
+
     return res.status(201).json({
       message: "Distribution Officer created successfully",
       status: true,
@@ -2166,6 +2169,9 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
         console.error("Error deleting driver data:", deleteError);
       }
     }
+
+    // Notify mobile APIs based on job role
+    await notifyMobileApis(officerData.jobRole, Number(id));
 
     return res.status(200).json({
       message: "Distribution Officer updated successfully",
