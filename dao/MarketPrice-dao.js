@@ -151,8 +151,6 @@ exports.insertMarketPriceXLSXData = (xlindex, data) => {
     });
   };
 
-
-
 exports.getXLSXFilePath = async (fileName) => {
   try {
     // Assuming files are stored in a specific directory (e.g., 'uploads/xlsx')
@@ -171,10 +169,6 @@ exports.getXLSXFilePath = async (fileName) => {
     throw error;
   }
 };
-
-
-
-
 
 exports.getAllMarketPriceDAO = (crop, grade, search) => {
   return new Promise((resolve, reject) => {
@@ -195,6 +189,7 @@ exports.getAllMarketPriceDAO = (crop, grade, search) => {
         cv.varietyNameEnglish AS varietyName,
         m.grade,
         m.price,
+        m.averagePrice,
         m.createdAt
       FROM marketprice m
       JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
@@ -227,8 +222,6 @@ exports.getAllMarketPriceDAO = (crop, grade, search) => {
 
     sql += ` ORDER BY cg.cropNameEnglish, cv.varietyNameEnglish, m.grade`;
    
-    
-
     // Execute the count query
     collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
