@@ -153,6 +153,10 @@ exports.createCollectionOfficer = async (req, res) => {
     );
 
     console.log("Collection Officer created successfully");
+
+    // Notify mobile APIs based on job role (errors are only logged)
+    await notifyMobileApis(officerData.jobRole, Number(resultsPersonal.insertId));
+
     return res.status(201).json({
       message: "Collection Officer created successfully",
       id: resultsPersonal.insertId,
@@ -800,6 +804,9 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
       profileImageUrl,
       adminId
     );
+
+    // Notify mobile APIs based on job role (errors are only logged)
+    await notifyMobileApis(officerData.jobRole, Number(id));
 
     res.json({ message: "Collection officer details updated successfully", status: true });
 
