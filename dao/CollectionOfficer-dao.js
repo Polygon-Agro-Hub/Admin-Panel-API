@@ -866,7 +866,7 @@ exports.getAllCompanyNamesDao = (district) => {
 exports.getCollectionOfficerEmailDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT c.email, c.firstNameEnglish, c.empId AS empId
+            SELECT c.email, c.firstNameEnglish, c.empId AS empId, c.jobRole 
             FROM collectionofficer c
             WHERE c.id = ?
         `;
@@ -879,6 +879,7 @@ exports.getCollectionOfficerEmailDao = (id) => {
           email: results[0].email, // Resolve with email
           firstNameEnglish: results[0].firstNameEnglish,
           empId: results[0].empId, // Resolve with employeeType (empId)
+          jobRole: results[0].jobRole, 
         });
       } else {
         resolve(null); // Resolve with null if no record is found

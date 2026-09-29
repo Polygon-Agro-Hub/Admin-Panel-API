@@ -1270,7 +1270,7 @@ exports.DeleteDistributionOfficerDao = (id) => {
 exports.getDistributionOfficerEmailDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT c.email, c.firstNameEnglish, c.empId AS empId
+            SELECT c.email, c.firstNameEnglish, c.empId AS empId, c.jobRole 
             FROM collectionofficer c
             WHERE c.id = ?
         `;
@@ -1283,6 +1283,7 @@ exports.getDistributionOfficerEmailDao = (id) => {
           email: results[0].email, // Resolve with email
           firstNameEnglish: results[0].firstNameEnglish,
           empId: results[0].empId, // Resolve with employeeType (empId)
+          jobRole: results[0].jobRole, // Resolve with jobRole
         });
       } else {
         resolve(null); // Resolve with null if no record is found
