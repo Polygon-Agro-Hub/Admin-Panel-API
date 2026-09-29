@@ -845,7 +845,7 @@ exports.getForCreateId = (role) => {
   });
 };
 
-exports.createCompany = async (
+exports.createCompany = (
   regNumber,
   companyNameEnglish,
   companyNameSinhala,
@@ -867,17 +867,41 @@ exports.createCompany = async (
   foEmail,
   logo,
   favicon,
-  companyType
+  companyType,
+  adminId
 ) => {
   return new Promise((resolve, reject) => {
-    let sql;
-    if (companyType === "distribution") {
-      sql =
-        "INSERT INTO company (regNumber, companyNameEnglish, companyNameSinhala, companyNameTamil, email, oicName, oicEmail, oicConCode1, oicConNum1, oicConCode2, oicConNum2, accHolderName, accNumber, bankName, branchName, foName, foConCode, foConNum, foEmail, logo, favicon, isDistributed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 1)";
-    } else {
-      sql =
-        "INSERT INTO company (regNumber, companyNameEnglish, companyNameSinhala, companyNameTamil, email, oicName, oicEmail, oicConCode1, oicConNum1, oicConCode2, oicConNum2, accHolderName, accNumber, bankName, branchName, foName, foConCode, foConNum, foEmail, logo, favicon, isCollection) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 1)";
-    }
+    const typeColumn =
+      companyType === "distribution" ? "isDistributed" : "isCollection";
+
+    const sql = `
+      INSERT INTO company (
+        regNumber,
+        companyNameEnglish,
+        companyNameSinhala,
+        companyNameTamil,
+        email,
+        oicName,
+        oicEmail,
+        oicConCode1,
+        oicConNum1,
+        oicConCode2,
+        oicConNum2,
+        accHolderName,
+        accNumber,
+        bankName,
+        branchName,
+        foName,
+        foConCode,
+        foConNum,
+        foEmail,
+        logo,
+        favicon,
+        modifyBy,
+        ${typeColumn}
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `;
+
     const values = [
       regNumber,
       companyNameEnglish,
@@ -900,14 +924,16 @@ exports.createCompany = async (
       foEmail,
       logo,
       favicon,
+      adminId,
     ];
 
     collectionofficer.query(sql, values, (err, results) => {
       if (err) {
-        reject(err);
-      } else {
-        resolve(results.insertId);
+        console.error("Database error details:", err);
+        return reject(err);
       }
+      console.log("Insert successful:", results);
+      resolve(results.insertId);
     });
   });
 };

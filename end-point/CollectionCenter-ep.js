@@ -562,13 +562,14 @@ exports.getForCreateId = async (req, res) => {
 
 exports.createCompany = async (req, res) => {
   try {
+    // Properly format and log the full URL
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-    console.log("Request URL:", fullUrl);
-    const companyType = req.query.type;
-    console.log("companyType:", companyType);
-    console.log(req.body);
+    console.log(`Full URL: ${fullUrl}`);
 
-    // Validate the request body
+    const companyType = req.query.type;
+    const adminId = req.user.userId;
+
+    // Destructure request body to get the fields
     const {
       regNumber,
       companyNameEnglish,
@@ -611,118 +612,59 @@ exports.createCompany = async (req, res) => {
       }
 
       return res.json({
+        message: message,
         status: false,
-        message: message
       });
     }
 
-    // Generate unique filenames
-    const generateFileName = (prefix, originalName = '') => {
-      const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(2, 15);
-      const extension = originalName.split('.').pop() || 'png';
-      return `${prefix}_${timestamp}_${random}.${extension}`;
-    };
-
-    // Convert base64 to file information (without saving to disk)
-    const processBase64Image = (base64String, fileType) => {
-      if (!base64String) return null;
-
-      try {
-        // Extract MIME type and data from base64 string
-        const matches = base64String.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-
-        if (!matches || matches.length !== 3) {
-          throw new Error('Invalid base64 string');
-        }
-
-        const mimeType = matches[1];
-        const buffer = Buffer.from(matches[2], 'base64');
-
-        // Generate a filename based on MIME type
-        const extension = mimeType.split('/')[1] || 'png';
-        const filename = generateFileName(fileType, `file.${extension}`);
-
-        return {
-          filename: filename,
-          originalname: filename,
-          mimetype: mimeType,
-          size: buffer.length,
-          buffer: buffer
-        };
-      } catch (error) {
-        console.error(`Error processing ${fileType}:`, error);
-        return null;
-      }
-    };
-
     // ================= IMAGE UPLOAD =================
-let logoUrl = null;
-let faviconUrl = null;
+    const uploadBase64Image = async (base64, filePrefix, folder) => {
+      if (!base64) return null;
 
-const uploadBase64Image = async (base64, filePrefix, folder) => {
-  if (!base64) return null;
+      if (typeof base64 !== "string" || !base64.startsWith("data:")) {
+        throw new Error("Invalid image data");
+      }
 
-  if (typeof base64 !== "string" || !base64.startsWith("data:")) {
-    throw new Error("Invalid image data");
-  }
+      const mimeMatch = base64.match(/^data:(.+);base64,/);
+      if (!mimeMatch) {
+        throw new Error("Invalid base64 format");
+      }
 
-  const mimeMatch = base64.match(/^data:(.+);base64,/);
-  if (!mimeMatch) {
-    throw new Error("Invalid base64 format");
-  }
+      const mimeType = mimeMatch[1];
+      const base64Data = base64.replace(/^data:.+;base64,/, "");
+      const fileBuffer = Buffer.from(base64Data, "base64");
 
-  const mimeType = mimeMatch[1];
-  const base64Data = base64.replace(/^data:.+;base64,/, "");
-  const fileBuffer = Buffer.from(base64Data, "base64");
+      const fileExtension = mimeType.split("/")[1].split("+")[0];
 
-  const fileExtension = mimeType.split("/")[1].split("+")[0];
+      const safeCompanyName = companyNameEnglish
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "_");
 
-  const safeCompanyName = companyNameEnglish
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "_");
+      const fileName = `${safeCompanyName}_${filePrefix}.${fileExtension}`;
 
-  const fileName = `${safeCompanyName}_${filePrefix}.${fileExtension}`;
+      return await uploadFileToS3(fileBuffer, fileName, folder);
+    };
 
-  return await uploadFileToS3(fileBuffer, fileName, folder);
-};
+    let logoUrl = null;
+    let faviconUrl = null;
 
-// Upload logo
-try {
-  logoUrl = await uploadBase64Image(
-    logoBase64,
-    "logo",
-    "company/image"
-  );
+    try {
+      logoUrl = await uploadBase64Image(logoBase64, "logo", "company/image");
+      faviconUrl = await uploadBase64Image(
+        faviconBase64,
+        "favicon",
+        "company/image"
+      );
+    } catch (err) {
+      console.error("Image upload error:", err);
+      return res.status(400).json({
+        message: "Invalid image format or upload failed",
+        status: false,
+      });
+    }
 
-  faviconUrl = await uploadBase64Image(
-    faviconBase64,
-    "favicon",
-    "company/image"
-  );
-} catch (err) {
-  console.error("Image upload error:", err);
-  return res.status(400).json({
-    status: false,
-    error: "Invalid image format or upload failed",
-  });
-}
-    
-
-    // // Process logo and favicon
-    // const logoFile = processBase64Image(logoBase64, 'logo');
-    // const faviconFile = processBase64Image(faviconBase64, 'favicon');
-
-    // // Generate URLs (you can customize this based on your storage strategy)
-    // const generateFileUrl = (filename) => {
-    //   if (!filename) return null;
-    //   return `${req.protocol}://${req.get("host")}/uploads/${filename}`;
-    // };
-
-    // const logoUrl = logoFile ? generateFileUrl(logoFile.filename) : null;
-    // const faviconUrl = faviconFile ? generateFileUrl(faviconFile.filename) : null;
-
-    const newsId = await CollectionCenterDao.createCompany(
+    // Call DAO function to create the company record
+    const newCompanyId = await CollectionCenterDao.createCompany(
       regNumber,
       companyNameEnglish,
       companyNameSinhala,
@@ -742,26 +684,32 @@ try {
       foConCode,
       foConNum,
       foEmail,
-      logoUrl, // Pass the generated URL instead of base64
-      faviconUrl, // Pass the generated URL instead of base64
-      companyType
+      logoUrl,
+      faviconUrl,
+      companyType,
+      adminId
     );
 
-    console.log("company creation success");
+    console.log("Company creation success");
     return res.status(201).json({
+      message: "Company created successfully",
       status: true,
-      message: "company created successfully",
-      id: newsId,
+      id: newCompanyId,
     });
   } catch (err) {
+    // Handle validation errors specifically
     if (err.isJoi) {
-      return res.status(400).json({ error: err.details[0].message });
+      return res
+        .status(400)
+        .json({ error: err.details[0].message, status: false });
     }
 
+    // Log unexpected errors
     console.error("Error executing query:", err);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while creating company" });
+    return res.status(500).json({
+      error: "An error occurred while creating the company",
+      status: false,
+    });
   }
 };
 

@@ -408,15 +408,19 @@ exports.getCompanyDAO = () => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-      c.id,
-      c.companyNameEnglish
+        c.id,
+        c.companyNameEnglish
       FROM 
         company c
-      WHERE c.status = 1 AND c.isDistributed = true
+      WHERE c.status = 1 
+        AND c.isDistributed = true
+        AND c.companyNameEnglish <> ?
       ORDER BY c.companyNameEnglish ASC
     `;
 
-    collectionofficer.query(sql, (err, results) => {
+    const params = ["Polygon Holdings Private Limited"];
+
+    collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -452,7 +456,8 @@ exports.getCompanyDetails = () => {
 exports.createDistributionHeadPersonal = (
   officerData,
   profileImageUrl,
-  newEmpId
+  newEmpId,
+  adminId
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -463,8 +468,9 @@ exports.createDistributionHeadPersonal = (
                     distributedCenterId, companyId, irmId, firstNameEnglish, lastNameEnglish,
                     jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
-                    languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Not Approved')
+                    languages, accHolderName, accNumber, bankName, branchName, image, QRcode,
+                    adminModifyBy, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Not Approved')
             `;
 
       collectionofficer.query(
@@ -498,6 +504,7 @@ exports.createDistributionHeadPersonal = (
           officerData.branchName,
           imageUrl,
           null, // QRcode field set to null
+          adminId, // adminModifyBy
         ],
         (err, results) => {
           if (err) {
