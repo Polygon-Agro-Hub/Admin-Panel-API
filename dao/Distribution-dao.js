@@ -452,7 +452,8 @@ exports.getCompanyDetails = () => {
 exports.createDistributionHeadPersonal = (
   officerData,
   profileImageUrl,
-  newEmpId
+  newEmpId,
+  adminId
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -463,8 +464,9 @@ exports.createDistributionHeadPersonal = (
                     distributedCenterId, companyId, irmId, firstNameEnglish, lastNameEnglish,
                     jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
-                    languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Not Approved')
+                    languages, accHolderName, accNumber, bankName, branchName, image, QRcode,
+                    adminModifyBy, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Not Approved')
             `;
 
       collectionofficer.query(
@@ -498,6 +500,7 @@ exports.createDistributionHeadPersonal = (
           officerData.branchName,
           imageUrl,
           null, // QRcode field set to null
+          adminId, // adminModifyBy
         ],
         (err, results) => {
           if (err) {

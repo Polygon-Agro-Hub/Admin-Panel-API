@@ -278,6 +278,7 @@ exports.createDistributionHead = async (req, res) => {
 
   try {
     const officerData = JSON.parse(req.body.officerData);
+    const adminId = req.user.userId;
 
     // Check all duplicates at once
     const duplicateChecks = await Promise.all([
@@ -356,6 +357,7 @@ exports.createDistributionHead = async (req, res) => {
         officerData,
         profileImageUrl,
         newEmpId,
+        adminId,
       );
 
     console.log("Distribution Head created successfully");
