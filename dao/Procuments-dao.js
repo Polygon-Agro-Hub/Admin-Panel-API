@@ -1365,22 +1365,29 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         });
 
 
-        const groupedEnrichedOrders = Object.values(enrichedOrders.reduce((acc, curr) => {
-          const key = `${curr.centerId}-${curr.centerName}-${curr.productName}-${curr.crop}-${curr.variety}`;
+        const groupedEnrichedOrders = Object.values(
+          enrichedOrders.reduce((acc, curr) => {
+            const key = [
+              curr.centerId,
+              curr.cropNameEnglish,
+              curr.varietyNameEnglish
+            ].join('||');
 
           if (!acc[key]) {
-            // Initialize with quantity as number
             acc[key] = {
               ...curr,
               quantity: parseFloat(curr.quantity) || 0
             };
           } else {
-            // Add quantities as numbers
             acc[key].quantity += parseFloat(curr.quantity) || 0;
           }
 
           return acc;
-        }, {}));
+        }, {})
+      ).map(item => ({
+        ...item,
+        quantity: Number(item.quantity.toFixed(2)) 
+      }));
 
         console.log(groupedEnrichedOrders);
 
