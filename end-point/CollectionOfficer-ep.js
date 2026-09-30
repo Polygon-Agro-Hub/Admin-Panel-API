@@ -6,6 +6,7 @@ const xlsx = require("xlsx");
 const collectionofficerDao = require("../dao/CollectionOfficer-dao");
 const collectionofficerValidate = require("../validations/CollectionOfficer-validation");
 const bcrypt = require("bcryptjs");
+const axios = require("axios");
 
 const { v4: uuidv4 } = require("uuid");
 const uploadFileToS3 = require("../middlewares/s3upload");
@@ -152,6 +153,10 @@ exports.createCollectionOfficer = async (req, res) => {
     );
 
     console.log("Collection Officer created successfully");
+
+    // Notify mobile APIs based on job role (errors are only logged)
+    await notifyMobileApis(officerData.jobRole, Number(resultsPersonal.insertId));
+
     return res.status(201).json({
       message: "Collection Officer created successfully",
       id: resultsPersonal.insertId,
@@ -184,7 +189,7 @@ exports.getAllCollectionOfficers = async (req, res) => {
 
     const { page, limit, centerStatus, status, nic, company, role, centerId } = validatedQuery;
 
-    console.log(centerStatus, status)
+    // console.log(centerStatus, status)
 
     // Call the DAO to get all collection officers
     const result = await collectionofficerDao.getAllCollectionOfficers(
@@ -198,7 +203,7 @@ exports.getAllCollectionOfficers = async (req, res) => {
       centerId
     );
 
-    console.log(result);
+    // console.log(result);
 
     console.log("Successfully fetched collection officers");
     return res.status(200).json(result);
@@ -464,6 +469,77 @@ exports.getAllCompanyNames = async (req, res) => {
   }
 };
 
+const notifyMobileApis = async (jobRole, userId) => {
+  console.log(`[notifyMobileApis] Started | Role: ${jobRole} | UserId: ${userId}`);
+
+  // Transporter Mobile API - only for Drivers
+  const isDriver =
+    jobRole === "Light Weight Driver" || jobRole === "Heavy Weight Driver";
+
+  if (isDriver) {
+    try {
+      const baseUrl = process.env.TRANSPORTER_API_URL.replace(/\/+$/, "");
+      const notifyEndpoint = `${baseUrl}/api/auth/notify-status-changed`;
+
+      console.log(`[notifyMobileApis] Calling Transporter API: ${notifyEndpoint}`);
+
+      const response = await axios.post(
+        notifyEndpoint,
+        { userId },
+        { timeout: 5000 }
+      );
+
+      console.log(
+        `✅ [notifyMobileApis] Transporter API SUCCESS | Status: ${response.status} | Data:`,
+        response.data
+      );
+    } catch (syncErr) {
+      console.warn(
+        "❌ [notifyMobileApis] Transporter API FAILED:",
+        syncErr.message
+      );
+    }
+  }
+
+  // Collector Mobile API - only for Collector/Distribution roles
+  const isCollectorOrDistribution =
+    jobRole === "Collection Officer" ||
+    jobRole === "Collection Centre Manager" ||
+    jobRole === "Distribution Officer" ||
+    jobRole === "Distribution Centre Manager";
+
+  if (isCollectorOrDistribution) {
+    try {
+      const baseUrl = process.env.COLLECTOR_API_URL.replace(/\/+$/, "");
+      const notifyEndpoint = `${baseUrl}/api/auth/notify-status-changed`;
+
+      console.log(`[notifyMobileApis] Calling Collector API: ${notifyEndpoint}`);
+
+      const response = await axios.post(
+        notifyEndpoint,
+        { userId },
+        { timeout: 5000 }
+      );
+
+      console.log(
+        `✅ [notifyMobileApis] Collector API SUCCESS | Status: ${response.status} | Data:`,
+        response.data
+      );
+    } catch (syncErr) {
+      console.warn(
+        "❌ [notifyMobileApis] Collector API FAILED:",
+        syncErr.message
+      );
+    }
+  }
+
+  if (!isDriver && !isCollectorOrDistribution) {
+    console.log(
+      `⚠️ [notifyMobileApis] Skipped | Role "${jobRole}" doesn't match any group`
+    );
+  }
+};
+
 exports.UpdateStatusAndSendPassword = async (req, res) => {
   try {
     const { id, status } = req.params;
@@ -475,26 +551,22 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
         .json({ message: "ID and status are required.", status: false });
     }
 
-    // Fetch officer details by ID
-    const officerData = await collectionofficerDao.getCollectionOfficerEmailDao(
-      id
-    );
+    const officerData = await collectionofficerDao.getCollectionOfficerEmailDao(id);
+    
     if (!officerData) {
       return res
         .status(404)
         .json({ message: "Collection officer not found.", status: false });
     }
 
-    // Destructure email, firstNameEnglish, and empId from fetched data
-    const { email, firstNameEnglish, empId } = officerData;
-    console.log(`Email: ${email}, Name: ${firstNameEnglish}, Emp ID: ${empId}`);
+    const { email, firstNameEnglish, empId, jobRole } = officerData;
+
+    console.log(`Email: ${email}, Name: ${firstNameEnglish}, Emp ID: ${empId}, Role: ${jobRole}`);
 
     // Generate a new random password
     const generatedPassword = Math.random().toString(36).slice(-8); // Example: 8-character random password
 
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
-
-    
 
     // If status is 'Approved', send the password email
     if (status === "Approved") {
@@ -527,6 +599,9 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
         status: false,
       });
     }
+
+    // Notify mobile APIs based on job role 
+    await notifyMobileApis(jobRole, Number(id));
 
     // Return success response with empId and email
     res.status(200).json({
@@ -729,6 +804,9 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
       profileImageUrl,
       adminId
     );
+
+    // Notify mobile APIs based on job role (errors are only logged)
+    await notifyMobileApis(officerData.jobRole, Number(id));
 
     res.json({ message: "Collection officer details updated successfully", status: true });
 
@@ -1449,7 +1527,7 @@ exports.getAllDrivers = async (req, res) => {
     const { page, limit, centerStatus, status, nic, centerId, driverCatId, driverRole } =
       validatedQuery;
 
-    console.log(centerStatus, status);
+    // console.log(centerStatus, status);
 
     // Call the DAO to get all collection officers
     const result = await collectionofficerDao.getAllDrivers(
@@ -1467,7 +1545,7 @@ exports.getAllDrivers = async (req, res) => {
     const driverCategories =
       await collectionofficerDao.getAllDriveCategoriesSlave();
 
-    console.log(result);
+    // console.log(result);
 
     console.log("Successfully fetched collection officers");
     return res.status(200).json({
@@ -1493,7 +1571,7 @@ exports.getAllDistributionCenterNames = async (req, res) => {
   try {
     const results = await collectionofficerDao.getAllDistributionCenterNamesDao();
 
-    console.log("Successfully retrieved reports", results);
+    // console.log("Successfully retrieved reports", results);
     res.status(200).json(results);
   } catch (error) {
     if (error.isJoi) {

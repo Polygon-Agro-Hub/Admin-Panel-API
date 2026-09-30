@@ -72,6 +72,9 @@ exports.loginAdmin = async (req, res) => {
       user.position
     );
 
+    console.log(user);
+    
+
     // Generate JWT token
     const token = jwt.sign(
       {

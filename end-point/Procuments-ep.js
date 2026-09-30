@@ -1204,3 +1204,259 @@ exports.getLoadMismatchReportsToday = async (req, res) => {
     });
   }
 };
+
+exports.createCrate = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+    console.log("Request body:", req.body);
+
+    // Validate request body structure
+    if (!req.body || !req.body.labelName || req.body.weight === undefined) {
+      return res.status(400).json({
+        error: "Invalid request format. Expected { labelName: string, weight: number }",
+        status: false,
+      });
+    }
+
+    const { labelName, weight } = req.body;
+
+    // Validate labelName
+    if (String(labelName).trim() === "") {
+      return res.status(400).json({
+        error: "Container label name cannot be empty",
+        status: false,
+      });
+    }
+
+    // Validate weight
+    const parsedWeight = parseFloat(weight);
+    if (isNaN(parsedWeight) || parsedWeight <= 0) {
+      return res.status(400).json({
+        error: "Weight must be a number greater than 0",
+        status: false,
+      });
+    }
+
+    // Logged in user id (set by your auth middleware)
+    const modifyBy = req.user?.userId;
+    console.log('modifyby',modifyBy, req.user );
+    
+    if (!modifyBy) {
+      return res.status(401).json({
+        error: "Unauthorized. User not found",
+        status: false,
+      });
+    }
+
+    // Check duplicate labelName
+    const isDuplicate = await procumentDao.checkCrateLabelExistsDao(labelName);
+    if (isDuplicate) {
+      return res.status(409).json({
+        error: "A container with this label name already exists",
+        status: false,
+      });
+    }
+
+    // Create crate
+    const result = await procumentDao.createCrateDao(labelName, parsedWeight, modifyBy);
+    console.log(result);
+
+    res.status(201).json({
+      message: "Container created successfully",
+      id: result.insertId,
+      status: true,
+    });
+  } catch (err) {
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error: err.message || "An error occurred while creating the container",
+      status: false,
+    });
+  }
+};
+
+exports.updateCrate = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+    console.log("Request body:", req.body);
+
+    const { id } = req.params;
+
+    // Validate id
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({
+        error: "Invalid crate id",
+        status: false,
+      });
+    }
+
+    // Validate request body structure
+    if (!req.body || !req.body.labelName || req.body.weight === undefined) {
+      return res.status(400).json({
+        error: "Invalid request format. Expected { labelName: string, weight: number }",
+        status: false,
+      });
+    }
+
+    const { labelName, weight } = req.body;
+
+    // Validate labelName
+    if (String(labelName).trim() === "") {
+      return res.status(400).json({
+        error: "Container label name cannot be empty",
+        status: false,
+      });
+    }
+
+    // Validate weight
+    const parsedWeight = parseFloat(weight);
+    if (isNaN(parsedWeight) || parsedWeight <= 0) {
+      return res.status(400).json({
+        error: "Weight must be a number greater than 0",
+        status: false,
+      });
+    }
+
+    // Logged in user id (set by your auth middleware)
+    const modifyBy = req.user?.userId;
+    if (!modifyBy) {
+      return res.status(401).json({
+        error: "Unauthorized. User not found",
+        status: false,
+      });
+    }
+
+    // Check duplicate labelName (excluding the current crate)
+    const isDuplicate = await procumentDao.checkCrateLabelExistsForUpdateDao(
+      labelName,
+      id
+    );
+    if (isDuplicate) {
+      return res.status(409).json({
+        error: "A container with this label name already exists",
+        status: false,
+      });
+    }
+
+    // Update crate
+    const result = await procumentDao.updateCrateDao(
+      id,
+      labelName,
+      parsedWeight,
+      modifyBy
+    );
+    console.log(result);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: "Container not found",
+        status: false,
+      });
+    }
+
+    res.status(200).json({
+      message: "Container updated successfully",
+      status: true,
+    });
+  } catch (err) {
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error: err.message || "An error occurred while updating the container",
+      status: false,
+    });
+  }
+};
+
+exports.getCrateById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({
+        error: "Invalid crate id",
+        status: false,
+      });
+    }
+
+    const crate = await procumentDao.getCrateByIdDao(id);
+
+    if (!crate) {
+      return res.status(404).json({
+        error: "Container not found",
+        status: false,
+      });
+    }
+
+    res.status(200).json({
+      message: "Container fetched successfully",
+      data: crate,
+      status: true,
+    });
+  } catch (err) {
+    console.error("Error executing query:", err);
+    return res.status(500).json({
+      error: err.message || "An error occurred while fetching the container",
+      status: false,
+    });
+  }
+};
+
+exports.getManageContainerSizesEP = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const containerSizes = await procumentDao.getManageContainerSizesDao();
+
+    res.json({
+      success: true,
+      total: containerSizes.length,
+      data: containerSizes,
+    });
+  } catch (err) {
+    console.error("Error fetching manage container sizes:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching manage container sizes",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
+exports.deleteManageContainerSizeEP = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Container size ID is required",
+      });
+    }
+
+    const result = await procumentDao.deleteManageContainerSizeDao(id);
+
+    if (!result.affectedRows) {
+      return res.status(404).json({
+        success: false,
+        message: "Container size not found or not deleted",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Container size deleted successfully",
+    });
+  } catch (err) {
+    console.error("Error deleting manage container size:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while deleting the manage container size.",
+    });
+  }
+};

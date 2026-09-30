@@ -240,4 +240,34 @@ router.get(
   ProcumentsEP.getLoadMismatchReportsToday
 );
 
+router.post(
+  "/create-crate",
+  authMiddleware,
+  ProcumentsEP.createCrate
+);
+
+router.put(
+  "/update-crate/:id",
+  authMiddleware,
+  ProcumentsEP.updateCrate
+);
+
+router.get(
+  "/get-crate/:id",
+  authMiddleware,
+  ProcumentsEP.getCrateById
+);
+
+router.get(
+  "/get-manage-container-sizes",
+  authMiddleware,
+  ProcumentsEP.getManageContainerSizesEP
+);
+
+router.delete(
+  "/delete-manage-container-size/:id",
+  authMiddleware,
+  ProcumentsEP.deleteManageContainerSizeEP
+)
+
 module.exports = router;
