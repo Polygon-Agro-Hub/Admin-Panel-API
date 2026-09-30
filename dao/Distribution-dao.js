@@ -2725,15 +2725,21 @@ GROUP BY
 
 exports.getDistributedCompanyCenter = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
-    const sql = `
+    const params = [centerId]
+    let sql = `
       SELECT dcc.id AS companyCenterId
       FROM collection_officer.distributedcompanycenter dcc 
       JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
       JOIN collection_officer.company c ON dcc.companyId = c.id
-      WHERE c.id = ? AND dc.id = ?
+      WHERE dc.id = ?
       `;
 
-    collectionofficer.query(sql, [companyId, centerId], (err, results) => {
+      if(companyId !== null){
+        sql += ` AND c.id = ? `
+        params.push(companyId)
+      }
+
+    collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -3331,7 +3337,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         po.sheduleDate,
         po.createdAt,
         po.status,
-        TIME(DATE_ADD(dti.completeTime, INTERVAL 330 MINUTE)) AS outDlvrTime,
+        TIME(DATE_ADD(po.packTime, INTERVAL 330 MINUTE)) AS outDlvrTime,
         dro.createdAt AS collectTime,
         drv.empId AS driverEmpId,
         CONCAT(drv.phoneCode01, drv.phoneNumber01) AS driverPhone,
@@ -3354,7 +3360,6 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       LEFT JOIN collection_officer.distributedcenter dc ON o.centerId = dc.id
       LEFT JOIN collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id
       LEFT JOIN collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
-      LEFT JOIN collection_officer.distributedtargetitems dti ON po.id = dti.orderId 
       WHERE DATE(po.sheduleDate) = CURDATE()
     `;
 
@@ -3695,6 +3700,108 @@ exports.getReturnRecievedDataDao = (
   });
 };
 
+exports.getReturnRecievedDataDao = (
+  receivedTime,
+  centerId,
+  deliveryLocationData,
+  searchText
+) => {
+  return new Promise((resolve, reject) => {
+    let dataSql = `
+      SELECT 
+        do.id, 
+        coff.id AS driverId, 
+        coff.empId, 
+        po.id AS processOrderId, 
+        po.invNO, 
+        o.id AS orderId, 
+        o.fullTotal As total, 
+        o.centerId, 
+        mp.phoneCode,
+        mp.phoneNumber,
+        po.sheduleDate, 
+        oh.city AS houseCity,
+        oa.city AS apartmentCity, 
+        rr.rsnEnglish AS reason,
+        dro.note AS other, 
+        dro.createdAt AS returnAt, 
+        do.receivedTime
+      FROM collection_officer.driverordermain drm
+      LEFT JOIN collection_officer.driverorders do on drm.id = do.drvOrderMainId
+      LEFT JOIN collection_officer.collectionofficer coff ON drm.driverId = coff.id
+      LEFT JOIN collection_officer.processorders po ON do.orderId = po.id
+      LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+      LEFT JOIN collection_officer.marketplaceusers mp ON mp.id = o.userId
+      LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+      LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
+      LEFT JOIN collection_officer.driverreturnorders dro ON dro.drvOrderId = do.id
+      LEFT JOIN collection_officer.returnreason rr ON dro.returnReasonId = rr.id
+      LEFT JOIN collection_officer.distributedcenter dc1 ON dc1.id = o.centerId
+      WHERE do.drvStatus = 'Return Received'
+    `;
+    const dataParams = [];
+
+    // ✅ FIX: Removed the duplicate push that was here.
+    // The original code pushed deliveryLocationData twice BEFORE the centerId block,
+    // which shifted every subsequent parameter out of alignment and caused
+    // receivedTime to land inside DATE(?) — producing:
+    //   DATE('Ampara', 'Hingurana')
+
+    if (centerId) {
+      dataSql += ` AND (`;
+
+      if (deliveryLocationData && deliveryLocationData.length > 0) {
+        dataSql += `(oh.city IN (?) OR oa.city IN (?)) OR `;
+        dataParams.push(deliveryLocationData, deliveryLocationData);
+      }
+
+      dataSql += ` o.centerId = ? )`;
+      dataParams.push(centerId);
+    }
+
+    if (receivedTime) {
+      dataSql += ` AND DATE(do.receivedTime) = DATE(?) `;
+      dataParams.push(receivedTime);
+    }
+
+    if (searchText) {
+      const searchPattern = `%${searchText}%`;
+      dataSql += `
+        AND (
+          po.invNO LIKE ? OR
+          CONCAT(mp.phoneCode, ' ', mp.phoneNumber) LIKE ? OR
+          CONCAT(mp.phoneCode, mp.phoneNumber) LIKE ? OR
+          dc1.centerName LIKE ? OR
+          oh.city LIKE ? OR
+          oa.city LIKE ?
+        )
+      `;
+
+      dataParams.push(
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        searchPattern
+      );
+    }
+
+    dataSql += ` ORDER BY po.createdAt DESC`;
+
+    collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+      if (dataErr) {
+        reject(dataErr);
+      } else {
+        resolve({
+          total: dataResults.length,
+          items: dataResults,
+        });
+      }
+    });
+  });
+};
+
 exports.getDeliveryChargeCity = (companyCenterId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -3717,7 +3824,7 @@ exports.getDeliveryChargeCity = (companyCenterId) => {
   });
 };
 
-exports.getAllCityCenterMapping = (companyId) => {
+exports.getAllCityCenterMapping = () => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -3729,10 +3836,10 @@ exports.getAllCityCenterMapping = (companyId) => {
       JOIN collection_officer.centerowncity coc ON dcc.id = coc.companyCenterId
       JOIN collection_officer.deliverycharge dc ON coc.cityId = dc.id
       LEFT JOIN collection_officer.distributedcenter dist ON dcc.centerId = dist.id
-      WHERE dcc.companyId = ?
+      
     `;
 
-    collectionofficer.query(sql, [companyId], (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
