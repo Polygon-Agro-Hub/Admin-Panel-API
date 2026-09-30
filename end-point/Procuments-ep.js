@@ -1204,3 +1204,61 @@ exports.getLoadMismatchReportsToday = async (req, res) => {
     });
   }
 };
+
+exports.getManageContainerSizesEP = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const containerSizes = await procumentDao.getManageContainerSizesDao();
+
+    res.json({
+      success: true,
+      total: containerSizes.length,
+      data: containerSizes,
+    });
+  } catch (err) {
+    console.error("Error fetching manage container sizes:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching manage container sizes",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
+exports.deleteManageContainerSizeEP = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Container size ID is required",
+      });
+    }
+
+    const result = await procumentDao.deleteManageContainerSizeDao(id);
+
+    if (!result.affectedRows) {
+      return res.status(404).json({
+        success: false,
+        message: "Container size not found or not deleted",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Container size deleted successfully",
+    });
+  } catch (err) {
+    console.error("Error deleting manage container size:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while deleting the manage container size.",
+    });
+  }
+};
