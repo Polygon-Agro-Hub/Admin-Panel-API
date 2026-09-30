@@ -5,6 +5,7 @@ const uploadFileToS3 = require("../middlewares/s3upload");
 const DistributionValidation = require("../validations/distribution-validation");
 const deleteFromS3 = require("../middlewares/s3delete");
 const DriverJobRoles = require ('./../assets/json/driverJobRole.json')
+const axios = require("axios");
 
 const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
 const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
@@ -278,6 +279,7 @@ exports.createDistributionHead = async (req, res) => {
 
   try {
     const officerData = JSON.parse(req.body.officerData);
+    const adminId = req.user.userId;
 
     // Check all duplicates at once
     const duplicateChecks = await Promise.all([
@@ -356,6 +358,7 @@ exports.createDistributionHead = async (req, res) => {
         officerData,
         profileImageUrl,
         newEmpId,
+        adminId,
       );
 
     console.log("Distribution Head created successfully");
@@ -1095,6 +1098,77 @@ exports.deleteDistributionOfficer = async (req, res) => {
   }
 };
 
+const notifyMobileApis = async (jobRole, userId) => {
+  console.log(`[notifyMobileApis] Started | Role: ${jobRole} | UserId: ${userId}`);
+
+  // Transporter Mobile API - only for Drivers
+  const isDriver =
+    jobRole === "Light Weight Driver" || jobRole === "Heavy Weight Driver";
+
+  if (isDriver) {
+    try {
+      const baseUrl = process.env.TRANSPORTER_API_URL.replace(/\/+$/, "");
+      const notifyEndpoint = `${baseUrl}/api/auth/notify-status-changed`;
+
+      console.log(`[notifyMobileApis] Calling Transporter API: ${notifyEndpoint}`);
+
+      const response = await axios.post(
+        notifyEndpoint,
+        { userId },
+        { timeout: 5000 }
+      );
+
+      console.log(
+        `✅ [notifyMobileApis] Transporter API SUCCESS | Status: ${response.status} | Data:`,
+        response.data
+      );
+    } catch (syncErr) {
+      console.warn(
+        "❌ [notifyMobileApis] Transporter API FAILED:",
+        syncErr.message
+      );
+    }
+  }
+
+  // Collector Mobile API - only for Collector/Distribution roles
+  const isCollectorOrDistribution =
+    jobRole === "Collection Officer" ||
+    jobRole === "Collection Centre Manager" ||
+    jobRole === "Distribution Officer" ||
+    jobRole === "Distribution Centre Manager";
+
+  if (isCollectorOrDistribution) {
+    try {
+      const baseUrl = process.env.COLLECTOR_API_URL.replace(/\/+$/, "");
+      const notifyEndpoint = `${baseUrl}/api/auth/notify-status-changed`;
+
+      console.log(`[notifyMobileApis] Calling Collector API: ${notifyEndpoint}`);
+
+      const response = await axios.post(
+        notifyEndpoint,
+        { userId },
+        { timeout: 5000 }
+      );
+
+      console.log(
+        `✅ [notifyMobileApis] Collector API SUCCESS | Status: ${response.status} | Data:`,
+        response.data
+      );
+    } catch (syncErr) {
+      console.warn(
+        "❌ [notifyMobileApis] Collector API FAILED:",
+        syncErr.message
+      );
+    }
+  }
+
+  if (!isDriver && !isCollectorOrDistribution) {
+    console.log(
+      `⚠️ [notifyMobileApis] Skipped | Role "${jobRole}" doesn't match any group`
+    );
+  }
+};
+
 exports.UpdateStatusAndSendPassword = async (req, res) => {
   try {
     const { id, status } = req.params;
@@ -1115,9 +1189,11 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
         .json({ message: "Collection officer not found.", status: false });
     }
 
-    // Destructure email, firstNameEnglish, and empId from fetched data
-    const { email, firstNameEnglish, empId } = officerData;
-    console.log(`Email: ${email}, Name: ${firstNameEnglish}, Emp ID: ${empId}`);
+    // Destructure email, firstNameEnglish, empId and jobRole from fetched data
+    const { email, firstNameEnglish, empId, jobRole } = officerData;
+    console.log(
+      `Email: ${email}, Name: ${firstNameEnglish}, Emp ID: ${empId}, Role: ${jobRole}`
+    );
 
     // Generate a new random password
     const generatedPassword = Math.random().toString(36).slice(-8); // Example: 8-character random password
@@ -1130,7 +1206,7 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
         email,
         generatedPassword,
         empId,
-        firstNameEnglish,
+        firstNameEnglish
       );
 
       if (!emailResult.success) {
@@ -1155,6 +1231,9 @@ exports.UpdateStatusAndSendPassword = async (req, res) => {
         status: false,
       });
     }
+
+    // Notify mobile APIs based on job role (errors are only logged)
+    await notifyMobileApis(jobRole, Number(id));
 
     // Return success response with empId and email
     res.status(200).json({
@@ -1446,6 +1525,9 @@ exports.createDistributionOfficer = async (req, res) => {
         throw new Error("Failed to register driver vehicle data");
       }
     }
+
+     // Notify mobile APIs based on job role
+    await notifyMobileApis(officerData.jobRole, Number(officerId));
 
     return res.status(201).json({
       message: "Distribution Officer created successfully",
@@ -2089,6 +2171,9 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
         console.error("Error deleting driver data:", deleteError);
       }
     }
+
+    // Notify mobile APIs based on job role
+    await notifyMobileApis(officerData.jobRole, Number(id));
 
     return res.status(200).json({
       message: "Distribution Officer updated successfully",

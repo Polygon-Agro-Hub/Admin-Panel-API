@@ -408,15 +408,19 @@ exports.getCompanyDAO = () => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-      c.id,
-      c.companyNameEnglish
+        c.id,
+        c.companyNameEnglish
       FROM 
         company c
-      WHERE c.status = 1 AND c.isDistributed = true
+      WHERE c.status = 1 
+        AND c.isDistributed = true
+        AND c.companyNameEnglish <> ?
       ORDER BY c.companyNameEnglish ASC
     `;
 
-    collectionofficer.query(sql, (err, results) => {
+    const params = ["Polygon Holdings Private Limited"];
+
+    collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -452,7 +456,8 @@ exports.getCompanyDetails = () => {
 exports.createDistributionHeadPersonal = (
   officerData,
   profileImageUrl,
-  newEmpId
+  newEmpId,
+  adminId
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -463,8 +468,9 @@ exports.createDistributionHeadPersonal = (
                     distributedCenterId, companyId, irmId, firstNameEnglish, lastNameEnglish,
                     jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
-                    languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Not Approved')
+                    languages, accHolderName, accNumber, bankName, branchName, image, QRcode,
+                    adminModifyBy, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Not Approved')
             `;
 
       collectionofficer.query(
@@ -498,6 +504,7 @@ exports.createDistributionHeadPersonal = (
           officerData.branchName,
           imageUrl,
           null, // QRcode field set to null
+          adminId, // adminModifyBy
         ],
         (err, results) => {
           if (err) {
@@ -949,34 +956,27 @@ exports.DeleteDistributionCenter = (id) => {
 };
 
 exports.generateRegCode = (province, district, city, callback) => {
-  // Generate the prefix based on province and district with "P" after province initial
   const prefix =
+    "D-" +
     province.charAt(0).toUpperCase() +
     province.charAt(1).toUpperCase() +
     district.charAt(0).toUpperCase() +
     city.charAt(0).toUpperCase();
 
-  // SQL query to get the latest regCode
-  const query = `SELECT regCode FROM distributedcenter WHERE regCode LIKE ? ORDER BY regCode DESC LIMIT 1`;
+  const query = `
+    SELECT MAX(CAST(SUBSTRING_INDEX(regCode, '-', -1) AS UNSIGNED)) AS lastNumber
+    FROM distributedcenter
+    WHERE regCode LIKE ?
+  `;
 
-  // Execute the query
   collectionofficer.execute(query, [`${prefix}-%`], (err, results) => {
     if (err) {
       console.error("Error executing query:", err);
       return callback(err);
     }
 
-    let newRegCode = `${prefix}-01`; // Default to 01 if no regCode found
-
-    if (results.length > 0) {
-      // Get the last regCode and extract the number
-      const lastRegCode = results[0].regCode;
-      const lastNumber = parseInt(lastRegCode.split("-")[1]);
-      const newNumber = lastNumber + 1;
-      newRegCode = `${prefix}-${String(newNumber).padStart(2, "0")}`;
-    }
-
-    // Return the new regCode
+    const lastNumber = results[0].lastNumber || 0;
+    const newRegCode = `${prefix}-${String(lastNumber + 1).padStart(2, "0")}`;
     callback(null, newRegCode);
   });
 };
@@ -1277,7 +1277,7 @@ exports.DeleteDistributionOfficerDao = (id) => {
 exports.getDistributionOfficerEmailDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT c.email, c.firstNameEnglish, c.empId AS empId
+            SELECT c.email, c.firstNameEnglish, c.empId AS empId, c.jobRole 
             FROM collectionofficer c
             WHERE c.id = ?
         `;
@@ -1290,6 +1290,7 @@ exports.getDistributionOfficerEmailDao = (id) => {
           email: results[0].email, // Resolve with email
           firstNameEnglish: results[0].firstNameEnglish,
           empId: results[0].empId, // Resolve with employeeType (empId)
+          jobRole: results[0].jobRole, // Resolve with jobRole
         });
       } else {
         resolve(null); // Resolve with null if no record is found

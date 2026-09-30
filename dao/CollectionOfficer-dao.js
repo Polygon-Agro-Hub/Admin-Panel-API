@@ -866,7 +866,7 @@ exports.getAllCompanyNamesDao = (district) => {
 exports.getCollectionOfficerEmailDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT c.email, c.firstNameEnglish, c.empId AS empId
+            SELECT c.email, c.firstNameEnglish, c.empId AS empId, c.jobRole 
             FROM collectionofficer c
             WHERE c.id = ?
         `;
@@ -879,6 +879,7 @@ exports.getCollectionOfficerEmailDao = (id) => {
           email: results[0].email, // Resolve with email
           firstNameEnglish: results[0].firstNameEnglish,
           empId: results[0].empId, // Resolve with employeeType (empId)
+          jobRole: results[0].jobRole, 
         });
       } else {
         resolve(null); // Resolve with null if no record is found
@@ -967,9 +968,9 @@ exports.SendGeneratedPasswordDao = async (
     doc.fontSize(12).text(`The Polygon Holdings Team`);
     doc.fontSize(12).text(`Polygon Holdings (Pvt) Ltd. | All rights reserved.`);
     doc.moveDown();
-    doc.fontSize(12).text(`Address: No:14,`);
-    doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
-    doc.fontSize(12).text(`            Colombo 01.`);
+    doc.fontSize(12).text(`Address: Level 2, Building 2 No. 46/42,`);
+    doc.fontSize(12).text(`               Nawam Mawatha,`);
+    doc.fontSize(12).text(`               Colombo 02.`);
     doc.moveDown();
     doc.fontSize(12).text(`Email: polygon.admin@gmail.com`);
 
