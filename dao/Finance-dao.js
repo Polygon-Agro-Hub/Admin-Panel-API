@@ -3134,9 +3134,9 @@ exports.getAllShortageSubmissionsDAO = (
 
     let countSql = `
       SELECT COUNT(*) AS total
-      FROM shortageassigned sa
+      FROM shortagepurchase sp
+      LEFT JOIN shortageassigned sa ON sa.id = sp.srtAssignId
       LEFT JOIN shortage s ON sa.shortageassigned = s.id
-      LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
       LEFT JOIN collection_officer.marketplaceitems m ON s.mpItemId = m.id
       LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
@@ -3161,9 +3161,9 @@ exports.getAllShortageSubmissionsDAO = (
         dc.regCode,
         au.userName AS finalizedBy,
         sp.markAt AS finalizeAt
-      FROM shortageassigned sa
+      FROM shortagepurchase sp
+      LEFT JOIN shortageassigned sa ON sa.id = sp.srtAssignId
       LEFT JOIN shortage s ON sa.shortageassigned = s.id
-      LEFT JOIN shortagepurchase sp ON sa.id = sp.srtAssignId
       LEFT JOIN collection_officer.marketplaceitems m ON s.mpItemId = m.id
       LEFT JOIN plant_care.cropvariety cv ON m.varietyId = cv.id
       LEFT JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
