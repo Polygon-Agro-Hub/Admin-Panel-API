@@ -240,6 +240,24 @@ router.get(
   ProcumentsEP.getLoadMismatchReportsToday
 );
 
+router.post(
+  "/create-crate",
+  authMiddleware,
+  ProcumentsEP.createCrate
+);
+
+router.put(
+  "/update-crate/:id",
+  authMiddleware,
+  ProcumentsEP.updateCrate
+);
+
+router.get(
+  "/get-crate/:id",
+  authMiddleware,
+  ProcumentsEP.getCrateById
+);
+
 router.get(
   "/get-manage-container-sizes",
   authMiddleware,

@@ -321,7 +321,7 @@ exports.getAllCoupenDAO = (limit, offset, status, types, searchText) => {
       dataParms.push(types);
     }
 
-    dataSql += ` LIMIT ? OFFSET ? `;
+    dataSql += ` ORDER BY id DESC LIMIT ? OFFSET ? `;
     dataParms.push(limit);
     dataParms.push(offset);
 
