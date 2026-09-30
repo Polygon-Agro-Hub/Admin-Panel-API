@@ -1240,6 +1240,8 @@ exports.createCrate = async (req, res) => {
 
     // Logged in user id (set by your auth middleware)
     const modifyBy = req.user?.userId;
+    console.log('modifyby',modifyBy, req.user );
+    
     if (!modifyBy) {
       return res.status(401).json({
         error: "Unauthorized. User not found",

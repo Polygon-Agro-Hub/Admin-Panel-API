@@ -2195,8 +2195,8 @@ exports.createCrateDao = (labelName, weight, modifyBy) => {
 
       const sql = `
         INSERT INTO creates (
-          labelName, weight, modifyBy, modifyAt, createdAt
-        ) VALUES (?, ?, ?, NOW(), NOW())
+          labelName, weight, modifyBy, modifyAt
+        ) VALUES (?, ?, ?, NOW())
       `;
 
       const values = [
@@ -2204,6 +2204,10 @@ exports.createCrateDao = (labelName, weight, modifyBy) => {
         parsedWeight,
         modifyBy || null,
       ];
+      console.log('--------------------------------------');
+      console.log(values);
+      
+      
 
       // Database query
       collectionofficer.query(sql, values, (err, results) => {
