@@ -258,4 +258,16 @@ router.get(
   ProcumentsEP.getCrateById
 );
 
+router.get(
+  "/get-manage-container-sizes",
+  authMiddleware,
+  ProcumentsEP.getManageContainerSizesEP
+);
+
+router.delete(
+  "/delete-manage-container-size/:id",
+  authMiddleware,
+  ProcumentsEP.deleteManageContainerSizeEP
+)
+
 module.exports = router;

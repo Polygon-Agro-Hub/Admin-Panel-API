@@ -2353,3 +2353,43 @@ exports.getCrateByIdDao = (id) => {
     }
   });
 };
+
+exports.getManageContainerSizesDao =  () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        c.id,
+	      c.labelName,
+	      c.weight,
+	      a.userName AS modifyBy,
+	      DATE_ADD(c.modifyAt, INTERVAL 330 MINUTE) AS modifyAt
+      FROM creates c
+      LEFT JOIN agro_world_admin.adminusers a ON c.modifyBy = a.id
+    `;
+
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error("Error fetching container sizes:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.deleteManageContainerSizeDao = (labelName) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      DELETE FROM creates
+      WHERE id = ?
+    `;
+
+    collectionofficer.query(sql, [labelName], (err, results) => {
+      if (err) {
+        console.error("Error deleting container size:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+}
