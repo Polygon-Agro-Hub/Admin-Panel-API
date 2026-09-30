@@ -1665,7 +1665,7 @@ exports.getShortageDetailsById = (id) => {
 exports.getAllCenters = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT 
+      SELECT DISTINCT
         dcc.id,
         dcc.companyId,
         dcc.centerId,
@@ -1673,6 +1673,7 @@ exports.getAllCenters = () => {
         dc.centerName
       FROM distributedcompanycenter dcc
       LEFT JOIN distributedcenter dc ON dc.id = dcc.centerId
+      INNER JOIN centerowncity coc ON coc.companyCenterId = dcc.centerId
       ORDER BY dc.centerName ASC
     `;
     collectionofficer.query(sql, (err, results) => {
@@ -1730,13 +1731,16 @@ exports.getShortageAssignedDetails = (shortageassigned) => {
 exports.getDistributionCentersForShortageDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT 
+       SELECT DISTINCT
         dcc.id AS comCenId,
+        dcc.companyId,
+        dcc.centerId,
         dc.regCode,
         dc.centerName
-      FROM collection_officer.distributedcompanycenter dcc
-      JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
-      ORDER BY dc.regCode ASC
+      FROM distributedcompanycenter dcc
+      LEFT JOIN distributedcenter dc ON dc.id = dcc.centerId
+      INNER JOIN centerowncity coc ON coc.companyCenterId = dcc.centerId
+      ORDER BY dc.centerName ASC
     `;
  
     collectionofficer.query(sql, (err, results) => {
@@ -1881,12 +1885,8 @@ exports.getAllShortageAssignedDetails = (date) => {
         sa.comCenId,
         cc.centerName,
         cc.regCode,
-        sa.assignOfficerId,
-        CONCAT(
-          COALESCE(officer.firstNameEnglish, ''),
-          ' ',
-          COALESCE(officer.lastNameEnglish, '')
-        ) AS assignOfficerName,
+        sa.assignedOfficerBy AS assignOfficerId,
+        officer.empId  AS assignOfficerName,
         sa.qty AS assignedQty,
         sa.ceilling,
         sa.status,
@@ -1895,6 +1895,8 @@ exports.getAllShortageAssignedDetails = (date) => {
         sa.finalizedBy,
         finalizedByUser.userName AS finalizedByName,
         sa.finalizeAt,
+        sa.finalizedOfficerBy,
+        o.empId As finalizedOfficerName,
         sa.createdAt AS assignedCreatedAt,
         s.id AS shortageId,
         s.mpItemId,
@@ -1913,7 +1915,8 @@ exports.getAllShortageAssignedDetails = (date) => {
       LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
       LEFT JOIN collection_officer.distributedcompanycenter dcc ON sa.comCenId = dcc.id
       LEFT JOIN collection_officer.distributedcenter cc ON cc.id = dcc.centerId
-      LEFT JOIN collection_officer.collectionofficer officer ON officer.id = sa.assignOfficerId
+      LEFT JOIN collection_officer.collectionofficer officer ON sa.assignedOfficerBy = officer.id
+      LEFT JOIN collection_officer.collectionofficer o ON sa.finalizedOfficerBy  = o.id
       LEFT JOIN agro_world_admin.adminusers assignedByUser ON assignedByUser.id = sa.assignedBy
       LEFT JOIN agro_world_admin.adminusers finalizedByUser ON finalizedByUser.id = sa.finalizedBy
       WHERE 1 = 1
