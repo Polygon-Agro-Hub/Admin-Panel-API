@@ -45,6 +45,7 @@ const GoviLinkRoutes = require('./routes/GoviLink')
 const CertificateCompanyRoutes = require('./routes/CertificateCompany')
 const financeRoutes = require("./routes/finance");
 const GoviShopRoutes = require("./routes/GoviShop");
+const CallCenterRoutes = require("./routes/CallCenter")
 const upload = require("./routes/upload.router");
 
 const heathRoutes = require("./routes/heathRoutes");
@@ -205,6 +206,8 @@ app.use(BASE_PATH + '/api/certificate-company', CertificateCompanyRoutes)
 app.use(BASE_PATH + '/api/finance', financeRoutes)
 app.use(BASE_PATH + '/api/shop', GoviShopRoutes)
 app.use(BASE_PATH + '/api/upload', upload);
+app.use(BASE_PATH + '/api/call-center', CallCenterRoutes);
+
 
 app.use("/uploads", express.static("uploads"));
 

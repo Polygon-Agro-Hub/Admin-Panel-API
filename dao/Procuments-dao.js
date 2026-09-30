@@ -1665,7 +1665,7 @@ exports.getShortageDetailsById = (id) => {
 exports.getAllCenters = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT 
+      SELECT DISTINCT
         dcc.id,
         dcc.companyId,
         dcc.centerId,
@@ -1673,6 +1673,7 @@ exports.getAllCenters = () => {
         dc.centerName
       FROM distributedcompanycenter dcc
       LEFT JOIN distributedcenter dc ON dc.id = dcc.centerId
+      INNER JOIN centerowncity coc ON coc.companyCenterId = dcc.centerId
       ORDER BY dc.centerName ASC
     `;
     collectionofficer.query(sql, (err, results) => {
@@ -1730,13 +1731,16 @@ exports.getShortageAssignedDetails = (shortageassigned) => {
 exports.getDistributionCentersForShortageDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT 
+       SELECT DISTINCT
         dcc.id AS comCenId,
+        dcc.companyId,
+        dcc.centerId,
         dc.regCode,
         dc.centerName
-      FROM collection_officer.distributedcompanycenter dcc
-      JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
-      ORDER BY dc.regCode ASC
+      FROM distributedcompanycenter dcc
+      LEFT JOIN distributedcenter dc ON dc.id = dcc.centerId
+      INNER JOIN centerowncity coc ON coc.companyCenterId = dcc.centerId
+      ORDER BY dc.centerName ASC
     `;
  
     collectionofficer.query(sql, (err, results) => {
@@ -1881,12 +1885,8 @@ exports.getAllShortageAssignedDetails = (date) => {
         sa.comCenId,
         cc.centerName,
         cc.regCode,
-        sa.assignOfficerId,
-        CONCAT(
-          COALESCE(officer.firstNameEnglish, ''),
-          ' ',
-          COALESCE(officer.lastNameEnglish, '')
-        ) AS assignOfficerName,
+        sa.assignedOfficerBy AS assignOfficerId,
+        officer.empId  AS assignOfficerName,
         sa.qty AS assignedQty,
         sa.ceilling,
         sa.status,
@@ -1895,6 +1895,8 @@ exports.getAllShortageAssignedDetails = (date) => {
         sa.finalizedBy,
         finalizedByUser.userName AS finalizedByName,
         sa.finalizeAt,
+        sa.finalizedOfficerBy,
+        o.empId As finalizedOfficerName,
         sa.createdAt AS assignedCreatedAt,
         s.id AS shortageId,
         s.mpItemId,
@@ -1913,7 +1915,8 @@ exports.getAllShortageAssignedDetails = (date) => {
       LEFT JOIN plant_care.cropvariety cv ON cv.id = mi.varietyId
       LEFT JOIN collection_officer.distributedcompanycenter dcc ON sa.comCenId = dcc.id
       LEFT JOIN collection_officer.distributedcenter cc ON cc.id = dcc.centerId
-      LEFT JOIN collection_officer.collectionofficer officer ON officer.id = sa.assignOfficerId
+      LEFT JOIN collection_officer.collectionofficer officer ON sa.assignedOfficerBy = officer.id
+      LEFT JOIN collection_officer.collectionofficer o ON sa.finalizedOfficerBy  = o.id
       LEFT JOIN agro_world_admin.adminusers assignedByUser ON assignedByUser.id = sa.assignedBy
       LEFT JOIN agro_world_admin.adminusers finalizedByUser ON finalizedByUser.id = sa.finalizedBy
       WHERE 1 = 1
@@ -2176,3 +2179,224 @@ exports.getLoadMismatchReportsTodayDao = () => {
     });
   });
 };
+
+exports.createCrateDao = (labelName, weight, modifyBy) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // Validate inputs
+      if (!labelName || String(labelName).trim() === "") {
+        throw new Error("Label name is required");
+      }
+
+      const parsedWeight = parseFloat(weight);
+      if (isNaN(parsedWeight) || parsedWeight <= 0) {
+        throw new Error("Weight must be a number greater than 0");
+      }
+
+      const sql = `
+        INSERT INTO creates (
+          labelName, weight, modifyBy, modifyAt
+        ) VALUES (?, ?, ?, NOW())
+      `;
+
+      const values = [
+        String(labelName).trim(),
+        parsedWeight,
+        modifyBy || null,
+      ];
+      console.log('--------------------------------------');
+      console.log(values);
+      
+      
+
+      // Database query
+      collectionofficer.query(sql, values, (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results);
+      });
+    } catch (error) {
+      console.log("Error in createCrateDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.checkCrateLabelExistsDao = (labelName) => {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!labelName || String(labelName).trim() === "") {
+        throw new Error("Label name is required");
+      }
+
+      const sql = `
+        SELECT id
+        FROM creates
+        WHERE LOWER(TRIM(labelName)) = LOWER(TRIM(?))
+        LIMIT 1
+      `;
+
+      collectionofficer.query(sql, [String(labelName)], (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results.length > 0);
+      });
+    } catch (error) {
+      console.log("Error in checkCrateLabelExistsDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.checkCrateLabelExistsForUpdateDao = (labelName, id) => {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!labelName || String(labelName).trim() === "") {
+        throw new Error("Label name is required");
+      }
+
+      const sql = `
+        SELECT id
+        FROM creates
+        WHERE LOWER(TRIM(labelName)) = LOWER(TRIM(?))
+          AND id != ?
+        LIMIT 1
+      `;
+
+      collectionofficer.query(sql, [String(labelName), id], (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results.length > 0);
+      });
+    } catch (error) {
+      console.log("Error in checkCrateLabelExistsForUpdateDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.updateCrateDao = (id, labelName, weight, modifyBy) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // Validate inputs
+      if (!id) {
+        throw new Error("Crate id is required");
+      }
+
+      if (!labelName || String(labelName).trim() === "") {
+        throw new Error("Label name is required");
+      }
+
+      const parsedWeight = parseFloat(weight);
+      if (isNaN(parsedWeight) || parsedWeight <= 0) {
+        throw new Error("Weight must be a number greater than 0");
+      }
+
+      const sql = `
+        UPDATE creates
+        SET labelName = ?,
+            weight = ?,
+            modifyBy = ?,
+            modifyAt = NOW()
+        WHERE id = ?
+      `;
+
+      const values = [String(labelName).trim(), parsedWeight, modifyBy, id];
+
+      // Database query
+      collectionofficer.query(sql, values, (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results);
+      });
+    } catch (error) {
+      console.log("Error in updateCrateDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.getCrateByIdDao = (id) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // Validate inputs
+      if (!id) {
+        throw new Error("Crate id is required");
+      }
+
+      const sql = `
+        SELECT
+          id,
+          labelName,
+          weight,
+          modifyBy,
+          modifyAt,
+          createdAt
+        FROM creates
+        WHERE id = ?
+        LIMIT 1
+      `;
+
+      // Database query
+      collectionofficer.query(sql, [id], (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        // Return the single row, or null if not found
+        resolve(results.length > 0 ? results[0] : null);
+      });
+    } catch (error) {
+      console.log("Error in getCrateByIdDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.getManageContainerSizesDao =  () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        c.id,
+	      c.labelName,
+	      c.weight,
+	      a.userName AS modifyBy,
+	      DATE_ADD(c.modifyAt, INTERVAL 330 MINUTE) AS modifyAt
+      FROM creates c
+      LEFT JOIN agro_world_admin.adminusers a ON c.modifyBy = a.id
+    `;
+
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        console.error("Error fetching container sizes:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.deleteManageContainerSizeDao = (labelName) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      DELETE FROM creates
+      WHERE id = ?
+    `;
+
+    collectionofficer.query(sql, [labelName], (err, results) => {
+      if (err) {
+        console.error("Error deleting container size:", err);
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+}

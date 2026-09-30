@@ -2977,7 +2977,7 @@ exports.getReturnRecievedOrders = async (req, res) => {
 
     console.log("centerId cehck", centerId);
 
-    const companyId = 2;
+    const companyId = null;
 
     let companyCenterId;
     let deliveryLocationData;
@@ -3010,7 +3010,7 @@ exports.getReturnRecievedOrders = async (req, res) => {
       console.log("centerId", "no");
       // No center selected - get all city-to-center mappings
       cityToCenterMap =
-        await DistributionDao.getAllCityCenterMapping(companyId);
+        await DistributionDao.getAllCityCenterMapping();
 
       console.log("cityToCenterMap", cityToCenterMap);
     }
