@@ -2176,3 +2176,180 @@ exports.getLoadMismatchReportsTodayDao = () => {
     });
   });
 };
+
+exports.createCrateDao = (labelName, weight, modifyBy) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // Validate inputs
+      if (!labelName || String(labelName).trim() === "") {
+        throw new Error("Label name is required");
+      }
+
+      const parsedWeight = parseFloat(weight);
+      if (isNaN(parsedWeight) || parsedWeight <= 0) {
+        throw new Error("Weight must be a number greater than 0");
+      }
+
+      const sql = `
+        INSERT INTO creates (
+          labelName, weight, modifyBy, modifyAt, createdAt
+        ) VALUES (?, ?, ?, NOW(), NOW())
+      `;
+
+      const values = [
+        String(labelName).trim(),
+        parsedWeight,
+        modifyBy || null,
+      ];
+
+      // Database query
+      collectionofficer.query(sql, values, (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results);
+      });
+    } catch (error) {
+      console.log("Error in createCrateDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.checkCrateLabelExistsDao = (labelName) => {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!labelName || String(labelName).trim() === "") {
+        throw new Error("Label name is required");
+      }
+
+      const sql = `
+        SELECT id
+        FROM creates
+        WHERE LOWER(TRIM(labelName)) = LOWER(TRIM(?))
+        LIMIT 1
+      `;
+
+      collectionofficer.query(sql, [String(labelName)], (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results.length > 0);
+      });
+    } catch (error) {
+      console.log("Error in checkCrateLabelExistsDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.checkCrateLabelExistsForUpdateDao = (labelName, id) => {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!labelName || String(labelName).trim() === "") {
+        throw new Error("Label name is required");
+      }
+
+      const sql = `
+        SELECT id
+        FROM creates
+        WHERE LOWER(TRIM(labelName)) = LOWER(TRIM(?))
+          AND id != ?
+        LIMIT 1
+      `;
+
+      collectionofficer.query(sql, [String(labelName), id], (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results.length > 0);
+      });
+    } catch (error) {
+      console.log("Error in checkCrateLabelExistsForUpdateDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.updateCrateDao = (id, labelName, weight, modifyBy) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // Validate inputs
+      if (!id) {
+        throw new Error("Crate id is required");
+      }
+
+      if (!labelName || String(labelName).trim() === "") {
+        throw new Error("Label name is required");
+      }
+
+      const parsedWeight = parseFloat(weight);
+      if (isNaN(parsedWeight) || parsedWeight <= 0) {
+        throw new Error("Weight must be a number greater than 0");
+      }
+
+      const sql = `
+        UPDATE creates
+        SET labelName = ?,
+            weight = ?,
+            modifyBy = ?,
+            modifyAt = NOW()
+        WHERE id = ?
+      `;
+
+      const values = [String(labelName).trim(), parsedWeight, modifyBy, id];
+
+      // Database query
+      collectionofficer.query(sql, values, (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        resolve(results);
+      });
+    } catch (error) {
+      console.log("Error in updateCrateDao:", error);
+      reject(error);
+    }
+  });
+};
+
+exports.getCrateByIdDao = (id) => {
+  return new Promise((resolve, reject) => {
+    try {
+      // Validate inputs
+      if (!id) {
+        throw new Error("Crate id is required");
+      }
+
+      const sql = `
+        SELECT
+          id,
+          labelName,
+          weight,
+          modifyBy,
+          modifyAt,
+          createdAt
+        FROM creates
+        WHERE id = ?
+        LIMIT 1
+      `;
+
+      // Database query
+      collectionofficer.query(sql, [id], (err, results) => {
+        if (err) {
+          console.log("Database error:", err);
+          return reject(err);
+        }
+        // Return the single row, or null if not found
+        resolve(results.length > 0 ? results[0] : null);
+      });
+    } catch (error) {
+      console.log("Error in getCrateByIdDao:", error);
+      reject(error);
+    }
+  });
+};
