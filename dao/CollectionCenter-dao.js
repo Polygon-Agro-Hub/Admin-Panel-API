@@ -1752,10 +1752,13 @@ exports.GetComplainCategoriesByRole = (roleId, appName) => {
 
 exports.GetComplainCategoriesByRoleSuper = (id) => {
   return new Promise((resolve, reject) => {
-    const sql =
-      `SELECT cc.id, cc.categoryEnglish FROM agro_world_admin.complaincategory cc
-       LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
-       WHERE sa.id = ?`;
+    const sql = `
+      SELECT cc.id, cc.categoryEnglish
+      FROM agro_world_admin.complaincategory cc
+      LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
+      WHERE sa.id = ?
+      ORDER BY cc.categoryEnglish ASC
+    `;
     admin.query(sql, [parseInt(id, 10)], (err, results) => {
       if (err) {
         return reject(err);
