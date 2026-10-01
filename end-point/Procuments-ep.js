@@ -1240,8 +1240,8 @@ exports.createCrate = async (req, res) => {
 
     // Logged in user id (set by your auth middleware)
     const modifyBy = req.user?.userId;
-    console.log('modifyby',modifyBy, req.user );
-    
+    console.log("modifyby", modifyBy, req.user);
+
     if (!modifyBy) {
       return res.status(401).json({
         error: "Unauthorized. User not found",
@@ -1258,13 +1258,14 @@ exports.createCrate = async (req, res) => {
       });
     }
 
-    // Create crate
+    // Create crate (DAO generates createIndex = latest + 1)
     const result = await procumentDao.createCrateDao(labelName, parsedWeight, modifyBy);
     console.log(result);
 
     res.status(201).json({
       message: "Container created successfully",
       id: result.insertId,
+      createIndex: result.createIndex,
       status: true,
     });
   } catch (err) {
