@@ -154,10 +154,6 @@ router.get(
   CollectionOfficerEp.getAllCollectionManagerNames
 );
 
-
-
-
-
 router.get(
   "/get-purchase-report",
   authMiddleware,
@@ -169,11 +165,6 @@ router.get(
   // authMiddleware,
   CollectionOfficerEp.getAllCentersForPurchaseReport
 );
-
-
-
-
-
 
 router.get('/download-purchase-report', async (req, res) => {
   try {

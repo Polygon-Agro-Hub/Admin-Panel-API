@@ -1355,19 +1355,6 @@ exports.claimOfficer = async (req, res) => {
   }
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 exports.getPurchaseReport = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);

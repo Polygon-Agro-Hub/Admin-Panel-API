@@ -1930,6 +1930,16 @@ exports.getPurchaseReport = (
         company c ON co.companyId = c.id
       ${whereClause}
       GROUP BY rfp.id
+      ORDER BY
+      CASE
+        WHEN DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 330 MINUTE))
+          AND rfp.invNo LIKE 'CCM%' THEN 0
+        WHEN DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 330 MINUTE))
+           AND rfp.invNo LIKE 'COO%' THEN 1
+        ELSE 2
+      END ASC,
+      rfp.createdAt DESC,
+      rfp.id DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
 
