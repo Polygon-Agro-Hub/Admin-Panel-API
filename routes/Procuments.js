@@ -270,4 +270,10 @@ router.delete(
   ProcumentsEP.deleteManageContainerSizeEP
 )
 
+router.put(
+  "/reorder-container-sizes",
+  authMiddleware, 
+  ProcumentsEP.reorderContainerSizesEP
+);
+
 module.exports = router;

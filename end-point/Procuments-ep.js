@@ -1460,3 +1460,49 @@ exports.deleteManageContainerSizeEP = async (req, res) => {
     });
   }
 };
+
+exports.reorderContainerSizesEP = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { orderedIds } = req.body;
+
+    if (
+      !Array.isArray(orderedIds) ||
+      orderedIds.length === 0 ||
+      !orderedIds.every((id) => Number.isInteger(Number(id)))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "orderedIds must be a non-empty array of valid ids",
+      });
+    }
+
+    if (new Set(orderedIds).size !== orderedIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: "orderedIds contains duplicate ids",
+      });
+    }
+
+    const modifyBy = req.user?.userId;
+
+    const result = await procumentDao.reorderContainerSizesDao(
+      orderedIds.map(Number),
+      modifyBy
+    );
+
+    res.json({
+      success: true,
+      message: "Container sizes reordered successfully",
+      affectedRows: result.affectedRows,
+    });
+  } catch (err) {
+    console.error("Error reordering container sizes:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while reordering container sizes",
+    });
+  }
+};
