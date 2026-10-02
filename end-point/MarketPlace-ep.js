@@ -1437,9 +1437,22 @@ exports.editDeliveryCharge = async (req, res) => {
     const id = req.params.id;
     const userId = req.user.userId;
 
-    if (!deliveryData.city || !deliveryData.charge) {
+    const chargeMissing =
+      deliveryData.charge === undefined ||
+      deliveryData.charge === null ||
+      deliveryData.charge === "" ||
+      isNaN(Number(deliveryData.charge));
+
+    if (!deliveryData.city || chargeMissing) {
       return res.status(400).json({
         error: "City and charge are required fields",
+        status: false,
+      });
+    }
+
+    if (Number(deliveryData.charge) < 0) {
+      return res.status(400).json({
+        error: "Charge cannot be negative",
         status: false,
       });
     }
