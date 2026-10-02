@@ -471,7 +471,7 @@ exports.getOfficerTargetDao = (userId, status, search) => {
             DT.grade, 
             OFT.complete, 
             CO.empId,
-            DT.date AS toDate,
+            DATE(DT.date) AS toDate,
             CASE 
                 WHEN OFT.target > OFT.complete THEN 'Pending'
                 WHEN OFT.target < OFT.complete THEN 'Exceeded'
@@ -483,6 +483,7 @@ exports.getOfficerTargetDao = (userId, status, search) => {
             END AS remaining
         FROM dailytarget DT, officertarget OFT, plant_care.cropgroup CG, plant_care.cropvariety CV, collectionofficer CO
         WHERE OFT.officerId = ? AND OFT.dailyTargetId = DT.id AND DT.varietyId = CV.id AND CV.cropGroupId = CG.id AND OFT.officerId = CO.id
+            AND (OFT.target > 0 OR OFT.complete > 0)
     `;
 
         const params = [userId];
