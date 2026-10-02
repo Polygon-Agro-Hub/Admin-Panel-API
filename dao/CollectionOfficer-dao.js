@@ -3109,9 +3109,9 @@ exports.getDriveCategoryById = (id) => {
 exports.addDriveCategory = (data) => {
   return new Promise((resolve, reject) => {
     const { catName, payout, updatedBy } = data;
-    const sql = "INSERT INTO drivercategory (catName, payout, updatedAt, createdAt) VALUES (?, ?, ?, NOW())";
+    const sql = "INSERT INTO drivercategory (catName, payout, updatedBy, updatedAt) VALUES (?, ?, ?, NOW())";
     const params = [catName, payout, updatedBy];
-    
+
     collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
@@ -3121,8 +3121,7 @@ exports.addDriveCategory = (data) => {
         catName: catName,
         payout: payout,
         updatedBy: updatedBy,
-        updatedAt: new Date(),
-        createdAt: new Date()
+        updatedAt: new Date()
       });
     });
   });
