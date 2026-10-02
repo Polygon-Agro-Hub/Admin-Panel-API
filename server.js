@@ -177,7 +177,7 @@ collectionofficer.getConnection((err, connection) => {
 // });
 
 //corn jobs
-pickupOrdersReturnCornjob();
+// pickupOrdersReturnCornjob();
 
 
 
