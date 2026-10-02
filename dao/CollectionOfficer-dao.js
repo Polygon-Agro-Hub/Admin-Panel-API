@@ -717,6 +717,20 @@ exports.getAllCollectionOfficersStatus = (
       }
     }
 
+    // Order: CCM first, then COO, then others; inside each group center name A-Z, then number
+    dataSql += `
+      ORDER BY
+        CASE
+          WHEN Coff.empId LIKE 'CCM%' THEN 0
+          WHEN Coff.empId LIKE 'COO%' THEN 1
+          ELSE 2
+        END,
+        TRIM(CC.centerName) ASC,
+        CC.regCode ASC,
+        CAST(SUBSTRING(Coff.empId, 4) AS UNSIGNED) ASC,
+        Coff.id ASC
+    `;
+
     // Add pagination to the data query
     dataSql += " LIMIT ? OFFSET ?";
     dataParams.push(Number(limit), Number(offset));
