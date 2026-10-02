@@ -648,7 +648,7 @@ exports.getAllCollectionOfficersStatus = (
   page,
   limit,
   searchNIC,
-  centerName
+  centerId
 ) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
@@ -677,6 +677,7 @@ exports.getAllCollectionOfficersStatus = (
         Coff.district,
         Coff.status,
         CC.centerName,
+        CC.regCode,
         Coff.QRcode
       FROM collectionofficer Coff
       JOIN company Ccom ON Coff.companyId = Ccom.id
@@ -687,12 +688,12 @@ exports.getAllCollectionOfficersStatus = (
     const countParams = [];
     const dataParams = [];
 
-    // Apply filter for centerName only if non-empty
-    if (centerName) {
-      countSql += " AND CC.centerName LIKE ?";
-      dataSql += " AND CC.centerName LIKE ?";
-      countParams.push(`%${centerName}%`);
-      dataParams.push(`%${centerName}%`);
+    // Filter by center id (exact match) only if provided
+    if (centerId !== undefined && centerId !== null && String(centerId).trim() !== "") {
+      countSql += " AND Coff.centerId = ?";
+      dataSql += " AND Coff.centerId = ?";
+      countParams.push(Number(centerId));
+      dataParams.push(Number(centerId));
     }
 
     // Apply search filters for NIC or related fields
@@ -710,27 +711,15 @@ exports.getAllCollectionOfficersStatus = (
       countSql += searchCondition;
       dataSql += searchCondition;
       const searchValue = `%${searchNIC.trim()}%`;
-      countParams.push(
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue
-      );
-      dataParams.push(
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue
-      );
+      for (let i = 0; i < 6; i++) {
+        countParams.push(searchValue);
+        dataParams.push(searchValue);
+      }
     }
 
     // Add pagination to the data query
     dataSql += " LIMIT ? OFFSET ?";
-    dataParams.push(limit, offset);
+    dataParams.push(Number(limit), Number(offset));
 
     // Execute count query
     collectionofficer.query(countSql, countParams, (countErr, countResults) => {
@@ -748,12 +737,7 @@ exports.getAllCollectionOfficersStatus = (
           return reject(dataErr);
         }
 
-        // Convert QRcode to Base64 (if needed)
-        const processedResults = dataResults.map((item) => {
-          return item;
-        });
-
-        resolve({ items: processedResults, total });
+        resolve({ items: dataResults, total });
       });
     });
   });
@@ -2768,13 +2752,13 @@ exports.getFarmerCropsInvoiceDetailsDao = (invNo) => {
 exports.getCollectionCenterForReportDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT cen.centerName
+      SELECT cen.id, cen.centerName, cen.regCode
       FROM company c
       JOIN companycenter cc ON c.id = cc.companyId
       JOIN collectioncenter cen ON cc.centerId = cen.id
       WHERE c.isCollection = 1
-      GROUP BY cen.centerName
-      ORDER BY cen.centerName
+      GROUP BY cen.id, cen.centerName, cen.regCode
+      ORDER BY cen.centerName, cen.regCode
     `;
 
     collectionofficer.query(sql, (err, results) => {
