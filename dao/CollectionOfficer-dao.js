@@ -14,20 +14,52 @@ const DriverJobRoles = require ('./../assets/json/driverJobRole.json')
 const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
 const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
 
+// exports.getCollectionOfficerDistrictReports = (district) => {
+//   return new Promise((resolve, reject) => {
+//     const sql = `
+//             SELECT cv.varietyNameEnglish AS cropName,
+//              c.district, 
+//              SUM(fpc.gradeAquan) AS qtyA, 
+//              SUM(fpc.gradeBquan) AS qtyB, 
+//              SUM(fpc.gradeCquan) AS qtyC, 
+//              SUM(fpc.gradeAprice) AS priceA, 
+//              SUM(fpc.gradeBprice) AS priceB, 
+//              SUM(fpc.gradeCprice) AS priceC
+//             FROM registeredfarmerpayments rp, collectionofficer c, plant_care.cropvariety cv , plant_care.cropgroup cg, farmerpaymentscrops fpc
+//             WHERE rp.id = fpc.registerFarmerId AND rp.collectionOfficerId = c.id AND fpc.cropId = cv.id AND cv.cropGroupId = cg.id AND c.district = ? AND c.companyId = 1
+//             GROUP BY cv.varietyNameEnglish, c.district
+//         `;
+//     collectionofficer.query(sql, [district], (err, results) => {
+//       if (err) {
+//         return reject(err); // Reject promise if an error occurs
+//       }
+//       console.log(results);
+
+//       resolve(results); // Resolve the promise with the query results
+//     });
+//   });
+// };
+
 exports.getCollectionOfficerDistrictReports = (district) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT cv.varietyNameEnglish AS cropName,
-             c.district, 
-             SUM(fpc.gradeAquan) AS qtyA, 
-             SUM(fpc.gradeBquan) AS qtyB, 
-             SUM(fpc.gradeCquan) AS qtyC, 
-             SUM(fpc.gradeAprice) AS priceA, 
-             SUM(fpc.gradeBprice) AS priceB, 
-             SUM(fpc.gradeCprice) AS priceC
-            FROM registeredfarmerpayments rp, collectionofficer c, plant_care.cropvariety cv , plant_care.cropgroup cg, farmerpaymentscrops fpc
-            WHERE rp.id = fpc.registerFarmerId AND rp.collectionOfficerId = c.id AND fpc.cropId = cv.id AND cv.cropGroupId = cg.id AND c.district = ? AND c.companyId = 1
-            GROUP BY cv.varietyNameEnglish, c.district
+            SELECT 
+  cv.varietyNameEnglish AS cropName,
+  cc.district, 
+  SUM(fpc.gradeAquan) AS qtyA, 
+  SUM(fpc.gradeBquan) AS qtyB, 
+  SUM(fpc.gradeCquan) AS qtyC, 
+  SUM(fpc.gradeAprice) AS priceA, 
+  SUM(fpc.gradeBprice) AS priceB, 
+  SUM(fpc.gradeCprice) AS priceC
+FROM registeredfarmerpayments rp
+INNER JOIN collectionofficer c ON rp.collectionOfficerId = c.id
+INNER JOIN farmerpaymentscrops fpc ON rp.id = fpc.registerFarmerId
+INNER JOIN plant_care.cropvariety cv ON fpc.cropId = cv.id
+INNER JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+INNER JOIN collectioncenter cc ON c.centerId = cc.id
+WHERE cc.district = ? AND c.companyId = 1
+GROUP BY cv.varietyNameEnglish, cc.district
         `;
     collectionofficer.query(sql, [district], (err, results) => {
       if (err) {
