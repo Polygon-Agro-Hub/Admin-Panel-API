@@ -1339,7 +1339,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(20)
       .fillColor("#071a51")
-      .text("Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation", {
+      .text("Polygon Holdings (Pvt) Ltd  - User Credentials", {
         align: "center",
       });
 
@@ -1358,23 +1358,12 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(12)
       .text(
-        "Thank you for registering with us! We are excited to have you on board."
+        "The following information is related to your Polygon Holdings account. Our platform is designed to support you in your day-to-day activities."
       );
 
     doc.moveDown();
 
-    doc
-      .fontSize(12)
-      .text(
-        "You have successfully created an account with Polygon Holdings (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
-        {
-          align: "justify",
-        }
-      );
-
-    doc.moveDown();
-
-    doc.fontSize(12).text(`Your User Name/ID: ${empId}`);
+    doc.fontSize(12).text(`Your User Name/ EMP ID: ${empId}`);
     doc.fontSize(12).text(`Your Password: ${password}`);
 
     doc.moveDown();
@@ -1442,11 +1431,11 @@ exports.SendGeneratedPasswordDao = async (
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation",
-      text: `Dear ${firstNameEnglish},\n\nYour registration details are attached in the PDF.`,
+      subject: "Polygon Holdings (Pvt) Ltd  - User Credentials",
+      text: `Dear ${firstNameEnglish},\n\nYour account details are attached in the PDF.`,
       attachments: [
         {
-          filename: `Registration_${empId}.pdf`, // PDF file name
+          filename: `User Credentails_${empId}.pdf`, // PDF file name
           content: pdfData, // Attach the PDF buffer directly
         },
       ],
