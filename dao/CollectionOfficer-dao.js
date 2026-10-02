@@ -2181,7 +2181,15 @@ exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
         ub.bankName,
         ub.branchName,
         co.empId,
+        co.jobRole,
         rfp.createdAt
+      ORDER BY
+        CASE
+          WHEN co.jobRole = 'Collection Centre Manager' THEN 1
+          WHEN co.jobRole = 'Collection Officer' THEN 2
+          ELSE 3
+        END ASC,
+        rfp.createdAt DESC
     `;
 
     collectionofficer.query(dataSql, params, (err, results) => {
