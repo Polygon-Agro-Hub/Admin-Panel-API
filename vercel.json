@@ -9,7 +9,7 @@
     "crons": [
         {
             "path": "/agro-api/admin-api/api/return-pickup-orders",
-            "schedule": "00 14 * * *"
+            "schedule": "00 16 * * *"
         }
     ]
 }
