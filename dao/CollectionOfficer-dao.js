@@ -1979,36 +1979,147 @@ exports.getPurchaseReport = (
   });
 };
 
+// exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
+//   return new Promise((resolve, reject) => {
+//     const params = [];
+//     const countParams = [];
+//     const totalParams = [];
+
+//     let whereClause = "WHERE c.id = 1";
+
+//     if (centerId) {
+//       whereClause += " AND co.centerId = ?";
+//       params.push(centerId);
+//       countParams.push(centerId);
+//       totalParams.push(centerId);
+//     }
+
+//     if (startDate && endDate) {
+//       whereClause += " AND DATE(rfp.createdAt) BETWEEN ? AND ?";
+//       params.push(startDate, endDate);
+//       countParams.push(startDate, endDate);
+//       totalParams.push(startDate, endDate);
+//     } else if (startDate) {
+//       whereClause += " AND DATE(rfp.createdAt) >= ?";
+//       params.push(startDate);
+//       countParams.push(startDate);
+//       totalParams.push(startDate);
+//     } else if (endDate) {
+//       whereClause += " AND DATE(rfp.createdAt) <= ?";
+//       params.push(endDate);
+//       countParams.push(endDate);
+//       totalParams.push(endDate);
+//     }
+
+//     if (search) {
+//       whereClause += `
+//         AND (
+//           cc.regCode LIKE ? OR 
+//           cc.centerName LIKE ? OR 
+//           us.NICnumber LIKE ? OR 
+//           invNo LIKE ?
+//         )
+//       `;
+//       const searchPattern = `%${search}%`;
+//       params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+//       countParams.push(
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern
+//       );
+//       totalParams.push(
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern
+//       );
+//     }
+
+//     let dataSql = `
+//       SELECT 
+//         invNo AS grnNumber,
+//         cc.regCode AS regCode,
+//         cc.centerName AS centerName,
+//         ROUND(SUM(IFNULL(fpc.gradeAprice * fpc.gradeAquan, 0) + IFNULL(fpc.gradeBprice * fpc.gradeBquan, 0) + IFNULL(fpc.gradeCprice * fpc.gradeCquan, 0)), 2) AS amount,
+//         us.firstName AS firstName,
+//         us.lastName AS lastName,
+//         us.NICnumber AS nic,
+//         us.phoneNumber AS phoneNumber,
+//         us.phoneNumber AS phoneNumber,
+//         ub.accHolderName AS accHolderName,
+//         ub.accNumber AS accNumber,
+//         ub.bankName AS bankName,
+//         ub.branchName AS branchName,
+//         co.empId AS empId,
+//         TIME(rfp.createdAt) AS createdAt,
+//         DATE(rfp.createdAt) AS createdDate
+//       FROM 
+//         registeredfarmerpayments rfp
+//       LEFT JOIN 
+//         farmerpaymentscrops fpc ON rfp.id = fpc.registerFarmerId
+//       JOIN 
+//         collectionofficer co ON rfp.collectionOfficerId = co.id
+//       JOIN 
+//         plant_care.users us ON rfp.userId = us.id
+//       JOIN 
+//         collectioncenter cc ON co.centerId = cc.id
+//       JOIN 
+//         company c ON co.companyId = c.id
+//       LEFT JOIN 
+//         plant_care.userbankdetails ub ON us.id = ub.userId
+//       ${whereClause}
+//       GROUP BY 
+//       rfp.id,
+//       invNo,
+//       cc.regCode,
+//       cc.centerName,
+//       us.firstName,
+//       us.lastName,
+//       us.NICnumber,
+//       us.phoneNumber,
+//       ub.accHolderName,
+//       ub.accNumber,
+//       ub.bankName,
+//       ub.branchName,
+//       co.empId,
+//       rfp.createdAt
+//     `;
+
+//     console.log("Executing Count Query...");
+
+//     collectionofficer.query(dataSql, params, (err, results) => {
+//       if (err) {
+//         return reject(err);
+//       }
+//       resolve(results);
+//     });
+//   });
+// };
+
 exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
   return new Promise((resolve, reject) => {
     const params = [];
-    const countParams = [];
-    const totalParams = [];
 
     let whereClause = "WHERE c.id = 1";
 
     if (centerId) {
       whereClause += " AND co.centerId = ?";
       params.push(centerId);
-      countParams.push(centerId);
-      totalParams.push(centerId);
     }
 
     if (startDate && endDate) {
-      whereClause += " AND DATE(rfp.createdAt) BETWEEN ? AND ?";
+      whereClause +=
+        " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL '5:30' HOUR_MINUTE)) BETWEEN ? AND ?";
       params.push(startDate, endDate);
-      countParams.push(startDate, endDate);
-      totalParams.push(startDate, endDate);
     } else if (startDate) {
-      whereClause += " AND DATE(rfp.createdAt) >= ?";
+      whereClause +=
+        " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL '5:30' HOUR_MINUTE)) >= ?";
       params.push(startDate);
-      countParams.push(startDate);
-      totalParams.push(startDate);
     } else if (endDate) {
-      whereClause += " AND DATE(rfp.createdAt) <= ?";
+      whereClause +=
+        " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL '5:30' HOUR_MINUTE)) <= ?";
       params.push(endDate);
-      countParams.push(endDate);
-      totalParams.push(endDate);
     }
 
     if (search) {
@@ -2022,21 +2133,9 @@ exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
       `;
       const searchPattern = `%${search}%`;
       params.push(searchPattern, searchPattern, searchPattern, searchPattern);
-      countParams.push(
-        searchPattern,
-        searchPattern,
-        searchPattern,
-        searchPattern
-      );
-      totalParams.push(
-        searchPattern,
-        searchPattern,
-        searchPattern,
-        searchPattern
-      );
     }
 
-    let dataSql = `
+    const dataSql = `
       SELECT 
         invNo AS grnNumber,
         cc.regCode AS regCode,
@@ -2046,14 +2145,13 @@ exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
         us.lastName AS lastName,
         us.NICnumber AS nic,
         us.phoneNumber AS phoneNumber,
-        us.phoneNumber AS phoneNumber,
         ub.accHolderName AS accHolderName,
         ub.accNumber AS accNumber,
         ub.bankName AS bankName,
         ub.branchName AS branchName,
         co.empId AS empId,
-        TIME(rfp.createdAt) AS createdAt,
-        DATE(rfp.createdAt) AS createdDate
+        TIME(DATE_ADD(rfp.createdAt, INTERVAL '5:30' HOUR_MINUTE)) AS createdAt,
+        DATE(DATE_ADD(rfp.createdAt, INTERVAL '5:30' HOUR_MINUTE)) AS createdDate
       FROM 
         registeredfarmerpayments rfp
       LEFT JOIN 
@@ -2070,23 +2168,21 @@ exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
         plant_care.userbankdetails ub ON us.id = ub.userId
       ${whereClause}
       GROUP BY 
-      rfp.id,
-      invNo,
-      cc.regCode,
-      cc.centerName,
-      us.firstName,
-      us.lastName,
-      us.NICnumber,
-      us.phoneNumber,
-      ub.accHolderName,
-      ub.accNumber,
-      ub.bankName,
-      ub.branchName,
-      co.empId,
-      rfp.createdAt
+        rfp.id,
+        invNo,
+        cc.regCode,
+        cc.centerName,
+        us.firstName,
+        us.lastName,
+        us.NICnumber,
+        us.phoneNumber,
+        ub.accHolderName,
+        ub.accNumber,
+        ub.bankName,
+        ub.branchName,
+        co.empId,
+        rfp.createdAt
     `;
-
-    console.log("Executing Count Query...");
 
     collectionofficer.query(dataSql, params, (err, results) => {
       if (err) {
