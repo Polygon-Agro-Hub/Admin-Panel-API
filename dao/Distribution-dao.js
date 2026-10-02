@@ -408,15 +408,19 @@ exports.getCompanyDAO = () => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT 
-      c.id,
-      c.companyNameEnglish
+        c.id,
+        c.companyNameEnglish
       FROM 
         company c
-      WHERE c.status = 1 AND c.isDistributed = true
+      WHERE c.status = 1 
+        AND c.isDistributed = true
+        AND c.companyNameEnglish <> ?
       ORDER BY c.companyNameEnglish ASC
     `;
 
-    collectionofficer.query(sql, (err, results) => {
+    const params = ["Polygon Holdings Private Limited"];
+
+    collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -452,7 +456,8 @@ exports.getCompanyDetails = () => {
 exports.createDistributionHeadPersonal = (
   officerData,
   profileImageUrl,
-  newEmpId
+  newEmpId,
+  adminId
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -463,8 +468,9 @@ exports.createDistributionHeadPersonal = (
                     distributedCenterId, companyId, irmId, firstNameEnglish, lastNameEnglish,
                     jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
-                    languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Not Approved')
+                    languages, accHolderName, accNumber, bankName, branchName, image, QRcode,
+                    adminModifyBy, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Not Approved')
             `;
 
       collectionofficer.query(
@@ -498,6 +504,7 @@ exports.createDistributionHeadPersonal = (
           officerData.branchName,
           imageUrl,
           null, // QRcode field set to null
+          adminId, // adminModifyBy
         ],
         (err, results) => {
           if (err) {
@@ -949,34 +956,27 @@ exports.DeleteDistributionCenter = (id) => {
 };
 
 exports.generateRegCode = (province, district, city, callback) => {
-  // Generate the prefix based on province and district with "P" after province initial
   const prefix =
+    "D-" +
     province.charAt(0).toUpperCase() +
     province.charAt(1).toUpperCase() +
     district.charAt(0).toUpperCase() +
     city.charAt(0).toUpperCase();
 
-  // SQL query to get the latest regCode
-  const query = `SELECT regCode FROM distributedcenter WHERE regCode LIKE ? ORDER BY regCode DESC LIMIT 1`;
+  const query = `
+    SELECT MAX(CAST(SUBSTRING_INDEX(regCode, '-', -1) AS UNSIGNED)) AS lastNumber
+    FROM distributedcenter
+    WHERE regCode LIKE ?
+  `;
 
-  // Execute the query
   collectionofficer.execute(query, [`${prefix}-%`], (err, results) => {
     if (err) {
       console.error("Error executing query:", err);
       return callback(err);
     }
 
-    let newRegCode = `${prefix}-01`; // Default to 01 if no regCode found
-
-    if (results.length > 0) {
-      // Get the last regCode and extract the number
-      const lastRegCode = results[0].regCode;
-      const lastNumber = parseInt(lastRegCode.split("-")[1]);
-      const newNumber = lastNumber + 1;
-      newRegCode = `${prefix}-${String(newNumber).padStart(2, "0")}`;
-    }
-
-    // Return the new regCode
+    const lastNumber = results[0].lastNumber || 0;
+    const newRegCode = `${prefix}-${String(lastNumber + 1).padStart(2, "0")}`;
     callback(null, newRegCode);
   });
 };
@@ -1277,7 +1277,7 @@ exports.DeleteDistributionOfficerDao = (id) => {
 exports.getDistributionOfficerEmailDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT c.email, c.firstNameEnglish, c.empId AS empId
+            SELECT c.email, c.firstNameEnglish, c.empId AS empId, c.jobRole 
             FROM collectionofficer c
             WHERE c.id = ?
         `;
@@ -1290,6 +1290,7 @@ exports.getDistributionOfficerEmailDao = (id) => {
           email: results[0].email, // Resolve with email
           firstNameEnglish: results[0].firstNameEnglish,
           empId: results[0].empId, // Resolve with employeeType (empId)
+          jobRole: results[0].jobRole, // Resolve with jobRole
         });
       } else {
         resolve(null); // Resolve with null if no record is found
@@ -1338,7 +1339,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(20)
       .fillColor("#071a51")
-      .text("Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation", {
+      .text("Polygon Holdings (Pvt) Ltd  - User Credentials", {
         align: "center",
       });
 
@@ -1357,23 +1358,12 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(12)
       .text(
-        "Thank you for registering with us! We are excited to have you on board."
+        "The following information is related to your Polygon Holdings account. Our platform is designed to support you in your day-to-day activities."
       );
 
     doc.moveDown();
 
-    doc
-      .fontSize(12)
-      .text(
-        "You have successfully created an account with Polygon Holdings (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
-        {
-          align: "justify",
-        }
-      );
-
-    doc.moveDown();
-
-    doc.fontSize(12).text(`Your User Name/ID: ${empId}`);
+    doc.fontSize(12).text(`Your User Name/ EMP ID: ${empId}`);
     doc.fontSize(12).text(`Your Password: ${password}`);
 
     doc.moveDown();
@@ -1441,11 +1431,11 @@ exports.SendGeneratedPasswordDao = async (
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation",
-      text: `Dear ${firstNameEnglish},\n\nYour registration details are attached in the PDF.`,
+      subject: "Polygon Holdings (Pvt) Ltd  - User Credentials",
+      text: `Dear ${firstNameEnglish},\n\nYour account details are attached in the PDF.`,
       attachments: [
         {
-          filename: `Registration_${empId}.pdf`, // PDF file name
+          filename: `User Credentails_${empId}.pdf`, // PDF file name
           content: pdfData, // Attach the PDF buffer directly
         },
       ],
@@ -2724,15 +2714,21 @@ GROUP BY
 
 exports.getDistributedCompanyCenter = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
-    const sql = `
+    const params = [centerId]
+    let sql = `
       SELECT dcc.id AS companyCenterId
       FROM collection_officer.distributedcompanycenter dcc 
       JOIN collection_officer.distributedcenter dc ON dcc.centerId = dc.id
       JOIN collection_officer.company c ON dcc.companyId = c.id
-      WHERE c.id = ? AND dc.id = ?
+      WHERE dc.id = ?
       `;
 
-    collectionofficer.query(sql, [companyId, centerId], (err, results) => {
+      if(companyId !== null){
+        sql += ` AND c.id = ? `
+        params.push(companyId)
+      }
+
+    collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
       }
@@ -3330,7 +3326,7 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
         po.sheduleDate,
         po.createdAt,
         po.status,
-        TIME(DATE_ADD(dti.completeTime, INTERVAL 330 MINUTE)) AS outDlvrTime,
+        TIME(DATE_ADD(po.packTime, INTERVAL 330 MINUTE)) AS outDlvrTime,
         dro.createdAt AS collectTime,
         drv.empId AS driverEmpId,
         CONCAT(drv.phoneCode01, drv.phoneNumber01) AS driverPhone,
@@ -3353,7 +3349,6 @@ exports.getAllTodaysDeliveries = (searchParams = {}) => {
       LEFT JOIN collection_officer.distributedcenter dc ON o.centerId = dc.id
       LEFT JOIN collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id
       LEFT JOIN collection_officer.distributedcenter dc2 ON dcc.centerId = dc2.id
-      LEFT JOIN collection_officer.distributedtargetitems dti ON po.id = dti.orderId 
       WHERE DATE(po.sheduleDate) = CURDATE()
     `;
 
@@ -3694,6 +3689,108 @@ exports.getReturnRecievedDataDao = (
   });
 };
 
+exports.getReturnRecievedDataDao = (
+  receivedTime,
+  centerId,
+  deliveryLocationData,
+  searchText
+) => {
+  return new Promise((resolve, reject) => {
+    let dataSql = `
+      SELECT 
+        do.id, 
+        coff.id AS driverId, 
+        coff.empId, 
+        po.id AS processOrderId, 
+        po.invNO, 
+        o.id AS orderId, 
+        o.fullTotal As total, 
+        o.centerId, 
+        mp.phoneCode,
+        mp.phoneNumber,
+        po.sheduleDate, 
+        oh.city AS houseCity,
+        oa.city AS apartmentCity, 
+        rr.rsnEnglish AS reason,
+        dro.note AS other, 
+        dro.createdAt AS returnAt, 
+        do.receivedTime
+      FROM collection_officer.driverordermain drm
+      LEFT JOIN collection_officer.driverorders do on drm.id = do.drvOrderMainId
+      LEFT JOIN collection_officer.collectionofficer coff ON drm.driverId = coff.id
+      LEFT JOIN collection_officer.processorders po ON do.orderId = po.id
+      LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+      LEFT JOIN collection_officer.marketplaceusers mp ON mp.id = o.userId
+      LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+      LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
+      LEFT JOIN collection_officer.driverreturnorders dro ON dro.drvOrderId = do.id
+      LEFT JOIN collection_officer.returnreason rr ON dro.returnReasonId = rr.id
+      LEFT JOIN collection_officer.distributedcenter dc1 ON dc1.id = o.centerId
+      WHERE do.drvStatus = 'Return Received'
+    `;
+    const dataParams = [];
+
+    // ✅ FIX: Removed the duplicate push that was here.
+    // The original code pushed deliveryLocationData twice BEFORE the centerId block,
+    // which shifted every subsequent parameter out of alignment and caused
+    // receivedTime to land inside DATE(?) — producing:
+    //   DATE('Ampara', 'Hingurana')
+
+    if (centerId) {
+      dataSql += ` AND (`;
+
+      if (deliveryLocationData && deliveryLocationData.length > 0) {
+        dataSql += `(oh.city IN (?) OR oa.city IN (?)) OR `;
+        dataParams.push(deliveryLocationData, deliveryLocationData);
+      }
+
+      dataSql += ` o.centerId = ? )`;
+      dataParams.push(centerId);
+    }
+
+    if (receivedTime) {
+      dataSql += ` AND DATE(do.receivedTime) = DATE(?) `;
+      dataParams.push(receivedTime);
+    }
+
+    if (searchText) {
+      const searchPattern = `%${searchText}%`;
+      dataSql += `
+        AND (
+          po.invNO LIKE ? OR
+          CONCAT(mp.phoneCode, ' ', mp.phoneNumber) LIKE ? OR
+          CONCAT(mp.phoneCode, mp.phoneNumber) LIKE ? OR
+          dc1.centerName LIKE ? OR
+          oh.city LIKE ? OR
+          oa.city LIKE ?
+        )
+      `;
+
+      dataParams.push(
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        searchPattern
+      );
+    }
+
+    dataSql += ` ORDER BY po.createdAt DESC`;
+
+    collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+      if (dataErr) {
+        reject(dataErr);
+      } else {
+        resolve({
+          total: dataResults.length,
+          items: dataResults,
+        });
+      }
+    });
+  });
+};
+
 exports.getDeliveryChargeCity = (companyCenterId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -3716,7 +3813,7 @@ exports.getDeliveryChargeCity = (companyCenterId) => {
   });
 };
 
-exports.getAllCityCenterMapping = (companyId) => {
+exports.getAllCityCenterMapping = () => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
@@ -3728,10 +3825,10 @@ exports.getAllCityCenterMapping = (companyId) => {
       JOIN collection_officer.centerowncity coc ON dcc.id = coc.companyCenterId
       JOIN collection_officer.deliverycharge dc ON coc.cityId = dc.id
       LEFT JOIN collection_officer.distributedcenter dist ON dcc.centerId = dist.id
-      WHERE dcc.companyId = ?
+      
     `;
 
-    collectionofficer.query(sql, [companyId], (err, results) => {
+    collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
       }
