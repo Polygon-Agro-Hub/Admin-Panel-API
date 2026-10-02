@@ -454,7 +454,12 @@ exports.editMarketProduct = async (req, res) => {
       });
     }
 
-    const result = await MarketPlaceDao.updateMarketProductDao(req.body, id, modifyBy);
+    // Product update (this sets isEnable = 0 inside the DAO)
+    const result = await MarketPlaceDao.updateMarketProductDao(
+      req.body,
+      id,
+      modifyBy,
+    );
 
     if (result.affectedRows === 0) {
       return res.json({
@@ -463,6 +468,8 @@ exports.editMarketProduct = async (req, res) => {
         status: false,
       });
     }
+    
+    await MarketPlaceDao.disablePackagesByProductId(id);
 
     res.status(201).json({
       message: "market product updated successfully",
