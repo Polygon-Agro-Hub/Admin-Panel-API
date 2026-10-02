@@ -8,8 +8,8 @@
     ],
     "crons": [
         {
-            "path": "/api/return-pickup-orders",
-            "schedule": "30 12 * * *"
+            "path": "/agro-api/admin-api/api/return-pickup-orders",
+            "schedule": "00 14 * * *"
         }
     ]
 }
