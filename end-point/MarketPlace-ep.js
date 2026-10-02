@@ -28,6 +28,8 @@ exports.createMarketProduct = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
+    const modifyBy = req.user?.userId;
+
     const product = {
       cropName: req.body.displayName || req.body.cropName,
       normalPrice: req.body.normalPrice,
@@ -44,6 +46,7 @@ exports.createMarketProduct = async (req, res) => {
       maxQuantity: req.body.maxQuantity,
       productTypeId: req.body.productTypeId,
       comPrice: req.body.comPrice,
+      modifyBy,
     };
 
     const { exists, varietyExists, nameExists } =
@@ -1112,7 +1115,8 @@ exports.createProductType = async (req, res) => {
   try {
     const data =
       await MarketPriceValidate.createProductTypeSchema.validateAsync(req.body);
-    const result = await MarketPlaceDao.createProductTypesDao(data);
+    const modifyBy = req.user?.userId;
+    const result = await MarketPlaceDao.createProductTypesDao(data, modifyBy);
 
     if (result.affectedRows === 0) {
       return res.json({
