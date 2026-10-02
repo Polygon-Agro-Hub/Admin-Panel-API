@@ -465,9 +465,7 @@ exports.getComplaintCategoryFromMarketplace = (appId) => {
       SELECT DISTINCT 
         cc.id,
         cc.categoryEnglish
-      FROM collection_officer.marcketplacecomplain mc
-      INNER JOIN agro_world_admin.complaincategory cc 
-        ON mc.complaicategoryId = cc.id
+      FROM agro_world_admin.complaincategory cc 
       WHERE cc.appId = ?
     `;
 

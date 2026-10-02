@@ -401,7 +401,7 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     doc
       .fontSize(20)
       .fillColor("#071a51")
-      .text("Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation", {
+      .text("Polygon Holdings (Pvt) Ltd  - User Credentials", {
         align: "center",
       });
 
@@ -420,23 +420,12 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     doc
       .fontSize(12)
       .text(
-        "Thank you for registering with us! We are excited to have you on board."
+        "The following information is related to your Polygon Holdings account. Our platform is designed to support you in your day-to-day activities."
       );
 
     doc.moveDown();
 
-    doc
-      .fontSize(12)
-      .text(
-        "You have successfully created an account with Polygon Holdings (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
-        {
-          align: "justify",
-        }
-      );
-
-    doc.moveDown();
-
-    doc.fontSize(12).text(`Your User Name/ID: ${empId}`);
+    doc.fontSize(12).text(`Your User Name/ EMP ID: ${empId}`);
     doc.fontSize(12).text(`Your Password: ${password}`);
 
     doc.moveDown();
@@ -461,9 +450,9 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     doc.fontSize(12).text(`The Polygon Holdings Team`);
     doc.fontSize(12).text(`Polygon Holdings (Pvt) Ltd. | All rights reserved.`);
     doc.moveDown();
-    doc.fontSize(12).text(`Address: No:14,`);
-    doc.fontSize(12).text(`            Sir Baron Jayathilake Mawatha,`);
-    doc.fontSize(12).text(`            Colombo 01.`);
+    doc.fontSize(12).text(`Address: Level 2, Building 2 No. 46/42,`);
+    doc.fontSize(12).text(`               Nawam Mawatha,`);
+    doc.fontSize(12).text(`               Colombo 02.`);
     doc.moveDown();
     doc.fontSize(12).text(`Email: polygon.admin@gmail.com`);
 
@@ -490,11 +479,11 @@ const SendGeneratedPasswordDao = async (email, password, empId, firstName) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation",
-      text: `Dear ${firstName},\n\nYour registration details are attached in the PDF.`,
+      subject: "Polygon Holdings (Pvt) Ltd  - User Credentials",
+      text: `Dear ${firstName},\n\nYour account details are attached in the PDF.`,
       attachments: [
         {
-          filename: `Registration_${empId}.pdf`, // PDF file name
+          filename: `User Credentails_${empId}.pdf`, // PDF file name
           content: pdfData, // Attach the PDF buffer directly
         },
       ],

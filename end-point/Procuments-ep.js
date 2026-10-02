@@ -1240,8 +1240,8 @@ exports.createCrate = async (req, res) => {
 
     // Logged in user id (set by your auth middleware)
     const modifyBy = req.user?.userId;
-    console.log('modifyby',modifyBy, req.user );
-    
+    console.log("modifyby", modifyBy, req.user);
+
     if (!modifyBy) {
       return res.status(401).json({
         error: "Unauthorized. User not found",
@@ -1258,13 +1258,14 @@ exports.createCrate = async (req, res) => {
       });
     }
 
-    // Create crate
+    // Create crate (DAO generates createIndex = latest + 1)
     const result = await procumentDao.createCrateDao(labelName, parsedWeight, modifyBy);
     console.log(result);
 
     res.status(201).json({
       message: "Container created successfully",
       id: result.insertId,
+      createIndex: result.createIndex,
       status: true,
     });
   } catch (err) {
@@ -1457,6 +1458,52 @@ exports.deleteManageContainerSizeEP = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "An error occurred while deleting the manage container size.",
+    });
+  }
+};
+
+exports.reorderContainerSizesEP = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { orderedIds } = req.body;
+
+    if (
+      !Array.isArray(orderedIds) ||
+      orderedIds.length === 0 ||
+      !orderedIds.every((id) => Number.isInteger(Number(id)))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "orderedIds must be a non-empty array of valid ids",
+      });
+    }
+
+    if (new Set(orderedIds).size !== orderedIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: "orderedIds contains duplicate ids",
+      });
+    }
+
+    const modifyBy = req.user?.userId;
+
+    const result = await procumentDao.reorderContainerSizesDao(
+      orderedIds.map(Number),
+      modifyBy
+    );
+
+    res.json({
+      success: true,
+      message: "Container sizes reordered successfully",
+      affectedRows: result.affectedRows,
+    });
+  } catch (err) {
+    console.error("Error reordering container sizes:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while reordering container sizes",
     });
   }
 };

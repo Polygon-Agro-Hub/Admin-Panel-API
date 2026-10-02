@@ -2193,10 +2193,13 @@ exports.createCrateDao = (labelName, weight, modifyBy) => {
         throw new Error("Weight must be a number greater than 0");
       }
 
-      const sql = `
+      // Insert the crate with the next createIndex (latest + 1, or 1 if none)
+      const insertSql = `
         INSERT INTO creates (
-          labelName, weight, modifyBy, modifyAt
-        ) VALUES (?, ?, ?, NOW())
+          labelName, weight, modifyBy, modifyAt, createIndex
+        )
+        SELECT ?, ?, ?, NOW(), COALESCE(MAX(createIndex), 0) + 1
+        FROM creates
       `;
 
       const values = [
@@ -2204,18 +2207,27 @@ exports.createCrateDao = (labelName, weight, modifyBy) => {
         parsedWeight,
         modifyBy || null,
       ];
-      console.log('--------------------------------------');
-      console.log(values);
-      
-      
 
-      // Database query
-      collectionofficer.query(sql, values, (err, results) => {
-        if (err) {
-          console.log("Database error:", err);
-          return reject(err);
+      collectionofficer.query(insertSql, values, (insertErr, insertResults) => {
+        if (insertErr) {
+          console.log("Database error (insert crate):", insertErr);
+          return reject(insertErr);
         }
-        resolve(results);
+
+        // Fetch the createIndex that was assigned to the new row
+        const selectSql = `SELECT createIndex FROM creates WHERE id = ?`;
+
+        collectionofficer.query(selectSql, [insertResults.insertId], (selectErr, selectResults) => {
+          if (selectErr) {
+            console.log("Database error (select createIndex):", selectErr);
+            return reject(selectErr);
+          }
+
+          resolve({
+            insertId: insertResults.insertId,
+            createIndex: selectResults[0]?.createIndex,
+          });
+        });
       });
     } catch (error) {
       console.log("Error in createCrateDao:", error);
@@ -2366,12 +2378,14 @@ exports.getManageContainerSizesDao =  () => {
     const sql = `
       SELECT 
         c.id,
+        c.createIndex,
 	      c.labelName,
 	      c.weight,
 	      a.userName AS modifyBy,
 	      DATE_ADD(c.modifyAt, INTERVAL 330 MINUTE) AS modifyAt
       FROM creates c
       LEFT JOIN agro_world_admin.adminusers a ON c.modifyBy = a.id
+      ORDER BY c.createIndex ASC
     `;
 
     collectionofficer.query(sql, (err, results) => {
@@ -2400,3 +2414,38 @@ exports.deleteManageContainerSizeDao = (labelName) => {
     });
   });
 }
+
+exports.reorderContainerSizesDao = (orderedIds, modifyBy) => {
+  return new Promise((resolve, reject) => {
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      return reject(new Error("orderedIds must be a non-empty array"));
+    }
+ 
+    const caseSql = orderedIds.map(() => "WHEN ? THEN ?").join(" ");
+    const caseParams = [];
+    orderedIds.forEach((id, index) => {
+      caseParams.push(id, index + 1); 
+    });
+
+    const placeholders = orderedIds.map(() => "?").join(",");
+
+    const sql = `
+      UPDATE creates
+      SET 
+        createIndex = CASE id ${caseSql} END,
+        modifyBy = ?,
+        modifyAt = NOW()
+      WHERE id IN (${placeholders})
+    `;
+
+    const params = [...caseParams, modifyBy, ...orderedIds];
+
+    collectionofficer.query(sql, params, (err, result) => {
+      if (err) {
+        console.error("Error reordering container sizes:", err);
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
+};
