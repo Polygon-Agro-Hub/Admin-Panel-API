@@ -2312,9 +2312,16 @@ exports.updateCrateDao = (id, labelName, weight, modifyBy) => {
         throw new Error("Label name is required");
       }
 
-      const parsedWeight = parseFloat(weight);
-      if (isNaN(parsedWeight) || parsedWeight <= 0) {
-        throw new Error("Weight must be a number greater than 0");
+      // Weight validation (0 is allowed)
+      const parsedWeight = Number(weight);
+      if (
+        weight === null ||
+        weight === undefined ||
+        String(weight).trim() === "" ||
+        !Number.isFinite(parsedWeight) ||
+        parsedWeight < 0
+      ) {
+        throw new Error("Weight must be a number, 0 or greater");
       }
 
       const sql = `
