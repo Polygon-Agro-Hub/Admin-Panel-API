@@ -1229,11 +1229,18 @@ exports.createCrate = async (req, res) => {
       });
     }
 
-    // Validate weight
-    const parsedWeight = parseFloat(weight);
-    if (isNaN(parsedWeight) || parsedWeight <= 0) {
+    // Validate weight (0 is allowed)
+    if (weight === null || String(weight).trim() === "") {
       return res.status(400).json({
-        error: "Weight must be a number greater than 0",
+        error: "Weight is required",
+        status: false,
+      });
+    }
+
+    const parsedWeight = Number(weight);
+    if (!Number.isFinite(parsedWeight) || parsedWeight < 0) {
+      return res.status(400).json({
+        error: "Weight must be a number, 0 or greater",
         status: false,
       });
     }

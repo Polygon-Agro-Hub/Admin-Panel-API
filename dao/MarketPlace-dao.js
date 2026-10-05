@@ -2410,6 +2410,7 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         po.isPaid,
         po.creditPaid,
         po.moneyPaid,
+        po.status AS orderStatus,
         CASE
           WHEN o.buildingType = 'House' THEN oh.houseNo
           WHEN o.buildingType = 'Apartment' THEN oa.houseNo
