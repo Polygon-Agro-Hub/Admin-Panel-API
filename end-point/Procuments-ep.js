@@ -1222,12 +1222,12 @@ exports.createCrate = async (req, res) => {
     const { labelName, weight } = req.body;
 
     // Validate labelName
-    if (String(labelName).trim() === "") {
-      return res.status(400).json({
-        error: "Container label name cannot be empty",
-        status: false,
-      });
-    }
+    if (String(labelName).trim().length > 8) {
+  return res.status(400).json({
+    error: "Container label name cannot exceed 8 characters",
+    status: false,
+  });
+}
 
     // Validate weight (0 is allowed)
     if (weight === null || String(weight).trim() === "") {
@@ -1311,12 +1311,12 @@ exports.updateCrate = async (req, res) => {
     const { labelName, weight } = req.body;
 
     // Validate labelName
-    if (String(labelName).trim() === "") {
-      return res.status(400).json({
-        error: "Container label name cannot be empty",
-        status: false,
-      });
-    }
+    if (String(labelName).trim().length > 8) {
+  return res.status(400).json({
+    error: "Container label name cannot exceed 8 characters",
+    status: false,
+  });
+}
 
     // Validate weight (0 is allowed)
     if (weight === null || String(weight).trim() === "") {
