@@ -1140,7 +1140,7 @@ exports.GetComplainCategoriesByRole = async (req, res) => {
   try {
     const roleId = req.params.roleId;
     const appName = req.params.appName;
-    console.log(roleId);
+    console.log(roleId, 'appName', appName);
 
     const result = await CollectionCenterDao.GetComplainCategoriesByRole(
       roleId,
