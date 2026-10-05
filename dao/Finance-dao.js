@@ -3499,15 +3499,15 @@ exports.getCompletedOrders = (page, limit, startDate, endDate, search) => {
     const countParams = [];
 
     if (startDate && endDate) {
-      whereClause += " AND DATE(o.createdAt) BETWEEN ? AND ?";
+      whereClause += " AND DATE(po.deliveredTime) BETWEEN ? AND ?";
       params.push(startDate, endDate);
       countParams.push(startDate, endDate);
     } else if (startDate) {
-      whereClause += " AND DATE(o.createdAt) >= ?";
+      whereClause += " AND DATE(po.deliveredTime) >= ?";
       params.push(startDate);
       countParams.push(startDate);
     } else if (endDate) {
-      whereClause += " AND DATE(o.createdAt) <= ?";
+      whereClause += " AND DATE(po.deliveredTime) <= ?";
       params.push(endDate);
       countParams.push(endDate);
     }
@@ -3546,7 +3546,7 @@ exports.getCompletedOrders = (page, limit, startDate, endDate, search) => {
       LEFT JOIN orders o ON po.orderId = o.id
       LEFT JOIN marketplaceusers mu ON o.userId = mu.id
       ${whereClause}
-      ORDER BY o.createdAt DESC
+      ORDER BY po.deliveredTime DESC
       LIMIT ? OFFSET ?
     `;
 
@@ -3570,13 +3570,13 @@ exports.downloadCompletedOrders = (startDate, endDate, search) => {
     const params = [];
 
     if (startDate && endDate) {
-      whereClause += " AND DATE(o.createdAt) BETWEEN ? AND ?";
+      whereClause += " AND DATE(po.deliveredTime) BETWEEN ? AND ?";
       params.push(startDate, endDate);
     } else if (startDate) {
-      whereClause += " AND DATE(o.createdAt) >= ?";
+      whereClause += " AND DATE(po.deliveredTime) >= ?";
       params.push(startDate);
     } else if (endDate) {
-      whereClause += " AND DATE(o.createdAt) <= ?";
+      whereClause += " AND DATE(po.deliveredTime) <= ?";
       params.push(endDate);
     }
 
@@ -3605,7 +3605,7 @@ exports.downloadCompletedOrders = (startDate, endDate, search) => {
       LEFT JOIN orders o ON po.orderId = o.id
       LEFT JOIN marketplaceusers mu ON o.userId = mu.id
       ${whereClause}
-      ORDER BY o.createdAt DESC
+      ORDER BY po.deliveredTime DESC
     `;
 
     collectionofficer.query(dataSql, params, (err, results) => {
