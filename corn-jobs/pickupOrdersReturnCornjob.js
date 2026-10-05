@@ -3,7 +3,6 @@ const cron = require('node-cron');
 const { collectionofficer } = require('../startup/database');
 const axios = require('axios');
 
-const SHOUTOUT_API_KEY = process.env.SHOUTOUT_API_KEY;
 const SHOUTOUT_API_URL = 'https://api.getshoutout.com/coreservice/messages';
 
 /**
@@ -12,16 +11,16 @@ const SHOUTOUT_API_URL = 'https://api.getshoutout.com/coreservice/messages';
 const pickupOrdersReturnCornjob = () => {
   console.log('⏰ Initializing cron jobs...');
 
-  // ✅ CRON JOB: Enable marketplace items every day at 9:30 PM
+  // ✅ CRON JOB: Process pickup return orders every day at 9:30 PM
   cron.schedule('00 16 * * *', async () => {
-    processPickupOrdersReturn();
+    await processPickupOrdersReturn();
   }, {
     scheduled: true,
     timezone: "Asia/Colombo"
   });
 
   console.log('✅ All cron jobs scheduled successfully');
-  console.log('📅 Marketplace items enable job: 9:30 PM daily');
+  console.log('📅 Pickup return orders job: 9:30 PM daily (16:00 UTC)');
 };
 
 // ----------------------------------------------------- DAO functions -------------------------------------------------
@@ -44,14 +43,15 @@ const getReadyToPickupOrders = async () => {
         mu.phoneNumber,
         mu.creditBalance,
         CASE 
-          WHEN o.total < 2000 THEN 150
+          WHEN COALESCE(o.total, 0) < 2000 THEN 150
           WHEN o.total >= 2000 AND o.total < 4000 THEN 250
           WHEN o.total >= 4000 THEN 350
+          ELSE 150
         END AS handleFee
       FROM processorders p
       LEFT JOIN orders o ON p.orderId = o.id
       LEFT JOIN marketplaceusers mu ON o.userId = mu.id
-      WHERE p.status = 'Ready to Pickup' AND p.sheduleDate <= CURDATE()
+      WHERE p.status = 'Ready to Pickup' AND DATE(p.sheduleDate) <= CURDATE()
       `
     );
     return orders;
@@ -74,13 +74,15 @@ const insertHandlingFee = async (orders) => {
 
     for (const order of orders) {
       try {
+        const handleFee = Number(order.handleFee) || 0;
         const [result1] = await connection.query(
           `INSERT INTO collection_officer.orderhandlingfee(orderId, fee) VALUES (?, ?)`,
-          [order.id, order.handleFee]
+          [order.id, handleFee]
         );
         console.log(`✅ Handling fee inserted for order ID: ${order.id}`);
 
-        let newCrdBalance = order.creditBalance - order.handleFee;
+        const currentCreditBalance = Number(order.creditBalance) || 0;
+        let newCrdBalance = currentCreditBalance - handleFee;
 
         const [result2] = await connection.query(
           `UPDATE processorders p
@@ -129,7 +131,7 @@ const insertHandlingFee = async (orders) => {
       await connection.rollback();
       console.log('🔄 Transaction rolled back due to error');
     } catch (rollbackError) {
-      console.error('❌ Error during rollback:', rollbackError.message);
+      // ignore rollback error if already rolled back
     }
 
     console.error('❌ Transaction failed:', error.message);
@@ -140,14 +142,14 @@ const insertHandlingFee = async (orders) => {
   }
 };
 
-// Helper function to format phone number (from your working code)
+// Helper function to format phone number to E.164 (+94XXXXXXXXX)
 function formatPhoneNumber(phoneNumber) {
   if (!phoneNumber) {
     return null;
   }
 
-  // Convert to string if it's a number
-  phoneNumber = phoneNumber.toString();
+  // Convert to string and trim
+  phoneNumber = phoneNumber.toString().trim();
 
   // Remove all non-digits
   let cleaned = phoneNumber.replace(/\D/g, "");
@@ -156,7 +158,15 @@ function formatPhoneNumber(phoneNumber) {
     return null;
   }
 
-  if (cleaned.startsWith("0")) {
+  // Handle 00 prefix (international exit code, e.g. 0094...)
+  if (cleaned.startsWith("00")) {
+    cleaned = cleaned.substring(2);
+  }
+
+  // If number starts with 940 (e.g. 94 + 0771234567)
+  if (cleaned.startsWith("940")) {
+    cleaned = "94" + cleaned.substring(3);
+  } else if (cleaned.startsWith("0")) {
     cleaned = "94" + cleaned.substring(1);
   } else if (cleaned.startsWith("94")) {
     // Already has country code
@@ -169,8 +179,8 @@ function formatPhoneNumber(phoneNumber) {
     cleaned = "+" + cleaned;
   }
 
-  // Final validation
-  if (cleaned.length < 12 || cleaned.length > 15) {
+  // Final validation (E.164: + followed by 10 to 15 digits)
+  if (cleaned.length < 11 || cleaned.length > 16) {
     return null;
   }
 
@@ -179,7 +189,6 @@ function formatPhoneNumber(phoneNumber) {
 
 /**
  * Send bulk SMS notification to all customers whose orders were processed
- * Using the working SMS format from your existing code
  */
 const sendBulkSMSNotification = async (orders) => {
   console.log(`📱 Preparing to send SMS notifications to ${orders.length} customers`);
@@ -194,10 +203,20 @@ const sendBulkSMSNotification = async (orders) => {
     let successCount = 0;
     let failedCount = 0;
 
-    const apiKey = process.env.SMS_API_KEY || process.env.SHOUTOUT_API_KEY;
-    const senderId = process.env.SMS_SENDER_ID || "PolygonAgro";
+    const apiKey = (process.env.SMS_API_KEY || process.env.SHOUTOUT_API_KEY || "").trim();
+    const senderId = (process.env.SMS_SENDER_ID || "PolygonAgro").trim();
 
-    // Prepare headers (matching your working code)
+    if (!apiKey) {
+      console.error('❌ SHOUTOUT_API_KEY / SMS_API_KEY is not configured in environment variables');
+      return {
+        success: false,
+        error: 'SMS API key is not configured in environment variables',
+        total: orders.length,
+        successCount: 0,
+        failedCount: orders.length
+      };
+    }
+
     const headers = {
       Authorization: `Apikey ${apiKey}`,
       "Content-Type": "application/json",
@@ -205,23 +224,23 @@ const sendBulkSMSNotification = async (orders) => {
 
     for (const order of orders) {
       try {
-        // Format phone number using your working formatter
-        let phoneNumber = order.phoneNumber;
-        if (order.phoneCode) {
-          phoneNumber = order.phoneCode + order.phoneNumber;
+        let rawPhone = (order.phoneNumber || "").toString().trim();
+        let phoneCode = (order.phoneCode || "").toString().trim();
+
+        let phoneNumber = rawPhone;
+        if (phoneCode && !rawPhone.startsWith("+") && !rawPhone.startsWith("94")) {
+          phoneNumber = phoneCode + rawPhone;
         }
 
         const formattedNumber = formatPhoneNumber(phoneNumber);
 
         if (!formattedNumber) {
-          throw new Error(`Invalid phone number: ${phoneNumber}`);
+          throw new Error(`Invalid phone number: ${phoneNumber} (raw: ${rawPhone}, code: ${phoneCode})`);
         }
 
-        // Prepare message (matching your working code format)
         const message = `Your order ${order.invNo} has been marked as return.
 Reason: "Customer did not picked up the order during the day."`;
 
-        // Prepare request data (matching your working code)
         const requestData = {
           source: senderId,
           destinations: [formattedNumber],
@@ -231,11 +250,10 @@ Reason: "Customer did not picked up the order during the day."`;
 
         console.log(`📤 Sending SMS to ${formattedNumber} for order #${order.invNo}`);
 
-        // Send SMS via ShoutOut API (using your working endpoint)
         const response = await axios.post(
-          "https://api.getshoutout.com/coreservice/messages",
+          SHOUTOUT_API_URL,
           requestData,
-          { headers, timeout: 5000 }
+          { headers, timeout: 10000 }
         );
 
         console.log('📨 Response:', JSON.stringify(response.data, null, 2));
@@ -268,7 +286,6 @@ Reason: "Customer did not picked up the order during the day."`;
           console.error('Response status:', error.response.status);
           console.error('Response data:', JSON.stringify(error.response.data, null, 2));
 
-          // Check for common API errors
           if (error.response.status === 401) {
             console.error('AUTHENTICATION ERROR: Check your API key');
           } else if (error.response.status === 400) {
@@ -308,7 +325,7 @@ Reason: "Customer did not picked up the order during the day."`;
 };
 
 const processPickupOrdersReturn = async () => {
-  console.log('🔄 Running scheduled job: Enabling marketplace items...');
+  console.log('🔄 Running scheduled job: Processing pickup orders return...');
   console.log(`⏰ Time: ${new Date().toLocaleString()}`);
 
   try {
@@ -324,22 +341,42 @@ const processPickupOrdersReturn = async () => {
         console.log('❌ Failed orders:', result.failedOrders);
       }
 
+      let smsResult = null;
       if (result.successCount > 0) {
         console.log(`📱 Sending SMS notifications for ${result.successCount} orders...`);
         try {
-          const smsResult = await sendBulkSMSNotification(orders);
+          smsResult = await sendBulkSMSNotification(orders);
           console.log(`✅ SMS notifications sent: ${smsResult.successCount} succeeded, ${smsResult.failedCount} failed`);
         } catch (smsError) {
           console.error('⚠️ SMS notifications failed but orders were processed:', smsError.message);
+          smsResult = { success: false, error: smsError.message };
         }
       }
+
+      return {
+        success: true,
+        ordersCount: orders.length,
+        processedCount: result.successCount,
+        failedCount: result.failedCount,
+        failedOrders: result.failedOrders,
+        smsResult
+      };
     } else {
       console.log('ℹ️ No orders found to process');
+      return {
+        success: true,
+        ordersCount: 0,
+        message: 'No ready to pickup orders found for return processing today'
+      };
     }
 
   } catch (error) {
     console.error('❌ Error executing cron job:', error.message);
     console.error('Stack trace:', error.stack);
+    return {
+      success: false,
+      error: error.message
+    };
   }
 };
 
