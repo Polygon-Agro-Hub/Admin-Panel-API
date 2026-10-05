@@ -1751,7 +1751,7 @@ exports.addDriveCategory = async (req, res) => {
       });
     }
 
-    const updatedBy = req.user.id;
+    const updatedBy = req.user.userId;
 
     const data = {
       catName: trimmedName,
