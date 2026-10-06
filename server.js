@@ -216,11 +216,18 @@ app.get(BASE_PATH + "/test", (req, res) => {
   console.log("test route is working");
 });
 
-app.get(BASE_PATH + "/api/return-pickup-orders", (req, res) => {
-  // res.send(new Date().toLocaleString());
-  const result = processPickupOrdersReturn();
-  console.log("result", result);
-  res.send({ message: "Pickup orders return process initiated.", result });
+app.get(BASE_PATH + "/api/return-pickup-orders", async (req, res) => {
+  try {
+    const result = await processPickupOrdersReturn();
+    console.log("result", result);
+    if (result && result.success === false) {
+      return res.status(500).json({ message: "Pickup orders return process failed.", result });
+    }
+    return res.status(200).json({ message: "Pickup orders return process completed.", result });
+  } catch (error) {
+    console.error("Error processing pickup orders return:", error);
+    return res.status(500).json({ message: "Error processing pickup orders return.", error: error.message });
+  }
 });
 
 // Attach io and mainApp to server instance
