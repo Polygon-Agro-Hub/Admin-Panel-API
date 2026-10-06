@@ -158,6 +158,8 @@ router.get(
 
 router.put("/update-banner-order", marketPlaceEp.updateBannerOrder);
 
+router.put("/update-banner-order-wholesale", marketPlaceEp.updateBannerOrderWholesale);
+
 router.delete(
   "/delete-banner-retail/:id",
   authMiddleware,

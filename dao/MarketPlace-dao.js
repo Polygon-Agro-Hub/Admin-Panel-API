@@ -1206,6 +1206,30 @@ exports.updateBannerOrder = async (feedbacks) => {
   });
 };
 
+exports.updateBannerOrderWholesale = async (feedbacks) => {
+  return new Promise((resolve, reject) => {
+    const sql = "UPDATE banners SET indexId = ? WHERE id = ?";
+
+    const queries = feedbacks.map((feedback) => {
+      return new Promise((resolveInner, rejectInner) => {
+        collectionofficer.query(
+          sql,
+          [feedback.orderNumber, feedback.id],
+          (err, results) => {
+            if (err) {
+              return rejectInner(err);
+            }
+            resolveInner(results);
+          },
+        );
+      });
+    });
+    Promise.all(queries)
+      .then((results) => resolve(results))
+      .catch((err) => reject(err));
+  });
+};
+
 exports.getBannerById = async (feedbackId) => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT * FROM banners WHERE id = ?";
