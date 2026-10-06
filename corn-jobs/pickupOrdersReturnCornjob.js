@@ -99,6 +99,8 @@ const insertHandlingFee = async (orders) => {
           throw new Error(`Order ${order.id} not found or status already updated`);
         }
 
+        let result3 = await orderNotification(connection, order.id, order.invNo);
+
         successCount++;
         console.log(`✅ Order ${order.id} status updated to 'Return Received' (${successCount}/${orders.length})`);
 
@@ -203,11 +205,11 @@ const sendBulkSMSNotification = async (orders) => {
     let successCount = 0;
     let failedCount = 0;
 
-    const apiKey = (process.env.SMS_API_KEY || process.env.SHOUTOUT_API_KEY || "").trim();
-    const senderId = (process.env.SMS_SENDER_ID || "PolygonAgro").trim();
+    const apiKey = (process.env.SHOUTOUT_API_KEY).trim();
+    const senderId = ("Polygon").trim();
 
     if (!apiKey) {
-      console.error('❌ SHOUTOUT_API_KEY / SMS_API_KEY is not configured in environment variables');
+      console.error('❌ SHOUTOUT_API_KEY  is not configured in environment variables');
       return {
         success: false,
         error: 'SMS API key is not configured in environment variables',
@@ -377,6 +379,26 @@ const processPickupOrdersReturn = async () => {
       success: false,
       error: error.message
     };
+  }
+};
+
+const orderNotification = async (conn, orderId, invNo) => {
+  try {
+    const [result] =
+    await conn.query(
+      `INSERT INTO ordernotfication (orderId, Title, message)
+       VALUES (?, 'Order Returned', ?)`,
+      [
+        orderId,
+        `Your order #${invNo} has been marked as returned. Reason: "Customer did not pick up the order during the day."`
+      ]
+    );
+    console.log(`✅ Order notification inserted for order ID: ${orderId}`, result);
+    return true;
+  } catch (err) {
+    console.error("Error inserting order notification:", err);
+    return false;
+    // or: throw err;  // if you want the caller to handle it
   }
 };
 
