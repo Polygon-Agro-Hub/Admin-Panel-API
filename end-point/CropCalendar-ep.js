@@ -47,7 +47,17 @@ exports.createCropGroup = async (req, res) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
     } = req.body;
+
+    // new: validate enum value
+    const allowedDisplayFor = ["Farmery", "Sales", "Both"];
+    if (!allowedDisplayFor.includes(displayFor)) {
+      return res.status(400).json({
+        status: false,
+        message: "displayFor must be one of: Farmery, Sales, Both",
+      });
+    }
 
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
@@ -87,6 +97,7 @@ exports.createCropGroup = async (req, res) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       modifyBy,
     );
     return res.status(201).json({

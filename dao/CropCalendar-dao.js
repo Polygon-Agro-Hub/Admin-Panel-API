@@ -36,11 +36,12 @@ exports.createCropGroup = async (
   nitrogen,
   phosphorus,
   potassium,
+  displayFor, // new
   modifyBy,
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, image, bgColor, seedRate, rowSpace, plantSpace, AvgYield, nitrogen, phosphorus, potassium, modifyBy, modifyAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, image, bgColor, seedRate, rowSpace, plantSpace, AvgYield, nitrogen, phosphorus, potassium, displayFor, modifyBy, modifyAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
     const values = [
       cropNameEnglish,
       cropNameSinhala,
@@ -57,6 +58,7 @@ exports.createCropGroup = async (
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       modifyBy,
     ];
 
