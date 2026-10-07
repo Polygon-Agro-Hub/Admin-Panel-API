@@ -1355,19 +1355,6 @@ exports.claimOfficer = async (req, res) => {
   }
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 exports.getPurchaseReport = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
@@ -1764,7 +1751,7 @@ exports.addDriveCategory = async (req, res) => {
       });
     }
 
-    const updatedBy = req.user.id;
+    const updatedBy = req.user.userId;
 
     const data = {
       catName: trimmedName,

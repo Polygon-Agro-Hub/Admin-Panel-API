@@ -28,6 +28,8 @@ exports.createMarketProduct = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
     console.log("Request URL:", fullUrl);
 
+    const modifyBy = req.user?.userId;
+
     const product = {
       cropName: req.body.displayName || req.body.cropName,
       normalPrice: req.body.normalPrice,
@@ -44,6 +46,7 @@ exports.createMarketProduct = async (req, res) => {
       maxQuantity: req.body.maxQuantity,
       productTypeId: req.body.productTypeId,
       comPrice: req.body.comPrice,
+      modifyBy,
     };
 
     const { exists, varietyExists, nameExists } =
@@ -451,7 +454,12 @@ exports.editMarketProduct = async (req, res) => {
       });
     }
 
-    const result = await MarketPlaceDao.updateMarketProductDao(req.body, id, modifyBy);
+    // Product update (this sets isEnable = 0 inside the DAO)
+    const result = await MarketPlaceDao.updateMarketProductDao(
+      req.body,
+      id,
+      modifyBy,
+    );
 
     if (result.affectedRows === 0) {
       return res.json({
@@ -460,6 +468,8 @@ exports.editMarketProduct = async (req, res) => {
         status: false,
       });
     }
+    
+    await MarketPlaceDao.disablePackagesByProductId(id);
 
     res.status(201).json({
       message: "market product updated successfully",
@@ -1048,6 +1058,33 @@ exports.updateBannerOrder = async (req, res) => {
   }
 };
 
+exports.updateBannerOrderWholesale = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+    const feedbacks = req.body.feedbacks;
+    const result = await MarketPlaceDao.updateBannerOrderWholesale(feedbacks);
+
+    if (result) {
+      return res.status(200).json({
+        status: true,
+        message: "Feedback order updated successfully",
+      });
+    }
+
+    return res.status(400).json({
+      status: false,
+      message: "Failed to update feedback order",
+    });
+  } catch (error) {
+    console.error("Error in updateFeedbackOrder:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 exports.deleteBannerRetail = async (req, res) => {
   const bannerId = parseInt(req.params.id, 10);
 
@@ -1112,7 +1149,8 @@ exports.createProductType = async (req, res) => {
   try {
     const data =
       await MarketPriceValidate.createProductTypeSchema.validateAsync(req.body);
-    const result = await MarketPlaceDao.createProductTypesDao(data);
+    const modifyBy = req.user?.userId;
+    const result = await MarketPlaceDao.createProductTypesDao(data, modifyBy);
 
     if (result.affectedRows === 0) {
       return res.json({
@@ -1437,9 +1475,22 @@ exports.editDeliveryCharge = async (req, res) => {
     const id = req.params.id;
     const userId = req.user.userId;
 
-    if (!deliveryData.city || !deliveryData.charge) {
+    const chargeMissing =
+      deliveryData.charge === undefined ||
+      deliveryData.charge === null ||
+      deliveryData.charge === "" ||
+      isNaN(Number(deliveryData.charge));
+
+    if (!deliveryData.city || chargeMissing) {
       return res.status(400).json({
         error: "City and charge are required fields",
+        status: false,
+      });
+    }
+
+    if (Number(deliveryData.charge) < 0) {
+      return res.status(400).json({
+        error: "Charge cannot be negative",
         status: false,
       });
     }

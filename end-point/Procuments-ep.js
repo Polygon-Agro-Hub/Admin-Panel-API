@@ -1222,26 +1222,33 @@ exports.createCrate = async (req, res) => {
     const { labelName, weight } = req.body;
 
     // Validate labelName
-    if (String(labelName).trim() === "") {
+    if (String(labelName).trim().length > 8) {
+  return res.status(400).json({
+    error: "Container label name cannot exceed 8 characters",
+    status: false,
+  });
+}
+
+    // Validate weight (0 is allowed)
+    if (weight === null || String(weight).trim() === "") {
       return res.status(400).json({
-        error: "Container label name cannot be empty",
+        error: "Weight is required",
         status: false,
       });
     }
 
-    // Validate weight
-    const parsedWeight = parseFloat(weight);
-    if (isNaN(parsedWeight) || parsedWeight <= 0) {
+    const parsedWeight = Number(weight);
+    if (!Number.isFinite(parsedWeight) || parsedWeight < 0) {
       return res.status(400).json({
-        error: "Weight must be a number greater than 0",
+        error: "Weight must be a number, 0 or greater",
         status: false,
       });
     }
 
     // Logged in user id (set by your auth middleware)
     const modifyBy = req.user?.userId;
-    console.log('modifyby',modifyBy, req.user );
-    
+    console.log("modifyby", modifyBy, req.user);
+
     if (!modifyBy) {
       return res.status(401).json({
         error: "Unauthorized. User not found",
@@ -1258,13 +1265,14 @@ exports.createCrate = async (req, res) => {
       });
     }
 
-    // Create crate
+    // Create crate (DAO generates createIndex = latest + 1)
     const result = await procumentDao.createCrateDao(labelName, parsedWeight, modifyBy);
     console.log(result);
 
     res.status(201).json({
       message: "Container created successfully",
       id: result.insertId,
+      createIndex: result.createIndex,
       status: true,
     });
   } catch (err) {
@@ -1303,18 +1311,25 @@ exports.updateCrate = async (req, res) => {
     const { labelName, weight } = req.body;
 
     // Validate labelName
-    if (String(labelName).trim() === "") {
+    if (String(labelName).trim().length > 8) {
+  return res.status(400).json({
+    error: "Container label name cannot exceed 8 characters",
+    status: false,
+  });
+}
+
+    // Validate weight (0 is allowed)
+    if (weight === null || String(weight).trim() === "") {
       return res.status(400).json({
-        error: "Container label name cannot be empty",
+        error: "Weight is required",
         status: false,
       });
     }
 
-    // Validate weight
-    const parsedWeight = parseFloat(weight);
-    if (isNaN(parsedWeight) || parsedWeight <= 0) {
+    const parsedWeight = Number(weight);
+    if (!Number.isFinite(parsedWeight) || parsedWeight < 0) {
       return res.status(400).json({
-        error: "Weight must be a number greater than 0",
+        error: "Weight must be a number, 0 or greater",
         status: false,
       });
     }
@@ -1457,6 +1472,52 @@ exports.deleteManageContainerSizeEP = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "An error occurred while deleting the manage container size.",
+    });
+  }
+};
+
+exports.reorderContainerSizesEP = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { orderedIds } = req.body;
+
+    if (
+      !Array.isArray(orderedIds) ||
+      orderedIds.length === 0 ||
+      !orderedIds.every((id) => Number.isInteger(Number(id)))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "orderedIds must be a non-empty array of valid ids",
+      });
+    }
+
+    if (new Set(orderedIds).size !== orderedIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: "orderedIds contains duplicate ids",
+      });
+    }
+
+    const modifyBy = req.user?.userId;
+
+    const result = await procumentDao.reorderContainerSizesDao(
+      orderedIds.map(Number),
+      modifyBy
+    );
+
+    res.json({
+      success: true,
+      message: "Container sizes reordered successfully",
+      affectedRows: result.affectedRows,
+    });
+  } catch (err) {
+    console.error("Error reordering container sizes:", err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while reordering container sizes",
     });
   }
 };

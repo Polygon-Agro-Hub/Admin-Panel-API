@@ -14,20 +14,52 @@ const DriverJobRoles = require ('./../assets/json/driverJobRole.json')
 const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
 const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
 
+// exports.getCollectionOfficerDistrictReports = (district) => {
+//   return new Promise((resolve, reject) => {
+//     const sql = `
+//             SELECT cv.varietyNameEnglish AS cropName,
+//              c.district, 
+//              SUM(fpc.gradeAquan) AS qtyA, 
+//              SUM(fpc.gradeBquan) AS qtyB, 
+//              SUM(fpc.gradeCquan) AS qtyC, 
+//              SUM(fpc.gradeAprice) AS priceA, 
+//              SUM(fpc.gradeBprice) AS priceB, 
+//              SUM(fpc.gradeCprice) AS priceC
+//             FROM registeredfarmerpayments rp, collectionofficer c, plant_care.cropvariety cv , plant_care.cropgroup cg, farmerpaymentscrops fpc
+//             WHERE rp.id = fpc.registerFarmerId AND rp.collectionOfficerId = c.id AND fpc.cropId = cv.id AND cv.cropGroupId = cg.id AND c.district = ? AND c.companyId = 1
+//             GROUP BY cv.varietyNameEnglish, c.district
+//         `;
+//     collectionofficer.query(sql, [district], (err, results) => {
+//       if (err) {
+//         return reject(err); // Reject promise if an error occurs
+//       }
+//       console.log(results);
+
+//       resolve(results); // Resolve the promise with the query results
+//     });
+//   });
+// };
+
 exports.getCollectionOfficerDistrictReports = (district) => {
   return new Promise((resolve, reject) => {
     const sql = `
-            SELECT cv.varietyNameEnglish AS cropName,
-             c.district, 
-             SUM(fpc.gradeAquan) AS qtyA, 
-             SUM(fpc.gradeBquan) AS qtyB, 
-             SUM(fpc.gradeCquan) AS qtyC, 
-             SUM(fpc.gradeAprice) AS priceA, 
-             SUM(fpc.gradeBprice) AS priceB, 
-             SUM(fpc.gradeCprice) AS priceC
-            FROM registeredfarmerpayments rp, collectionofficer c, plant_care.cropvariety cv , plant_care.cropgroup cg, farmerpaymentscrops fpc
-            WHERE rp.id = fpc.registerFarmerId AND rp.collectionOfficerId = c.id AND fpc.cropId = cv.id AND cv.cropGroupId = cg.id AND c.district = ? AND c.companyId = 1
-            GROUP BY cv.varietyNameEnglish, c.district
+            SELECT 
+  cv.varietyNameEnglish AS cropName,
+  cc.district, 
+  SUM(fpc.gradeAquan) AS qtyA, 
+  SUM(fpc.gradeBquan) AS qtyB, 
+  SUM(fpc.gradeCquan) AS qtyC, 
+  SUM(fpc.gradeAprice) AS priceA, 
+  SUM(fpc.gradeBprice) AS priceB, 
+  SUM(fpc.gradeCprice) AS priceC
+FROM registeredfarmerpayments rp
+INNER JOIN collectionofficer c ON rp.collectionOfficerId = c.id
+INNER JOIN farmerpaymentscrops fpc ON rp.id = fpc.registerFarmerId
+INNER JOIN plant_care.cropvariety cv ON fpc.cropId = cv.id
+INNER JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+INNER JOIN collectioncenter cc ON c.centerId = cc.id
+WHERE cc.district = ? AND c.companyId = 1
+GROUP BY cv.varietyNameEnglish, cc.district
         `;
     collectionofficer.query(sql, [district], (err, results) => {
       if (err) {
@@ -648,7 +680,7 @@ exports.getAllCollectionOfficersStatus = (
   page,
   limit,
   searchNIC,
-  centerName
+  centerId
 ) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
@@ -677,6 +709,7 @@ exports.getAllCollectionOfficersStatus = (
         Coff.district,
         Coff.status,
         CC.centerName,
+        CC.regCode,
         Coff.QRcode
       FROM collectionofficer Coff
       JOIN company Ccom ON Coff.companyId = Ccom.id
@@ -687,12 +720,12 @@ exports.getAllCollectionOfficersStatus = (
     const countParams = [];
     const dataParams = [];
 
-    // Apply filter for centerName only if non-empty
-    if (centerName) {
-      countSql += " AND CC.centerName LIKE ?";
-      dataSql += " AND CC.centerName LIKE ?";
-      countParams.push(`%${centerName}%`);
-      dataParams.push(`%${centerName}%`);
+    // Filter by center id (exact match) only if provided
+    if (centerId !== undefined && centerId !== null && String(centerId).trim() !== "") {
+      countSql += " AND Coff.centerId = ?";
+      dataSql += " AND Coff.centerId = ?";
+      countParams.push(Number(centerId));
+      dataParams.push(Number(centerId));
     }
 
     // Apply search filters for NIC or related fields
@@ -710,27 +743,29 @@ exports.getAllCollectionOfficersStatus = (
       countSql += searchCondition;
       dataSql += searchCondition;
       const searchValue = `%${searchNIC.trim()}%`;
-      countParams.push(
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue
-      );
-      dataParams.push(
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue,
-        searchValue
-      );
+      for (let i = 0; i < 6; i++) {
+        countParams.push(searchValue);
+        dataParams.push(searchValue);
+      }
     }
+
+    // Order: CCM first, then COO, then others; inside each group center name A-Z, then number
+    dataSql += `
+      ORDER BY
+        CASE
+          WHEN Coff.empId LIKE 'CCM%' THEN 0
+          WHEN Coff.empId LIKE 'COO%' THEN 1
+          ELSE 2
+        END,
+        TRIM(CC.centerName) ASC,
+        CC.regCode ASC,
+        CAST(SUBSTRING(Coff.empId, 4) AS UNSIGNED) ASC,
+        Coff.id ASC
+    `;
 
     // Add pagination to the data query
     dataSql += " LIMIT ? OFFSET ?";
-    dataParams.push(limit, offset);
+    dataParams.push(Number(limit), Number(offset));
 
     // Execute count query
     collectionofficer.query(countSql, countParams, (countErr, countResults) => {
@@ -748,12 +783,7 @@ exports.getAllCollectionOfficersStatus = (
           return reject(dataErr);
         }
 
-        // Convert QRcode to Base64 (if needed)
-        const processedResults = dataResults.map((item) => {
-          return item;
-        });
-
-        resolve({ items: processedResults, total });
+        resolve({ items: dataResults, total });
       });
     });
   });
@@ -908,7 +938,7 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(20)
       .fillColor("#071a51")
-      .text("Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation", {
+      .text("Polygon Holdings (Pvt) Ltd  - User Credentials", {
         align: "center",
       });
 
@@ -927,23 +957,12 @@ exports.SendGeneratedPasswordDao = async (
     doc
       .fontSize(12)
       .text(
-        "Thank you for registering with us! We are excited to have you on board."
+        "The following information is related to your Polygon Holdings account. Our platform is designed to support you in your day-to-day activities."
       );
 
     doc.moveDown();
 
-    doc
-      .fontSize(12)
-      .text(
-        "You have successfully created an account with Polygon Holdings (Pvt) Ltd. Our platform will help you with all your agricultural needs, providing guidance, weather reports, asset management tools, and much more. We are committed to helping farmers like you grow and succeed.",
-        {
-          align: "justify",
-        }
-      );
-
-    doc.moveDown();
-
-    doc.fontSize(12).text(`Your User Name/ID: ${empId}`);
+    doc.fontSize(12).text(`Your User Name/ EMP ID: ${empId}`);
     doc.fontSize(12).text(`Your Password: ${password}`);
 
     doc.moveDown();
@@ -1011,11 +1030,11 @@ exports.SendGeneratedPasswordDao = async (
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Welcome to Polygon Holdings (Pvt) Ltd - Registration Confirmation",
-      text: `Dear ${firstNameEnglish},\n\nYour registration details are attached in the PDF.`,
+      subject: "Polygon Holdings (Pvt) Ltd  - User Credentials",
+      text: `Dear ${firstNameEnglish},\n\nYour account details are attached in the PDF.`,
       attachments: [
         {
-          filename: `Registration_${empId}.pdf`, // PDF file name
+          filename: `User Credentails_${empId}.pdf`, // PDF file name
           content: pdfData, // Attach the PDF buffer directly
         },
       ],
@@ -1930,6 +1949,16 @@ exports.getPurchaseReport = (
         company c ON co.companyId = c.id
       ${whereClause}
       GROUP BY rfp.id
+      ORDER BY
+      CASE
+        WHEN DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 330 MINUTE))
+          AND rfp.invNo LIKE 'CCM%' THEN 0
+        WHEN DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 330 MINUTE))
+           AND rfp.invNo LIKE 'COO%' THEN 1
+        ELSE 2
+      END ASC,
+      rfp.createdAt DESC,
+      rfp.id DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
 
@@ -1969,36 +1998,147 @@ exports.getPurchaseReport = (
   });
 };
 
+// exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
+//   return new Promise((resolve, reject) => {
+//     const params = [];
+//     const countParams = [];
+//     const totalParams = [];
+
+//     let whereClause = "WHERE c.id = 1";
+
+//     if (centerId) {
+//       whereClause += " AND co.centerId = ?";
+//       params.push(centerId);
+//       countParams.push(centerId);
+//       totalParams.push(centerId);
+//     }
+
+//     if (startDate && endDate) {
+//       whereClause += " AND DATE(rfp.createdAt) BETWEEN ? AND ?";
+//       params.push(startDate, endDate);
+//       countParams.push(startDate, endDate);
+//       totalParams.push(startDate, endDate);
+//     } else if (startDate) {
+//       whereClause += " AND DATE(rfp.createdAt) >= ?";
+//       params.push(startDate);
+//       countParams.push(startDate);
+//       totalParams.push(startDate);
+//     } else if (endDate) {
+//       whereClause += " AND DATE(rfp.createdAt) <= ?";
+//       params.push(endDate);
+//       countParams.push(endDate);
+//       totalParams.push(endDate);
+//     }
+
+//     if (search) {
+//       whereClause += `
+//         AND (
+//           cc.regCode LIKE ? OR 
+//           cc.centerName LIKE ? OR 
+//           us.NICnumber LIKE ? OR 
+//           invNo LIKE ?
+//         )
+//       `;
+//       const searchPattern = `%${search}%`;
+//       params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+//       countParams.push(
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern
+//       );
+//       totalParams.push(
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern
+//       );
+//     }
+
+//     let dataSql = `
+//       SELECT 
+//         invNo AS grnNumber,
+//         cc.regCode AS regCode,
+//         cc.centerName AS centerName,
+//         ROUND(SUM(IFNULL(fpc.gradeAprice * fpc.gradeAquan, 0) + IFNULL(fpc.gradeBprice * fpc.gradeBquan, 0) + IFNULL(fpc.gradeCprice * fpc.gradeCquan, 0)), 2) AS amount,
+//         us.firstName AS firstName,
+//         us.lastName AS lastName,
+//         us.NICnumber AS nic,
+//         us.phoneNumber AS phoneNumber,
+//         us.phoneNumber AS phoneNumber,
+//         ub.accHolderName AS accHolderName,
+//         ub.accNumber AS accNumber,
+//         ub.bankName AS bankName,
+//         ub.branchName AS branchName,
+//         co.empId AS empId,
+//         TIME(rfp.createdAt) AS createdAt,
+//         DATE(rfp.createdAt) AS createdDate
+//       FROM 
+//         registeredfarmerpayments rfp
+//       LEFT JOIN 
+//         farmerpaymentscrops fpc ON rfp.id = fpc.registerFarmerId
+//       JOIN 
+//         collectionofficer co ON rfp.collectionOfficerId = co.id
+//       JOIN 
+//         plant_care.users us ON rfp.userId = us.id
+//       JOIN 
+//         collectioncenter cc ON co.centerId = cc.id
+//       JOIN 
+//         company c ON co.companyId = c.id
+//       LEFT JOIN 
+//         plant_care.userbankdetails ub ON us.id = ub.userId
+//       ${whereClause}
+//       GROUP BY 
+//       rfp.id,
+//       invNo,
+//       cc.regCode,
+//       cc.centerName,
+//       us.firstName,
+//       us.lastName,
+//       us.NICnumber,
+//       us.phoneNumber,
+//       ub.accHolderName,
+//       ub.accNumber,
+//       ub.bankName,
+//       ub.branchName,
+//       co.empId,
+//       rfp.createdAt
+//     `;
+
+//     console.log("Executing Count Query...");
+
+//     collectionofficer.query(dataSql, params, (err, results) => {
+//       if (err) {
+//         return reject(err);
+//       }
+//       resolve(results);
+//     });
+//   });
+// };
+
 exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
   return new Promise((resolve, reject) => {
     const params = [];
-    const countParams = [];
-    const totalParams = [];
 
     let whereClause = "WHERE c.id = 1";
 
     if (centerId) {
       whereClause += " AND co.centerId = ?";
       params.push(centerId);
-      countParams.push(centerId);
-      totalParams.push(centerId);
     }
 
     if (startDate && endDate) {
-      whereClause += " AND DATE(rfp.createdAt) BETWEEN ? AND ?";
+      whereClause +=
+        " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL '5:30' HOUR_MINUTE)) BETWEEN ? AND ?";
       params.push(startDate, endDate);
-      countParams.push(startDate, endDate);
-      totalParams.push(startDate, endDate);
     } else if (startDate) {
-      whereClause += " AND DATE(rfp.createdAt) >= ?";
+      whereClause +=
+        " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL '5:30' HOUR_MINUTE)) >= ?";
       params.push(startDate);
-      countParams.push(startDate);
-      totalParams.push(startDate);
     } else if (endDate) {
-      whereClause += " AND DATE(rfp.createdAt) <= ?";
+      whereClause +=
+        " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL '5:30' HOUR_MINUTE)) <= ?";
       params.push(endDate);
-      countParams.push(endDate);
-      totalParams.push(endDate);
     }
 
     if (search) {
@@ -2012,21 +2152,9 @@ exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
       `;
       const searchPattern = `%${search}%`;
       params.push(searchPattern, searchPattern, searchPattern, searchPattern);
-      countParams.push(
-        searchPattern,
-        searchPattern,
-        searchPattern,
-        searchPattern
-      );
-      totalParams.push(
-        searchPattern,
-        searchPattern,
-        searchPattern,
-        searchPattern
-      );
     }
 
-    let dataSql = `
+    const dataSql = `
       SELECT 
         invNo AS grnNumber,
         cc.regCode AS regCode,
@@ -2036,14 +2164,13 @@ exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
         us.lastName AS lastName,
         us.NICnumber AS nic,
         us.phoneNumber AS phoneNumber,
-        us.phoneNumber AS phoneNumber,
         ub.accHolderName AS accHolderName,
         ub.accNumber AS accNumber,
         ub.bankName AS bankName,
         ub.branchName AS branchName,
         co.empId AS empId,
-        TIME(rfp.createdAt) AS createdAt,
-        DATE(rfp.createdAt) AS createdDate
+        TIME(DATE_ADD(rfp.createdAt, INTERVAL '5:30' HOUR_MINUTE)) AS createdAt,
+        DATE(DATE_ADD(rfp.createdAt, INTERVAL '5:30' HOUR_MINUTE)) AS createdDate
       FROM 
         registeredfarmerpayments rfp
       LEFT JOIN 
@@ -2060,23 +2187,29 @@ exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
         plant_care.userbankdetails ub ON us.id = ub.userId
       ${whereClause}
       GROUP BY 
-      rfp.id,
-      invNo,
-      cc.regCode,
-      cc.centerName,
-      us.firstName,
-      us.lastName,
-      us.NICnumber,
-      us.phoneNumber,
-      ub.accHolderName,
-      ub.accNumber,
-      ub.bankName,
-      ub.branchName,
-      co.empId,
-      rfp.createdAt
+        rfp.id,
+        invNo,
+        cc.regCode,
+        cc.centerName,
+        us.firstName,
+        us.lastName,
+        us.NICnumber,
+        us.phoneNumber,
+        ub.accHolderName,
+        ub.accNumber,
+        ub.bankName,
+        ub.branchName,
+        co.empId,
+        co.jobRole,
+        rfp.createdAt
+      ORDER BY
+        CASE
+          WHEN co.jobRole = 'Collection Centre Manager' THEN 1
+          WHEN co.jobRole = 'Collection Officer' THEN 2
+          ELSE 3
+        END ASC,
+        rfp.createdAt DESC
     `;
-
-    console.log("Executing Count Query...");
 
     collectionofficer.query(dataSql, params, (err, results) => {
       if (err) {
@@ -2108,6 +2241,129 @@ exports.getAllCentersForPurchaseReport = () => {
   });
 };
 
+// exports.getCollectionReport = (
+//   page,
+//   limit,
+//   centerId,
+//   startDate,
+//   endDate,
+//   search
+// ) => {
+//   return new Promise((resolve, reject) => {
+//     const offset = (page - 1) * limit;
+
+//     let whereClause = `WHERE c.id = 1`;
+//     const params = [];
+//     const countParams = [];
+
+//     if (centerId) {
+//       whereClause += ` AND co.centerId = ?`;
+//       params.push(centerId);
+//       countParams.push(centerId);
+//     }
+
+//     if (startDate && endDate) {
+//       whereClause += " AND DATE(rfp.createdAt) BETWEEN ? AND ?";
+//       params.push(startDate, endDate);
+//       countParams.push(startDate, endDate);
+//     } else if (startDate) {
+//       whereClause += " AND DATE(rfp.createdAt) >= ?";
+//       params.push(startDate);
+//       countParams.push(startDate);
+//     } else if (endDate) {
+//       whereClause += " AND DATE(rfp.createdAt) <= ?";
+//       params.push(endDate);
+//       countParams.push(endDate);
+//     }
+
+//     if (search) {
+//       whereClause += `
+//         AND (
+//           cc.regCode LIKE ? OR 
+//           cc.centerName LIKE ? OR 
+//           cg.cropNameEnglish LIKE ? OR
+//           cv.varietyNameEnglish LIKE ?
+//         )
+//       `;
+//       const searchPattern = `%${search}%`;
+//       params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+//       countParams.push(
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern
+//       );
+//     }
+
+//     const countSql = `
+//       SELECT 
+//         COUNT(DISTINCT fpc.id) AS total
+//       FROM 
+//         farmerpaymentscrops fpc
+//       JOIN registeredfarmerpayments rfp ON fpc.registerFarmerId = rfp.id
+//       JOIN collectionofficer co ON rfp.collectionOfficerId = co.id
+//       JOIN plant_care.users us ON rfp.userId = us.id
+//       JOIN collectioncenter cc ON co.centerId = cc.id
+//       JOIN company c ON co.companyId = c.id
+//       JOIN plant_care.cropvariety cv ON fpc.cropId = cv.id
+//       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+//       ${whereClause}
+//     `;
+
+//     const dataSql = `
+//       SELECT 
+//         fpc.id AS id,
+//         cc.regCode AS regCode,
+//         cc.centerName AS centerName,
+//         cg.cropNameEnglish AS cropGroupName,
+//         cv.varietyNameEnglish AS varietyName,
+//         fpc.gradeAquan AS gradeAquan,
+//         fpc.gradeBquan AS gradeBquan,
+//         fpc.gradeCquan AS gradeCquan,
+//         SUM(IFNULL(fpc.gradeAquan, 0) + IFNULL(fpc.gradeBquan, 0) + IFNULL(fpc.gradeCquan, 0)) AS amount,
+//         fpc.createdAt AS createdAt
+//       FROM 
+//         farmerpaymentscrops fpc
+//       JOIN registeredfarmerpayments rfp ON fpc.registerFarmerId = rfp.id
+//       JOIN collectionofficer co ON rfp.collectionOfficerId = co.id
+//       JOIN plant_care.users us ON rfp.userId = us.id
+//       JOIN collectioncenter cc ON co.centerId = cc.id
+//       JOIN company c ON co.companyId = c.id
+//       JOIN plant_care.cropvariety cv ON fpc.cropId = cv.id
+//       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+//       ${whereClause}
+//       GROUP BY fpc.id
+//       LIMIT ? OFFSET ?
+//     `;
+
+//     // Add limit and offset to the end of params
+//     params.push(parseInt(limit), parseInt(offset));
+
+//     console.log("Executing Count Query...");
+//     collectionofficer.query(countSql, countParams, (countErr, countResults) => {
+//       if (countErr) {
+//         console.error("Error in count query:", countErr);
+//         return reject(countErr);
+//       }
+
+//       const total = countResults[0]?.total || 0;
+
+//       console.log("Executing Data Query...");
+//       collectionofficer.query(dataSql, params, (dataErr, dataResults) => {
+//         if (dataErr) {
+//           console.error("Error in data query:", dataErr);
+//           return reject(dataErr);
+//         }
+
+//         resolve({
+//           items: dataResults,
+//           total,
+//         });
+//       });
+//     });
+//   });
+// };
+
 exports.getCollectionReport = (
   page,
   limit,
@@ -2118,6 +2374,9 @@ exports.getCollectionReport = (
 ) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
+
+    // When a date range is selected, return one total per crop variety
+    const isAggregated = !!(startDate || endDate);
 
     let whereClause = `WHERE c.id = 1`;
     const params = [];
@@ -2162,9 +2421,7 @@ exports.getCollectionReport = (
       );
     }
 
-    const countSql = `
-      SELECT 
-        COUNT(DISTINCT fpc.id) AS total
+    const fromJoins = `
       FROM 
         farmerpaymentscrops fpc
       JOIN registeredfarmerpayments rfp ON fpc.registerFarmerId = rfp.id
@@ -2177,31 +2434,54 @@ exports.getCollectionReport = (
       ${whereClause}
     `;
 
-    const dataSql = `
-      SELECT 
-        fpc.id AS id,
-        cc.regCode AS regCode,
-        cc.centerName AS centerName,
-        cg.cropNameEnglish AS cropGroupName,
-        cv.varietyNameEnglish AS varietyName,
-        fpc.gradeAquan AS gradeAquan,
-        fpc.gradeBquan AS gradeBquan,
-        fpc.gradeCquan AS gradeCquan,
-        SUM(IFNULL(fpc.gradeAquan, 0) + IFNULL(fpc.gradeBquan, 0) + IFNULL(fpc.gradeCquan, 0)) AS amount,
-        fpc.createdAt AS createdAt
-      FROM 
-        farmerpaymentscrops fpc
-      JOIN registeredfarmerpayments rfp ON fpc.registerFarmerId = rfp.id
-      JOIN collectionofficer co ON rfp.collectionOfficerId = co.id
-      JOIN plant_care.users us ON rfp.userId = us.id
-      JOIN collectioncenter cc ON co.centerId = cc.id
-      JOIN company c ON co.companyId = c.id
-      JOIN plant_care.cropvariety cv ON fpc.cropId = cv.id
-      JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
-      ${whereClause}
-      GROUP BY fpc.id
-      LIMIT ? OFFSET ?
-    `;
+    // Count must match the grouping used in the data query
+    const countSql = isAggregated
+      ? `SELECT COUNT(DISTINCT cc.id, cv.id) AS total ${fromJoins}`
+      : `SELECT COUNT(DISTINCT fpc.id) AS total ${fromJoins}`;
+
+    const dataSql = isAggregated
+      ? `
+        SELECT 
+          MIN(fpc.id) AS id,
+          cc.regCode AS regCode,
+          cc.centerName AS centerName,
+          cg.cropNameEnglish AS cropGroupName,
+          cv.varietyNameEnglish AS varietyName,
+          SUM(IFNULL(fpc.gradeAquan, 0)) AS gradeAquan,
+          SUM(IFNULL(fpc.gradeBquan, 0)) AS gradeBquan,
+          SUM(IFNULL(fpc.gradeCquan, 0)) AS gradeCquan,
+          SUM(
+            IFNULL(fpc.gradeAquan, 0) +
+            IFNULL(fpc.gradeBquan, 0) +
+            IFNULL(fpc.gradeCquan, 0)
+          ) AS amount,
+          MAX(fpc.createdAt) AS createdAt
+        ${fromJoins}
+        GROUP BY cc.id, cc.regCode, cc.centerName, cg.id, cg.cropNameEnglish, cv.id, cv.varietyNameEnglish
+        ORDER BY cc.regCode, cg.cropNameEnglish, cv.varietyNameEnglish
+        LIMIT ? OFFSET ?
+      `
+      : `
+        SELECT 
+          fpc.id AS id,
+          cc.regCode AS regCode,
+          cc.centerName AS centerName,
+          cg.cropNameEnglish AS cropGroupName,
+          cv.varietyNameEnglish AS varietyName,
+          fpc.gradeAquan AS gradeAquan,
+          fpc.gradeBquan AS gradeBquan,
+          fpc.gradeCquan AS gradeCquan,
+          (
+            IFNULL(fpc.gradeAquan, 0) +
+            IFNULL(fpc.gradeBquan, 0) +
+            IFNULL(fpc.gradeCquan, 0)
+          ) AS amount,
+          fpc.createdAt AS createdAt
+        ${fromJoins}
+        GROUP BY fpc.id
+        ORDER BY fpc.createdAt DESC
+        LIMIT ? OFFSET ?
+      `;
 
     // Add limit and offset to the end of params
     params.push(parseInt(limit), parseInt(offset));
@@ -2231,36 +2511,119 @@ exports.getCollectionReport = (
   });
 };
 
+// exports.downloadCollectionReport = (centerId, startDate, endDate, search) => {
+//   return new Promise((resolve, reject) => {
+//     const params = [];
+//     const countParams = [];
+//     const totalParams = [];
+
+//     let whereClause = "WHERE c.id = 1";
+
+//     if (centerId) {
+//       whereClause += " AND co.centerId = ?";
+//       params.push(centerId);
+//       countParams.push(centerId);
+//       totalParams.push(centerId);
+//     }
+
+//     if (startDate && endDate) {
+//       whereClause += " AND DATE(rfp.createdAt) BETWEEN ? AND ?";
+//       params.push(startDate, endDate);
+//       countParams.push(startDate, endDate);
+//       totalParams.push(startDate, endDate);
+//     } else if (startDate) {
+//       whereClause += " AND DATE(rfp.createdAt) >= ?";
+//       params.push(startDate);
+//       countParams.push(startDate);
+//       totalParams.push(startDate);
+//     } else if (endDate) {
+//       whereClause += " AND DATE(rfp.createdAt) <= ?";
+//       params.push(endDate);
+//       countParams.push(endDate);
+//       totalParams.push(endDate);
+//     }
+
+//     if (search) {
+//       whereClause += `
+//         AND (
+//           cc.regCode LIKE ? OR 
+//           cc.centerName LIKE ? OR 
+//           cg.cropNameEnglish LIKE ? OR
+//           cv.varietyNameEnglish LIKE ?
+//         )
+//       `;
+//       const searchPattern = `%${search}%`;
+//       params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+//       countParams.push(
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern
+//       );
+//       totalParams.push(
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern
+//       );
+//     }
+
+//     let dataSql = `
+//       SELECT 
+//         fpc.id AS id,
+//         cc.regCode AS regCode,
+//         cc.centerName AS centerName,
+//         cg.cropNameEnglish AS cropGroupName,
+//         cv.varietyNameEnglish AS varietyName,
+//         fpc.gradeAquan AS gradeAquan,
+//         fpc.gradeBquan AS gradeBquan,
+//         fpc.gradeCquan AS gradeCquan,
+//         SUM(IFNULL(fpc.gradeAquan, 0) + IFNULL(fpc.gradeBquan, 0) + IFNULL(fpc.gradeCquan, 0)) AS amount,
+//         fpc.createdAt AS createdAt
+//       FROM 
+//         farmerpaymentscrops fpc
+//       JOIN registeredfarmerpayments rfp ON fpc.registerFarmerId = rfp.id
+//       JOIN collectionofficer co ON rfp.collectionOfficerId = co.id
+//       JOIN plant_care.users us ON rfp.userId = us.id
+//       JOIN collectioncenter cc ON co.centerId = cc.id
+//       JOIN company c ON co.companyId = c.id
+//       JOIN plant_care.cropvariety cv ON fpc.cropId = cv.id
+//       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
+//       ${whereClause}
+//       GROUP BY fpc.id
+//     `;
+
+//     console.log("Executing Count Query...");
+
+//     collectionofficer.query(dataSql, params, (err, results) => {
+//       if (err) {
+//         return reject(err);
+//       }
+//       resolve(results);
+//     });
+//   });
+// };
+
 exports.downloadCollectionReport = (centerId, startDate, endDate, search) => {
   return new Promise((resolve, reject) => {
     const params = [];
-    const countParams = [];
-    const totalParams = [];
 
     let whereClause = "WHERE c.id = 1";
 
     if (centerId) {
       whereClause += " AND co.centerId = ?";
       params.push(centerId);
-      countParams.push(centerId);
-      totalParams.push(centerId);
     }
 
     if (startDate && endDate) {
       whereClause += " AND DATE(rfp.createdAt) BETWEEN ? AND ?";
       params.push(startDate, endDate);
-      countParams.push(startDate, endDate);
-      totalParams.push(startDate, endDate);
     } else if (startDate) {
       whereClause += " AND DATE(rfp.createdAt) >= ?";
       params.push(startDate);
-      countParams.push(startDate);
-      totalParams.push(startDate);
     } else if (endDate) {
       whereClause += " AND DATE(rfp.createdAt) <= ?";
       params.push(endDate);
-      countParams.push(endDate);
-      totalParams.push(endDate);
     }
 
     if (search) {
@@ -2274,32 +2637,12 @@ exports.downloadCollectionReport = (centerId, startDate, endDate, search) => {
       `;
       const searchPattern = `%${search}%`;
       params.push(searchPattern, searchPattern, searchPattern, searchPattern);
-      countParams.push(
-        searchPattern,
-        searchPattern,
-        searchPattern,
-        searchPattern
-      );
-      totalParams.push(
-        searchPattern,
-        searchPattern,
-        searchPattern,
-        searchPattern
-      );
     }
 
-    let dataSql = `
-      SELECT 
-        fpc.id AS id,
-        cc.regCode AS regCode,
-        cc.centerName AS centerName,
-        cg.cropNameEnglish AS cropGroupName,
-        cv.varietyNameEnglish AS varietyName,
-        fpc.gradeAquan AS gradeAquan,
-        fpc.gradeBquan AS gradeBquan,
-        fpc.gradeCquan AS gradeCquan,
-        SUM(IFNULL(fpc.gradeAquan, 0) + IFNULL(fpc.gradeBquan, 0) + IFNULL(fpc.gradeCquan, 0)) AS amount,
-        fpc.createdAt AS createdAt
+    // A date range is selected when either boundary is provided
+    const isDateRangeSelected = Boolean(startDate || endDate);
+
+    const fromAndJoins = `
       FROM 
         farmerpaymentscrops fpc
       JOIN registeredfarmerpayments rfp ON fpc.registerFarmerId = rfp.id
@@ -2310,10 +2653,49 @@ exports.downloadCollectionReport = (centerId, startDate, endDate, search) => {
       JOIN plant_care.cropvariety cv ON fpc.cropId = cv.id
       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
       ${whereClause}
-      GROUP BY fpc.id
     `;
 
-    console.log("Executing Count Query...");
+    let dataSql;
+
+    if (isDateRangeSelected) {
+      // Single total per crop variety (per center) across the whole date range
+      dataSql = `
+        SELECT 
+          MIN(fpc.id) AS id,
+          cc.regCode AS regCode,
+          cc.centerName AS centerName,
+          cg.cropNameEnglish AS cropGroupName,
+          cv.varietyNameEnglish AS varietyName,
+          SUM(IFNULL(fpc.gradeAquan, 0)) AS gradeAquan,
+          SUM(IFNULL(fpc.gradeBquan, 0)) AS gradeBquan,
+          SUM(IFNULL(fpc.gradeCquan, 0)) AS gradeCquan,
+          SUM(
+            IFNULL(fpc.gradeAquan, 0) + 
+            IFNULL(fpc.gradeBquan, 0) + 
+            IFNULL(fpc.gradeCquan, 0)
+          ) AS amount
+        ${fromAndJoins}
+        GROUP BY cc.id, cc.regCode, cc.centerName, cg.id, cg.cropNameEnglish, cv.id, cv.varietyNameEnglish
+        ORDER BY cc.centerName, cg.cropNameEnglish, cv.varietyNameEnglish
+      `;
+    } else {
+      // No date range: keep the original per-record rows
+      dataSql = `
+        SELECT 
+          fpc.id AS id,
+          cc.regCode AS regCode,
+          cc.centerName AS centerName,
+          cg.cropNameEnglish AS cropGroupName,
+          cv.varietyNameEnglish AS varietyName,
+          fpc.gradeAquan AS gradeAquan,
+          fpc.gradeBquan AS gradeBquan,
+          fpc.gradeCquan AS gradeCquan,
+          SUM(IFNULL(fpc.gradeAquan, 0) + IFNULL(fpc.gradeBquan, 0) + IFNULL(fpc.gradeCquan, 0)) AS amount,
+          fpc.createdAt AS createdAt
+        ${fromAndJoins}
+        GROUP BY fpc.id
+      `;
+    }
 
     collectionofficer.query(dataSql, params, (err, results) => {
       if (err) {
@@ -2405,13 +2787,13 @@ exports.getFarmerCropsInvoiceDetailsDao = (invNo) => {
 exports.getCollectionCenterForReportDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT cen.centerName
+      SELECT cen.id, cen.centerName, cen.regCode
       FROM company c
       JOIN companycenter cc ON c.id = cc.companyId
       JOIN collectioncenter cen ON cc.centerId = cen.id
       WHERE c.isCollection = 1
-      GROUP BY cen.centerName
-      ORDER BY cen.centerName
+      GROUP BY cen.id, cen.centerName, cen.regCode
+      ORDER BY cen.centerName, cen.regCode
     `;
 
     collectionofficer.query(sql, (err, results) => {
@@ -2716,9 +3098,9 @@ exports.getDriveCategoryById = (id) => {
 exports.addDriveCategory = (data) => {
   return new Promise((resolve, reject) => {
     const { catName, payout, updatedBy } = data;
-    const sql = "INSERT INTO drivercategory (catName, payout, updatedAt, createdAt) VALUES (?, ?, ?, NOW())";
+    const sql = "INSERT INTO drivercategory (catName, payout, updatedBy, updatedAt) VALUES (?, ?, ?, NOW())";
     const params = [catName, payout, updatedBy];
-    
+
     collectionofficer.query(sql, params, (err, results) => {
       if (err) {
         return reject(err);
@@ -2728,8 +3110,7 @@ exports.addDriveCategory = (data) => {
         catName: catName,
         payout: payout,
         updatedBy: updatedBy,
-        updatedAt: new Date(),
-        createdAt: new Date()
+        updatedAt: new Date()
       });
     });
   });

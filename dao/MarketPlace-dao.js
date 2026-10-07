@@ -137,7 +137,7 @@ exports.checkMarketEditProductExistsDao = async (
 exports.createMarketProductDao = async (product) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO marketplaceitems (displayName, normalPrice, productTypeId, discountedPrice, promo, unitType, startValue, changeby, tags, category, discount, varietyId, displayType, maxQuantity, comPrice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      "INSERT INTO marketplaceitems (displayName, normalPrice, productTypeId, discountedPrice, promo, unitType, startValue, changeby, tags, category, discount, varietyId, displayType, maxQuantity, comPrice, modifyBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
       product.cropName,
       product.normalPrice,
@@ -154,6 +154,7 @@ exports.createMarketProductDao = async (product) => {
       product.displaytype || null,
       product.category === "WholeSale" ? product.maxQuantity : null,
       product.comPrice,
+      product.modifyBy,
     ];
 
     collectionofficer.query(sql, values, (err, results) => {
@@ -321,7 +322,7 @@ exports.getAllCoupenDAO = (limit, offset, status, types, searchText) => {
       dataParms.push(types);
     }
 
-    dataSql += ` ORDER BY id DESC LIMIT ? OFFSET ? `;
+    dataSql += ` ORDER BY createdAt DESC, id DESC LIMIT ? OFFSET ? `;
     dataParms.push(limit);
     dataParms.push(offset);
 
@@ -1205,6 +1206,30 @@ exports.updateBannerOrder = async (feedbacks) => {
   });
 };
 
+exports.updateBannerOrderWholesale = async (feedbacks) => {
+  return new Promise((resolve, reject) => {
+    const sql = "UPDATE banners SET indexId = ? WHERE id = ?";
+
+    const queries = feedbacks.map((feedback) => {
+      return new Promise((resolveInner, rejectInner) => {
+        collectionofficer.query(
+          sql,
+          [feedback.orderNumber, feedback.id],
+          (err, results) => {
+            if (err) {
+              return rejectInner(err);
+            }
+            resolveInner(results);
+          },
+        );
+      });
+    });
+    Promise.all(queries)
+      .then((results) => resolve(results))
+      .catch((err) => reject(err));
+  });
+};
+
 exports.getBannerById = async (feedbackId) => {
   return new Promise((resolve, reject) => {
     const sql = "SELECT * FROM banners WHERE id = ?";
@@ -1273,13 +1298,13 @@ exports.deleteBannerWhole = async (feedbackId, orderNumber) => {
   });
 };
 
-exports.createProductTypesDao = async (data) => {
+exports.createProductTypesDao = async (data, modifyBy) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO producttypes (typeName, shortCode, isValid) VALUES (?, ?, ?)";
+      "INSERT INTO producttypes (typeName, shortCode, isValid, modifyId) VALUES (?, ?, ?, ?)";
     collectionofficer.query(
       sql,
-      [data.typeName, data.shortCode, 0],
+      [data.typeName, data.shortCode, 0, modifyBy],
       (err, results) => {
         if (err) {
           return reject(err);
@@ -2409,6 +2434,7 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         po.isPaid,
         po.creditPaid,
         po.moneyPaid,
+        po.status AS orderStatus,
         CASE
           WHEN o.buildingType = 'House' THEN oh.houseNo
           WHEN o.buildingType = 'Apartment' THEN oa.houseNo

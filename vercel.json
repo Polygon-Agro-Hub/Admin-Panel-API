@@ -1,5 +1,10 @@
 {
     "version": 2,
+    "functions": {
+        "api/index.js": {
+            "maxDuration": 60
+        }
+    },
     "rewrites": [
         {
             "source": "/(.*)",
@@ -8,8 +13,8 @@
     ],
     "crons": [
         {
-            "path": "/api/return-pickup-orders",
-            "schedule": "30 12 * * *"
+            "path": "/agro-api/admin-api/api/return-pickup-orders",
+            "schedule": "00 16 * * *"
         }
     ]
 }
