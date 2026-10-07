@@ -70,7 +70,7 @@ exports.createCropGroup = async (
   });
 };
 
-exports.getAllCropGroups = (limit, offset, searchText, category) => {
+exports.getAllCropGroups = (limit, offset, searchText, category, displayFor) => {
   return new Promise((resolve, reject) => {
     const dataParams = [];
     const countParams = [];
@@ -101,6 +101,12 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
       whereConditions.push("cg.category = ?");
       dataParams.push(category);
       countParams.push(category);
+    }
+
+    if (displayFor) {
+      whereConditions.push("cg.displayFor = ?");
+      dataParams.push(displayFor);
+      countParams.push(displayFor);
     }
 
     if (whereConditions.length > 0) {

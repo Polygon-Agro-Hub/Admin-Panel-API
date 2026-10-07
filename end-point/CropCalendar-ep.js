@@ -155,7 +155,7 @@ exports.getAllCropGroups = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
 
-    const { page, limit, searchText, category } =
+    const { page, limit, searchText, category, displayFor } =
       await cropCalendarValidations.getAllCropGroupsSchema.validateAsync(
         req.query,
       );
@@ -167,6 +167,7 @@ exports.getAllCropGroups = async (req, res) => {
       offset,
       searchText,
       category,
+      displayFor,
     );
     res.json({
       items,
