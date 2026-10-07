@@ -494,9 +494,15 @@ exports.deleteCropVariety = async (req, res) => {
 exports.getGroupById = async (req, res) => {
   try {
     const id = req.params.id;
-    const groups = await cropCalendarDao.getGroupById(id);
+
+    const [groups, marketplaceCount] = await Promise.all([
+      cropCalendarDao.getGroupById(id),
+      cropCalendarDao.getMarketplaceItemCountByGroupId(id),
+    ]);
+
     res.json({
       groups,
+      itemCount: marketplaceCount ? marketplaceCount.itemCount : 0,
     });
   } catch (err) {
     if (err.isJoi) {
@@ -539,6 +545,7 @@ exports.updateGroup = async (req, res) => {
     nitrogen,
     phosphorus,
     potassium,
+    displayFor, // new
   } = req.body;
 
   const id = req.params.id;
@@ -550,6 +557,15 @@ exports.updateGroup = async (req, res) => {
     return res.status(401).json({
       message: "Unauthorized: admin user not found in token",
       status: false,
+    });
+  }
+
+  // new: validate enum value
+  const allowedDisplayFor = ["Farmery", "Sales", "Both"];
+  if (!allowedDisplayFor.includes(displayFor)) {
+    return res.status(400).json({
+      status: false,
+      message: "displayFor must be one of: Farmery, Sales, Both",
     });
   }
 
@@ -599,6 +615,7 @@ exports.updateGroup = async (req, res) => {
         nitrogen,
         phosphorus,
         potassium,
+        displayFor, // new
         userId,
       },
       id,
