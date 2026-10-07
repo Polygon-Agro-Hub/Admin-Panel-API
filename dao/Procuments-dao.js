@@ -2014,12 +2014,13 @@ exports.getTransportLoadDetailsByLoadedItemIdDao = (loadedItemId) => {
           uo.lastNameEnglish AS unloadOfficerLastName,
           uo.phoneCode01 AS unloadOfficerPhoneCode,
           uo.phoneNumber01 AS unloadOfficerPhone
-        FROM loadeditems li
-        JOIN transportload tl ON tl.id = li.transportId
-        LEFT JOIN collectioncenter cc ON cc.id = tl.comCenId
+        FROM transportload tl
+        LEFT JOIN loadeditems li ON li.transportId = tl.id
+        LEFT JOIN companycenter coc ON coc.id = tl.comCenId
+        LEFT JOIN collectioncenter cc ON coc.centerId = cc.id 
         LEFT JOIN collectionofficer dr ON dr.id = tl.driverId
         LEFT JOIN collectionofficer uo ON uo.id = tl.unloadOfficerId
-        WHERE li.id = ?
+        WHERE tl.id = ?
       `;
 
       collectionofficer.query(sql, [loadedItemId], (err, results) => {
@@ -2049,7 +2050,8 @@ exports.getLoadedItemWeightSummaryDao = (loadedItemId) => {
           lc.totalLoadedWeight,
           uc.totalUnloadedCrates,
           uc.totalUnloadedWeight
-        FROM loadeditems li
+        FROM transportload tl
+        LEFT JOIN loadeditems li ON li.transportId = tl.id
         JOIN plant_care.cropvariety cv ON cv.id = li.varietyId
         LEFT JOIN (
           SELECT loadId, grade, 
@@ -2065,7 +2067,7 @@ exports.getLoadedItemWeightSummaryDao = (loadedItemId) => {
           FROM unloadedcrates
           GROUP BY loadId, grade
         ) uc ON uc.loadId = li.id AND uc.grade = lc.grade
-        WHERE li.id = ?
+        WHERE tl.id = ?
       `;
 
       collectionofficer.query(sql, [loadedItemId], (err, results) => {
