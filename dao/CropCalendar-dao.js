@@ -36,11 +36,12 @@ exports.createCropGroup = async (
   nitrogen,
   phosphorus,
   potassium,
+  displayFor, // new
   modifyBy,
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, image, bgColor, seedRate, rowSpace, plantSpace, AvgYield, nitrogen, phosphorus, potassium, modifyBy, modifyAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, image, bgColor, seedRate, rowSpace, plantSpace, AvgYield, nitrogen, phosphorus, potassium, displayFor, modifyBy, modifyAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
     const values = [
       cropNameEnglish,
       cropNameSinhala,
@@ -57,6 +58,7 @@ exports.createCropGroup = async (
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       modifyBy,
     ];
 
@@ -504,6 +506,7 @@ exports.updateGroup = (newsData, id) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       userId,
     } = newsData;
 
@@ -528,6 +531,7 @@ exports.updateGroup = (newsData, id) => {
                 nitrogen = ?,
                 phosphorus = ?,
                 potassium = ?,
+                displayFor = ?,
                 modifyBy = ?,
                 modifyAt = NOW()
         `;
@@ -547,6 +551,7 @@ exports.updateGroup = (newsData, id) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       userId,
     ];
 
@@ -884,6 +889,27 @@ exports.getAllCropGroupEnglishNamesOnly = () => {
         reject(err);
       } else {
         resolve(results);
+      }
+    });
+  });
+};
+
+exports.getMarketplaceItemCountByGroupId = async (groupId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT c.id, COUNT(mpi.id) AS itemCount
+      FROM cropgroup c
+      LEFT JOIN cropvariety cv ON c.id = cv.cropGroupId
+      LEFT JOIN collection_officer.marketplaceitems mpi ON cv.id = mpi.varietyId
+      WHERE c.id = ?
+      GROUP BY c.id
+    `;
+
+    plantcare.query(sql, [groupId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0] || null);
       }
     });
   });
