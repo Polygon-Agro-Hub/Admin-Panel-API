@@ -29,6 +29,9 @@ exports.createCropGroup = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
 
+    // Logged-in user id from the auth middleware
+    const modifyBy = req.user.userId;
+
     const {
       cropNameEnglish,
       cropNameSinhala,
@@ -84,6 +87,7 @@ exports.createCropGroup = async (req, res) => {
       nitrogen,
       phosphorus,
       potassium,
+      modifyBy,
     );
     return res.status(201).json({
       message: "Crop group has been created successfully",

@@ -2387,16 +2387,16 @@ exports.getCrateByIdDao = (id) => {
   });
 };
 
-exports.getManageContainerSizesDao =  () => {
+exports.getManageContainerSizesDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT 
         c.id,
         c.createIndex,
-	      c.labelName,
-	      c.weight,
-	      a.userName AS modifyBy,
-	      DATE_ADD(c.modifyAt, INTERVAL 330 MINUTE) AS modifyAt
+        c.labelName,
+        c.weight,
+        a.userName AS modifyBy,
+        c.modifyAt
       FROM creates c
       LEFT JOIN agro_world_admin.adminusers a ON c.modifyBy = a.id
       ORDER BY c.createIndex ASC
