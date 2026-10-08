@@ -29,6 +29,9 @@ exports.createCropGroup = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
 
+    // Logged-in user id from the auth middleware
+    const modifyBy = req.user.userId;
+
     const {
       cropNameEnglish,
       cropNameSinhala,
@@ -44,7 +47,17 @@ exports.createCropGroup = async (req, res) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
     } = req.body;
+
+    // new: validate enum value
+    const allowedDisplayFor = ["Farmery", "Sales", "Both"];
+    if (!allowedDisplayFor.includes(displayFor)) {
+      return res.status(400).json({
+        status: false,
+        message: "displayFor must be one of: Farmery, Sales, Both",
+      });
+    }
 
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
@@ -84,6 +97,8 @@ exports.createCropGroup = async (req, res) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
+      modifyBy,
     );
     return res.status(201).json({
       message: "Crop group has been created successfully",
@@ -151,7 +166,7 @@ exports.getAllCropGroups = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
 
-    const { page, limit, searchText, category } =
+    const { page, limit, searchText, category, displayFor } =
       await cropCalendarValidations.getAllCropGroupsSchema.validateAsync(
         req.query,
       );
@@ -163,6 +178,7 @@ exports.getAllCropGroups = async (req, res) => {
       offset,
       searchText,
       category,
+      displayFor,
     );
     res.json({
       items,
@@ -479,9 +495,15 @@ exports.deleteCropVariety = async (req, res) => {
 exports.getGroupById = async (req, res) => {
   try {
     const id = req.params.id;
-    const groups = await cropCalendarDao.getGroupById(id);
+
+    const [groups, marketplaceCount] = await Promise.all([
+      cropCalendarDao.getGroupById(id),
+      cropCalendarDao.getMarketplaceItemCountByGroupId(id),
+    ]);
+
     res.json({
       groups,
+      itemCount: marketplaceCount ? marketplaceCount.itemCount : 0,
     });
   } catch (err) {
     if (err.isJoi) {
@@ -524,6 +546,7 @@ exports.updateGroup = async (req, res) => {
     nitrogen,
     phosphorus,
     potassium,
+    displayFor, // new
   } = req.body;
 
   const id = req.params.id;
@@ -535,6 +558,15 @@ exports.updateGroup = async (req, res) => {
     return res.status(401).json({
       message: "Unauthorized: admin user not found in token",
       status: false,
+    });
+  }
+
+  // new: validate enum value
+  const allowedDisplayFor = ["Farmery", "Sales", "Both"];
+  if (!allowedDisplayFor.includes(displayFor)) {
+    return res.status(400).json({
+      status: false,
+      message: "displayFor must be one of: Farmery, Sales, Both",
     });
   }
 
@@ -584,6 +616,7 @@ exports.updateGroup = async (req, res) => {
         nitrogen,
         phosphorus,
         potassium,
+        displayFor, // new
         userId,
       },
       id,

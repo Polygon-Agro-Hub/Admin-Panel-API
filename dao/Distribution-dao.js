@@ -2272,7 +2272,7 @@ exports.updateDistributionOfficerDetails = (
                 SET distributedCenterId = ?, companyId = ?, irmId = ?, driverCatId = ?, firstNameEnglish = ?, lastNameEnglish = ?, firstNameSinhala = ?, lastNameSinhala = ?,
                     firstNameTamil = ?, lastNameTamil = ?, jobRole = ?, empId = ?, empType = ?, phoneCode01 = ?, phoneNumber01 = ?, phoneCode02 = ?, phoneNumber02 = ?,
                     nic = ?, email = ?, houseNumber = ?, streetName = ?, city = ?, district = ?, province = ?, country = ?, languages = ?,
-                    accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = ?,  adminModifyBy = ?, status = 'Not Approved', officerModiyBy = NULL
+                    accHolderName = ?, accNumber = ?, bankName = ?, branchName = ?, image = COALESCE(?, image),  adminModifyBy = ?, status = 'Not Approved', officerModiyBy = NULL
           `;
     let values = [
       centerId,
@@ -2305,7 +2305,7 @@ exports.updateDistributionOfficerDetails = (
       accNumber,
       bankName,
       branchName,
-      profileImageUrl,
+      profileImageUrl ?? null, 
       adminId,
     ];
 

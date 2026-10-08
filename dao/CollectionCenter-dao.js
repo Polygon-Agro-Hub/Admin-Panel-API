@@ -1740,7 +1740,7 @@ exports.GetComplainCategoriesByRole = (roleId, appName) => {
     const sql =
       `SELECT cc.id, cc.categoryEnglish FROM agro_world_admin.complaincategory cc 
        LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
-       WHERE cc.roleId=? AND sa.appName=?`;
+       WHERE cc.roleId=? AND sa.id=?`;
     admin.query(sql, [roleId, appName], (err, results) => {
       if (err) {
         return reject(err);

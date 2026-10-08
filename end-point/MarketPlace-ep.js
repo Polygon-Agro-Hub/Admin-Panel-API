@@ -1058,6 +1058,33 @@ exports.updateBannerOrder = async (req, res) => {
   }
 };
 
+exports.updateBannerOrderWholesale = async (req, res) => {
+  try {
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    console.log("Request URL:", fullUrl);
+    const feedbacks = req.body.feedbacks;
+    const result = await MarketPlaceDao.updateBannerOrderWholesale(feedbacks);
+
+    if (result) {
+      return res.status(200).json({
+        status: true,
+        message: "Feedback order updated successfully",
+      });
+    }
+
+    return res.status(400).json({
+      status: false,
+      message: "Failed to update feedback order",
+    });
+  } catch (error) {
+    console.error("Error in updateFeedbackOrder:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 exports.deleteBannerRetail = async (req, res) => {
   const bannerId = parseInt(req.params.id, 10);
 
