@@ -13,12 +13,13 @@ exports.getAllCropNameDAO = () => {
         cv.id AS varietyId, 
         cg.cropNameEnglish, 
         cv.varietyNameEnglish AS varietyEnglish, 
-        cv.image
+        cv.image,
+        cg.displayFor
       FROM 
         cropvariety cv, 
         cropgroup cg
       WHERE 
-        cg.id = cv.cropGroupId
+        cg.id = cv.cropGroupId AND cg.displayFor IN ('Sales', 'Both')
       ORDER BY 
         cg.cropNameEnglish ASC
     `;
