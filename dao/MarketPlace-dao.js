@@ -1647,7 +1647,7 @@ exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
       const existingChargeMap = new Map();
       existingCharges.forEach((c) => {
         const uniqueKey = `${c.province.toLowerCase()}-${c.district.toLowerCase()}-${c.city.toLowerCase()}`;
-        existingChargeMap.set(uniqueKey, c);
+        existingChargeMap.set(uniqueKey, { ...c, charge: Number(c.charge) });
       });
 
       uniqueKeyMap.forEach((excelData, uniqueKey) => {
@@ -1685,39 +1685,48 @@ exports.uploadDeliveryCharges = async (fileBuffer, userId) => {
       }
 
       if (chargesToUpdate.length > 0) {
-        const updatePromises = chargesToUpdate.map((charge) => {
-          return new Promise((resolve, reject) => {
-            const updateSql = `
-              UPDATE deliverycharge 
-              SET 
-                charge = ?,
-                editBy = ?,
-                createdAt = NOW()
-              WHERE LOWER(province) = ? 
-              AND LOWER(district) = ? 
-              AND LOWER(city) = ?
-            `;
+        const BATCH_SIZE = 300;
+
+        for (let i = 0; i < chargesToUpdate.length; i += BATCH_SIZE) {
+          const batch = chargesToUpdate.slice(i, i + BATCH_SIZE);
+
+          const caseParts = [];
+          const caseParams = [];
+          const whereParams = [];
+
+          for (const c of batch) {
+            const p = c.province.toLowerCase();
+            const d = c.district.toLowerCase();
+            const ct = c.city.toLowerCase();
+
+            caseParts.push(
+              "WHEN LOWER(province) = ? AND LOWER(district) = ? AND LOWER(city) = ? THEN ?"
+            );
+            caseParams.push(p, d, ct, c.charge);
+            whereParams.push(p, d, ct);
+          }
+
+          const wherePlaceholders = batch.map(() => "(?, ?, ?)").join(", ");
+
+          const sql = `
+            UPDATE deliverycharge
+            SET
+              charge = CASE ${caseParts.join(" ")} END,
+              editBy = ?,
+              createdAt = NOW()
+            WHERE (LOWER(province), LOWER(district), LOWER(city)) IN (${wherePlaceholders})
+          `;
+
+          const affected = await new Promise((resolve, reject) => {
             collectionofficer.query(
-              updateSql,
-              [
-                charge.charge,
-                userId,
-                charge.province.toLowerCase(),
-                charge.district.toLowerCase(),
-                charge.city.toLowerCase(),
-              ],
-              (err, result) => {
-                if (err) return reject(err);
-                resolve(result.affectedRows);
-              },
+              sql,
+              [...caseParams, userId, ...whereParams],
+              (err, result) => (err ? reject(err) : resolve(result.affectedRows))
             );
           });
-        });
 
-        const updateResults = await Promise.allSettled(updatePromises);
-        updatedCount = updateResults
-          .filter((result) => result.status === "fulfilled")
-          .reduce((sum, result) => sum + result.value, 0);
+          updatedCount += affected;
+        }
       }
 
       resolve({
