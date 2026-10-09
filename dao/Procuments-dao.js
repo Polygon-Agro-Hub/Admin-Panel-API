@@ -2116,7 +2116,10 @@ exports.getLoadMismatchReportsTodayDao = () => {
         tl.transferCode AS driverCode,
         dc.regCode AS distributionCentre,
         tl.unloadTime,
-        DATE_FORMAT(tl.unloadTime, '%h:%i %p') AS reportedAt,
+        DATE_FORMAT(
+          DATE_ADD(tl.unloadTime, INTERVAL 330 MINUTE),
+          '%h:%i %p'
+        ) AS reportedAt,
         SUM(g.loadedQty) AS loaded,
         SUM(g.unloadedQty) AS unloaded,
         SUM(g.loadedCrates) AS loadedCrateCount,
