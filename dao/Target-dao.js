@@ -360,8 +360,8 @@ exports.getCenterCenterCropsDao = (
               JOIN marketpriceserve MPS ON MPS.marketPriceId = MP.id
               JOIN plant_care.cropvariety CV ON MP.varietyId = CV.id
               JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
-          WHERE 
-              MPS.companyCenterId = ?
+          WHERE CG.displayFor IN ('Sales', 'Both')
+            AND MPS.companyCenterId = ?
           
       `;
 

@@ -469,7 +469,7 @@ exports.editMarketProduct = async (req, res) => {
       });
     }
     
-    await MarketPlaceDao.disablePackagesByProductId(id);
+    // await MarketPlaceDao.disablePackagesByProductId(id);
 
     res.status(201).json({
       message: "market product updated successfully",
