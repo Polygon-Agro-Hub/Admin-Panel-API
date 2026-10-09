@@ -152,7 +152,7 @@ router.get(
 
 
 router.put(
-    '/update-crop-variety/:id',
+    '/update-crop-varietyEdit/:id',
     authMiddleware,
     upload.single('image'),
     cropCalendarEp.updateVariety

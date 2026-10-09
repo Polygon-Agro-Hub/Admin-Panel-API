@@ -777,6 +777,7 @@ exports.updateVariety = (newsData, id) => {
       descriptionTamil,
       bgColor,
       image,
+      modifyBy,
     } = newsData;
 
     let sql = `
@@ -785,10 +786,12 @@ exports.updateVariety = (newsData, id) => {
               varietyNameEnglish = ?, 
               varietyNameSinhala = ?, 
               varietyNameTamil = ?, 
-               descriptionEnglish = ?, 
+              descriptionEnglish = ?, 
               descriptionSinhala = ?, 
               descriptionTamil = ?, 
-              bgColor = ?
+              bgColor = ?,
+              modifyBy = ?,
+              modifyAt = NOW()
       `;
 
     let values = [
@@ -799,6 +802,7 @@ exports.updateVariety = (newsData, id) => {
       descriptionSinhala,
       descriptionTamil,
       bgColor,
+      modifyBy,
     ];
 
     if (image) {

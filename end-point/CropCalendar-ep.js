@@ -793,6 +793,8 @@ exports.updateVariety = async (req, res) => {
     bgColor,
   } = req.body;
   const id = req.params.id;
+  const modifyBy = req.user.userId;
+
   try {
     let imageData = null;
     if (req.file) {
@@ -809,6 +811,7 @@ exports.updateVariety = async (req, res) => {
         descriptionTamil,
         bgColor,
         image: imageData,
+        modifyBy,
       },
       id,
     );
