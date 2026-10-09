@@ -3494,7 +3494,7 @@ exports.updateCopTransactionStatusDao = ({ id, updatedBy }) => {
 exports.getCompletedOrders = (page, limit, startDate, endDate, search) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
-    let whereClause = `WHERE po.status = 'Delivered'`;
+    let whereClause = `WHERE po.status IN ('Delivered', 'Picked up')`;
     const params = [];
     const countParams = [];
 
@@ -3566,7 +3566,7 @@ exports.getCompletedOrders = (page, limit, startDate, endDate, search) => {
 
 exports.downloadCompletedOrders = (startDate, endDate, search) => {
   return new Promise((resolve, reject) => {
-    let whereClause = "WHERE po.status = 'Delivered'";
+    let whereClause = "WHERE po.status IN ('Delivered', 'Picked up')";
     const params = [];
 
     if (startDate && endDate) {
