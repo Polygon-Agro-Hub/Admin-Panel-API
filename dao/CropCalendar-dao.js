@@ -246,8 +246,14 @@ exports.createCropCallender = async (
 
 exports.insertXLSXData = (cropId, data) => {
   return new Promise((resolve, reject) => {
+    const validationError = (message) => {
+      const err = new Error(message);
+      err.isValidation = true;
+      return err;
+    };
+
     if (!data || data.length === 0) {
-      return reject(new Error("No data found in the uploaded file"));
+      return reject(validationError("No data found in the uploaded file"));
     }
 
     const requiredColumns = [
@@ -279,7 +285,7 @@ exports.insertXLSXData = (cropId, data) => {
 
     if (missingColumns.length > 0) {
       return reject(
-        new Error(
+        validationError(
           `Missing required column(s) in the uploaded file: ${missingColumns.join(", ")}`
         )
       );
@@ -300,42 +306,45 @@ exports.insertXLSXData = (cropId, data) => {
       "Task description (English)": Joi.string().required(),
       "Task description (Sinhala)": Joi.string().required(),
       "Task description (Tamil)": Joi.string().required(),
-      "Image Link": Joi.string().allow('', null),
-      "Video Link English": Joi.string().allow('', null),
-      "Video Link Sinhala": Joi.string().allow('', null),
-      "Video Link Tamil": Joi.string().allow('', null),
+      "Image Link": Joi.string().allow("", null),
+      "Video Link English": Joi.string().allow("", null),
+      "Video Link Sinhala": Joi.string().allow("", null),
+      "Video Link Tamil": Joi.string().allow("", null),
       "Required Images": Joi.number().required(),
     }).required();
 
     function isEmptyRow(row) {
       if (!row) return true;
-        return Object.values(row).every(value => {
-          if (value === '' || value === null || value === undefined) return true;
-          if (typeof value === 'string' && value.trim() === '') return true;
-          return false;
-        });
+      return Object.values(row).every((value) => {
+        if (value === "" || value === null || value === undefined) return true;
+        if (typeof value === "string" && value.trim() === "") return true;
+        return false;
+      });
     }
 
     const validatedData = [];
 
     for (let i = 0; i < data.length; i++) {
-      console.log(`Validating row ${i}`, data[i]);
-
       if (isEmptyRow(data[i])) {
-        continue; 
-      } else {
-        const { error, value } = schema.validate(data[i]);
-        if (error) {
-          return reject(
-            new Error(`Validation error in row ${i + 1}: ${error.details[0].message}`)
-          );
-        }
-        validatedData.push(value);
+        continue;
       }
+
+            const { error, value } = schema.validate(data[i], { stripUnknown: true });
+      if (error) {
+        // i + 2 = Excel row number (row 1 is the header)
+        return reject(
+          validationError(
+            `Validation error in row ${i + 2}: ${error.details[0].message}`
+          )
+        );
+      }
+      validatedData.push(value);
     }
 
     if (validatedData.length === 0) {
-      return reject(new Error("No valid data rows found in the uploaded file."));
+      return reject(
+        validationError("No valid data rows found in the uploaded file.")
+      );
     }
 
     const sql = `
@@ -362,10 +371,10 @@ exports.insertXLSXData = (cropId, data) => {
       row["Task description (English)"],
       row["Task description (Sinhala)"],
       row["Task description (Tamil)"],
-      row["Image Link"] ?? null,
-      row["Video Link English"] ?? null,
-      row["Video Link Sinhala"] ?? null,
-      row["Video Link Tamil"] ?? null,
+      row["Image Link"] || null,
+      row["Video Link English"] || null,
+      row["Video Link Sinhala"] || null,
+      row["Video Link Tamil"] || null,
       row["Required Images"],
     ]);
 
