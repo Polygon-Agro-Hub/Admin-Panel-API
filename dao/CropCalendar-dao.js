@@ -36,11 +36,12 @@ exports.createCropGroup = async (
   nitrogen,
   phosphorus,
   potassium,
+  displayFor, // new
   modifyBy,
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, image, bgColor, seedRate, rowSpace, plantSpace, AvgYield, nitrogen, phosphorus, potassium, modifyBy, modifyAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, image, bgColor, seedRate, rowSpace, plantSpace, AvgYield, nitrogen, phosphorus, potassium, displayFor, modifyBy, modifyAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
     const values = [
       cropNameEnglish,
       cropNameSinhala,
@@ -57,6 +58,7 @@ exports.createCropGroup = async (
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       modifyBy,
     ];
 
@@ -70,7 +72,7 @@ exports.createCropGroup = async (
   });
 };
 
-exports.getAllCropGroups = (limit, offset, searchText, category) => {
+exports.getAllCropGroups = (limit, offset, searchText, category, displayFor) => {
   return new Promise((resolve, reject) => {
     const dataParams = [];
     const countParams = [];
@@ -101,6 +103,12 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
       whereConditions.push("cg.category = ?");
       dataParams.push(category);
       countParams.push(category);
+    }
+
+    if (displayFor) {
+      whereConditions.push("cg.displayFor = ?");
+      dataParams.push(displayFor);
+      countParams.push(displayFor);
     }
 
     if (whereConditions.length > 0) {
@@ -498,6 +506,7 @@ exports.updateGroup = (newsData, id) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       userId,
     } = newsData;
 
@@ -522,6 +531,7 @@ exports.updateGroup = (newsData, id) => {
                 nitrogen = ?,
                 phosphorus = ?,
                 potassium = ?,
+                displayFor = ?,
                 modifyBy = ?,
                 modifyAt = NOW()
         `;
@@ -541,6 +551,7 @@ exports.updateGroup = (newsData, id) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       userId,
     ];
 
@@ -855,7 +866,7 @@ exports.checkExistanceCropCalander = async (
 
 exports.cropGroupsDao = async (id) => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT id, cropNameEnglish FROM cropgroup";
+    const sql = "SELECT id, cropNameEnglish FROM cropgroup WHERE displayFor IN ('Sales', 'Both')";
     plantcare.query(sql, (err, results) => {
       if (err) {
         reject(err);
@@ -878,6 +889,27 @@ exports.getAllCropGroupEnglishNamesOnly = () => {
         reject(err);
       } else {
         resolve(results);
+      }
+    });
+  });
+};
+
+exports.getMarketplaceItemCountByGroupId = async (groupId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT c.id, COUNT(mpi.id) AS itemCount
+      FROM cropgroup c
+      LEFT JOIN cropvariety cv ON c.id = cv.cropGroupId
+      LEFT JOIN collection_officer.marketplaceitems mpi ON cv.id = mpi.varietyId
+      WHERE c.id = ?
+      GROUP BY c.id
+    `;
+
+    plantcare.query(sql, [groupId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0] || null);
       }
     });
   });

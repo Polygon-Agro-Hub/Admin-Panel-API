@@ -1396,7 +1396,7 @@ exports.getCenterTarget = async (req, res) => {
   console.log(fullUrl);
 
   try {
-    const { centerId, page, limit, status, searchText } = await ValidateSchema.getCenterTargetSchema.validateAsync(req.query);
+    const { centerId, page, limit, status, searchText, formattedToday } = await ValidateSchema.getCenterTargetSchema.validateAsync(req.query);
 
     const companyCenterId = await CollectionCenterDao.getCompanyCenterIDDao(1, centerId);
     if (companyCenterId === null) {
@@ -1405,7 +1405,7 @@ exports.getCenterTarget = async (req, res) => {
 
     console.log(companyCenterId);
 
-    const { resultTarget } = await CollectionCenterDao.getCenterTargetDAO(companyCenterId, status, searchText, centerId);
+    const { resultTarget } = await CollectionCenterDao.getCenterTargetDAO(companyCenterId, status, searchText, centerId, formattedToday);
     console.log('this is', resultTarget);
     return res.status(200).json({
       items: resultTarget

@@ -20,6 +20,7 @@ exports.getAllCropGroupsSchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).default(10),
   searchText: Joi.string().optional(),
   category: Joi.string().allow("").optional(),
+  displayFor: Joi.string().valid("Farmery", "Sales", "Both").allow("", null).optional(),
 });
 
 exports.deleteCropCalenderSchema = Joi.object({
