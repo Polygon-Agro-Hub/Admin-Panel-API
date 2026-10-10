@@ -2434,7 +2434,7 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         o.phone1,
         po.isCoupon,
         po.couponType,
-        o.couponValue,
+        po.couponValue,
         po.invNo AS invoiceNumber,
         po.paymentMethod AS paymentMethod,
         o.fullTotal AS grandTotal,
@@ -2566,11 +2566,12 @@ exports.getBillingDetailsDAO = (orderId, userId) => {
         o.phoneCode1,
         o.phone1,
         o.buildingType,
-        o.couponValue,
+        po.couponValue,
         COALESCE(oh.houseNo, oa.houseNo) AS houseNo,
         COALESCE(oh.streetName, oa.streetName) AS street,
         COALESCE(oh.city, oa.city) AS city
       FROM orders o
+      LEFT JOIN processorders po ON o.id = po.orderId
       LEFT JOIN orderhouse oh ON o.id = oh.orderId
       LEFT JOIN orderapartment oa ON o.id = oa.orderId
       WHERE o.id = ?
