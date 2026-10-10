@@ -2432,7 +2432,7 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         o.fullName,
         o.phonecode1,
         o.phone1,
-        o.isCoupon,
+        po.isCoupon,
         o.couponType,
         o.couponValue,
         po.invNo AS invoiceNumber,
