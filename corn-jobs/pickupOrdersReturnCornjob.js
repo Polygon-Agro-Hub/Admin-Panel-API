@@ -38,14 +38,14 @@ const getReadyToPickupOrders = async () => {
         p.creditPaid,
         p.isPaid,
         DATE(p.sheduleDate) AS sheduleDate,
-        o.total,
+        p.total,
         mu.phoneCode,
         mu.phoneNumber,
         mu.creditBalance,
         CASE 
-          WHEN COALESCE(o.total, 0) < 2000 THEN 150
-          WHEN o.total >= 2000 AND o.total < 4000 THEN 250
-          WHEN o.total >= 4000 THEN 350
+          WHEN COALESCE(p.total, 0) < 2000 THEN 150
+          WHEN p.total >= 2000 AND p.total < 4000 THEN 250
+          WHEN p.total >= 4000 THEN 350
           ELSE 150
         END AS handleFee
       FROM processorders p
