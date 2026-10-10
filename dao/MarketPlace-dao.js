@@ -1428,7 +1428,7 @@ exports.getAllRetailOrderDetails = (
         o.id, po.id AS orderId, 
         o.fullName AS customerName, 
         o.delivaryMethod AS method, 
-        o.fullTotal AS amount,
+        po.fullTotal AS amount,
         po.invNo, 
         po.status,
         po.qrCode,
@@ -2369,7 +2369,7 @@ exports.getUserOrdersDao = async (userId, status) => {
         P.isPaid,
         P.creditPaid,
         P.moneyPaid,
-        O.fullTotal,
+        P.fullTotal,
         P.createdAt,
         P.status
       FROM processorders P
@@ -2437,7 +2437,7 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         po.couponValue,
         po.invNo AS invoiceNumber,
         po.paymentMethod AS paymentMethod,
-        o.fullTotal AS grandTotal,
+        po.fullTotal AS grandTotal,
         mu.email AS userEmail,
         po.isPaid,
         po.creditPaid,
@@ -2732,7 +2732,7 @@ exports.getAllWholesaleOrderDetails = (
         po.id AS orderId, 
         o.fullName AS customerName, 
         o.delivaryMethod AS method, 
-        o.fullTotal AS amount, 
+        po.fullTotal AS amount, 
         po.invNo, po.status,
         po.qrCode,
         po.paymentMethod,
@@ -2880,7 +2880,7 @@ exports.getDefinePackageItemsByPackageIdDAO = async (packageId) => {
 exports.toDaySalesDao = async () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT COUNT(*) AS salesCount, SUM(O.fullTotal) AS total
+      SELECT COUNT(*) AS salesCount, SUM(PO.fullTotal) AS total
       FROM processorders PO
       LEFT JOIN orders O ON PO.orderId = O.id
       WHERE DATE(PO.createdAt) = CURDATE()
@@ -2906,7 +2906,7 @@ exports.toDaySalesDao = async () => {
 exports.yesterdaySalesDao = async () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT COUNT(*) AS salesCount, SUM(O.fullTotal) AS total
+      SELECT COUNT(*) AS salesCount, SUM(PO.fullTotal) AS total
       FROM processorders PO
       LEFT JOIN orders O ON PO.orderId = O.id
       WHERE DATE(PO.createdAt) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
@@ -2934,7 +2934,7 @@ exports.thisMonthSalesDao = async () => {
     const sql = `
       SELECT 
         COUNT(*) AS salesCount, 
-        SUM(O.fullTotal) AS total
+        SUM(PO.fullTotal) AS total
       FROM processorders PO
       LEFT JOIN orders O ON PO.orderId = O.id
       WHERE YEAR(PO.createdAt) = YEAR(CURDATE()) AND MONTH(PO.createdAt) = MONTH(CURDATE())
@@ -2985,11 +2985,11 @@ exports.salesAnalyzeDao = async () => {
       SELECT 
         /* Last 30 days (0-30 days ago) */
         SUM(CASE WHEN PO.createdAt >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) 
-                 AND PO.createdAt < CURDATE() THEN O.fullTotal ELSE 0 END) AS last_30_days_total,
+                 AND PO.createdAt < CURDATE() THEN PO.fullTotal ELSE 0 END) AS last_30_days_total,
                  
         /* Previous 30-60 days */
         SUM(CASE WHEN PO.createdAt >= DATE_SUB(CURDATE(), INTERVAL 60 DAY) 
-                 AND PO.createdAt < DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN O.fullTotal ELSE 0 END) AS previous_30_to_60_days_total,
+                 AND PO.createdAt < DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN PO.fullTotal ELSE 0 END) AS previous_30_to_60_days_total,
                  
         /* Count of orders for last 30 days */
         COUNT(CASE WHEN PO.createdAt >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) 
@@ -3103,7 +3103,7 @@ exports.areaOrderDataDao = async () => {
         DATE_FORMAT(PO.createdAt, '%b') AS month,
         MONTH(PO.createdAt) AS monthNum,
         COUNT(*) AS salesCount, 
-        SUM(O.fullTotal) AS total
+        SUM(PO.fullTotal) AS total
       FROM processorders PO
       LEFT JOIN orders O ON PO.orderId = O.id
       WHERE PO.createdAt >= DATE_SUB(DATE_FORMAT(NOW(), '%Y-%m-01'), INTERVAL 12 MONTH)
@@ -3253,7 +3253,7 @@ exports.lastFiveOrdersDao = async () => {
         PO.createdAt,
         PO.paymentMethod,
         PO.status,
-        O.fullTotal,
+        PO.fullTotal,
         U.firstName,
         U.lastName
       FROM processorders PO

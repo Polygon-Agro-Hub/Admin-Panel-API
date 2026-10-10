@@ -3599,7 +3599,7 @@ exports.getReturnRecievedDataDao = (
         po.id AS processOrderId, 
         po.invNO, 
         o.id AS orderId, 
-        o.fullTotal As total, 
+        po.fullTotal As total, 
         o.centerId, 
         mp.phoneCode,
         mp.phoneNumber,
@@ -3704,7 +3704,7 @@ exports.getReturnRecievedDataDao = (
         po.id AS processOrderId, 
         po.invNO, 
         o.id AS orderId, 
-        o.fullTotal As total, 
+        po.fullTotal As total, 
         o.centerId, 
         mp.phoneCode,
         mp.phoneNumber,
@@ -4123,7 +4123,7 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
     SELECT
     po.id AS processOrderId,
     po.invNo,
-    o.fullTotal,
+    po.fullTotal,
     po.status,
     mu.title AS customerTitle,
     mu.firstName,
@@ -4454,7 +4454,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
     po.sheduleDate,
     o.phoneCode1,
     o.phone1,
-    o.fullTotal AS total,
+    po.fullTotal AS total,
     po.createdAt,
     po.status,
     mpu.title,
@@ -4847,7 +4847,7 @@ exports.getDistributionDashboardDao = () => {
     `;
 
     const returnLossTodaySql = `
-      SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossToday
+      SELECT COALESCE(SUM(po.fullTotal), 0) AS returnLossToday
       FROM collection_officer.driverordermain drm
       INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
       INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id
@@ -4876,7 +4876,7 @@ exports.getDistributionDashboardDao = () => {
     `;
 
     const returnLossMonthSql = `
-      SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossMonth
+      SELECT COALESCE(SUM(po.fullTotal), 0) AS returnLossMonth
       FROM collection_officer.driverordermain drm
       INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
       INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id

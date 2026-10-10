@@ -2635,25 +2635,27 @@ exports.getAllFinanceDashboardDataDao = () => {
 
     const goviMartSalesIncomeSql = `
       SELECT
-        COALESCE(SUM(o.fullTotal), 0) AS currentMonthIncome
-      FROM orders o
-      WHERE o.orderApp = 'Marketplace'
-        AND MONTH(o.createdAt) = MONTH(CURRENT_DATE())
-        AND YEAR(o.createdAt)  = YEAR(CURRENT_DATE())
+  COALESCE(SUM(po.fullTotal), 0) AS currentMonthIncome
+FROM orders o
+INNER JOIN processorders po ON o.id = po.orderId
+WHERE o.orderApp = 'Marketplace'
+  AND MONTH(o.createdAt) = MONTH(CURRENT_DATE())
+  AND YEAR(o.createdAt)  = YEAR(CURRENT_DATE())
     `;
 
     const salesDashIncomeSql = `
       SELECT
-        COALESCE(SUM(o.fullTotal), 0) AS currentMonthIncome
-      FROM orders o
-      WHERE o.orderApp = 'Dash'
-        AND MONTH(o.createdAt) = MONTH(CURRENT_DATE())
-        AND YEAR(o.createdAt)  = YEAR(CURRENT_DATE())
+  COALESCE(SUM(po.fullTotal), 0) AS currentMonthIncome
+FROM orders o
+INNER JOIN processorders po ON o.id = po.orderId
+WHERE o.orderApp = 'Dash'
+  AND MONTH(o.createdAt) = MONTH(CURRENT_DATE())
+  AND YEAR(o.createdAt)  = YEAR(CURRENT_DATE())
     `;
 
     const returnedOrdersLossSql = `
       SELECT
-        COALESCE(SUM(o.fullTotal), 0) AS currentMonthLoss
+        COALESCE(SUM(po.fullTotal), 0) AS currentMonthLoss
       FROM driverorders dro
       INNER JOIN collection_officer.processorders po ON dro.orderId = po.id
       INNER JOIN collection_officer.orders o ON po.orderId = o.id
@@ -3534,7 +3536,7 @@ exports.getCompletedOrders = (page, limit, startDate, endDate, search) => {
         o.fullName AS customerName, 
         o.phonecode1, o.phone1,
         o.delivaryMethod AS orderType, 
-        o.fullTotal AS amount,
+        po.fullTotal AS amount,
         po.paymentMethod, 
         po.moneyPaid AS cashPaid, 
         po.creditPaid,
@@ -3593,7 +3595,7 @@ exports.downloadCompletedOrders = (startDate, endDate, search) => {
         o.fullName AS customerName, 
         o.phonecode1, o.phone1,
         o.delivaryMethod AS orderType, 
-        o.fullTotal AS amount,
+        po.fullTotal AS amount,
         po.paymentMethod, 
         po.moneyPaid, 
         po.creditPaid,

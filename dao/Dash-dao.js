@@ -622,7 +622,7 @@ const getAllOrders = (
         po.paymentMethod,
         po.isPaid AS paymentStatus,
         o.discount AS fullDiscount,
-        o.fullTotal,
+        po.fullTotal,
         o.delivaryMethod AS deliveryType,
         o.sheduleType,
         o.sheduleTime,
@@ -980,7 +980,7 @@ const getUserOrdersDao = async (userId, status) => {
         DATE_ADD(P.createdAt, INTERVAL '5.30' HOUR_MINUTE) AS createdAt,
         P.paymentMethod,
         P.isPaid,
-        O.fullTotal,
+        P.fullTotal,
         O.isPackage,
         P.status
       FROM processorders P
