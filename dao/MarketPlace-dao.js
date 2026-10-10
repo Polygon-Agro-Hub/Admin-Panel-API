@@ -2433,7 +2433,7 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         o.phonecode1,
         o.phone1,
         po.isCoupon,
-        o.couponType,
+        po.couponType,
         o.couponValue,
         po.invNo AS invoiceNumber,
         po.paymentMethod AS paymentMethod,
