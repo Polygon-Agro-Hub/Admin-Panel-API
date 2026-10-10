@@ -2424,7 +2424,7 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         o.centerId,
         o.orderApp,
         o.delivaryMethod AS deliveryMethod,
-        o.discount AS orderDiscount,
+        po.discount AS orderDiscount,
         o.createdAt AS invoiceDate,
         po.sheduleDate AS scheduledDate,
         o.buildingType,

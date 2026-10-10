@@ -621,7 +621,7 @@ const getAllOrders = (
         po.sheduleDate AS scheduleDate,
         po.paymentMethod,
         po.isPaid AS paymentStatus,
-        o.discount AS fullDiscount,
+        po.discount AS fullDiscount,
         po.fullTotal,
         o.delivaryMethod AS deliveryType,
         o.sheduleType,
