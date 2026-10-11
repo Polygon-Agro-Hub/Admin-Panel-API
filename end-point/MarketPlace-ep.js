@@ -2007,7 +2007,7 @@ exports.getInvoiceDetails = async (req, res) => {
     const [familyPackItems, additionalItems, billingDetails] =
       await Promise.all([
         MarketPlaceDao.getFamilyPackItemsDAO(processOrderId),
-        MarketPlaceDao.getAdditionalItemsDAO(invoiceDetails.orderId),
+        MarketPlaceDao.getAdditionalItemsDAO(processOrderId),
         MarketPlaceDao.getBillingDetailsDAO(invoiceDetails.orderId),
       ]);
 
@@ -2300,7 +2300,7 @@ exports.getPostInvoiceDetails = async (req, res) => {
     const [familyPackItems, additionalItems, billingDetails] =
       await Promise.all([
         MarketPlaceDao.getFamilyPackItemsDAO(processOrderId),
-        MarketPlaceDao.getAdditionalItemsDAO(invoiceDetails.orderId),
+        MarketPlaceDao.getAdditionalItemsDAO(processOrderId),
         MarketPlaceDao.getBillingDetailsDAO(invoiceDetails.orderId),
       ]);
 

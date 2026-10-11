@@ -2545,7 +2545,7 @@ exports.getAdditionalItemsDAO = (id) => {
       FROM orderadditionalitems oai
       JOIN marketplaceitems mi ON oai.productId = mi.id
       JOIN plant_care.cropvariety cv ON mi.varietyId = cv.id
-      WHERE oai.orderId = ?
+      WHERE oai.proOrderId = ?
     `;
 
     collectionofficer.query(sql, [id], (err, results) => {
@@ -3198,7 +3198,7 @@ exports.pieDataDao = async () => {
         SELECT G.category, COUNT(DISTINCT PO.id) as count
         FROM processorders PO
         LEFT JOIN orders O ON PO.orderId = O.id
-        LEFT JOIN orderadditionalitems OAI ON O.id = OAI.orderId
+        LEFT JOIN orderadditionalitems OAI ON PO.id = OAI.proOrderId
         LEFT JOIN marketplaceitems MPI2 ON OAI.productId = MPI2.id
         LEFT JOIN plant_care.cropvariety V2 ON MPI2.varietyId = V2.id
         LEFT JOIN plant_care.cropgroup G ON V2.cropGroupId = G.id

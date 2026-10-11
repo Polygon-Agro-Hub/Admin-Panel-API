@@ -67,7 +67,7 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         END AS quantity
       FROM collection_officer.processorders po
       JOIN collection_officer.orders o ON po.orderId = o.id
-      JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+      JOIN collection_officer.orderadditionalitems oai ON oai.proOrderId = po.id
       JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id
       ${whereSql}
         AND mpi.varietyId IS NOT NULL
@@ -167,7 +167,7 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
       FROM collection_officer.orderpackage op 
       JOIN collection_officer.orders o ON op.orderId = o.id
       JOIN collection_officer.processorders po ON o.id = po.orderId
-      JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+      JOIN collection_officer.orderadditionalitems oai ON oai.proOrderId = po.id
       JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id
       JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
@@ -695,7 +695,7 @@ exports.getAllOrderAdditionalItemsDao = (id) => {
         ORAD.qty,
         MPI.displayName
       FROM processorders PO, orders ORD, orderadditionalitems ORAD, marketplaceitems MPI
-      WHERE PO.id = ? AND PO.orderId = ORD.id AND ORAD.orderId = ORD.id AND ORAD.productId = MPI.id
+      WHERE PO.id = ? AND PO.orderId = ORD.id AND ORAD.proOrderId = PO.id AND ORAD.productId = MPI.id
     `;
 
     collectionofficer.query(sql, [id], (err, results) => {
@@ -1170,7 +1170,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         SUM(oai.qty) AS totalQty
       FROM collection_officer.processorders po
       INNER JOIN collection_officer.orders o ON po.orderId = o.id
-      INNER JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+      INNER JOIN collection_officer.orderadditionalitems oai ON oai.proOrderId = po.id
       INNER JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id
       LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
       LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
