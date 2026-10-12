@@ -469,7 +469,7 @@ exports.editMarketProduct = async (req, res) => {
       });
     }
     
-    await MarketPlaceDao.disablePackagesByProductId(id);
+    // await MarketPlaceDao.disablePackagesByProductId(id);
 
     res.status(201).json({
       message: "market product updated successfully",
@@ -2007,7 +2007,7 @@ exports.getInvoiceDetails = async (req, res) => {
     const [familyPackItems, additionalItems, billingDetails] =
       await Promise.all([
         MarketPlaceDao.getFamilyPackItemsDAO(processOrderId),
-        MarketPlaceDao.getAdditionalItemsDAO(invoiceDetails.orderId),
+        MarketPlaceDao.getAdditionalItemsDAO(processOrderId),
         MarketPlaceDao.getBillingDetailsDAO(invoiceDetails.orderId),
       ]);
 
@@ -2300,7 +2300,7 @@ exports.getPostInvoiceDetails = async (req, res) => {
     const [familyPackItems, additionalItems, billingDetails] =
       await Promise.all([
         MarketPlaceDao.getFamilyPackItemsDAO(processOrderId),
-        MarketPlaceDao.getAdditionalItemsDAO(invoiceDetails.orderId),
+        MarketPlaceDao.getAdditionalItemsDAO(processOrderId),
         MarketPlaceDao.getBillingDetailsDAO(invoiceDetails.orderId),
       ]);
 
