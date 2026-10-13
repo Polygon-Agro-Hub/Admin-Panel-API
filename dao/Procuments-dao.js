@@ -67,7 +67,7 @@ exports.getRecievedOrdersQuantity = (page, limit, filterType, date, search) => {
         END AS quantity
       FROM collection_officer.processorders po
       JOIN collection_officer.orders o ON po.orderId = o.id
-      JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+      JOIN collection_officer.orderadditionalitems oai ON oai.proOrderId = po.id
       JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id
       ${whereSql}
         AND mpi.varietyId IS NOT NULL
@@ -167,7 +167,7 @@ exports.DownloadRecievedOrdersQuantity = (filterType, date, search) => {
       FROM collection_officer.orderpackage op 
       JOIN collection_officer.orders o ON op.orderId = o.id
       JOIN collection_officer.processorders po ON o.id = po.orderId
-      JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+      JOIN collection_officer.orderadditionalitems oai ON oai.proOrderId = po.id
       JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id
       JOIN plant_care.cropvariety cv ON mpi.varietyId = cv.id
       JOIN plant_care.cropgroup cg ON cv.cropGroupId = cg.id
@@ -695,7 +695,7 @@ exports.getAllOrderAdditionalItemsDao = (id) => {
         ORAD.qty,
         MPI.displayName
       FROM processorders PO, orders ORD, orderadditionalitems ORAD, marketplaceitems MPI
-      WHERE PO.id = ? AND PO.orderId = ORD.id AND ORAD.orderId = ORD.id AND ORAD.productId = MPI.id
+      WHERE PO.id = ? AND PO.orderId = ORD.id AND ORAD.proOrderId = PO.id AND ORAD.productId = MPI.id
     `;
 
     collectionofficer.query(sql, [id], (err, results) => {
@@ -1170,7 +1170,7 @@ exports.getDistributionOrdersDao = (centerId, deliveryDate, search, page, limit)
         SUM(oai.qty) AS totalQty
       FROM collection_officer.processorders po
       INNER JOIN collection_officer.orders o ON po.orderId = o.id
-      INNER JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+      INNER JOIN collection_officer.orderadditionalitems oai ON oai.proOrderId = po.id
       INNER JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id
       LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
       LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
@@ -2014,12 +2014,13 @@ exports.getTransportLoadDetailsByLoadedItemIdDao = (loadedItemId) => {
           uo.lastNameEnglish AS unloadOfficerLastName,
           uo.phoneCode01 AS unloadOfficerPhoneCode,
           uo.phoneNumber01 AS unloadOfficerPhone
-        FROM loadeditems li
-        JOIN transportload tl ON tl.id = li.transportId
-        LEFT JOIN collectioncenter cc ON cc.id = tl.comCenId
+        FROM transportload tl
+        LEFT JOIN loadeditems li ON li.transportId = tl.id
+        LEFT JOIN companycenter coc ON coc.id = tl.comCenId
+        LEFT JOIN collectioncenter cc ON coc.centerId = cc.id 
         LEFT JOIN collectionofficer dr ON dr.id = tl.driverId
         LEFT JOIN collectionofficer uo ON uo.id = tl.unloadOfficerId
-        WHERE li.id = ?
+        WHERE tl.id = ?
       `;
 
       collectionofficer.query(sql, [loadedItemId], (err, results) => {
@@ -2049,7 +2050,8 @@ exports.getLoadedItemWeightSummaryDao = (loadedItemId) => {
           lc.totalLoadedWeight,
           uc.totalUnloadedCrates,
           uc.totalUnloadedWeight
-        FROM loadeditems li
+        FROM transportload tl
+        LEFT JOIN loadeditems li ON li.transportId = tl.id
         JOIN plant_care.cropvariety cv ON cv.id = li.varietyId
         LEFT JOIN (
           SELECT loadId, grade, 
@@ -2065,7 +2067,7 @@ exports.getLoadedItemWeightSummaryDao = (loadedItemId) => {
           FROM unloadedcrates
           GROUP BY loadId, grade
         ) uc ON uc.loadId = li.id AND uc.grade = lc.grade
-        WHERE li.id = ?
+        WHERE tl.id = ?
       `;
 
       collectionofficer.query(sql, [loadedItemId], (err, results) => {
@@ -2112,42 +2114,53 @@ exports.getLoadMismatchReportsTodayDao = () => {
         tl.id AS transportId,
         tl.driverId,
         tl.transferCode AS driverCode,
-        tl.disComCenId,
         dc.regCode AS distributionCentre,
-        dc.centerName AS distributionCentreName,
         tl.unloadTime,
-        DATE_FORMAT(tl.unloadTime, '%h:%i %p') AS reportedAt,
-        COALESCE(lt.totalLoaded, 0) AS loaded,
-        COALESCE(ut.totalUnloaded, 0) AS unloaded,
-        COALESCE(lt.totalLoadedCrates, 0) AS loadedCrateCount,
-        COALESCE(ut.totalUnloadedCrates, 0) AS unloadedCrateCount
+        DATE_FORMAT(
+          DATE_ADD(tl.unloadTime, INTERVAL 330 MINUTE),
+          '%h:%i %p'
+        ) AS reportedAt,
+        SUM(g.loadedQty) AS loaded,
+        SUM(g.unloadedQty) AS unloaded,
+        SUM(g.loadedCrates) AS loadedCrateCount,
+        SUM(g.unloadedCrates) AS unloadedCrateCount
       FROM collection_officer.transportload tl
-      LEFT JOIN collection_officer.collectionofficer co 
-        ON co.id = tl.driverId
-      LEFT JOIN collection_officer.distributedcompanycenter dcc 
+      JOIN collection_officer.loadeditems li
+        ON li.transportId = tl.id
+      JOIN (
+        -- one row per loadId + grade, loaded vs unloaded side by side
+        SELECT
+          x.loadId,
+          x.grade,
+          SUM(x.loadedQty) AS loadedQty,
+          SUM(x.unloadedQty) AS unloadedQty,
+          SUM(x.loadedCrates) AS loadedCrates,
+          SUM(x.unloadedCrates) AS unloadedCrates,
+          CASE WHEN ROUND(SUM(x.loadedQty) - SUM(x.unloadedQty), 2) <> 0
+               THEN 1 ELSE 0 END AS isMismatch
+        FROM (
+          SELECT loadId, grade,
+                 qty AS loadedQty, 0 AS unloadedQty,
+                 crateCount AS loadedCrates, 0 AS unloadedCrates
+          FROM collection_officer.loadedcrates
+          UNION ALL
+          SELECT loadId, grade,
+                 0, qty,
+                 0, crateCount
+          FROM collection_officer.unloadedcrates
+        ) x
+        GROUP BY x.loadId, x.grade
+      ) g ON g.loadId = li.id
+      LEFT JOIN collection_officer.distributedcompanycenter dcc
         ON dcc.id = tl.disComCenId
-      LEFT JOIN collection_officer.distributedcenter dc 
+      LEFT JOIN collection_officer.distributedcenter dc
         ON dc.id = dcc.centerId
-      LEFT JOIN (
-        SELECT li.transportId,
-          SUM(lc.qty) AS totalLoaded,
-          SUM(lc.crateCount) AS totalLoadedCrates
-        FROM collection_officer.loadeditems li
-        JOIN collection_officer.loadedcrates lc ON lc.loadId = li.id
-        GROUP BY li.transportId
-      ) lt ON lt.transportId = tl.id
-      LEFT JOIN (
-        SELECT li.transportId,
-          SUM(uc.qty) AS totalUnloaded,
-          SUM(uc.crateCount) AS totalUnloadedCrates
-        FROM collection_officer.loadeditems li
-        JOIN collection_officer.unloadedcrates uc ON uc.loadId = li.id
-        GROUP BY li.transportId
-      ) ut ON ut.transportId = tl.id
-      WHERE DATE(tl.createdAt) = CURDATE()
-      HAVING (loaded - unloaded) <> 0 
-          OR (loadedCrateCount - unloadedCrateCount) <> 0
-      ORDER BY tl.unloadTime DESC
+      WHERE tl.journeyStatus = 'End'
+        AND tl.unloadTime IS NOT NULL
+        AND DATE(tl.createdAt) = CURDATE()
+      GROUP BY tl.id, tl.driverId, tl.transferCode, dc.regCode, tl.unloadTime
+      HAVING SUM(g.isMismatch) > 0
+      ORDER BY tl.unloadTime ASC
     `;
 
     collectionofficer.query(sql, (err, results) => {
@@ -2160,16 +2173,22 @@ exports.getLoadMismatchReportsTodayDao = () => {
         const loaded = parseFloat(row.loaded) || 0;
         const unloaded = parseFloat(row.unloaded) || 0;
         const missing = parseFloat((loaded - unloaded).toFixed(2));
-        const missingCrates =
-          (row.loadedCrateCount || 0) - (row.unloadedCrateCount || 0);
+        const crateDiff =
+          (parseInt(row.loadedCrateCount) || 0) -
+          (parseInt(row.unloadedCrateCount) || 0);
 
         return {
           id: row.transportId,
           driverId: row.driverCode || `DRV-${row.driverId}`,
           loaded,
           unloaded,
-          missing,
-          crates: missingCrates > 0 ? `${missingCrates} Missing` : "All Found",
+          missing, // negative = unloaded more than loaded
+          crates:
+            crateDiff > 0
+              ? `${crateDiff} Missing`
+              : crateDiff < 0
+              ? `${Math.abs(crateDiff)} Extra`
+              : "All Found",
           distributionCentre: row.distributionCentre || "N/A",
           reportedAt: row.reportedAt || "-",
         };

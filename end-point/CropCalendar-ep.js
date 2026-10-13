@@ -47,7 +47,17 @@ exports.createCropGroup = async (req, res) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
     } = req.body;
+
+    // new: validate enum value
+    const allowedDisplayFor = ["Farmery", "Sales", "Both"];
+    if (!allowedDisplayFor.includes(displayFor)) {
+      return res.status(400).json({
+        status: false,
+        message: "displayFor must be one of: Farmery, Sales, Both",
+      });
+    }
 
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
@@ -87,6 +97,7 @@ exports.createCropGroup = async (req, res) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       modifyBy,
     );
     return res.status(201).json({
@@ -155,7 +166,7 @@ exports.getAllCropGroups = async (req, res) => {
   try {
     const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
 
-    const { page, limit, searchText, category } =
+    const { page, limit, searchText, category, displayFor } =
       await cropCalendarValidations.getAllCropGroupsSchema.validateAsync(
         req.query,
       );
@@ -167,6 +178,7 @@ exports.getAllCropGroups = async (req, res) => {
       offset,
       searchText,
       category,
+      displayFor,
     );
     res.json({
       items,
@@ -239,6 +251,8 @@ exports.createCropVariety = async (req, res) => {
       bgColor,
     } = req.body;
 
+    const modifyBy = req.user.userId;
+
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
@@ -274,6 +288,7 @@ exports.createCropVariety = async (req, res) => {
       descriptionTamil,
       image,
       bgColor,
+      modifyBy,
     );
     return res.status(201).json({
       message: "crop variety created successfully",
@@ -399,7 +414,13 @@ exports.uploadXLSX = async (req, res) => {
 
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const data = xlsx.utils.sheet_to_json(worksheet);
+        const data = xlsx.utils
+      .sheet_to_json(worksheet, { defval: "" })
+      .map((row) =>
+        Object.fromEntries(
+          Object.entries(row).map(([key, value]) => [key.trim(), value])
+        )
+      );
 
     if (data.length === 0) {
       return res
@@ -413,7 +434,7 @@ exports.uploadXLSX = async (req, res) => {
       message: "File uploaded and data inserted successfully",
       rowsAffected,
     });
-  } catch (error) {
+    } catch (error) {
     try {
       await cropCalendarDao.deleteCropCalender(req.params.id);
     } catch (deleteErr) {
@@ -423,6 +444,11 @@ exports.uploadXLSX = async (req, res) => {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message });
     }
+
+    if (error.isValidation) {
+      return res.status(400).json({ error: error.message });
+    }
+
     console.error("Error processing XLSX file:", error);
     return res
       .status(500)
@@ -483,9 +509,15 @@ exports.deleteCropVariety = async (req, res) => {
 exports.getGroupById = async (req, res) => {
   try {
     const id = req.params.id;
-    const groups = await cropCalendarDao.getGroupById(id);
+
+    const [groups, marketplaceCount] = await Promise.all([
+      cropCalendarDao.getGroupById(id),
+      cropCalendarDao.getMarketplaceItemCountByGroupId(id),
+    ]);
+
     res.json({
       groups,
+      itemCount: marketplaceCount ? marketplaceCount.itemCount : 0,
     });
   } catch (err) {
     if (err.isJoi) {
@@ -528,6 +560,7 @@ exports.updateGroup = async (req, res) => {
     nitrogen,
     phosphorus,
     potassium,
+    displayFor, // new
   } = req.body;
 
   const id = req.params.id;
@@ -539,6 +572,15 @@ exports.updateGroup = async (req, res) => {
     return res.status(401).json({
       message: "Unauthorized: admin user not found in token",
       status: false,
+    });
+  }
+
+  // new: validate enum value
+  const allowedDisplayFor = ["Farmery", "Sales", "Both"];
+  if (!allowedDisplayFor.includes(displayFor)) {
+    return res.status(400).json({
+      status: false,
+      message: "displayFor must be one of: Farmery, Sales, Both",
     });
   }
 
@@ -588,6 +630,7 @@ exports.updateGroup = async (req, res) => {
         nitrogen,
         phosphorus,
         potassium,
+        displayFor, // new
         userId,
       },
       id,
@@ -753,6 +796,8 @@ exports.updateVariety = async (req, res) => {
     bgColor,
   } = req.body;
   const id = req.params.id;
+  const modifyBy = req.user.userId;
+
   try {
     let imageData = null;
     if (req.file) {
@@ -769,6 +814,7 @@ exports.updateVariety = async (req, res) => {
         descriptionTamil,
         bgColor,
         image: imageData,
+        modifyBy,
       },
       id,
     );

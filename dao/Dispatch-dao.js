@@ -89,7 +89,7 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
       ),
       additional_items_counts AS (
           SELECT 
-              orderId,
+              proOrderId,
               COUNT(*) AS totalAdditionalItems,
               SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
               CASE
@@ -105,7 +105,7 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
                   ELSE 'Unknown'
               END AS additionalItemsStatus
           FROM orderadditionalitems
-          GROUP BY orderId
+          GROUP BY proOrderId
       )
 
       SELECT COUNT(*) as total
@@ -114,7 +114,7 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
       LEFT JOIN orderpackage op ON po.id = op.orderId
       LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
       LEFT JOIN package_counts pc ON pc.orderPackageId = op.id
-      LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      LEFT JOIN additional_items_counts aic ON aic.proOrderId = po.id
       ${whereClause}
     `;
 
@@ -142,7 +142,7 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
       ),
       additional_items_counts AS (
           SELECT 
-              orderId,
+              proOrderId,
               COUNT(*) AS totalAdditionalItems,
               SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
               CASE
@@ -158,7 +158,7 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
                   ELSE 'Unknown'
               END AS additionalItemsStatus
           FROM orderadditionalitems
-          GROUP BY orderId
+          GROUP BY proOrderId
       )
         
       SELECT 
@@ -177,7 +177,7 @@ exports.getPreMadePackages = (page, limit, packageStatus, date, search) => {
           COALESCE(
               (SELECT SUM(price)
               FROM orderadditionalitems
-              WHERE orderId = o.id),
+              WHERE proOrderId = po.id),
               0
           ) AS additionalPrice,
           pc.packageStatus,
@@ -273,18 +273,18 @@ exports.getSelectedPackages = (page, limit, Status, date, search) => {
       SELECT COUNT(*) as total
       FROM processorders po
       LEFT JOIN orders o ON po.orderId = o.id
-      LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+      LEFT JOIN additional_items_counts aic ON aic.proOrderId = po.id
       ${whereClause}
       
     `;
     const dataSql = `
       WITH additional_items_counts AS (
           SELECT 
-              orderId,
+              proOrderId,
               COUNT(*) AS totalAdditionalItems,
               SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
           FROM orderadditionalitems
-          GROUP BY orderId
+          GROUP BY proOrderId
       )
         
       SELECT 
@@ -298,7 +298,7 @@ exports.getSelectedPackages = (page, limit, Status, date, search) => {
           COALESCE(
               (SELECT SUM(price)
               FROM orderadditionalitems
-              WHERE orderId = o.id),
+              WHERE proOrderId = po.id),
               0
           ) AS additionalPrice,
           COALESCE(aic.totalAdditionalItems, 0) AS totalAdditionalItems,
@@ -509,7 +509,7 @@ exports.getAdditionalItems = (id) => {
       FROM collection_officer.processorders po
       JOIN collection_officer.orders o ON o.id = po.orderId 
 
-      JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id 
+      JOIN collection_officer.orderadditionalitems oai ON oai.proOrderId = po.id 
       JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id 
     WHERE po.id = ?
 `;
@@ -540,9 +540,9 @@ exports.updateAdditionalItemData = (additionalItems, id) => {
 
     const updatePromises = additionalItems.map(item => {
       const updateSql = `
-        UPDATE collection_officer.orderadditionalitems oai
-        JOIN collection_officer.orders o ON o.id = oai.orderId
+        UPDATE collection_officer.orders o 
         JOIN collection_officer.processorders po ON po.orderId = o.id
+        JOIN collection_officer.orderadditionalitems oai ON po.id = oai.proOrderId
         SET 
           oai.isPacked = ?
         WHERE 
@@ -592,7 +592,7 @@ exports.getCustomAdditionalItems = (id) => {
     oai.isPacked AS packedStatus
   FROM collection_officer.processorders po
   JOIN collection_officer.orders o ON po.orderId = o.id
-  LEFT JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+  LEFT JOIN collection_officer.orderadditionalitems oai ON oai.proOrderId = po.id
   JOIN collection_officer.marketplaceitems mpi ON oai.productId = mpi.id 
   WHERE po.id = ? AND o.isPackage = 0
 `;
@@ -623,9 +623,9 @@ exports.updateCustomAdditionalItemData = (customAdditionalItems, id) => {
 
     const updatePromises = customAdditionalItems.map(item => {
       const updateSql = `
-        UPDATE collection_officer.orderadditionalitems oai
-        JOIN collection_officer.orders o ON o.id = oai.orderId
-        JOIN collection_officer.processorders po ON po.orderId = o.id
+        UPDATE collection_officer.processorders po 
+        JOIN collection_officer.orders o ON po.orderId = o.id 
+        JOIN collection_officer.orderadditionalitems oai ON po.id = oai.proOrderId
         SET 
           oai.isPacked = ?
         WHERE 
@@ -1387,7 +1387,7 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
     ),
     additional_items_counts AS (
         SELECT 
-            orderId,
+            proOrderId AS orderId,
             COUNT(*) AS totalAdditionalItems,
             SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
             CASE
@@ -1399,7 +1399,7 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
                 ELSE 'Unknown'
             END AS additionalItemsStatus
         FROM orderadditionalitems
-        GROUP BY orderId
+        GROUP BY proOrderId
     )
     SELECT COUNT(DISTINCT po.id) as total
     FROM processorders po
@@ -1407,7 +1407,7 @@ exports.getMarketPlacePremadePackagesDao = (page, limit, packageStatus, date, se
     LEFT JOIN orderpackage op ON op.orderId = po.id 
     LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
     LEFT JOIN package_final_status pfs ON pfs.orderId = po.id
-    LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+    LEFT JOIN additional_items_counts aic ON aic.proOrderId = po.id
     LEFT JOIN agro_world_admin.adminusers au ON po.adminPackby = au.id
     LEFT JOIN collection_officer.collectionofficer cof ON po.packBy = cof.id
     ${countWhereClause}
@@ -1476,7 +1476,7 @@ package_price AS (
 ),
       additional_items_counts AS (
           SELECT 
-              orderId,
+              proOrderId as orderId,
               COUNT(*) AS totalAdditionalItems,
               SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
               SUM(price) AS totalAdditionalPrice,
@@ -1489,7 +1489,7 @@ package_price AS (
                   ELSE 'Unknown'
               END AS additionalItemsStatus
           FROM orderadditionalitems
-          GROUP BY orderId
+          GROUP BY proOrderId
       )
         
       SELECT 
@@ -1669,7 +1669,7 @@ exports.getMarketPlacePremadePackagesAdditionalItemsDao = (orderId) => {
         END AS packStatus
       FROM processorders po
       JOIN orders o ON po.orderId = o.id
-      JOIN orderadditionalitems oai ON o.id = oai.orderId
+      JOIN orderadditionalitems oai ON po.id = oai.proOrderId
       WHERE po.id = ?
       GROUP BY po.id
     `;
@@ -1738,12 +1738,12 @@ exports.getMarketPlaceCustomePackagesDao = (page, limit, packageStatus, date, se
     const countSql = `
 WITH additional_items_counts AS (
     SELECT 
-        orderId,
+        proOrderId as orderId,
         COUNT(*) AS totalAdditionalItems,
         SUM(price) AS price,
         SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems
     FROM orderadditionalitems
-    GROUP BY orderId
+    GROUP BY proOrderId
 )
 
 SELECT COUNT(DISTINCT po.id) as total
@@ -1757,7 +1757,7 @@ ${whereClause}
     const dataSql = `
       WITH additional_items_counts AS (
           SELECT 
-              orderId,
+              proOrderId as orderId,
               COUNT(*) AS totalAdditionalItems,
               SUM(price) AS price,
               SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
@@ -1770,7 +1770,7 @@ ${whereClause}
                   ELSE 'Unknown'
               END AS additionalItemsStatus
           FROM orderadditionalitems
-          GROUP BY orderId
+          GROUP BY proOrderId
       )
         
       SELECT 
@@ -1999,7 +1999,7 @@ exports.getDispatchOrderDetailsDao = (orderId) => {
         (
           SELECT SUM(oa.price)
           FROM orderadditionalitems oa
-          WHERE oa.orderId = o.id
+          WHERE oa.proOrderId = po.id
         ) AS additionalPrice
       FROM processorders po
       JOIN orders o ON po.orderId = o.id

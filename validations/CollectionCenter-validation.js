@@ -67,6 +67,7 @@ exports.getCenterTargetSchema = Joi.object({
     limit: Joi.number().integer().min(1).max(100).default(10).optional(),
     status: Joi.string().allow('').optional(),
     searchText: Joi.string().allow('').optional(),
+    formattedToday: Joi.string().optional()
 
 });
 

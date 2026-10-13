@@ -752,13 +752,13 @@ exports.getAllCollectionOfficersStatus = (
     // Order: CCM first, then COO, then others; inside each group center name A-Z, then number
     dataSql += `
       ORDER BY
+        TRIM(CC.centerName) ASC,
+        CC.regCode ASC,
         CASE
           WHEN Coff.empId LIKE 'CCM%' THEN 0
           WHEN Coff.empId LIKE 'COO%' THEN 1
           ELSE 2
-        END,
-        TRIM(CC.centerName) ASC,
-        CC.regCode ASC,
+        END ASC,
         CAST(SUBSTRING(Coff.empId, 4) AS UNSIGNED) ASC,
         Coff.id ASC
     `;
@@ -788,6 +788,7 @@ exports.getAllCollectionOfficersStatus = (
     });
   });
 };
+
 exports.getRegisteredFarmerPaymentsByOfficer = (collectionOfficerId, date) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1950,15 +1951,15 @@ exports.getPurchaseReport = (
       ${whereClause}
       GROUP BY rfp.id
       ORDER BY
-      CASE
-        WHEN DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 330 MINUTE))
-          AND rfp.invNo LIKE 'CCM%' THEN 0
-        WHEN DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) = DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 330 MINUTE))
-           AND rfp.invNo LIKE 'COO%' THEN 1
-        ELSE 2
-      END ASC,
-      rfp.createdAt DESC,
-      rfp.id DESC
+        DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) DESC,
+        CASE
+          WHEN rfp.invNo LIKE 'CCM%' THEN 0
+          WHEN rfp.invNo LIKE 'COO%' THEN 1
+          ELSE 2
+        END ASC,
+        cc.centerName ASC,
+        rfp.createdAt DESC,
+        rfp.id DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
 
@@ -2202,13 +2203,16 @@ exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
         co.empId,
         co.jobRole,
         rfp.createdAt
-      ORDER BY
-        CASE
-          WHEN co.jobRole = 'Collection Centre Manager' THEN 1
-          WHEN co.jobRole = 'Collection Officer' THEN 2
-          ELSE 3
-        END ASC,
-        rfp.createdAt DESC
+        ORDER BY
+          DATE(DATE_ADD(rfp.createdAt, INTERVAL '5:30' HOUR_MINUTE)) DESC,
+          CASE
+            WHEN rfp.invNo LIKE 'CCM%' THEN 0
+            WHEN rfp.invNo LIKE 'COO%' THEN 1
+            ELSE 2
+          END ASC,
+          cc.centerName ASC,
+          rfp.createdAt DESC,
+          rfp.id DESC
     `;
 
     collectionofficer.query(dataSql, params, (err, results) => {

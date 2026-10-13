@@ -36,11 +36,12 @@ exports.createCropGroup = async (
   nitrogen,
   phosphorus,
   potassium,
+  displayFor, // new
   modifyBy,
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, image, bgColor, seedRate, rowSpace, plantSpace, AvgYield, nitrogen, phosphorus, potassium, modifyBy, modifyAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+      "INSERT INTO cropgroup (cropNameEnglish, cropNameSinhala, cropNameTamil, category, costFeild, incomeFeild, image, bgColor, seedRate, rowSpace, plantSpace, AvgYield, nitrogen, phosphorus, potassium, displayFor, modifyBy, modifyAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
     const values = [
       cropNameEnglish,
       cropNameSinhala,
@@ -57,6 +58,7 @@ exports.createCropGroup = async (
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       modifyBy,
     ];
 
@@ -70,7 +72,7 @@ exports.createCropGroup = async (
   });
 };
 
-exports.getAllCropGroups = (limit, offset, searchText, category) => {
+exports.getAllCropGroups = (limit, offset, searchText, category, displayFor) => {
   return new Promise((resolve, reject) => {
     const dataParams = [];
     const countParams = [];
@@ -101,6 +103,12 @@ exports.getAllCropGroups = (limit, offset, searchText, category) => {
       whereConditions.push("cg.category = ?");
       dataParams.push(category);
       countParams.push(category);
+    }
+
+    if (displayFor) {
+      whereConditions.push("cg.displayFor = ?");
+      dataParams.push(displayFor);
+      countParams.push(displayFor);
     }
 
     if (whereConditions.length > 0) {
@@ -165,10 +173,24 @@ exports.createCropVariety = async (
   descriptionTamil,
   image,
   bgColor,
+  modifyBy,
 ) => {
   return new Promise((resolve, reject) => {
-    const sql =
-      "INSERT INTO cropvariety (cropGroupId, varietyNameEnglish, varietyNameSinhala, varietyNameTamil, descriptionEnglish, descriptionSinhala, descriptionTamil, image, bgColor) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const sql = `
+      INSERT INTO cropvariety (
+        cropGroupId,
+        varietyNameEnglish,
+        varietyNameSinhala,
+        varietyNameTamil,
+        descriptionEnglish,
+        descriptionSinhala,
+        descriptionTamil,
+        image,
+        bgColor,
+        modifyBy,
+        modifyAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    `;
     const values = [
       cropGroupId,
       varietyNameEnglish,
@@ -179,6 +201,7 @@ exports.createCropVariety = async (
       descriptionTamil,
       image,
       bgColor,
+      modifyBy,
     ];
 
     plantcare.query(sql, values, (err, results) => {
@@ -238,8 +261,14 @@ exports.createCropCallender = async (
 
 exports.insertXLSXData = (cropId, data) => {
   return new Promise((resolve, reject) => {
+    const validationError = (message) => {
+      const err = new Error(message);
+      err.isValidation = true;
+      return err;
+    };
+
     if (!data || data.length === 0) {
-      return reject(new Error("No data found in the uploaded file"));
+      return reject(validationError("No data found in the uploaded file"));
     }
 
     const requiredColumns = [
@@ -271,7 +300,7 @@ exports.insertXLSXData = (cropId, data) => {
 
     if (missingColumns.length > 0) {
       return reject(
-        new Error(
+        validationError(
           `Missing required column(s) in the uploaded file: ${missingColumns.join(", ")}`
         )
       );
@@ -292,42 +321,45 @@ exports.insertXLSXData = (cropId, data) => {
       "Task description (English)": Joi.string().required(),
       "Task description (Sinhala)": Joi.string().required(),
       "Task description (Tamil)": Joi.string().required(),
-      "Image Link": Joi.string().allow('', null),
-      "Video Link English": Joi.string().allow('', null),
-      "Video Link Sinhala": Joi.string().allow('', null),
-      "Video Link Tamil": Joi.string().allow('', null),
+      "Image Link": Joi.string().allow("", null),
+      "Video Link English": Joi.string().allow("", null),
+      "Video Link Sinhala": Joi.string().allow("", null),
+      "Video Link Tamil": Joi.string().allow("", null),
       "Required Images": Joi.number().required(),
     }).required();
 
     function isEmptyRow(row) {
       if (!row) return true;
-        return Object.values(row).every(value => {
-          if (value === '' || value === null || value === undefined) return true;
-          if (typeof value === 'string' && value.trim() === '') return true;
-          return false;
-        });
+      return Object.values(row).every((value) => {
+        if (value === "" || value === null || value === undefined) return true;
+        if (typeof value === "string" && value.trim() === "") return true;
+        return false;
+      });
     }
 
     const validatedData = [];
 
     for (let i = 0; i < data.length; i++) {
-      console.log(`Validating row ${i}`, data[i]);
-
       if (isEmptyRow(data[i])) {
-        continue; 
-      } else {
-        const { error, value } = schema.validate(data[i]);
-        if (error) {
-          return reject(
-            new Error(`Validation error in row ${i + 1}: ${error.details[0].message}`)
-          );
-        }
-        validatedData.push(value);
+        continue;
       }
+
+            const { error, value } = schema.validate(data[i], { stripUnknown: true });
+      if (error) {
+        // i + 2 = Excel row number (row 1 is the header)
+        return reject(
+          validationError(
+            `Validation error in row ${i + 2}: ${error.details[0].message}`
+          )
+        );
+      }
+      validatedData.push(value);
     }
 
     if (validatedData.length === 0) {
-      return reject(new Error("No valid data rows found in the uploaded file."));
+      return reject(
+        validationError("No valid data rows found in the uploaded file.")
+      );
     }
 
     const sql = `
@@ -354,10 +386,10 @@ exports.insertXLSXData = (cropId, data) => {
       row["Task description (English)"],
       row["Task description (Sinhala)"],
       row["Task description (Tamil)"],
-      row["Image Link"] ?? null,
-      row["Video Link English"] ?? null,
-      row["Video Link Sinhala"] ?? null,
-      row["Video Link Tamil"] ?? null,
+      row["Image Link"] || null,
+      row["Video Link English"] || null,
+      row["Video Link Sinhala"] || null,
+      row["Video Link Tamil"] || null,
       row["Required Images"],
     ]);
 
@@ -498,6 +530,7 @@ exports.updateGroup = (newsData, id) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       userId,
     } = newsData;
 
@@ -522,6 +555,7 @@ exports.updateGroup = (newsData, id) => {
                 nitrogen = ?,
                 phosphorus = ?,
                 potassium = ?,
+                displayFor = ?,
                 modifyBy = ?,
                 modifyAt = NOW()
         `;
@@ -541,6 +575,7 @@ exports.updateGroup = (newsData, id) => {
       nitrogen,
       phosphorus,
       potassium,
+      displayFor, // new
       userId,
     ];
 
@@ -757,6 +792,7 @@ exports.updateVariety = (newsData, id) => {
       descriptionTamil,
       bgColor,
       image,
+      modifyBy,
     } = newsData;
 
     let sql = `
@@ -765,10 +801,12 @@ exports.updateVariety = (newsData, id) => {
               varietyNameEnglish = ?, 
               varietyNameSinhala = ?, 
               varietyNameTamil = ?, 
-               descriptionEnglish = ?, 
+              descriptionEnglish = ?, 
               descriptionSinhala = ?, 
               descriptionTamil = ?, 
-              bgColor = ?
+              bgColor = ?,
+              modifyBy = ?,
+              modifyAt = NOW()
       `;
 
     let values = [
@@ -779,6 +817,7 @@ exports.updateVariety = (newsData, id) => {
       descriptionSinhala,
       descriptionTamil,
       bgColor,
+      modifyBy,
     ];
 
     if (image) {
@@ -855,7 +894,7 @@ exports.checkExistanceCropCalander = async (
 
 exports.cropGroupsDao = async (id) => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT id, cropNameEnglish FROM cropgroup";
+    const sql = "SELECT id, cropNameEnglish FROM cropgroup WHERE displayFor IN ('Farmery', 'Both')";
     plantcare.query(sql, (err, results) => {
       if (err) {
         reject(err);
@@ -878,6 +917,27 @@ exports.getAllCropGroupEnglishNamesOnly = () => {
         reject(err);
       } else {
         resolve(results);
+      }
+    });
+  });
+};
+
+exports.getMarketplaceItemCountByGroupId = async (groupId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT c.id, COUNT(mpi.id) AS itemCount
+      FROM cropgroup c
+      LEFT JOIN cropvariety cv ON c.id = cv.cropGroupId
+      LEFT JOIN collection_officer.marketplaceitems mpi ON cv.id = mpi.varietyId
+      WHERE c.id = ?
+      GROUP BY c.id
+    `;
+
+    plantcare.query(sql, [groupId], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0] || null);
       }
     });
   });
