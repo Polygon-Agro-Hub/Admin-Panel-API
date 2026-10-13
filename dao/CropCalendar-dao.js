@@ -173,10 +173,24 @@ exports.createCropVariety = async (
   descriptionTamil,
   image,
   bgColor,
+  modifyBy,
 ) => {
   return new Promise((resolve, reject) => {
-    const sql =
-      "INSERT INTO cropvariety (cropGroupId, varietyNameEnglish, varietyNameSinhala, varietyNameTamil, descriptionEnglish, descriptionSinhala, descriptionTamil, image, bgColor) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const sql = `
+      INSERT INTO cropvariety (
+        cropGroupId,
+        varietyNameEnglish,
+        varietyNameSinhala,
+        varietyNameTamil,
+        descriptionEnglish,
+        descriptionSinhala,
+        descriptionTamil,
+        image,
+        bgColor,
+        modifyBy,
+        modifyAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    `;
     const values = [
       cropGroupId,
       varietyNameEnglish,
@@ -187,6 +201,7 @@ exports.createCropVariety = async (
       descriptionTamil,
       image,
       bgColor,
+      modifyBy,
     ];
 
     plantcare.query(sql, values, (err, results) => {
