@@ -1945,7 +1945,7 @@ exports.getDistributedCenterTargetDao = async (
     ),
     additional_items_counts AS (
         SELECT 
-            orderId,
+            proOrderId,
             COUNT(*) AS totalAdditionalItems,
             SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
             CASE
@@ -1957,7 +1957,7 @@ exports.getDistributedCenterTargetDao = async (
                 ELSE 'Unknown'
             END AS additionalItemsStatus
         FROM collection_officer.orderadditionalitems
-        GROUP BY orderId
+        GROUP BY proOrderId
     )
 
     SELECT 
@@ -1975,7 +1975,7 @@ exports.getDistributedCenterTargetDao = async (
     JOIN collection_officer.processorders po ON dti.orderId = po.id
     JOIN collection_officer.orders o ON po.orderId = o.id
     LEFT JOIN package_item_counts pic ON pic.orderId = po.id
-    LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+    LEFT JOIN additional_items_counts aic ON aic.proOrderId = po.id
     WHERE dt.companycenterId = ?
     `;
 
@@ -2619,7 +2619,7 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
       ),
       additional_items_counts AS (
           SELECT 
-              orderId,
+              proOrderId,
               COUNT(*) AS totalAdditionalItems,
               SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
               CASE
@@ -2631,7 +2631,7 @@ exports.getSelectTargetItems = (targetId, search, packageStatus, completingStatu
                   ELSE 'Unknown'
               END AS additionalItemsStatus
           FROM collection_officer.orderadditionalitems
-          GROUP BY orderId
+          GROUP BY proOrderId
       )
 
       SELECT 
@@ -2675,7 +2675,7 @@ LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
 LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
 LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
 LEFT JOIN package_item_counts pic ON pic.orderId = po.id
-LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+LEFT JOIN additional_items_counts aic ON aic.proOrderId = po.id
 ${whereClause}
 GROUP BY
   o.id,
@@ -2848,7 +2848,7 @@ exports.dcmGetSelectedOfficerTargetsDao = (
   ),
   additional_items_counts AS (
       SELECT 
-          orderId,
+          proOrderId,
           COUNT(*) AS totalAdditionalItems,
           SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
           CASE
@@ -2860,7 +2860,7 @@ exports.dcmGetSelectedOfficerTargetsDao = (
               ELSE 'Unknown'
           END AS additionalItemsStatus
       FROM orderadditionalitems
-      GROUP BY orderId
+      GROUP BY proOrderId
   )
         
   SELECT 
@@ -2895,7 +2895,7 @@ LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
 LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
 LEFT JOIN marketplacepackages mpi ON op.packageId = mpi.id
 LEFT JOIN package_item_counts pic ON pic.orderId = po.id
-LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+LEFT JOIN additional_items_counts aic ON aic.proOrderId = po.id
       ${whereClause}
       GROUP BY
   o.id,
@@ -3438,7 +3438,7 @@ exports.getTargetedCustomerOrdersDao = (
     ),
     additional_items_counts AS (
         SELECT 
-            orderId,
+            proOrderId,
             COUNT(*) AS totalAdditionalItems,
             SUM(CASE WHEN isPacked = 1 THEN 1 ELSE 0 END) AS packedAdditionalItems,
             CASE
@@ -3450,7 +3450,7 @@ exports.getTargetedCustomerOrdersDao = (
                 ELSE 'Unknown'
             END AS additionalItemsStatus
         FROM collection_officer.orderadditionalitems
-        GROUP BY orderId
+        GROUP BY proOrderId
     )
     `;
 
@@ -3467,7 +3467,7 @@ exports.getTargetedCustomerOrdersDao = (
         LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
         LEFT JOIN collectionofficer cof ON po.packBy = cof.id
         LEFT JOIN package_item_counts pic ON pic.orderId = po.id
-        LEFT JOIN additional_items_counts aic ON aic.orderId = o.id
+        LEFT JOIN additional_items_counts aic ON aic.proOrderId = po.id
         WHERE 1=1
       `;
 
@@ -3599,7 +3599,7 @@ exports.getReturnRecievedDataDao = (
         po.id AS processOrderId, 
         po.invNO, 
         o.id AS orderId, 
-        o.fullTotal As total, 
+        po.fullTotal As total, 
         o.centerId, 
         mp.phoneCode,
         mp.phoneNumber,
@@ -3704,7 +3704,7 @@ exports.getReturnRecievedDataDao = (
         po.id AS processOrderId, 
         po.invNO, 
         o.id AS orderId, 
-        o.fullTotal As total, 
+        po.fullTotal As total, 
         o.centerId, 
         mp.phoneCode,
         mp.phoneNumber,
@@ -4123,7 +4123,7 @@ exports.getDistributedCenterPikupOderDao = (searchParams = {}) => {
     SELECT
     po.id AS processOrderId,
     po.invNo,
-    o.fullTotal,
+    po.fullTotal,
     po.status,
     mu.title AS customerTitle,
     mu.firstName,
@@ -4454,7 +4454,7 @@ exports.getCenterHomeDeliveryOrdersDao = (activeTab, status, searchText, date, d
     po.sheduleDate,
     o.phoneCode1,
     o.phone1,
-    o.fullTotal AS total,
+    po.fullTotal AS total,
     po.createdAt,
     po.status,
     mpu.title,
@@ -4847,7 +4847,7 @@ exports.getDistributionDashboardDao = () => {
     `;
 
     const returnLossTodaySql = `
-      SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossToday
+      SELECT COALESCE(SUM(po.fullTotal), 0) AS returnLossToday
       FROM collection_officer.driverordermain drm
       INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
       INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id
@@ -4876,7 +4876,7 @@ exports.getDistributionDashboardDao = () => {
     `;
 
     const returnLossMonthSql = `
-      SELECT COALESCE(SUM(o.fullTotal), 0) AS returnLossMonth
+      SELECT COALESCE(SUM(po.fullTotal), 0) AS returnLossMonth
       FROM collection_officer.driverordermain drm
       INNER JOIN collection_officer.driverorders dro ON dro.drvOrderMainId = drm.id
       INNER JOIN collection_officer.driverreturnorders drr ON drr.drvOrderId = dro.id

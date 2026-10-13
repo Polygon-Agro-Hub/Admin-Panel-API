@@ -578,8 +578,7 @@ exports.updateMarketProductDao = async (product, id, modifyBy) => {
         varietyId = ?,
         productTypeId = ?,
         comPrice = ?,
-        modifyBy = ?,
-        isEnable = ?
+        modifyBy = ?
       WHERE id = ?
     `;
     const values = [
@@ -599,7 +598,6 @@ exports.updateMarketProductDao = async (product, id, modifyBy) => {
       parseInt(product.productTypeId) || null,
       parseFloat(product.comPrice) || 0,
       modifyBy || null,
-      0, // isEnable forced to 0 on every update
       parseInt(id),
     ];
 
@@ -1430,7 +1428,7 @@ exports.getAllRetailOrderDetails = (
         o.id, po.id AS orderId, 
         o.fullName AS customerName, 
         o.delivaryMethod AS method, 
-        o.fullTotal AS amount,
+        po.fullTotal AS amount,
         po.invNo, 
         po.status,
         po.qrCode,
@@ -2371,7 +2369,7 @@ exports.getUserOrdersDao = async (userId, status) => {
         P.isPaid,
         P.creditPaid,
         P.moneyPaid,
-        O.fullTotal,
+        P.fullTotal,
         P.createdAt,
         P.status
       FROM processorders P
@@ -2426,7 +2424,7 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         o.centerId,
         o.orderApp,
         o.delivaryMethod AS deliveryMethod,
-        o.discount AS orderDiscount,
+        po.discount AS orderDiscount,
         o.createdAt AS invoiceDate,
         po.sheduleDate AS scheduledDate,
         o.buildingType,
@@ -2434,12 +2432,12 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         o.fullName,
         o.phonecode1,
         o.phone1,
-        o.isCoupon,
-        o.couponType,
-        o.couponValue,
+        po.isCoupon,
+        po.couponType,
+        po.couponValue,
         po.invNo AS invoiceNumber,
         po.paymentMethod AS paymentMethod,
-        o.fullTotal AS grandTotal,
+        po.fullTotal AS grandTotal,
         mu.email AS userEmail,
         po.isPaid,
         po.creditPaid,
@@ -2547,7 +2545,7 @@ exports.getAdditionalItemsDAO = (id) => {
       FROM orderadditionalitems oai
       JOIN marketplaceitems mi ON oai.productId = mi.id
       JOIN plant_care.cropvariety cv ON mi.varietyId = cv.id
-      WHERE oai.orderId = ?
+      WHERE oai.proOrderId = ?
     `;
 
     collectionofficer.query(sql, [id], (err, results) => {
@@ -2568,11 +2566,12 @@ exports.getBillingDetailsDAO = (orderId, userId) => {
         o.phoneCode1,
         o.phone1,
         o.buildingType,
-        o.couponValue,
+        po.couponValue,
         COALESCE(oh.houseNo, oa.houseNo) AS houseNo,
         COALESCE(oh.streetName, oa.streetName) AS street,
         COALESCE(oh.city, oa.city) AS city
       FROM orders o
+      LEFT JOIN processorders po ON o.id = po.orderId
       LEFT JOIN orderhouse oh ON o.id = oh.orderId
       LEFT JOIN orderapartment oa ON o.id = oa.orderId
       WHERE o.id = ?
@@ -2733,7 +2732,7 @@ exports.getAllWholesaleOrderDetails = (
         po.id AS orderId, 
         o.fullName AS customerName, 
         o.delivaryMethod AS method, 
-        o.fullTotal AS amount, 
+        po.fullTotal AS amount, 
         po.invNo, po.status,
         po.qrCode,
         po.paymentMethod,
@@ -2881,7 +2880,7 @@ exports.getDefinePackageItemsByPackageIdDAO = async (packageId) => {
 exports.toDaySalesDao = async () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT COUNT(*) AS salesCount, SUM(O.fullTotal) AS total
+      SELECT COUNT(*) AS salesCount, SUM(PO.fullTotal) AS total
       FROM processorders PO
       LEFT JOIN orders O ON PO.orderId = O.id
       WHERE DATE(PO.createdAt) = CURDATE()
@@ -2907,7 +2906,7 @@ exports.toDaySalesDao = async () => {
 exports.yesterdaySalesDao = async () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT COUNT(*) AS salesCount, SUM(O.fullTotal) AS total
+      SELECT COUNT(*) AS salesCount, SUM(PO.fullTotal) AS total
       FROM processorders PO
       LEFT JOIN orders O ON PO.orderId = O.id
       WHERE DATE(PO.createdAt) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
@@ -2935,7 +2934,7 @@ exports.thisMonthSalesDao = async () => {
     const sql = `
       SELECT 
         COUNT(*) AS salesCount, 
-        SUM(O.fullTotal) AS total
+        SUM(PO.fullTotal) AS total
       FROM processorders PO
       LEFT JOIN orders O ON PO.orderId = O.id
       WHERE YEAR(PO.createdAt) = YEAR(CURDATE()) AND MONTH(PO.createdAt) = MONTH(CURDATE())
@@ -2986,11 +2985,11 @@ exports.salesAnalyzeDao = async () => {
       SELECT 
         /* Last 30 days (0-30 days ago) */
         SUM(CASE WHEN PO.createdAt >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) 
-                 AND PO.createdAt < CURDATE() THEN O.fullTotal ELSE 0 END) AS last_30_days_total,
+                 AND PO.createdAt < CURDATE() THEN PO.fullTotal ELSE 0 END) AS last_30_days_total,
                  
         /* Previous 30-60 days */
         SUM(CASE WHEN PO.createdAt >= DATE_SUB(CURDATE(), INTERVAL 60 DAY) 
-                 AND PO.createdAt < DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN O.fullTotal ELSE 0 END) AS previous_30_to_60_days_total,
+                 AND PO.createdAt < DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN PO.fullTotal ELSE 0 END) AS previous_30_to_60_days_total,
                  
         /* Count of orders for last 30 days */
         COUNT(CASE WHEN PO.createdAt >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) 
@@ -3100,7 +3099,7 @@ exports.areaOrderDataDao = async () => {
         DATE_FORMAT(PO.createdAt, '%b') AS month,
         MONTH(PO.createdAt) AS monthNum,
         COUNT(*) AS salesCount, 
-        SUM(O.fullTotal) AS total
+        SUM(PO.fullTotal) AS total
       FROM processorders PO
       LEFT JOIN orders O ON PO.orderId = O.id
       WHERE PO.createdAt >= DATE_SUB(DATE_FORMAT(NOW(), '%Y-%m-01'), INTERVAL 12 MONTH)
@@ -3195,7 +3194,7 @@ exports.pieDataDao = async () => {
         SELECT G.category, COUNT(DISTINCT PO.id) as count
         FROM processorders PO
         LEFT JOIN orders O ON PO.orderId = O.id
-        LEFT JOIN orderadditionalitems OAI ON O.id = OAI.orderId
+        LEFT JOIN orderadditionalitems OAI ON PO.id = OAI.proOrderId
         LEFT JOIN marketplaceitems MPI2 ON OAI.productId = MPI2.id
         LEFT JOIN plant_care.cropvariety V2 ON MPI2.varietyId = V2.id
         LEFT JOIN plant_care.cropgroup G ON V2.cropGroupId = G.id
@@ -3243,7 +3242,7 @@ exports.lastFiveOrdersDao = async () => {
         PO.createdAt,
         PO.paymentMethod,
         PO.status,
-        O.fullTotal,
+        PO.fullTotal,
         U.firstName,
         U.lastName
       FROM processorders PO

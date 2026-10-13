@@ -360,8 +360,8 @@ exports.getCenterCenterCropsDao = (
               JOIN marketpriceserve MPS ON MPS.marketPriceId = MP.id
               JOIN plant_care.cropvariety CV ON MP.varietyId = CV.id
               JOIN plant_care.cropgroup CG ON CV.cropGroupId = CG.id
-          WHERE 
-              MPS.companyCenterId = ?
+          WHERE CG.displayFor IN ('Sales', 'Both')
+            AND MPS.companyCenterId = ?
           
       `;
 
@@ -691,14 +691,14 @@ exports.getAllRequestedItemsDao = (date) => {
               LEFT JOIN collection_officer.marketplaceitems mpi2 ON oai2.productId = mpi2.id 
               LEFT JOIN plant_care.cropvariety cv2 ON mpi2.varietyId = cv2.id
               LEFT JOIN plant_care.cropgroup cg2 ON cv2.cropGroupId = cg2.id 
-              WHERE oai2.orderId = o.id
+              WHERE oai2.proOrderId = po.id
           )
           ELSE NULL
       END AS additionalItems
   FROM collection_officer.processorders po
   LEFT JOIN collection_officer.orders o ON po.orderId = o.id
   LEFT JOIN collection_officer.orderpackage op ON op.orderId = po.id AND op.packingStatus = 'Dispatch'
-  LEFT JOIN collection_officer.orderadditionalitems oai ON oai.orderId = o.id
+  LEFT JOIN collection_officer.orderadditionalitems oai ON oai.proOrderId = po.id
   LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
   LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
   ${whereClause}

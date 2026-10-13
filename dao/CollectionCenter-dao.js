@@ -2115,7 +2115,7 @@ exports.getCompanyCenterIDDao = (companyId, centerId) => {
 };
 
 
-exports.getCenterTargetDAO = (companyCenterId, status, searchText) => {
+exports.getCenterTargetDAO = (companyCenterId, status, searchText, formattedToday) => {
   return new Promise((resolve, reject) => {
     let targetSql = `
         SELECT
@@ -2136,7 +2136,7 @@ exports.getCenterTargetDAO = (companyCenterId, status, searchText) => {
       WHERE dt.companyCenterId = ? AND DATE(dt.date) = CURDATE() AND (dt.target != 0 OR dt.complete != 0)
         `;
 
-    const sqlParams = [companyCenterId];
+    const sqlParams = [companyCenterId, formattedToday];
 
     // Add status filter if provided
     if (status) {

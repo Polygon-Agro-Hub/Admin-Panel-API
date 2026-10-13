@@ -251,6 +251,8 @@ exports.createCropVariety = async (req, res) => {
       bgColor,
     } = req.body;
 
+    const modifyBy = req.user.userId;
+
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
@@ -286,6 +288,7 @@ exports.createCropVariety = async (req, res) => {
       descriptionTamil,
       image,
       bgColor,
+      modifyBy,
     );
     return res.status(201).json({
       message: "crop variety created successfully",
@@ -411,7 +414,13 @@ exports.uploadXLSX = async (req, res) => {
 
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const data = xlsx.utils.sheet_to_json(worksheet);
+        const data = xlsx.utils
+      .sheet_to_json(worksheet, { defval: "" })
+      .map((row) =>
+        Object.fromEntries(
+          Object.entries(row).map(([key, value]) => [key.trim(), value])
+        )
+      );
 
     if (data.length === 0) {
       return res
@@ -425,7 +434,7 @@ exports.uploadXLSX = async (req, res) => {
       message: "File uploaded and data inserted successfully",
       rowsAffected,
     });
-  } catch (error) {
+    } catch (error) {
     try {
       await cropCalendarDao.deleteCropCalender(req.params.id);
     } catch (deleteErr) {
@@ -435,6 +444,11 @@ exports.uploadXLSX = async (req, res) => {
     if (error.isJoi) {
       return res.status(400).json({ error: error.details[0].message });
     }
+
+    if (error.isValidation) {
+      return res.status(400).json({ error: error.message });
+    }
+
     console.error("Error processing XLSX file:", error);
     return res
       .status(500)
@@ -782,6 +796,8 @@ exports.updateVariety = async (req, res) => {
     bgColor,
   } = req.body;
   const id = req.params.id;
+  const modifyBy = req.user.userId;
+
   try {
     let imageData = null;
     if (req.file) {
@@ -798,6 +814,7 @@ exports.updateVariety = async (req, res) => {
         descriptionTamil,
         bgColor,
         image: imageData,
+        modifyBy,
       },
       id,
     );
