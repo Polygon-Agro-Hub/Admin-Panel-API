@@ -2877,7 +2877,7 @@ exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
     dt.paySlip AS document,
     DATE_SUB(dt.createdAt, INTERVAL '5:30' HOUR_MINUTE) AS submittedAt,
     au.userName AS updatedBy,
-    dt.updatedAt
+    DATE_SUB(dt.updatedAt, INTERVAL '5:30' HOUR_MINUTE) AS updatedAt
   FROM collection_officer.driverordertransaction dt
   LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
   LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
