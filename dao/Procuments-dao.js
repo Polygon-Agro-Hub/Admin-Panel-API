@@ -2107,7 +2107,7 @@ exports.updateTransportLoadRecommendationDao = (transportId, recomandation, rcmd
   });
 };
 
-exports.getLoadMismatchReportsTodayDao = () => {
+exports.getLoadMismatchReportsTodayDao = (date) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT
@@ -2157,13 +2157,15 @@ exports.getLoadMismatchReportsTodayDao = () => {
         ON dc.id = dcc.centerId
       WHERE tl.journeyStatus = 'End'
         AND tl.unloadTime IS NOT NULL
-        AND DATE(tl.createdAt) = CURDATE()
+        -- selected Sri Lanka day (UTC+5:30) expressed as a UTC range on unloadTime
+        AND tl.unloadTime >= DATE_SUB(?, INTERVAL 330 MINUTE)
+        AND tl.unloadTime <  DATE_ADD(DATE_SUB(?, INTERVAL 330 MINUTE), INTERVAL 1 DAY)
       GROUP BY tl.id, tl.driverId, tl.transferCode, dc.regCode, tl.unloadTime
       HAVING SUM(g.isMismatch) > 0
       ORDER BY tl.unloadTime ASC
     `;
 
-    collectionofficer.query(sql, (err, results) => {
+    collectionofficer.query(sql, [date, date], (err, results) => {
       if (err) {
         console.error("Error fetching load mismatch reports:", err);
         return reject(err);

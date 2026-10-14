@@ -1188,7 +1188,28 @@ exports.getLoadMismatchReportsToday = async (req, res) => {
   console.log(fullUrl);
 
   try {
-    const reports = await procumentDao.getLoadMismatchReportsTodayDao();
+    // Today in Sri Lanka time (YYYY-MM-DD), independent of server timezone
+    const todayLK = new Date().toLocaleDateString("en-CA", {
+      timeZone: "Asia/Colombo",
+    });
+
+    const date = req.query.date || todayLK;
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(new Date(date).getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid date format. Use YYYY-MM-DD",
+      });
+    }
+
+    if (date > todayLK) {
+      return res.status(400).json({
+        success: false,
+        message: "Future dates are not allowed",
+      });
+    }
+
+    const reports = await procumentDao.getLoadMismatchReportsTodayDao(date);
 
     res.json({
       success: true,
