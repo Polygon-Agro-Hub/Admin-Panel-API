@@ -2866,24 +2866,24 @@ exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
 
     // SQL to fetch paginated data
     let sql = `
-      SELECT 
-        dt.id, 
-        dt.transCode AS transactionId,
-        dt.transStatus AS status,
-        CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS name,
-        co.empId AS driverId,
-        co.phoneNumber01 AS phoneNumber,
-        dt.transAmount AS amount,
-        dt.paySlip AS document,
-        dt.createdAt AS submittedAt,
-        au.userName AS updatedBy,
-        dt.updatedAt
-      FROM collection_officer.driverordertransaction dt
-      LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
-      LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
-      LEFT JOIN agro_world_admin.adminusers au ON dt.updatedBy = au.id
-      WHERE 1 = 1
-    `;
+  SELECT 
+    dt.id, 
+    dt.transCode AS transactionId,
+    dt.transStatus AS status,
+    CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS name,
+    co.empId AS driverId,
+    co.phoneNumber01 AS phoneNumber,
+    dt.transAmount AS amount,
+    dt.paySlip AS document,
+    DATE_SUB(dt.createdAt, INTERVAL '5:30' HOUR_MINUTE) AS submittedAt,
+    au.userName AS updatedBy,
+    dt.updatedAt
+  FROM collection_officer.driverordertransaction dt
+  LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
+  LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
+  LEFT JOIN agro_world_admin.adminusers au ON dt.updatedBy = au.id
+  WHERE 1 = 1
+`;
 
     // Add filter for status
     if (status) {
