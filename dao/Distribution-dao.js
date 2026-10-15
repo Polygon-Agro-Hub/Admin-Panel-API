@@ -3584,110 +3584,110 @@ exports.getTargetedCustomerOrdersDao = (
   });
 };
 
-exports.getReturnRecievedDataDao = (
-  receivedTime,
-  centerId,
-  deliveryLocationData,
-  searchText
-) => {
-  return new Promise((resolve, reject) => {
-    let dataSql = `
-      SELECT 
-        do.id, 
-        coff.id AS driverId, 
-        coff.empId, 
-        po.id AS processOrderId, 
-        po.invNO, 
-        o.id AS orderId, 
-        po.fullTotal As total, 
-        o.centerId, 
-        mp.phoneCode,
-        mp.phoneNumber,
-        po.sheduleDate, 
-        oh.city AS houseCity,
-        oa.city AS apartmentCity, 
-        rr.rsnEnglish AS reason,
-        dro.note AS other, 
-        dro.createdAt AS returnAt, 
-        do.receivedTime
-      FROM collection_officer.driverordermain drm
-      LEFT JOIN collection_officer.driverorders do on drm.id = do.drvOrderMainId
-      LEFT JOIN collection_officer.collectionofficer coff ON drm.driverId = coff.id
-      LEFT JOIN collection_officer.processorders po ON do.orderId = po.id
-      LEFT JOIN collection_officer.orders o ON po.orderId = o.id
-      LEFT JOIN collection_officer.marketplaceusers mp ON mp.id = o.userId
-      LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
-      LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
-      LEFT JOIN collection_officer.driverreturnorders dro ON dro.drvOrderId = do.id
-      LEFT JOIN collection_officer.returnreason rr ON dro.returnReasonId = rr.id
-      LEFT JOIN collection_officer.distributedcenter dc1 ON dc1.id = o.centerId
-      WHERE do.drvStatus = 'Return Received'
-    `;
-    const dataParams = [];
+// exports.getReturnRecievedDataDao = (
+//   receivedTime,
+//   centerId,
+//   deliveryLocationData,
+//   searchText
+// ) => {
+//   return new Promise((resolve, reject) => {
+//     let dataSql = `
+//       SELECT 
+//         do.id, 
+//         coff.id AS driverId, 
+//         coff.empId, 
+//         po.id AS processOrderId, 
+//         po.invNO, 
+//         o.id AS orderId, 
+//         po.fullTotal As total, 
+//         o.centerId, 
+//         mp.phoneCode,
+//         mp.phoneNumber,
+//         po.sheduleDate, 
+//         oh.city AS houseCity,
+//         oa.city AS apartmentCity, 
+//         rr.rsnEnglish AS reason,
+//         dro.note AS other, 
+//         dro.createdAt AS returnAt, 
+//         do.receivedTime
+//       FROM collection_officer.driverordermain drm
+//       LEFT JOIN collection_officer.driverorders do on drm.id = do.drvOrderMainId
+//       LEFT JOIN collection_officer.collectionofficer coff ON drm.driverId = coff.id
+//       LEFT JOIN collection_officer.processorders po ON do.orderId = po.id
+//       LEFT JOIN collection_officer.orders o ON po.orderId = o.id
+//       LEFT JOIN collection_officer.marketplaceusers mp ON mp.id = o.userId
+//       LEFT JOIN collection_officer.orderhouse oh ON oh.orderId = o.id
+//       LEFT JOIN collection_officer.orderapartment oa ON oa.orderId = o.id
+//       LEFT JOIN collection_officer.driverreturnorders dro ON dro.drvOrderId = do.id
+//       LEFT JOIN collection_officer.returnreason rr ON dro.returnReasonId = rr.id
+//       LEFT JOIN collection_officer.distributedcenter dc1 ON dc1.id = o.centerId
+//       WHERE do.drvStatus = 'Return Received'
+//     `;
+//     const dataParams = [];
 
-    if (deliveryLocationData && deliveryLocationData.length > 0) {
-      dataParams.push(deliveryLocationData, deliveryLocationData);
-    }
+//     if (deliveryLocationData && deliveryLocationData.length > 0) {
+//       dataParams.push(deliveryLocationData, deliveryLocationData);
+//     }
 
-    if (centerId) {
-      dataParams.push(centerId);
-    }
+//     if (centerId) {
+//       dataParams.push(centerId);
+//     }
 
-    if (centerId) {
-      dataSql += ` AND (`;
+//     if (centerId) {
+//       dataSql += ` AND (`;
 
-      if (deliveryLocationData && deliveryLocationData.length > 0) {
-        dataSql += `(oh.city IN (?) OR oa.city IN (?)) OR `;
-        dataParams.push(deliveryLocationData, deliveryLocationData);
-      }
+//       if (deliveryLocationData && deliveryLocationData.length > 0) {
+//         dataSql += `(oh.city IN (?) OR oa.city IN (?)) OR `;
+//         dataParams.push(deliveryLocationData, deliveryLocationData);
+//       }
 
-      dataSql += ` o.centerId = ? )`;
-      dataParams.push(centerId);
-    }
+//       dataSql += ` o.centerId = ? )`;
+//       dataParams.push(centerId);
+//     }
 
-    if (receivedTime) {
-      const cond = ` AND DATE(do.receivedTime) = DATE(?) `;
-      dataSql += cond;
-      dataParams.push(receivedTime);
-    }
+//     if (receivedTime) {
+//       const cond = ` AND DATE(do.receivedTime) = DATE(?) `;
+//       dataSql += cond;
+//       dataParams.push(receivedTime);
+//     }
 
-    if (searchText) {
-      const searchPattern = `%${searchText}%`;
-      dataSql += `
-        AND (
-          po.invNO LIKE ? OR
-          CONCAT(mp.phoneCode, ' ', mp.phoneNumber) LIKE ? OR
-          CONCAT(mp.phoneCode, mp.phoneNumber) LIKE ? OR
-          dc1.centerName LIKE ? OR
-          oh.city LIKE ? OR
-          oa.city LIKE ?
-        )
-      `;
+//     if (searchText) {
+//       const searchPattern = `%${searchText}%`;
+//       dataSql += `
+//         AND (
+//           po.invNO LIKE ? OR
+//           CONCAT(mp.phoneCode, ' ', mp.phoneNumber) LIKE ? OR
+//           CONCAT(mp.phoneCode, mp.phoneNumber) LIKE ? OR
+//           dc1.centerName LIKE ? OR
+//           oh.city LIKE ? OR
+//           oa.city LIKE ?
+//         )
+//       `;
 
-      dataParams.push(
-        searchPattern,
-        searchPattern,
-        searchPattern,
-        searchPattern,
-        searchPattern,
-        searchPattern
-      );
-    }
+//       dataParams.push(
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern,
+//         searchPattern
+//       );
+//     }
 
-    dataSql += ` ORDER BY po.createdAt DESC`;
+//     dataSql += ` ORDER BY po.createdAt DESC`;
 
-    collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
-      if (dataErr) {
-        reject(dataErr);
-      } else {
-        resolve({
-          total: dataResults.length,
-          items: dataResults,
-        });
-      }
-    });
-  });
-};
+//     collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+//       if (dataErr) {
+//         reject(dataErr);
+//       } else {
+//         resolve({
+//           total: dataResults.length,
+//           items: dataResults,
+//         });
+//       }
+//     });
+//   });
+// };
 
 exports.getReturnRecievedDataDao = (
   receivedTime,
