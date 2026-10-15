@@ -2849,13 +2849,105 @@ WHERE o.orderApp = 'Dash'
   });
 };
 
+// exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
+//   return new Promise((resolve, reject) => {
+//     const Sqlparams = [];
+//     const Counterparams = [];
+//     const offset = (page - 1) * limit;
+
+//     // SQL to count total records - Added missing JOINs
+//     let countSql = `
+//       SELECT COUNT(*) AS total
+//       FROM collection_officer.driverordertransaction dt
+//       LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
+//       LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
+//       WHERE 1 = 1
+//     `;
+
+//     // SQL to fetch paginated data
+//     let sql = `
+//   SELECT 
+//     dt.id, 
+//     dt.transCode AS transactionId,
+//     dt.transStatus AS status,
+//     CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS name,
+//     co.empId AS driverId,
+//     co.phoneNumber01 AS phoneNumber,
+//     dt.transAmount AS amount,
+//     dt.paySlip AS document,
+//     DATE_SUB(dt.createdAt, INTERVAL '5:30' HOUR_MINUTE) AS submittedAt,
+//     au.userName AS updatedBy,
+//     DATE_SUB(dt.updatedAt, INTERVAL '5:30' HOUR_MINUTE) AS updatedAt
+//   FROM collection_officer.driverordertransaction dt
+//   LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
+//   LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
+//   LEFT JOIN agro_world_admin.adminusers au ON dt.updatedBy = au.id
+//   WHERE 1 = 1
+// `;
+
+//     // Add filter for status
+//     if (status) {
+//       countSql += " AND dt.transStatus = ? ";
+//       sql += " AND dt.transStatus = ? ";
+//       Sqlparams.push(status);
+//       Counterparams.push(status);
+//     }
+
+//     // Fixed category filter to use the correct alias
+//     if (date) {
+//       countSql += " AND DATE(dt.createdAt) = ? ";
+//       sql += " AND DATE(dt.createdAt) = ? ";
+//       Sqlparams.push(date);
+//       Counterparams.push(date);
+//     }
+
+//     // Add search functionality
+//     if (searchItem) {
+//       countSql += `
+//         AND ( dt.transCode LIKE ? OR co.empId LIKE ? OR CONCAT('0', co.phoneNumber01) LIKE ? )
+//       `;
+//       sql += `
+//         AND ( dt.transCode LIKE ? OR co.empId LIKE ? OR CONCAT('0', co.phoneNumber01) LIKE ? )
+//       `;
+//       const searchQuery = `%${searchItem}%`;
+//       Sqlparams.push(searchQuery, searchQuery, searchQuery);
+//       Counterparams.push(searchQuery, searchQuery, searchQuery);
+//     }
+
+//     // Add pagination
+//     sql += " ORDER BY dt.createdAt ASC LIMIT ? OFFSET ?";
+//     Sqlparams.push(parseInt(limit), parseInt(offset));
+
+//     // Execute count query to get total records
+//     collectionofficer.query(
+//       countSql,
+//       Counterparams,
+//       (countErr, countResults) => {
+//         if (countErr) {
+//           return reject(countErr);
+//         }
+
+//         const total = countResults[0]?.total || 0;
+
+//         // Execute main query to get paginated results
+//         collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
+//           if (dataErr) {
+//             return reject(dataErr);
+//           }
+
+//           resolve({ results, total });
+//         });
+//       },
+//     );
+//   });
+// };
+
 exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
   return new Promise((resolve, reject) => {
     const Sqlparams = [];
     const Counterparams = [];
     const offset = (page - 1) * limit;
 
-    // SQL to count total records - Added missing JOINs
     let countSql = `
       SELECT COUNT(*) AS total
       FROM collection_officer.driverordertransaction dt
@@ -2864,28 +2956,26 @@ exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
       WHERE 1 = 1
     `;
 
-    // SQL to fetch paginated data
     let sql = `
-  SELECT 
-    dt.id, 
-    dt.transCode AS transactionId,
-    dt.transStatus AS status,
-    CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS name,
-    co.empId AS driverId,
-    co.phoneNumber01 AS phoneNumber,
-    dt.transAmount AS amount,
-    dt.paySlip AS document,
-    DATE_SUB(dt.createdAt, INTERVAL '5:30' HOUR_MINUTE) AS submittedAt,
-    au.userName AS updatedBy,
-    DATE_SUB(dt.updatedAt, INTERVAL '5:30' HOUR_MINUTE) AS updatedAt
-  FROM collection_officer.driverordertransaction dt
-  LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
-  LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
-  LEFT JOIN agro_world_admin.adminusers au ON dt.updatedBy = au.id
-  WHERE 1 = 1
-`;
+      SELECT 
+        dt.id, 
+        dt.transCode AS transactionId,
+        dt.transStatus AS status,
+        CONCAT_WS(' ', co.firstNameEnglish, co.lastNameEnglish) AS name,
+        co.empId AS driverId,
+        co.phoneNumber01 AS phoneNumber,
+        dt.transAmount AS amount,
+        dt.paySlip AS document,
+        DATE_FORMAT(CONVERT_TZ(dt.createdAt, '+00:00', '+05:30'), '%Y-%m-%d %h:%i %p') AS submittedAt,
+        au.userName AS updatedBy,
+        DATE_FORMAT(CONVERT_TZ(dt.updatedAt, '+00:00', '+05:30'), '%Y-%m-%d %h:%i %p') AS updatedAt
+      FROM collection_officer.driverordertransaction dt
+      LEFT JOIN collection_officer.driverordermain dom ON dt.drvOrderMainId = dom.id
+      LEFT JOIN collection_officer.collectionofficer co ON dom.driverId = co.id
+      LEFT JOIN agro_world_admin.adminusers au ON dt.updatedBy = au.id
+      WHERE 1 = 1
+    `;
 
-    // Add filter for status
     if (status) {
       countSql += " AND dt.transStatus = ? ";
       sql += " AND dt.transStatus = ? ";
@@ -2893,15 +2983,13 @@ exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
       Counterparams.push(status);
     }
 
-    // Fixed category filter to use the correct alias
     if (date) {
-      countSql += " AND DATE(dt.createdAt) = ? ";
-      sql += " AND DATE(dt.createdAt) = ? ";
+      countSql += " AND DATE(CONVERT_TZ(dt.createdAt, '+00:00', '+05:30')) = ? ";
+      sql += " AND DATE(CONVERT_TZ(dt.createdAt, '+00:00', '+05:30')) = ? ";
       Sqlparams.push(date);
       Counterparams.push(date);
     }
 
-    // Add search functionality
     if (searchItem) {
       countSql += `
         AND ( dt.transCode LIKE ? OR co.empId LIKE ? OR CONCAT('0', co.phoneNumber01) LIKE ? )
@@ -2914,31 +3002,24 @@ exports.GetAllTransactionsDAO = (page, limit, status, date, searchItem) => {
       Counterparams.push(searchQuery, searchQuery, searchQuery);
     }
 
-    // Add pagination
     sql += " ORDER BY dt.createdAt ASC LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
-    // Execute count query to get total records
-    collectionofficer.query(
-      countSql,
-      Counterparams,
-      (countErr, countResults) => {
-        if (countErr) {
-          return reject(countErr);
+    collectionofficer.query(countSql, Counterparams, (countErr, countResults) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResults[0]?.total || 0;
+
+      collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
+        if (dataErr) {
+          return reject(dataErr);
         }
 
-        const total = countResults[0]?.total || 0;
-
-        // Execute main query to get paginated results
-        collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
-          if (dataErr) {
-            return reject(dataErr);
-          }
-
-          resolve({ results, total });
-        });
-      },
-    );
+        resolve({ results, total });
+      });
+    });
   });
 };
 
