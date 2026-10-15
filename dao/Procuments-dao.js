@@ -2107,7 +2107,101 @@ exports.updateTransportLoadRecommendationDao = (transportId, recomandation, rcmd
   });
 };
 
-exports.getLoadMismatchReportsTodayDao = (date) => {
+// exports.getLoadMismatchReportsTodayDao = (date) => {
+//   return new Promise((resolve, reject) => {
+//     const sql = `
+//       SELECT
+//         tl.id AS transportId,
+//         tl.driverId,
+//         tl.transferCode AS driverCode,
+//         dc.regCode AS distributionCentre,
+//         tl.unloadTime,
+//         DATE_FORMAT(
+//           DATE_ADD(tl.unloadTime, INTERVAL 330 MINUTE),
+//           '%h:%i %p'
+//         ) AS reportedAt,
+//         SUM(g.loadedQty) AS loaded,
+//         SUM(g.unloadedQty) AS unloaded,
+//         SUM(g.loadedCrates) AS loadedCrateCount,
+//         SUM(g.unloadedCrates) AS unloadedCrateCount
+//       FROM collection_officer.transportload tl
+//       JOIN collection_officer.loadeditems li
+//         ON li.transportId = tl.id
+//       JOIN (
+//         -- one row per loadId + grade, loaded vs unloaded side by side
+//         SELECT
+//           x.loadId,
+//           x.grade,
+//           SUM(x.loadedQty) AS loadedQty,
+//           SUM(x.unloadedQty) AS unloadedQty,
+//           SUM(x.loadedCrates) AS loadedCrates,
+//           SUM(x.unloadedCrates) AS unloadedCrates,
+//           CASE WHEN ROUND(SUM(x.loadedQty) - SUM(x.unloadedQty), 2) <> 0
+//                THEN 1 ELSE 0 END AS isMismatch
+//         FROM (
+//           SELECT loadId, grade,
+//                  qty AS loadedQty, 0 AS unloadedQty,
+//                  crateCount AS loadedCrates, 0 AS unloadedCrates
+//           FROM collection_officer.loadedcrates
+//           UNION ALL
+//           SELECT loadId, grade,
+//                  0, qty,
+//                  0, crateCount
+//           FROM collection_officer.unloadedcrates
+//         ) x
+//         GROUP BY x.loadId, x.grade
+//       ) g ON g.loadId = li.id
+//       LEFT JOIN collection_officer.distributedcompanycenter dcc
+//         ON dcc.id = tl.disComCenId
+//       LEFT JOIN collection_officer.distributedcenter dc
+//         ON dc.id = dcc.centerId
+//       WHERE tl.journeyStatus = 'End'
+//         AND tl.unloadTime IS NOT NULL
+//         -- selected Sri Lanka day (UTC+5:30) expressed as a UTC range on unloadTime
+//         AND tl.unloadTime >= DATE_SUB(?, INTERVAL 330 MINUTE)
+//         AND tl.unloadTime <  DATE_ADD(DATE_SUB(?, INTERVAL 330 MINUTE), INTERVAL 1 DAY)
+//       GROUP BY tl.id, tl.driverId, tl.transferCode, dc.regCode, tl.unloadTime
+//       HAVING SUM(g.isMismatch) > 0
+//       ORDER BY tl.unloadTime ASC
+//     `;
+
+//     collectionofficer.query(sql, [date, date], (err, results) => {
+//       if (err) {
+//         console.error("Error fetching load mismatch reports:", err);
+//         return reject(err);
+//       }
+
+//       const processed = results.map((row) => {
+//         const loaded = parseFloat(row.loaded) || 0;
+//         const unloaded = parseFloat(row.unloaded) || 0;
+//         const missing = parseFloat((loaded - unloaded).toFixed(2));
+//         const crateDiff =
+//           (parseInt(row.loadedCrateCount) || 0) -
+//           (parseInt(row.unloadedCrateCount) || 0);
+
+//         return {
+//           id: row.transportId,
+//           driverId: row.driverCode || `DRV-${row.driverId}`,
+//           loaded,
+//           unloaded,
+//           missing, // negative = unloaded more than loaded
+//           crates:
+//             crateDiff > 0
+//               ? `${crateDiff} Missing`
+//               : crateDiff < 0
+//               ? `${Math.abs(crateDiff)} Extra`
+//               : "All Found",
+//           distributionCentre: row.distributionCentre || "N/A",
+//           reportedAt: row.reportedAt || "-",
+//         };
+//       });
+
+//       resolve(processed);
+//     });
+//   });
+// };
+
+exports.getLoadMismatchReportsTodayDao = (date = null) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT
@@ -2158,8 +2252,17 @@ exports.getLoadMismatchReportsTodayDao = (date) => {
       WHERE tl.journeyStatus = 'End'
         AND tl.unloadTime IS NOT NULL
         -- selected Sri Lanka day (UTC+5:30) expressed as a UTC range on unloadTime
-        AND tl.unloadTime >= DATE_SUB(?, INTERVAL 330 MINUTE)
-        AND tl.unloadTime <  DATE_ADD(DATE_SUB(?, INTERVAL 330 MINUTE), INTERVAL 1 DAY)
+        AND tl.unloadTime >= DATE_SUB(
+              COALESCE(?, DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))),
+              INTERVAL 330 MINUTE
+            )
+        AND tl.unloadTime <  DATE_ADD(
+              DATE_SUB(
+                COALESCE(?, DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))),
+                INTERVAL 330 MINUTE
+              ),
+              INTERVAL 1 DAY
+            )
       GROUP BY tl.id, tl.driverId, tl.transferCode, dc.regCode, tl.unloadTime
       HAVING SUM(g.isMismatch) > 0
       ORDER BY tl.unloadTime ASC
