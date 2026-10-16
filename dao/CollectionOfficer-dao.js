@@ -2971,7 +2971,7 @@ exports.getAllDrivers = (
       );
     }
 
-    dataSql += " LIMIT ? OFFSET ?";
+    dataSql += " ORDER BY coff.id DESC LIMIT ? OFFSET ?";
     dataParams.push(limit, offset);
 
     collectionofficer.query(countSql, countParams, (countErr, countResults) => {
