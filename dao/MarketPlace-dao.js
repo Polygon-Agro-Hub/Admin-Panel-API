@@ -438,9 +438,18 @@ exports.creatPackageDAO = async (data, profileImageUrl) => {
     // Convert ISO datetime strings to MySQL-compatible 'YYYY-MM-DD' format
     const formatDate = (value) => {
       if (!value) return null;
+
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return value; 
+      }
+
       const d = new Date(value);
       if (isNaN(d.getTime())) return null;
-      return d.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
     };
 
     const values = [

@@ -3425,7 +3425,7 @@ exports.getPickupHandOverSummaryDao = (id) => {
         SUM(po.handOverPrice) OVER (PARTITION BY pt.officerId) AS totalHandOverPrice
       FROM pickuptransaction pt
       LEFT JOIN pickuporders po ON pt.id = po.transId
-      LEFT JOIN collection_officer.processorders pro ON po.orderId = pro.orderId
+      LEFT JOIN collection_officer.processorders pro ON po.orderId = pro.id
       WHERE pt.id = ?;
     `;
     collectionofficer.query(sql, [id], (err, result) => {
