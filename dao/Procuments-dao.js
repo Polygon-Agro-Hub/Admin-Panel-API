@@ -2042,32 +2042,33 @@ exports.getLoadedItemWeightSummaryDao = (loadedItemId) => {
     try {
       const sql = `
         SELECT 
-          li.id AS loadedItemId,
-          cv.varietyNameEnglish,
-          cv.image,
-          lc.grade,
-          lc.totalLoadedCrates,
-          lc.totalLoadedWeight,
-          uc.totalUnloadedCrates,
-          uc.totalUnloadedWeight
-        FROM transportload tl
-        LEFT JOIN loadeditems li ON li.transportId = tl.id
-        JOIN plant_care.cropvariety cv ON cv.id = li.varietyId
-        LEFT JOIN (
-          SELECT loadId, grade, 
-                 SUM(crateCount) AS totalLoadedCrates, 
-                 SUM(qty) AS totalLoadedWeight
-          FROM loadedcrates
-          GROUP BY loadId, grade
-        ) lc ON lc.loadId = li.id
-        LEFT JOIN (
-          SELECT loadId, grade, 
-                 SUM(crateCount) AS totalUnloadedCrates, 
-                 SUM(qty) AS totalUnloadedWeight
-          FROM unloadedcrates
-          GROUP BY loadId, grade
-        ) uc ON uc.loadId = li.id AND uc.grade = lc.grade
-        WHERE tl.id = ?
+        li.id AS loadedItemId,
+        cv.varietyNameEnglish,
+        cv.image,
+        lc.grade,
+        lc.totalLoadedCrates,
+        lc.totalLoadedWeight,
+        uc.totalUnloadedCrates,
+        uc.totalUnloadedWeight
+      FROM transportload tl
+      LEFT JOIN loadeditems li ON li.transportId = tl.id
+      JOIN plant_care.cropvariety cv ON cv.id = li.varietyId
+      LEFT JOIN (
+        SELECT loadId, grade, 
+               SUM(crateCount) AS totalLoadedCrates, 
+               SUM(qty) AS totalLoadedWeight
+        FROM loadedcrates
+        GROUP BY loadId, grade
+      ) lc ON lc.loadId = li.id
+      LEFT JOIN (
+        SELECT loadId, grade, 
+               SUM(crateCount) AS totalUnloadedCrates, 
+               SUM(qty) AS totalUnloadedWeight
+        FROM unloadedcrates
+        GROUP BY loadId, grade
+      ) uc ON uc.loadId = li.id AND uc.grade = lc.grade
+      WHERE tl.id = ?
+      ORDER BY cv.varietyNameEnglish ASC, lc.grade ASC
       `;
 
       collectionofficer.query(sql, [loadedItemId], (err, results) => {
