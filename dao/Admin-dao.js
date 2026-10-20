@@ -2619,14 +2619,14 @@ exports.insertUserXLSXDataaaaa = (data) => {
 
 exports.getAllRoles = () => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT * FROM adminroles";
+    const sql = "SELECT * FROM adminroles ORDER BY role ASC";
 
     admin.query(sql, (err, results) => {
       if (err) {
-        return reject(err); // Reject promise if an error occurs
+        return reject(err);
       }
 
-      resolve(results); // No need to wrap in arrays, return results directly
+      resolve(results);
     });
   });
 };

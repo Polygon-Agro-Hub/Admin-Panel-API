@@ -1183,6 +1183,49 @@ exports.updateTransportLoadRecommendation = async (req, res) => {
 };
 
 
+// exports.getLoadMismatchReportsToday = async (req, res) => {
+//   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+//   console.log(fullUrl);
+
+//   try {
+//     // Today in Sri Lanka time (YYYY-MM-DD), independent of server timezone
+//     const todayLK = new Date().toLocaleDateString("en-CA", {
+//       timeZone: "Asia/Colombo",
+//     });
+
+//     const date = req.query.date || todayLK;
+
+//     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(new Date(date).getTime())) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid date format. Use YYYY-MM-DD",
+//       });
+//     }
+
+//     if (date > todayLK) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Future dates are not allowed",
+//       });
+//     }
+
+//     const reports = await procumentDao.getLoadMismatchReportsTodayDao(date);
+
+//     res.json({
+//       success: true,
+//       total: reports.length,
+//       data: reports,
+//     });
+//   } catch (err) {
+//     console.error("Error fetching load mismatch reports today:", err);
+//     res.status(500).json({
+//       success: false,
+//       message: "An error occurred while fetching load mismatch reports",
+//       error: process.env.NODE_ENV === "development" ? err.message : undefined,
+//     });
+//   }
+// };
+
 exports.getLoadMismatchReportsToday = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
@@ -1193,20 +1236,23 @@ exports.getLoadMismatchReportsToday = async (req, res) => {
       timeZone: "Asia/Colombo",
     });
 
-    const date = req.query.date || todayLK;
+    // null => DAO falls back to DB's Sri Lanka "today"
+    const date = req.query.date || null;
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(new Date(date).getTime())) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid date format. Use YYYY-MM-DD",
-      });
-    }
+    if (date) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(new Date(date).getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid date format. Use YYYY-MM-DD",
+        });
+      }
 
-    if (date > todayLK) {
-      return res.status(400).json({
-        success: false,
-        message: "Future dates are not allowed",
-      });
+      if (date > todayLK) {
+        return res.status(400).json({
+          success: false,
+          message: "Future dates are not allowed",
+        });
+      }
     }
 
     const reports = await procumentDao.getLoadMismatchReportsTodayDao(date);

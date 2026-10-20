@@ -51,7 +51,7 @@ const getReadyToPickupOrders = async () => {
       FROM processorders p
       LEFT JOIN orders o ON p.orderId = o.id
       LEFT JOIN marketplaceusers mu ON o.userId = mu.id
-      WHERE p.status = 'Ready to Pickup' AND DATE(p.sheduleDate) <= CURDATE() and p.invNo = '2610130107'
+      WHERE p.status = 'Ready to Pickup' AND DATE(p.sheduleDate) <= CURDATE()
       `
     );
     return orders;
