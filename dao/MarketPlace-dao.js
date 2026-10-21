@@ -1473,7 +1473,7 @@ exports.getAllRetailOrderDetails = (
     }
 
     if (formattedDate) {
-      whereClause += " AND DATE(o.createdAt) = ?";
+      whereClause += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) = ?";
       searchParams.push(formattedDate);
     }
 
@@ -2777,7 +2777,7 @@ exports.getAllWholesaleOrderDetails = (
     }
 
     if (formattedDate) {
-      whereClause += " AND DATE(o.createdAt) = ?";
+      whereClause += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) = ?";
       searchParams.push(formattedDate);
     }
 
