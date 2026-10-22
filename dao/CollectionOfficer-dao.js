@@ -1841,7 +1841,7 @@ exports.getPurchaseReport = (
     }
 
     if (startDate && endDate) {
-      whereClause += " AND DATE(rfp.createdAt) BETWEEN ? AND ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) BETWEEN ? AND ?";
       params.push(startDate, endDate);
       countParams.push(startDate, endDate);
       totalParams.push(startDate, endDate);
@@ -2393,15 +2393,15 @@ exports.getCollectionReport = (
     }
 
     if (startDate && endDate) {
-      whereClause += " AND DATE(rfp.createdAt) BETWEEN ? AND ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) BETWEEN ? AND ?";
       params.push(startDate, endDate);
       countParams.push(startDate, endDate);
     } else if (startDate) {
-      whereClause += " AND DATE(rfp.createdAt) >= ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) >= ?";
       params.push(startDate);
       countParams.push(startDate);
     } else if (endDate) {
-      whereClause += " AND DATE(rfp.createdAt) <= ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) <= ?";
       params.push(endDate);
       countParams.push(endDate);
     }
