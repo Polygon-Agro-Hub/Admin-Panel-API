@@ -515,24 +515,23 @@ exports.getOfficerTargetDao = (userId, status, search) => {
 
 
 exports.getCenterCropsDao = (id) => {
-    return new Promise((resolve, reject) => {
-        const sql = `
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        cv.id, 
+        cv.varietyNameEnglish
+      FROM collection_officer.centercrops cc
+      INNER JOIN plant_care.cropvariety cv ON cc.varietyId = cv.id
+      WHERE cc.companyCenterId = ?
+    `;
 
-                SELECT cv.id, cv.varietyNameEnglish
-                FROM collection_officer.centercrops cc
-                INNER JOIN plant_care.cropvariety cv
-                    ON cc.varietyId = cv.id
-                WHERE cc.companyCenterId = ?
-
-        `;
-
-        collectionofficer.query(sql, [id], (err, results) => {
-            if (err) {
-                return reject(err);
-            }
-            resolve(results);
-        });
-    });
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+        resolve(results);
+      });
+  });
 };
 
 // Aggregates yesterday's dailytarget across ALL company centers, per varietyId,
