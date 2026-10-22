@@ -1846,12 +1846,12 @@ exports.getPurchaseReport = (
       countParams.push(startDate, endDate);
       totalParams.push(startDate, endDate);
     } else if (startDate) {
-      whereClause += " AND DATE(rfp.createdAt) >= ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) >= ?";
       params.push(startDate);
       countParams.push(startDate);
       totalParams.push(startDate);
     } else if (endDate) {
-      whereClause += " AND DATE(rfp.createdAt) <= ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) <= ?";
       params.push(endDate);
       countParams.push(endDate);
       totalParams.push(endDate);
