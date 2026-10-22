@@ -795,7 +795,7 @@ exports.getRegisteredFarmerPaymentsByOfficer = (collectionOfficerId, date) => {
             SELECT id 
             FROM registeredfarmerpayments
             WHERE collectionOfficerId = ? 
-            AND DATE(createdAt) = ?;
+            AND DATE(DATE_ADD(createdAt, INTERVAL 330 MINUTE)) = ?;
         `;
     const values = [collectionOfficerId, date];
 
