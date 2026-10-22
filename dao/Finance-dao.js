@@ -1100,7 +1100,7 @@ exports.getAllFarmerPaymentDao = (date, bank) => {
     `;
 
     if (date) {
-      sql += ` AND DATE(rfp.createdAt) = ? `;
+      sql += ` AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) = ? `;
       params.push(date);
     }
 
