@@ -293,6 +293,13 @@ exports.getAllCompanyDAO = (searchTerm, centerId) => {
           AND co.companyId = c.id 
           AND co.jobRole = 'Distribution Officer'
         ) AS officerCount,
+         (
+          SELECT COUNT(*) 
+          FROM collection_officer.collectionofficer co
+          WHERE co.companyId = c.id 
+          AND co.companyId = c.id 
+          AND co.jobRole = 'Distribution Centre Head'
+        ) AS headCount,
          au.userName AS modifyBy
       FROM 
         collection_officer.company c

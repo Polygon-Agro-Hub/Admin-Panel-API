@@ -1900,7 +1900,7 @@ exports.getAllShortageAssignedDetails = (date) => {
         sa.createdAt AS assignedCreatedAt,
         s.id AS shortageId,
         s.mpItemId,
-        (s.shortageQty - IFNULL((
+        (s.shortageQty * 1.02 - IFNULL((
           SELECT SUM(sa2.qty)
           FROM collection_officer.shortageassigned sa2
           WHERE sa2.shortageassigned = s.id
