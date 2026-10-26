@@ -311,7 +311,7 @@ exports.getAllOrdersWithProcessInfo = (
             statusFilter === "Cancelled" ? " AND po.status = 'Cancelled' " : "")
         : ""}
         ${dateFilter ? " AND DATE(po.sheduleDate) = ? " : ""}
-        ${dateFilter1 ? " AND DATE(po.createdAt) = ? " : ""}
+        ${dateFilter1 ? " AND DATE(DATE_ADD(po.createdAt, INTERVAL 330 MINUTE)) = ? " : ""}
         ${searchText ? " AND po.invNo LIKE ? " : ""}
     `;
 
@@ -1925,7 +1925,7 @@ exports.getAllShortageAssignedDetails = (date) => {
     const params = [];
 
     if (date) {
-      sql += ` AND DATE(s.createdAt) = ? `;
+      sql += ` AND DATE(DATE_ADD(s.createdAt, INTERVAL 330 MINUTE)) = ? `;
       params.push(date);
     }
 

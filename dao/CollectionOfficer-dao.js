@@ -795,7 +795,7 @@ exports.getRegisteredFarmerPaymentsByOfficer = (collectionOfficerId, date) => {
             SELECT id 
             FROM registeredfarmerpayments
             WHERE collectionOfficerId = ? 
-            AND DATE(createdAt) = ?;
+            AND DATE(DATE_ADD(createdAt, INTERVAL 330 MINUTE)) = ?;
         `;
     const values = [collectionOfficerId, date];
 
@@ -1423,7 +1423,7 @@ exports.getDailyReport = (collectionOfficerId, fromDate, toDate) => {
           farmerpaymentscrops fpc ON rfp.id = fpc.registerFarmerId
         WHERE 
           rfp.collectionOfficerId = ? 
-          AND DATE(rfp.createdAt) BETWEEN DATE(?) AND DATE(?)
+          AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) BETWEEN DATE(?) AND DATE(?)
         GROUP BY 
           DATE(rfp.createdAt)
         ORDER BY 
@@ -1841,17 +1841,17 @@ exports.getPurchaseReport = (
     }
 
     if (startDate && endDate) {
-      whereClause += " AND DATE(rfp.createdAt) BETWEEN ? AND ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) BETWEEN ? AND ?";
       params.push(startDate, endDate);
       countParams.push(startDate, endDate);
       totalParams.push(startDate, endDate);
     } else if (startDate) {
-      whereClause += " AND DATE(rfp.createdAt) >= ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) >= ?";
       params.push(startDate);
       countParams.push(startDate);
       totalParams.push(startDate);
     } else if (endDate) {
-      whereClause += " AND DATE(rfp.createdAt) <= ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) <= ?";
       params.push(endDate);
       countParams.push(endDate);
       totalParams.push(endDate);
@@ -2393,15 +2393,15 @@ exports.getCollectionReport = (
     }
 
     if (startDate && endDate) {
-      whereClause += " AND DATE(rfp.createdAt) BETWEEN ? AND ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) BETWEEN ? AND ?";
       params.push(startDate, endDate);
       countParams.push(startDate, endDate);
     } else if (startDate) {
-      whereClause += " AND DATE(rfp.createdAt) >= ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) >= ?";
       params.push(startDate);
       countParams.push(startDate);
     } else if (endDate) {
-      whereClause += " AND DATE(rfp.createdAt) <= ?";
+      whereClause += " AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) <= ?";
       params.push(endDate);
       countParams.push(endDate);
     }

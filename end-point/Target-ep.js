@@ -90,15 +90,15 @@ exports.getSavedCenterCrops = async (req, res) => {
       return res.json({ items: [], message: "No center found" });
     }
 
-const originalDate = date; // original date string
+    const originalDate = date; // original date string
 
-const modifiedDate = new Date(date);
-modifiedDate.setDate(modifiedDate.getDate() + 1);
+    const modifiedDate = new Date(date);
+    modifiedDate.setDate(modifiedDate.getDate() + 1);
 
-const plusTwoDate = modifiedDate.toISOString().split('T')[0];
+    const plusTwoDate = modifiedDate.toISOString().split('T')[0];
 
-console.log(originalDate); // 2026-08-09
-console.log(plusTwoDate);  // 2026-08-11
+    console.log(originalDate); // 2026-08-09
+    console.log(plusTwoDate);  // 2026-08-11
 
     const [centerCrops, requestedItems, assignedRows, centerAssignedResult] = await Promise.all([
       TargetDAO.getCenterCropsDao(companyCenterId),

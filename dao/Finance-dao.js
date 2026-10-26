@@ -1100,7 +1100,7 @@ exports.getAllFarmerPaymentDao = (date, bank) => {
     `;
 
     if (date) {
-      sql += ` AND DATE(rfp.createdAt) = ? `;
+      sql += ` AND DATE(DATE_ADD(rfp.createdAt, INTERVAL 330 MINUTE)) = ? `;
       params.push(date);
     }
 
@@ -1256,7 +1256,7 @@ exports.GetAllPaymentHistoryDAO = (filters = {}) => {
 
     // Filter by issuedDate (single date)
     if (filters.issuedDate) {
-      sql += ` AND DATE(ph.createdAt) = ?`;
+      sql += ` AND DATE(DATE_ADD(ph.createdAt, INTERVAL 330 MINUTE)) = ?`;
       params.push(filters.issuedDate);
     }
 

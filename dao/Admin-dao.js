@@ -1,8 +1,4 @@
-const {
-  admin,
-  plantcare,
-  collectionofficer,
-} = require("../startup/database");
+const { admin, plantcare, collectionofficer } = require("../startup/database");
 const bcrypt = require("bcryptjs");
 const { Upload } = require("@aws-sdk/lib-storage");
 const Joi = require("joi");
@@ -108,7 +104,14 @@ exports.adminCreateUser = (firstName, lastName, phoneNumber, NICnumber) => {
   });
 };
 
-exports.getAllUsers = (limit, offset, searchItem, regStatus, district, plan) => {
+exports.getAllUsers = (
+  limit,
+  offset,
+  searchItem,
+  regStatus,
+  district,
+  plan,
+) => {
   return new Promise((resolve, reject) => {
     let whereConditions = [];
     let countParams = [];
@@ -122,7 +125,7 @@ exports.getAllUsers = (limit, offset, searchItem, regStatus, district, plan) => 
     // Add search condition for NICnumber, firstName, lastName, or phoneNumber if provided
     if (searchItem) {
       whereConditions.push(
-        "(users.NICnumber LIKE ? OR users.firstName LIKE ? OR users.lastName LIKE ? OR users.phoneNumber LIKE ?)"
+        "(users.NICnumber LIKE ? OR users.firstName LIKE ? OR users.lastName LIKE ? OR users.phoneNumber LIKE ?)",
       );
       const searchQuery = `%${searchItem}%`;
       countParams.push(searchQuery, searchQuery, searchQuery, searchQuery);
@@ -137,7 +140,7 @@ exports.getAllUsers = (limit, offset, searchItem, regStatus, district, plan) => 
     } else if (regStatus === "Unregistered") {
       console.log("Hit 01");
       whereConditions.push(
-        "LENGTH(users.farmerQr) = 0 OR users.farmerQr IS NULL"
+        "LENGTH(users.farmerQr) = 0 OR users.farmerQr IS NULL",
       );
     }
     // Add district condition if provided
@@ -215,7 +218,7 @@ exports.createNews = async (
   imageBuffer, // accept the image buffer
   status,
   publishDate,
-  expireDate
+  expireDate,
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
@@ -277,7 +280,7 @@ exports.getAllNews = async (limit, offset, status, createdAt) => {
       "Executing count query:",
       countsSql,
       "with params:",
-      queryParams.slice(0, -2)
+      queryParams.slice(0, -2),
     );
     plantcare.query(
       countsSql,
@@ -301,7 +304,7 @@ exports.getAllNews = async (limit, offset, status, createdAt) => {
           "Executing data query:",
           dataSql,
           "with params:",
-          queryParams
+          queryParams,
         );
         plantcare.query(dataSql, queryParams, (dataErr, dataResults) => {
           if (dataErr) {
@@ -318,7 +321,7 @@ exports.getAllNews = async (limit, offset, status, createdAt) => {
           console.log("Data query results:", newsItems.length);
           resolve({ items: newsItems, total: total });
         });
-      }
+      },
     );
   });
 };
@@ -385,7 +388,7 @@ exports.createMarketPrice = (
   imageBuffer,
   status,
   price,
-  createdBy
+  createdBy,
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
@@ -464,9 +467,9 @@ exports.getAllMarketPrice = (status, createdAt, limit, offset) => {
             }
 
             resolve({ total, dataResults });
-          }
+          },
         );
-      }
+      },
     );
   });
 };
@@ -563,7 +566,7 @@ exports.editMarketPrice = (id, data) => {
 //   return new Promise((resolve, reject) => {
 //     // Count query
 //     let countSql = `
-//       SELECT 
+//       SELECT
 //         COUNT(*) as total
 //       FROM users U
 //       LEFT JOIN ongoingcultivations OC  ON OC.userId = U.id
@@ -574,11 +577,11 @@ exports.editMarketPrice = (id, data) => {
 
 //     // Data query with proper grouping
 //     let dataSql = `
-//       SELECT 
+//       SELECT
 //         OC.id AS cultivationId,
 //         U.id AS userId,
-//         U.firstName, 
-//         U.lastName, 
+//         U.firstName,
+//         U.lastName,
 //         U.NICnumber,
 //         U.phoneNumber,
 //         COUNT(DISTINCT F.id) AS FarmCount
@@ -596,8 +599,8 @@ exports.editMarketPrice = (id, data) => {
 //       const searchQuery = `%${searchItem}%`;
 //       const searchCondition = `
 //         AND (
-//           U.NICnumber LIKE ? OR 
-//           U.firstName LIKE ? OR 
+//           U.NICnumber LIKE ? OR
+//           U.firstName LIKE ? OR
 //           U.lastName LIKE ? OR
 //           U.phoneNumber LIKE ?
 //         )
@@ -610,7 +613,7 @@ exports.editMarketPrice = (id, data) => {
 
 //     dataSql += `
 //       GROUP BY OC.id, U.id, U.firstName, U.lastName, U.NICnumber, U.phoneNumber
-//       ORDER BY OC.createdAt DESC 
+//       ORDER BY OC.createdAt DESC
 //       LIMIT ? OFFSET ?
 //     `;
 
@@ -642,7 +645,6 @@ exports.editMarketPrice = (id, data) => {
 //     });
 //   });
 // };
-
 
 exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
   return new Promise((resolve, reject) => {
@@ -721,7 +723,6 @@ exports.getAllOngoingCultivations = (searchItem, limit, offset) => {
     });
   });
 };
-
 
 exports.getOngoingCultivationsWithUserDetails = () => {
   const sql = `
@@ -1068,7 +1069,7 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
 
         const ownershipQuery = ownershipQueries[ownership];
 
-        console.log('ownershipQuery', ownershipQuery)
+        console.log("ownershipQuery", ownershipQuery);
 
         if (!ownershipQuery) {
           // If no specific ownership query, return just building details
@@ -1095,9 +1096,9 @@ exports.getBuildingOwnershipDetails = (buildingAssetId) => {
                 ownershipType: ownership,
               });
             }
-          }
+          },
         );
-      }
+      },
     );
   });
 };
@@ -1137,7 +1138,7 @@ exports.getLandOwnershipDetails = (landAssetId) => {
       }
 
       const row = results[0];
-      
+
       resolve({
         landDetails: {
           landAssetId: row.landAssetId,
@@ -1151,14 +1152,13 @@ exports.getLandOwnershipDetails = (landAssetId) => {
         },
         ownershipDetails: {
           issuedDate: row.issuedDate,
-          permitFeeAnnually: row.permitFeeAnnually
+          permitFeeAnnually: row.permitFeeAnnually,
         },
         ownershipType: row.ownership,
       });
     });
   });
 };
-
 
 // example
 exports.getLeaseDetails = (landAssetId) => {
@@ -1426,10 +1426,10 @@ exports.updatePlantCareUserById = (userData, id) => {
 
               // Check which fields are duplicated
               const duplicatePhone = checkResults.some(
-                (row) => row.phoneNumber === phoneNumber
+                (row) => row.phoneNumber === phoneNumber,
               );
               const duplicateNIC = checkResults.some(
-                (row) => row.NICnumber === NICnumber
+                (row) => row.NICnumber === NICnumber,
               );
 
               if (duplicatePhone) duplicateFields.push("Mobile Number");
@@ -1440,7 +1440,7 @@ exports.updatePlantCareUserById = (userData, id) => {
                 errorMessage = `${duplicateFields[0]} is already exists`;
               } else {
                 errorMessage = `${duplicateFields.join(
-                  " & "
+                  " & ",
                 )} are already exists`;
               }
 
@@ -1537,7 +1537,7 @@ exports.updatePlantCareUserById = (userData, id) => {
                                   "User and bank details updated successfully",
                               });
                             });
-                          }
+                          },
                         );
                       } else {
                         // Insert new bank details
@@ -1570,10 +1570,10 @@ exports.updatePlantCareUserById = (userData, id) => {
                                   "User updated and bank details created successfully",
                               });
                             });
-                          }
+                          },
                         );
                       }
-                    }
+                    },
                   );
                 } else {
                   connection.commit((commitErr) => {
@@ -1587,9 +1587,9 @@ exports.updatePlantCareUserById = (userData, id) => {
                     });
                   });
                 }
-              }
+              },
             );
-          }
+          },
         );
       });
     });
@@ -1696,10 +1696,10 @@ exports.createPlantCareUser = (userData) => {
 
               // Check which fields are duplicated
               const duplicatePhone = checkResults.some(
-                (row) => row.phoneNumber === phoneNumber
+                (row) => row.phoneNumber === phoneNumber,
               );
               const duplicateNIC = checkResults.some(
-                (row) => row.NICnumber === NICnumber
+                (row) => row.NICnumber === NICnumber,
               );
 
               if (duplicatePhone) duplicateFields.push("Mobile Number");
@@ -1710,7 +1710,7 @@ exports.createPlantCareUser = (userData) => {
                 errorMessage = `${duplicateFields[0]} is already exists`;
               } else {
                 errorMessage = `${duplicateFields.join(
-                  " & "
+                  " & ",
                 )} are already exists`;
               }
 
@@ -1775,7 +1775,7 @@ exports.createPlantCareUser = (userData) => {
                           message: "User and bank details created successfully",
                         });
                       });
-                    }
+                    },
                   );
                 } else {
                   connection.commit((commitErr) => {
@@ -1789,9 +1789,9 @@ exports.createPlantCareUser = (userData) => {
                     });
                   });
                 }
-              }
+              },
             );
-          }
+          },
         );
       });
     });
@@ -1997,7 +1997,7 @@ exports.editTask = (
   videoLinkEnglish,
   videoLinkSinhala,
   videoLinkTamil,
-  id
+  id,
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -2155,7 +2155,7 @@ exports.getAllUserTaskByCropId = (cropId, userId, limit, offset) => {
               items: dataResults, // The list of tasks for the user
             });
           });
-        }
+        },
       );
     });
   });
@@ -2231,13 +2231,13 @@ exports.editUserTask = (
   taskCategorySinhala,
   taskCategoryTamil,
   startingDate,
-  days, 
+  days,
   reqImages,
   imageLink,
   videoLinkEnglish,
   videoLinkSinhala,
   videoLinkTamil,
-  id
+  id,
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -2399,7 +2399,7 @@ exports.addNewTaskDao = (task, indexId, cropId) => {
 
     if (values.length !== 20) {
       return reject(
-        new Error("Mismatch between column count and value count.")
+        new Error("Mismatch between column count and value count."),
       );
     }
 
@@ -2494,7 +2494,14 @@ exports.getFirstStartingDateDaoU = (cropId, userId) => {
   });
 };
 
-exports.addNewTaskDaoU = (task, indexId, userId, cropId, onCulscropID, taskStartingDate) => {
+exports.addNewTaskDaoU = (
+  task,
+  indexId,
+  userId,
+  cropId,
+  onCulscropID,
+  taskStartingDate,
+) => {
   console.log("Dao Task: ", task);
   const defStatus = "Pending";
 
@@ -2532,7 +2539,7 @@ exports.addNewTaskDaoU = (task, indexId, userId, cropId, onCulscropID, taskStart
     // Ensure that the values array length matches the expected column count
     if (values.length !== 24) {
       return reject(
-        new Error("Mismatch between column count and value count.")
+        new Error("Mismatch between column count and value count."),
       );
     }
 
@@ -2557,13 +2564,13 @@ exports.insertUserXLSXDataaaaa = (data) => {
       "Phone Number": Joi.alternatives()
         .try(
           Joi.string().pattern(/^\+94\d{9}$/),
-          Joi.number().integer().min(94000000000).max(94999999999)
+          Joi.number().integer().min(94000000000).max(94999999999),
         )
         .required(),
       "NIC Number": Joi.alternatives()
         .try(
           Joi.string().pattern(/^(19\d{9}|\d{9}[vV])$/),
-          Joi.number().integer().min(100000000000).max(1999999999999)
+          Joi.number().integer().min(100000000000).max(1999999999999),
         )
         .required(),
       Membership: Joi.required(),
@@ -2776,7 +2783,7 @@ exports.getPaymentSlipReport = (
   limit,
   offset,
   date = null,
-  search = null
+  search = null,
 ) => {
   return new Promise((resolve, reject) => {
     // Base SQL queries
@@ -2786,7 +2793,7 @@ exports.getPaymentSlipReport = (
       JOIN plant_care.users u ON rp.userId = u.id 
       WHERE rp.collectionOfficerId = ? 
     `;
-    
+
     let dataSql = `
       SELECT 
           rp.id,
@@ -2815,16 +2822,18 @@ exports.getPaymentSlipReport = (
 
     // Add date filter if provided
     if (date) {
-      countSql += " AND DATE(rp.createdAt) = ?";
-      dataSql += " AND DATE(rp.createdAt) = ?";
+      countSql += " AND DATE(DATE_ADD(rp.createdAt, INTERVAL 330 MINUTE)) = ?";
+      dataSql += " AND DATE(DATE_ADD(rp.createdAt, INTERVAL 330 MINUTE)) = ?";
       params.push(date);
     }
 
     // Add search filter if provided
     if (search) {
       const searchQuery = `%${search}%`;
-      countSql += " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
-      dataSql += " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
+      countSql +=
+        " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
+      dataSql +=
+        " AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.NICnumber LIKE ?)";
       params.push(searchQuery, searchQuery, searchQuery);
     }
 
@@ -2843,7 +2852,7 @@ exports.getPaymentSlipReport = (
       ORDER BY rp.createdAt DESC 
       LIMIT ? OFFSET ?
     `;
-    
+
     params.push(limit, offset);
 
     // Execute the count query
@@ -2870,7 +2879,7 @@ exports.getPaymentSlipReport = (
             items: dataResults,
           });
         });
-      }
+      },
     );
   });
 };
@@ -3066,8 +3075,8 @@ exports.getReportfarmerDetails = (userId) => {
 
 //       const existingUsers = await new Promise((resolve, reject) => {
 //         const sql = `
-//           SELECT firstName, lastName, phoneNumber, NICnumber 
-//           FROM users 
+//           SELECT firstName, lastName, phoneNumber, NICnumber
+//           FROM users
 //           WHERE phoneNumber IN (?) OR NICnumber IN (?)
 //         `;
 //         plantcare.query(sql, [phones, nics], (err, results) => {
@@ -3090,8 +3099,8 @@ exports.getReportfarmerDetails = (userId) => {
 
 //       if (newUsers.length > 0) {
 //         const sql = `
-//           INSERT INTO users 
-//           (firstName, lastName, phoneNumber, NICnumber, membership, district) 
+//           INSERT INTO users
+//           (firstName, lastName, phoneNumber, NICnumber, membership, district)
 //           VALUES ?
 //         `;
 //         const values = newUsers.map((row) => [
@@ -3136,22 +3145,22 @@ exports.insertUserXLSXData = (data) => {
           .required()
           .custom((value, helpers) => {
             const normalized = normalizeSLMobile(value);
-           
+
             if (!normalized) {
-              return helpers.error('any.invalid');
+              return helpers.error("any.invalid");
             }
-          
+
             return normalized; // ✅ return normalized value
           })
           .messages({
-            'any.invalid': 'Requried a Valid Phone Number, ex: +94XXXXXXXXXX, 94XXXXXXXXXX, 07XXXXXXXX, 7XXXXXXXX',
-            'any.required': 'Phone Number is required'
+            "any.invalid":
+              "Requried a Valid Phone Number, ex: +94XXXXXXXXXX, 94XXXXXXXXXX, 07XXXXXXXX, 7XXXXXXXX",
+            "any.required": "Phone Number is required",
           }),
-        "NIC Number": Joi.alternatives()
-          .try(
-            Joi.string(),
-            Joi.number().integer().min(10000000000).max(199999999999)
-          ),
+        "NIC Number": Joi.alternatives().try(
+          Joi.string(),
+          Joi.number().integer().min(10000000000).max(199999999999),
+        ),
         Membership: Joi.optional(),
         District: Joi.optional(),
       }).required();
@@ -3180,12 +3189,13 @@ exports.insertUserXLSXData = (data) => {
       // Process each row
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
-        
+
         // Check if all fields in the row are empty
-        const isEmptyRow = 
+        const isEmptyRow =
           (!row["First Name"] || row["First Name"].toString().trim() === "") &&
           (!row["Last Name"] || row["Last Name"].toString().trim() === "") &&
-          (!row["Phone Number"] || row["Phone Number"].toString().trim() === "") &&
+          (!row["Phone Number"] ||
+            row["Phone Number"].toString().trim() === "") &&
           (!row["NIC Number"] || row["NIC Number"].toString().trim() === "") &&
           (!row["Membership"] || row["Membership"].toString().trim() === "") &&
           (!row["District"] || row["District"].toString().trim() === "");
@@ -3199,8 +3209,8 @@ exports.insertUserXLSXData = (data) => {
         if (error) {
           reject(
             new Error(
-              `Validation error in row ${i + 1}: ${error.details[0].message}`
-            )
+              `Validation error in row ${i + 1}: ${error.details[0].message}`,
+            ),
           );
           return;
         }
@@ -3228,10 +3238,7 @@ exports.insertUserXLSXData = (data) => {
         // }
 
         // Check duplicates by occurrence count
-        if (
-          phoneCount.get(phone) > 1 ||
-          nicCount.get(nic) > 1
-        ) {
+        if (phoneCount.get(phone) > 1 || nicCount.get(nic) > 1) {
           duplicateData.push({
             firstName: value["First Name"],
             lastName: value["Last Name"],
@@ -3252,13 +3259,14 @@ exports.insertUserXLSXData = (data) => {
       // If no valid data after skipping empties
       if (validatedData.length === 0) {
         resolve({
-          message: "No valid data found. All rows were empty or contained duplicates.",
+          message:
+            "No valid data found. All rows were empty or contained duplicates.",
           emptyRows: emptyRows,
           duplicateData: duplicateData,
           totalRows: data.length,
           insertedRows: 0,
           skippedRows: emptyRows.length,
-          duplicateRows: duplicateData.length
+          duplicateRows: duplicateData.length,
         });
         return;
       }
@@ -3281,58 +3289,60 @@ exports.insertUserXLSXData = (data) => {
 
       // Database check for existing users
       const phones = validatedData.map((row) => {
-      const phone = String(row["Phone Number"]).trim();
+        const phone = String(row["Phone Number"]).trim();
         return phone.startsWith("+") ? phone : `+${phone}`;
       });
 
       const nics = validatedData.map((row) => String(row["NIC Number"]).trim());
 
       const existingUsers = await new Promise((resolve, reject) => {
-      const sql = `
+        const sql = `
         SELECT firstName, lastName, phoneNumber, NICnumber 
         FROM users 
         WHERE phoneNumber IN (?) OR NICnumber IN (?)
       `;
-      plantcare.query(sql, [phones, nics], (err, results) => {
-        if (err) reject(err);
-        else resolve(results);
+        plantcare.query(sql, [phones, nics], (err, results) => {
+          if (err) reject(err);
+          else resolve(results);
+        });
       });
-    });
 
-    // Build fast lookup sets from DB results
-    const existingPhoneSet = new Set(existingUsers.map((u) => u.phoneNumber));
-    const existingNICSet = new Set(existingUsers.map((u) => u.NICnumber));
+      // Build fast lookup sets from DB results
+      const existingPhoneSet = new Set(existingUsers.map((u) => u.phoneNumber));
+      const existingNICSet = new Set(existingUsers.map((u) => u.NICnumber));
 
-    // Compare EACH uploaded row independently against phone/NIC sets
-    const newUsers = [];
-    const existingUsersReport = [];
+      // Compare EACH uploaded row independently against phone/NIC sets
+      const newUsers = [];
+      const existingUsersReport = [];
 
-    validatedData.forEach((row) => {
-      const rawPhone = String(row["Phone Number"]).trim();
-      const formattedPhone = rawPhone.startsWith("+") ? rawPhone : `+${rawPhone}`;
-      const nic = String(row["NIC Number"]).trim();
+      validatedData.forEach((row) => {
+        const rawPhone = String(row["Phone Number"]).trim();
+        const formattedPhone = rawPhone.startsWith("+")
+          ? rawPhone
+          : `+${rawPhone}`;
+        const nic = String(row["NIC Number"]).trim();
 
-      const phoneExists = existingPhoneSet.has(formattedPhone);
-      const nicExists = existingNICSet.has(nic);
+        const phoneExists = existingPhoneSet.has(formattedPhone);
+        const nicExists = existingNICSet.has(nic);
 
-    if (phoneExists || nicExists) {
-      existingUsersReport.push({
-        firstName: row["First Name"],
-        lastName: row["Last Name"],
-        phoneNumber: formattedPhone,
-        NICnumber: nic,
-        phoneExists,   // <-- true only if THIS row's phone matched DB
-        nicExists,     // <-- true only if THIS row's NIC matched DB
-        rowNumber: row.rowNumber,
+        if (phoneExists || nicExists) {
+          existingUsersReport.push({
+            firstName: row["First Name"],
+            lastName: row["Last Name"],
+            phoneNumber: formattedPhone,
+            NICnumber: nic,
+            phoneExists, // <-- true only if THIS row's phone matched DB
+            nicExists, // <-- true only if THIS row's NIC matched DB
+            rowNumber: row.rowNumber,
+          });
+        } else {
+          newUsers.push(row);
+        }
       });
-    } else {
-      newUsers.push(row);
-    }
-  });
 
-    let insertedRows = 0;
-    if (newUsers.length > 0) {
-      const sql = `
+      let insertedRows = 0;
+      if (newUsers.length > 0) {
+        const sql = `
         INSERT INTO users 
         (firstName, lastName, phoneNumber, NICnumber, membership, district) 
         VALUES ?
@@ -3348,39 +3358,40 @@ exports.insertUserXLSXData = (data) => {
         //   row["District"],
         // ]);
 
-      const values = newUsers.map((row) => [
-        row["First Name"],
-        row["Last Name"],
-        normalizeSLMobile(row["Phone Number"]),
-        String(row["NIC Number"]).trim(),
-        row["Membership"],
-        row["District"],
-      ]);
+        const values = newUsers.map((row) => [
+          row["First Name"],
+          row["Last Name"],
+          normalizeSLMobile(row["Phone Number"]),
+          String(row["NIC Number"]).trim(),
+          row["Membership"],
+          row["District"],
+        ]);
 
-    await new Promise((resolve, reject) => {
-      plantcare.query(sql, [values], (err, result) => {
-        if (err) reject(err);
-        else {
-          insertedRows = result.affectedRows || newUsers.length;
-          resolve(result);
-        }
+        await new Promise((resolve, reject) => {
+          plantcare.query(sql, [values], (err, result) => {
+            if (err) reject(err);
+            else {
+              insertedRows = result.affectedRows || newUsers.length;
+              resolve(result);
+            }
+          });
+        });
+      }
+
+      resolve({
+        message:
+          newUsers.length > 0
+            ? "Data inserted successfully. Some users already exist or were duplicates."
+            : "No new users inserted. All users already exist in database or were duplicates.",
+        existingUsers: existingUsersReport,
+        duplicateData,
+        emptyRows,
+        totalRows: data.length,
+        insertedRows: insertedRows,
+        skippedRows: emptyRows.length,
+        duplicateRows: duplicateData.length,
+        processedRows: validatedData.length,
       });
-    });
-  }
-
-    resolve({
-      message: newUsers.length > 0
-        ? "Data inserted successfully. Some users already exist or were duplicates."
-        : "No new users inserted. All users already exist in database or were duplicates.",
-      existingUsers: existingUsersReport, 
-      duplicateData,
-      emptyRows,
-      totalRows: data.length,
-      insertedRows: insertedRows,
-      skippedRows: emptyRows.length,
-      duplicateRows: duplicateData.length,
-      processedRows: validatedData.length
-    });
     } catch (error) {
       reject(error);
     }
@@ -3390,11 +3401,12 @@ exports.insertUserXLSXData = (data) => {
 function normalizeSLMobile(number) {
   if (!number) return null;
 
-  let mobile = String(number).trim().replace(/\s|-/g, '');
+  let mobile = String(number).trim().replace(/\s|-/g, "");
 
-  if (mobile.startsWith('+94') && mobile.length === 12) return mobile;
-  if (mobile.startsWith('94') && mobile.length === 11) return `+${mobile}`;
-  if (mobile.startsWith('0') && mobile.length === 10) return `+94${mobile.substring(1)}`;
+  if (mobile.startsWith("+94") && mobile.length === 12) return mobile;
+  if (mobile.startsWith("94") && mobile.length === 11) return `+${mobile}`;
+  if (mobile.startsWith("0") && mobile.length === 10)
+    return `+94${mobile.substring(1)}`;
   if (/^\d{9}$/.test(mobile)) return `+94${mobile}`;
 
   return null;
@@ -3438,7 +3450,7 @@ exports.getUserFeedbackDetails = (page, limit) => {
       if (err) {
         console.error("Error details:", err);
         return reject(
-          new Error("An error occurred while fetching user feedback details")
+          new Error("An error occurred while fetching user feedback details"),
         );
       }
 
@@ -3451,7 +3463,7 @@ exports.createFeedback = async (
   orderNumber,
   feedbackEnglish,
   feedbackSinahala,
-  feedbackTamil
+  feedbackTamil,
 ) => {
   return new Promise((resolve, reject) => {
     const sql =
@@ -3516,7 +3528,7 @@ SELECT COUNT(DISTINCT deletedUserId) AS Total FROM userfeedback`;
       if (err) {
         console.error("Error details:", err); // Log the full error details
         return reject(
-          new Error("An error occurred while fetching user feedback details")
+          new Error("An error occurred while fetching user feedback details"),
         );
       }
 
@@ -3537,7 +3549,7 @@ exports.getDeletedUserCount = () => {
       if (err) {
         console.error("Error details:", err); // Log the full error details
         return reject(
-          new Error("An error occurred while fetching deleted user count")
+          new Error("An error occurred while fetching deleted user count"),
         );
       }
 
@@ -3561,7 +3573,7 @@ exports.updateFeedbackOrder = async (feedbacks) => {
               return rejectInner(err);
             }
             resolveInner(results);
-          }
+          },
         );
       });
     });
@@ -4319,11 +4331,11 @@ exports.deleteFarmDao = (farmId) => {
                     message: "Farm and related data deleted successfully",
                     affectedRows: result.affectedRows,
                   });
-              }
+              },
             );
-          }
+          },
         );
-      }
+      },
     );
   });
 };
@@ -4826,7 +4838,7 @@ exports.createFieldOfficer = (
   nicBackUrl,
   passbookUrl,
   contractUrl,
-  lastId
+  lastId,
 ) => {
   return new Promise((resolve, reject) => {
     try {
@@ -4893,7 +4905,7 @@ exports.createFieldOfficer = (
             return reject(err); // Reject promise if an error occurs
           }
           resolve(results); // Resolve the promise with the query results
-        }
+        },
       );
     } catch (error) {
       reject(error); // Reject if any error occurs
@@ -5006,7 +5018,7 @@ exports.updateFieldOfficer = (
   nicBackUrl,
   passbookUrl,
   contractUrl,
-  tokenUserId
+  tokenUserId,
 ) => {
   return new Promise((resolve, reject) => {
     try {
@@ -5017,14 +5029,39 @@ exports.updateFieldOfficer = (
 
       // Add all non-image fields
       const fields = [
-        'irmId', 'firstName', 'lastName', 'firstNameSinhala', 'firstNameTamil',
-        'lastNameSinhala', 'lastNameTamil', 'empType', 'jobRole', 'phoneCode1',
-        'phoneNumber1', 'phoneCode2', 'phoneNumber2', 'language', 'email', 'nic',
-        'house', 'street', 'city', 'distrct', 'province', 'country', 'comAmount',
-        'accName', 'accNumber', 'bank', 'branch', 'assignDistrict', 'status', 'modifyBy'
+        "irmId",
+        "firstName",
+        "lastName",
+        "firstNameSinhala",
+        "firstNameTamil",
+        "lastNameSinhala",
+        "lastNameTamil",
+        "empType",
+        "jobRole",
+        "phoneCode1",
+        "phoneNumber1",
+        "phoneCode2",
+        "phoneNumber2",
+        "language",
+        "email",
+        "nic",
+        "house",
+        "street",
+        "city",
+        "distrct",
+        "province",
+        "country",
+        "comAmount",
+        "accName",
+        "accNumber",
+        "bank",
+        "branch",
+        "assignDistrict",
+        "status",
+        "modifyBy",
       ];
 
-      fields.forEach(field => {
+      fields.forEach((field) => {
         if (officerData[field] !== undefined) {
           updates.push(`${field} = ?`);
           values.push(officerData[field]);
@@ -5033,36 +5070,36 @@ exports.updateFieldOfficer = (
 
       // Only update image fields if new URLs are provided
       if (profileImageUrl !== undefined) {
-        updates.push('profile = ?');
+        updates.push("profile = ?");
         values.push(profileImageUrl);
       }
 
       if (nicFrontUrl !== undefined) {
-        updates.push('frontNic = ?');
+        updates.push("frontNic = ?");
         values.push(nicFrontUrl);
       }
 
       if (nicBackUrl !== undefined) {
-        updates.push('backNic = ?');
+        updates.push("backNic = ?");
         values.push(nicBackUrl);
       }
 
       if (passbookUrl !== undefined) {
-        updates.push('backPassbook = ?');
+        updates.push("backPassbook = ?");
         values.push(passbookUrl);
       }
 
       if (contractUrl !== undefined) {
-        updates.push('contract = ?');
+        updates.push("contract = ?");
         values.push(contractUrl);
       }
 
       // Add WHERE condition
-      sql += updates.join(', ') + ' WHERE id = ?';
+      sql += updates.join(", ") + " WHERE id = ?";
       values.push(officerId);
 
-      console.log('Update SQL:', sql);
-      console.log('Update values:', values);
+      console.log("Update SQL:", sql);
+      console.log("Update values:", values);
 
       plantcare.query(sql, values, (err, results) => {
         if (err) {
@@ -5113,7 +5150,7 @@ exports.GetAllFiealdofficerComplainDAO = (
   category,
   comCategory,
   searchText,
-  rpstatus
+  rpstatus,
 ) => {
   return new Promise((resolve, reject) => {
     const Sqlparams = [];
@@ -5161,13 +5198,13 @@ exports.GetAllFiealdofficerComplainDAO = (
       if (status === "Assigned") {
         countSql += " AND fc.status = ? ";
         sql += " AND fc.status = ? ";
-        Sqlparams.push('Opened');
-        Counterparams.push('Opened');
+        Sqlparams.push("Opened");
+        Counterparams.push("Opened");
       } else if (status === "Closed") {
         countSql += " AND fc.status = ? ";
         sql += " AND fc.status = ? ";
-        Sqlparams.push('Closed');
-        Counterparams.push('Closed');
+        Sqlparams.push("Closed");
+        Counterparams.push("Closed");
       }
     }
 
@@ -5264,11 +5301,9 @@ exports.getFiealdOfficerComplainById = (id) => {
   });
 };
 
-
 exports.trackUserTaskUpdateDao = (id, adminId) => {
   return new Promise((resolve, reject) => {
-    const sql =
-      `
+    const sql = `
       UPDATE slavecropcalendardays scd
       JOIN plant_care.ongoingcultivationscrops occ ON scd.onCulscropID = occ.id
       SET occ.modifyBy = ?
@@ -5350,7 +5385,7 @@ exports.getAllBlockWords = (limit, offset, search) => {
 
         resolve({
           total: total,
-          items: dataResults
+          items: dataResults,
         });
       });
     });
@@ -5361,7 +5396,8 @@ exports.getAllBlockWords = (limit, offset, search) => {
 exports.addBlockWord = (word) => {
   return new Promise((resolve, reject) => {
     // Check if word already exists (case insensitive)
-    const checkSql = "SELECT COUNT(*) as count FROM blockwords WHERE LOWER(word) = LOWER(?)";
+    const checkSql =
+      "SELECT COUNT(*) as count FROM blockwords WHERE LOWER(word) = LOWER(?)";
     plantcare.query(checkSql, [word.trim()], (checkErr, checkResults) => {
       if (checkErr) {
         return reject(checkErr);
@@ -5405,10 +5441,10 @@ exports.deleteMultipleBlockWords = (ids) => {
       return reject(new Error("No IDs provided"));
     }
 
-    const numericIds = ids.map(id => parseInt(id));
-    const placeholders = numericIds.map(() => '?').join(',');
+    const numericIds = ids.map((id) => parseInt(id));
+    const placeholders = numericIds.map(() => "?").join(",");
     const sql = `DELETE FROM blockwords WHERE id IN (${placeholders})`;
-    
+
     plantcare.query(sql, numericIds, (err, results) => {
       if (err) {
         return reject(err);
