@@ -19,4 +19,10 @@ router.get(
 
 router.get("/header-banner", asyncHandler(CallCenterEP.getHeaderBanner));
 
+router.get(
+    "/ivr/call-summary",
+    authMiddleware,
+    asyncHandler(CallCenterEP.getIvrCallSummary)
+);
+
 module.exports = router;

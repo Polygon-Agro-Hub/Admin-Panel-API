@@ -23,9 +23,9 @@ dwesk.interceptors.response.use(
   async (err) => {
     const c = err.config;
     const status = err.response?.status;
-    c.__retries = c.__retries || 0;
+    if (c) c.__retries = c.__retries || 0;
 
-    if ((!err.response || status === 429 || status >= 500) && c.__retries < cfg.maxRetries) {
+    if (c && (!err.response || status === 429 || status >= 500) && c.__retries < cfg.maxRetries) {
       c.__retries += 1;
       const wait = Number(err.response?.headers?.["retry-after"]);
       await sleep(status === 429 && wait ? wait * 1000 : 500 * 2 ** c.__retries);
@@ -33,9 +33,13 @@ dwesk.interceptors.response.use(
     }
 
     const body = err.response?.data || {};
-    throw new AppError(body.message || err.message, {
+    const requestPath = c?.url?.split("?")[0];
+    const fallbackMessage = status
+      ? `Dwesk returned HTTP ${status}${requestPath ? ` for ${requestPath}` : ""}`
+      : err.message;
+    throw new AppError(body.message || fallbackMessage, {
       status: status || 502,
-      code: body.code || "DWESK_UNREACHABLE",
+      code: body.code || (status ? `DWESK_HTTP_${status}` : "DWESK_UNREACHABLE"),
       transactionId: body.transactionId,
       details: body,
     });
