@@ -337,7 +337,7 @@ exports.getCallCenterDashbord = async (req, res) => {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_SIZE = 100;
 
-const store = new Map();      
+const liveCallStore = new Map();
 let cursor = null;          
 let nextPollAfter = 0;     
 let lastSyncedAt = null;
@@ -355,9 +355,9 @@ async function syncCallRecords() {
           params: { limit: 1000, ...(cursor ? { cursor } : {}) },
         });
         for (const r of data.records) {
-          const prev = store.get(r.channelId);
+          const prev = liveCallStore.get(r.channelId);
           if (!prev || Date.parse(r.updatedAt) >= Date.parse(prev.updatedAt)) {
-            store.set(r.channelId, r);
+            liveCallStore.set(r.channelId, r);
           }
         }
         cursor = data.nextCursor;
@@ -366,7 +366,7 @@ async function syncCallRecords() {
       }
       lastSyncedAt = new Date().toISOString();
     } catch (err) {
-      if (store.size && (err.code === "TOO_EARLY" || err.code === "RATE_LIMITED")) return;
+      if (liveCallStore.size && (err.code === "TOO_EARLY" || err.code === "RATE_LIMITED")) return;
       throw err;
     }
   })().finally(() => { syncing = null; });
@@ -450,7 +450,7 @@ exports.getIvrLiveCalls = async (req, res) => {
 
   await syncCallRecords();
 
-  let rows = Array.from(store.values())
+  let rows = Array.from(liveCallStore.values())
     .sort((a, b) => Date.parse(b.callStartTime) - Date.parse(a.callStartTime) || b.id - a.id)
     .map(mapRecord);
 
