@@ -17,6 +17,6 @@ router.get(
     CallCenterEP.triggerRejectOffficerCache
 );
 
-router.get("/header-banner", asyncHandler(CallCenterEP.getHeaderBanner));
+router.get("/dashboard", asyncHandler(CallCenterEP.getCallCenterDashbord));
 
 module.exports = router;
