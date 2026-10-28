@@ -18,5 +18,6 @@ router.get(
 );
 
 router.get("/header-banner", asyncHandler(CallCenterEP.getHeaderBanner));
+router.get("/ivr-live-calls", asyncHandler(CallCenterEP.getIvrLiveCalls));
 
 module.exports = router;

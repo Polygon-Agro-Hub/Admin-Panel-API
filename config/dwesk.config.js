@@ -9,8 +9,6 @@ module.exports = {
   apiKey: process.env.DWESK_API_KEY,
   timeoutMs: 30000,
   maxRetries: 2,
-  // Dwesk has no endpoint for the company name (records only carry companyId)
   companyName: process.env.COMPANY_NAME || "Polygon Holdings (Pvt) Ltd",
-  // How long a gateway health check result is reused (ms)
   healthCacheMs: Number(process.env.HEALTH_CACHE_MS || 30000),
 };
