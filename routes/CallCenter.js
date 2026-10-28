@@ -17,7 +17,7 @@ router.get(
     CallCenterEP.triggerRejectOffficerCache
 );
 
-router.get("/header-banner", asyncHandler(CallCenterEP.getHeaderBanner));
+router.get("/dashboard", asyncHandler(CallCenterEP.getCallCenterDashbord));
 router.get("/ivr-live-calls", asyncHandler(CallCenterEP.getIvrLiveCalls));
 
 router.get(

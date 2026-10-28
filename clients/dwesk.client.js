@@ -23,12 +23,14 @@ dwesk.interceptors.response.use(
     const status = err.response?.status;
     if (c) c.__retries = c.__retries || 0;
 
+    const wait = Number(err.response?.headers?.["retry-after"]);
+    const tooLong = status === 429 && wait > 10; // don't hang a request (e.g. TOO_EARLY = minutes)
+
     if (
-      (!err.response || status === 429 || status >= 500) &&
+      (!err.response || status === 429 || status >= 500) && !tooLong &&
       c.__retries < cfg.maxRetries
     ) {
       c.__retries += 1;
-      const wait = Number(err.response?.headers?.["retry-after"]);
       await sleep(
         status === 429 && wait ? wait * 1000 : 500 * 2 ** c.__retries,
       );
