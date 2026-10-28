@@ -21,7 +21,7 @@ dwesk.interceptors.response.use(
   async (err) => {
     const c = err.config;
     const status = err.response?.status;
-    c.__retries = c.__retries || 0;
+    if (c) c.__retries = c.__retries || 0;
 
     if (
       (!err.response || status === 429 || status >= 500) &&
@@ -45,7 +45,7 @@ dwesk.interceptors.response.use(
     }
     throw new AppError(body.message || err.message, {
       status: status || 502,
-      code: body.code || "DWESK_UNREACHABLE",
+      code: body.code || (status ? `DWESK_HTTP_${status}` : "DWESK_UNREACHABLE"),
       transactionId: body.transactionId,
       details: body,
     });

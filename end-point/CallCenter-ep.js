@@ -4,6 +4,31 @@ const cfg = require("../config/dwesk.config");
 const { colomboIso, colomboDate, TZ } = require("../utils/time");
 const AppError = require("../utils/AppError");
 
+
+// GET /api/call-center/ivr/call-summary
+exports.getIvrCallSummary = async (req, res) => {
+  const { value: params, error } = ValidateSchema.getIvrCallSummarySchema.validate(req.query);
+  if (error) {
+    const invalidDate = error.details.some(({ path }) => path[0] === "from" || path[0] === "to");
+    throw new AppError(error.details.map(({ message }) => message).join("; "), {
+      status: 400,
+      code: invalidDate ? "INVALID_RANGE" : "INVALID_PARAMETER",
+    });
+  }
+
+  // Calendar days are interpreted by Dwesk in Asia/Colombo. UTC arithmetic
+  // here only measures the distance between the supplied calendar dates.
+  const days = (Date.parse(`${params.to}T00:00:00Z`) - Date.parse(`${params.from}T00:00:00Z`)) / 86400000;
+  if (days < 0 || days > 31) {
+    throw new AppError("to must be on or after from and no more than 31 days later", {
+      status: 400, code: "INVALID_RANGE",
+    });
+  }
+
+  const { data } = await dwesk.get("/ivr/call-summary", { params });
+  res.json(data);
+};
+
 exports.getCallCenterDashbord = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
