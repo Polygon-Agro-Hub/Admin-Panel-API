@@ -345,20 +345,22 @@ const updateSalesAgentDetails = (
 const getSalesAgentEmailDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-              SELECT email, firstName, empId AS empId
-              FROM salesagent
-              WHERE id = ?
-          `;
+  SELECT email, firstName, empId AS empId, phoneCode1, phoneNumber1
+  FROM salesagent
+  WHERE id = ?
+`;
     collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
       if (results.length > 0) {
         resolve({
-          email: results[0].email, // Resolve with email
-          firstName: results[0].firstName,
-          empId: results[0].empId, // Resolve with employeeType (empId)
-        });
+  email: results[0].email,
+  firstName: results[0].firstName,
+  empId: results[0].empId,
+  phoneCode1: results[0].phoneCode1,
+  phoneNumber1: results[0].phoneNumber1,
+});
       } else {
         resolve(null); // Resolve with null if no record is found
       }

@@ -1,8 +1,4 @@
-const {
-  admin,
-  plantcare,
-  collectionofficer,
-} = require("../startup/database");
+const { admin, plantcare, collectionofficer } = require("../startup/database");
 const Joi = require("joi");
 
 exports.addCollectionCenter = (
@@ -17,7 +13,7 @@ exports.addCollectionCenter = (
   province,
   country,
   contact01Code,
-  contact02Code
+  contact02Code,
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `INSERT INTO collectioncenter 
@@ -84,11 +80,12 @@ exports.GetAllCenterDAO = () => {
 exports.GetCentersByCompanyIdDAO = (companyId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT c.* 
-      FROM collectioncenter c
-      JOIN companycenter cc ON c.id = cc.centerId
-      WHERE cc.companyId = ?
-    `;
+  SELECT c.* 
+  FROM collectioncenter c
+  JOIN companycenter cc ON c.id = cc.centerId
+  WHERE cc.companyId = ?
+  ORDER BY c.centerName ASC
+`;
     collectionofficer.query(sql, [companyId], (err, results) => {
       if (err) {
         return reject(err);
@@ -211,7 +208,7 @@ exports.GetAllComplainDAO = (
   category,
   comCategory,
   searchText,
-  rpstatus
+  rpstatus,
 ) => {
   return new Promise((resolve, reject) => {
     const Sqlparams = [];
@@ -320,13 +317,20 @@ exports.GetAllComplainDAO = (
 
           resolve({ results, total });
         });
-      }
+      },
     );
   });
 };
 
 exports.GetAllCenterComplainDAO = (
-  page, limit, status, category, comCategory, filterCompany, searchText, rpstatus
+  page,
+  limit,
+  status,
+  category,
+  comCategory,
+  filterCompany,
+  searchText,
+  rpstatus,
 ) => {
   return new Promise((resolve, reject) => {
     const Sqlparams = [];
@@ -380,15 +384,15 @@ exports.GetAllCenterComplainDAO = (
 
     // Status filter
     if (status) {
-      if (status === 'Pending') {
+      if (status === "Pending") {
         countSql += ` AND (oc.AdminStatus = 'Pending' OR (oc.AdminStatus = 'Assigned' AND oc.reply IS NULL AND oc.createdAt <= DATE_SUB(NOW(), INTERVAL 2 DAY))) `;
-        sql      += ` AND (oc.AdminStatus = 'Pending' OR (oc.AdminStatus = 'Assigned' AND oc.reply IS NULL AND oc.createdAt <= DATE_SUB(NOW(), INTERVAL 2 DAY))) `;
-      } else if (status === 'Assigned') {
+        sql += ` AND (oc.AdminStatus = 'Pending' OR (oc.AdminStatus = 'Assigned' AND oc.reply IS NULL AND oc.createdAt <= DATE_SUB(NOW(), INTERVAL 2 DAY))) `;
+      } else if (status === "Assigned") {
         countSql += ` AND oc.AdminStatus = 'Assigned' AND (oc.reply IS NOT NULL OR oc.createdAt > DATE_SUB(NOW(), INTERVAL 2 DAY)) `;
-        sql      += ` AND oc.AdminStatus = 'Assigned' AND (oc.reply IS NOT NULL OR oc.createdAt > DATE_SUB(NOW(), INTERVAL 2 DAY)) `;
+        sql += ` AND oc.AdminStatus = 'Assigned' AND (oc.reply IS NOT NULL OR oc.createdAt > DATE_SUB(NOW(), INTERVAL 2 DAY)) `;
       } else {
         countSql += " AND oc.AdminStatus = ? ";
-        sql      += " AND oc.AdminStatus = ? ";
+        sql += " AND oc.AdminStatus = ? ";
         Sqlparams.push(status);
         Counterparams.push(status);
       }
@@ -396,28 +400,28 @@ exports.GetAllCenterComplainDAO = (
 
     if (category) {
       countSql += " AND ar.role = ? ";
-      sql      += " AND ar.role = ? ";
+      sql += " AND ar.role = ? ";
       Sqlparams.push(category);
       Counterparams.push(category);
     }
 
     if (comCategory) {
       countSql += " AND oc.complainCategory = ? ";
-      sql      += " AND oc.complainCategory = ? ";
+      sql += " AND oc.complainCategory = ? ";
       Sqlparams.push(comCategory);
       Counterparams.push(comCategory);
     }
 
     if (filterCompany) {
       countSql += " AND c.id = ? ";
-      sql      += " AND c.id = ? ";
+      sql += " AND c.id = ? ";
       Sqlparams.push(filterCompany);
       Counterparams.push(filterCompany);
     }
 
     if (searchText) {
       countSql += ` AND (oc.refNo LIKE ? OR co.empId LIKE ? OR coc.regCode LIKE ? OR c.companyNameEnglish LIKE ?) `;
-      sql      += ` AND (oc.refNo LIKE ? OR co.empId LIKE ? OR coc.regCode LIKE ? OR c.companyNameEnglish LIKE ?) `;
+      sql += ` AND (oc.refNo LIKE ? OR co.empId LIKE ? OR coc.regCode LIKE ? OR c.companyNameEnglish LIKE ?) `;
       const searchQuery = `%${searchText}%`;
       Sqlparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
       Counterparams.push(searchQuery, searchQuery, searchQuery, searchQuery);
@@ -426,25 +430,29 @@ exports.GetAllCenterComplainDAO = (
     if (rpstatus) {
       if (rpstatus === "Yes") {
         countSql += " AND oc.reply IS NOT NULL ";
-        sql      += " AND oc.reply IS NOT NULL ";
+        sql += " AND oc.reply IS NOT NULL ";
       } else {
         countSql += " AND oc.reply IS NULL ";
-        sql      += " AND oc.reply IS NULL ";
+        sql += " AND oc.reply IS NULL ";
       }
     }
 
     sql += " ORDER BY oc.createdAt DESC LIMIT ? OFFSET ?";
     Sqlparams.push(parseInt(limit), parseInt(offset));
 
-    collectionofficer.query(countSql, Counterparams, (countErr, countResults) => {
-      if (countErr) return reject(countErr);
-      const total = countResults[0]?.total || 0;
+    collectionofficer.query(
+      countSql,
+      Counterparams,
+      (countErr, countResults) => {
+        if (countErr) return reject(countErr);
+        const total = countResults[0]?.total || 0;
 
-      collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
-        if (dataErr) return reject(dataErr);
-        resolve({ results, total });
-      });
-    });
+        collectionofficer.query(sql, Sqlparams, (dataErr, results) => {
+          if (dataErr) return reject(dataErr);
+          resolve({ results, total });
+        });
+      },
+    );
   });
 };
 
@@ -556,7 +564,8 @@ exports.getAllCenterPage = (limit, offset, district, province, searchItem) => {
 
     if (searchItem) {
       const searchQuery = `%${searchItem}%`;
-      whereClause += " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
+      whereClause +=
+        " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
       searchParams.push(searchQuery, searchQuery, searchQuery);
     }
 
@@ -594,9 +603,9 @@ exports.getAllCenterPage = (limit, offset, district, province, searchItem) => {
             ...center,
             companies: center.companies
               ? center.companies.split("; ").map((company) => {
-                const [id, name] = company.split(":");
-                return { id: parseInt(id, 10), companyNameEnglish: name };
-              })
+                  const [id, name] = company.split(":");
+                  return { id: parseInt(id, 10), companyNameEnglish: name };
+                })
               : [],
           }));
 
@@ -605,7 +614,7 @@ exports.getAllCenterPage = (limit, offset, district, province, searchItem) => {
             items: processedDataResults,
           });
         });
-      }
+      },
     );
   });
 };
@@ -657,7 +666,7 @@ exports.updateCollectionCenter = (
   district,
   province,
   country,
-  collectionID
+  collectionID,
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -714,7 +723,7 @@ exports.deleteCompaniesFromCompanyCenter = (collectionID) => {
       }
       console.log(
         "Deleted companies successfully from companycenter:",
-        results
+        results,
       );
       resolve(results);
     });
@@ -733,7 +742,7 @@ exports.insertCompaniesIntoCompanyCenter = (companyIds, collectionID) => {
       }
       console.log(
         "Inserted companies successfully into companycenter:",
-        results
+        results,
       );
       resolve(results);
     });
@@ -823,7 +832,7 @@ exports.sendCenterComplainReply = (complainId, reply, adminId) => {
 };
 
 exports.getForCreateId = (role) => {
-  console.log('role', role)
+  console.log("role", role);
   return new Promise((resolve, reject) => {
     const sql =
       "SELECT empId FROM collectionofficer WHERE empId LIKE ? ORDER BY empId DESC LIMIT 1";
@@ -868,7 +877,7 @@ exports.createCompany = (
   logo,
   favicon,
   companyType,
-  adminId
+  adminId,
 ) => {
   return new Promise((resolve, reject) => {
     const typeColumn =
@@ -996,7 +1005,6 @@ exports.generateRegCode = (province, district, city, callback) => {
   });
 };
 
-
 exports.getAllCompanyDAO = (search) => {
   return new Promise((resolve, reject) => {
     let sql = `
@@ -1042,7 +1050,8 @@ exports.getAllCompanyDAO = (search) => {
     }
 
     // sql += " GROUP BY c.id ORDER BY companyName ASC";
-    sql += " GROUP BY c.id ORDER BY CASE WHEN c.id = 1 THEN 0 ELSE 1 END, companyName ASC";
+    sql +=
+      " GROUP BY c.id ORDER BY CASE WHEN c.id = 1 THEN 0 ELSE 1 END, companyName ASC";
 
     collectionofficer.query(sql, params, (err, results) => {
       if (err) {
@@ -1052,7 +1061,6 @@ exports.getAllCompanyDAO = (search) => {
     });
   });
 };
-
 
 exports.getCompanyDAO = (id) => {
   return new Promise((resolve, reject) => {
@@ -1066,7 +1074,11 @@ exports.getCompanyDAO = (id) => {
   });
 };
 
-exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) => {
+exports.checkCompanyDisplayNameDao = async (
+  companyNameEnglish,
+  regNumber,
+  id,
+) => {
   return new Promise((resolve, reject) => {
     let sql = `
       SELECT *
@@ -1089,23 +1101,20 @@ exports.checkCompanyDisplayNameDao = async (companyNameEnglish, regNumber, id) =
         reject(err);
       } else {
         const nameExists = results.some(
-          r => r.companyNameEnglish === companyNameEnglish
+          (r) => r.companyNameEnglish === companyNameEnglish,
         );
 
-        const regNumberExists = results.some(
-          r => r.regNumber === regNumber
-        );
+        const regNumberExists = results.some((r) => r.regNumber === regNumber);
 
         resolve({
           exists: results.length > 0,
           nameExists,
-          regNumberExists
+          regNumberExists,
         });
       }
     });
   });
 };
-
 
 exports.updateCompany = (
   id,
@@ -1131,7 +1140,7 @@ exports.updateCompany = (
   status,
   logo,
   favicon,
-  adminId
+  adminId,
 ) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1276,7 +1285,7 @@ exports.createDailyTargetDao = (target) => {
           return reject(err);
         }
         resolve(results.insertId);
-      }
+      },
     );
   });
 };
@@ -1295,7 +1304,7 @@ exports.createDailyTargetItemsDao = (data, targetId) => {
           return reject(err);
         }
         resolve(results.insertId);
-      }
+      },
     );
   });
 };
@@ -1315,7 +1324,7 @@ exports.getTransactionCountDao = (centerId) => {
       }
       console.log("Transaction Count Results:", results);
       if (results.length === 0) {
-        return resolve({ transactionCount: 0 })
+        return resolve({ transactionCount: 0 });
       }
 
       resolve(results[0]);
@@ -1341,7 +1350,7 @@ exports.getTransactionAmountCountDao = (centerId) => {
 
     collectionofficer.query(sql, [centerId], (err, results) => {
       if (err) {
-        console.error('DB Error:', err);
+        console.error("DB Error:", err);
         return reject(err);
       }
 
@@ -1356,10 +1365,9 @@ exports.getTransactionAmountCountDao = (centerId) => {
   });
 };
 
-
 exports.getReseantCollectionDao = (centerId) => {
-    return new Promise((resolve, reject) => {
-        const sql = `
+  return new Promise((resolve, reject) => {
+    const sql = `
             WITH recentRFP AS (
                 SELECT RFP.id
                 FROM collection_officer.registeredfarmerpayments RFP
@@ -1439,43 +1447,42 @@ exports.getReseantCollectionDao = (centerId) => {
             ORDER BY RFP.createdAt DESC, RFP.id, grade
         `;
 
-        collectionofficer.query(sql, [centerId], (err, results) => {
-            if (err) {
-                return reject(err);
-            }
+    collectionofficer.query(sql, [centerId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
 
-            const transformData = results.map((item) => {
+      const transformData = results.map((item) => {
+        return {
+          rfpId: item.id,
+          centerId: item.centerId,
+          invNo: item.invNo,
 
-                return {
-                    rfpId: item.id,
-                    centerId: item.centerId,
-                    invNo: item.invNo,
+          cropId: item.cropId,
+          cropNameEnglish: item.cropNameEnglish,
+          varietyNameEnglish: item.varietyNameEnglish,
 
-                    cropId: item.cropId,
-                    cropNameEnglish: item.cropNameEnglish,
-                    varietyNameEnglish: item.varietyNameEnglish,
+          grade: item.grade,
+          totQty: item.quantity,
+          price: item.price,
+          totPrice: item.totalPrice,
 
-                    grade: item.grade,
-                    totQty: item.quantity,
-                    price: item.price,
-                    totPrice: item.totalPrice,
+          date: item.date,
+        };
+      });
 
-                    date: item.date
-                };
-            });
-
-            resolve(transformData);
-        });
+      resolve(transformData);
     });
+  });
 };
 
 // exports.getReseantCollectionDao = (centerId) => {
 //   return new Promise((resolve, reject) => {
 //     const sql = `
-//       SELECT CG.cropNameEnglish, CV.varietyNameEnglish, 
-//              SUM(FPC.gradeAprice) AS totAprice, SUM(FPC.gradeBprice) AS totBprice, SUM(FPC.gradeCprice) AS totCprice, 
-//              SUM(FPC.gradeAquan) AS totAqty, SUM(FPC.gradeBquan) AS totBqty, SUM(FPC.gradeCquan) AS totCqty, 
-//              RFP.createdAt AS date 
+//       SELECT CG.cropNameEnglish, CV.varietyNameEnglish,
+//              SUM(FPC.gradeAprice) AS totAprice, SUM(FPC.gradeBprice) AS totBprice, SUM(FPC.gradeCprice) AS totCprice,
+//              SUM(FPC.gradeAquan) AS totAqty, SUM(FPC.gradeBquan) AS totBqty, SUM(FPC.gradeCquan) AS totCqty,
+//              RFP.createdAt AS date
 //       FROM registeredfarmerpayments RFP
 //       JOIN farmerpaymentscrops FPC ON RFP.id = FPC.registerFarmerId
 //       JOIN collectionofficer COF ON RFP.collectionOfficerId = COF.id
@@ -1544,7 +1551,6 @@ exports.getReseantCollectionDao = (centerId) => {
 //   });
 // };
 
-
 exports.getTotExpencesDao = (centerId) => {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -1569,7 +1575,7 @@ exports.getTotExpencesDao = (centerId) => {
       console.log("--------", results);
 
       if (results.length === 0 || results[0].totExpences === null) {
-        return resolve({ totExpences: 0.00 })
+        return resolve({ totExpences: 0.0 });
       }
       resolve(results[0]);
     });
@@ -1596,14 +1602,17 @@ exports.differenceBetweenExpences = (centerId) => {
         return reject(err);
       }
 
-      let difExpences = 0.00
+      let difExpences = 0.0;
       if (results.length >= 2) {
-        difExpences = ((results[0].monthexpences - results[1].monthexpences) / results[0].monthexpences) * 100;
+        difExpences =
+          ((results[0].monthexpences - results[1].monthexpences) /
+            results[0].monthexpences) *
+          100;
       }
 
       const roundedDifExpences = parseFloat(difExpences.toFixed(2));
 
-      resolve(roundedDifExpences);;
+      resolve(roundedDifExpences);
     });
   });
 };
@@ -1682,7 +1691,7 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
         searchValue,
         searchValue,
         searchValue,
-        searchValue
+        searchValue,
       );
       dataParams.push(
         searchValue,
@@ -1692,7 +1701,7 @@ exports.getcompanyHeadData = (companyId, limit, offset, searchText) => {
         searchValue,
         searchValue,
         searchValue,
-        searchValue
+        searchValue,
       );
     }
 
@@ -1737,8 +1746,7 @@ exports.deleteCompanyHeadData = async (id) => {
 
 exports.GetComplainCategoriesByRole = (roleId, appName) => {
   return new Promise((resolve, reject) => {
-    const sql =
-      `SELECT cc.id, cc.categoryEnglish FROM agro_world_admin.complaincategory cc 
+    const sql = `SELECT cc.id, cc.categoryEnglish FROM agro_world_admin.complaincategory cc 
        LEFT JOIN agro_world_admin.systemapplications sa ON cc.appId = sa.id
        WHERE cc.roleId=? AND sa.id=?`;
     admin.query(sql, [roleId, appName], (err, results) => {
@@ -1770,7 +1778,8 @@ exports.GetComplainCategoriesByRoleSuper = (id) => {
 
 exports.GetAllCompanyForOfficerComplain = () => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT id, companyNameEnglish FROM company WHERE isCollection = 1";
+    const sql =
+      "SELECT id, companyNameEnglish FROM company WHERE isCollection = 1";
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
@@ -1786,7 +1795,7 @@ exports.getAllCenterPageAW = (
   district,
   province,
   searchItem,
-  companyId
+  companyId,
 ) => {
   return new Promise((resolve, reject) => {
     let countSql = "SELECT COUNT(*) as total FROM collectioncenter C";
@@ -1830,8 +1839,10 @@ exports.getAllCenterPageAW = (
       // If we also have a search term, use AND instead of WHERE
       if (searchItem) {
         const searchQuery = `%${searchItem}%`;
-        countSql += " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
-        sql += " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
+        countSql +=
+          " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
+        sql +=
+          " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
         searchParams.push(searchQuery, searchQuery, searchQuery);
       }
 
@@ -1851,7 +1862,8 @@ exports.getAllCenterPageAW = (
 
       if (searchItem) {
         const searchQuery = `%${searchItem}%`;
-        whereClause += " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
+        whereClause +=
+          " AND (C.regCode LIKE ? OR C.centerName LIKE ? OR C.city LIKE ?)";
         countSql += whereClause;
         sql += whereClause;
         searchParams.push(searchQuery, searchQuery, searchQuery);
@@ -1894,9 +1906,9 @@ exports.getAllCenterPageAW = (
             ...center,
             companies: center.companies
               ? center.companies.split("; ").map((company) => {
-                const [id, name] = company.split(":");
-                return { id: parseInt(id, 10), companyNameEnglish: name };
-              })
+                  const [id, name] = company.split(":");
+                  return { id: parseInt(id, 10), companyNameEnglish: name };
+                })
               : [],
           }));
 
@@ -1905,12 +1917,19 @@ exports.getAllCenterPageAW = (
             items: processedDataResults,
           });
         });
-      }
+      },
     );
   });
 };
 
-exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, searchText) => {
+exports.getAllCenterPaymentsDAO = (
+  page,
+  limit,
+  fromDate,
+  toDate,
+  centerId,
+  searchText,
+) => {
   return new Promise((resolve, reject) => {
     const offset = (page - 1) * limit;
 
@@ -1990,7 +2009,7 @@ exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, sear
     // Execute count query
     collectionofficer.query(countSql, countParams, (countErr, countResults) => {
       if (countErr) {
-        console.error('Error in count query:', countErr);
+        console.error("Error in count query:", countErr);
         return reject(countErr);
       }
 
@@ -1999,7 +2018,7 @@ exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, sear
       // Execute data query
       collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
         if (dataErr) {
-          console.error('Error in data query:', dataErr);
+          console.error("Error in data query:", dataErr);
           return reject(dataErr);
         }
 
@@ -2009,7 +2028,12 @@ exports.getAllCenterPaymentsDAO = (page, limit, fromDate, toDate, centerId, sear
   });
 };
 
-exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) => {
+exports.downloadCenterPaymentReport = (
+  fromDate,
+  toDate,
+  centerId,
+  searchText,
+) => {
   return new Promise((resolve, reject) => {
     let dataSql = `
         SELECT 
@@ -2086,7 +2110,7 @@ exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) =
 
     collectionofficer.query(dataSql, dataParams, (err, results) => {
       if (err) {
-        console.error('Error in download report query:', err);
+        console.error("Error in download report query:", err);
         return reject(err);
       }
       resolve(results);
@@ -2094,7 +2118,6 @@ exports.downloadCenterPaymentReport = (fromDate, toDate, centerId, searchText) =
     });
   });
 };
-
 
 exports.getCompanyCenterIDDao = (companyId, centerId) => {
   return new Promise((resolve, reject) => {
@@ -2114,8 +2137,12 @@ exports.getCompanyCenterIDDao = (companyId, centerId) => {
   });
 };
 
-
-exports.getCenterTargetDAO = (companyCenterId, status, searchText, formattedToday) => {
+exports.getCenterTargetDAO = (
+  companyCenterId,
+  status,
+  searchText,
+  formattedToday,
+) => {
   return new Promise((resolve, reject) => {
     let targetSql = `
         SELECT
@@ -2142,15 +2169,15 @@ exports.getCenterTargetDAO = (companyCenterId, status, searchText, formattedToda
     if (status) {
       const statusLower = status.toLowerCase();
 
-      if (statusLower === 'completed') {
+      if (statusLower === "completed") {
         targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
-      } else if (statusLower === 'exceeded') {
+      } else if (statusLower === "exceeded") {
         targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
-      } else if (statusLower === 'pending') {
+      } else if (statusLower === "pending") {
         targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
-      } else if (statusLower === 'extra') {
+      } else if (statusLower === "extra") {
         targetSql += " AND dt.target = 0 AND dt.complete > 0";
-      } else if (statusLower === 'no target') {
+      } else if (statusLower === "no target") {
         targetSql += " AND dt.target = 0 AND dt.complete = 0";
       }
     }
@@ -2171,22 +2198,22 @@ exports.getCenterTargetDAO = (companyCenterId, status, searchText, formattedToda
     // Execute data query
     collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
       if (dataErr) {
-        console.error('Error in data query:', dataErr);
+        console.error("Error in data query:", dataErr);
         return reject(dataErr);
       }
 
-      const resultTarget = dataResults.map(row => {
-        const target = parseFloat(row.target ?? 0.00);
-        const complete = parseFloat(row.complete ?? 0.00);
+      const resultTarget = dataResults.map((row) => {
+        const target = parseFloat(row.target ?? 0.0);
+        const complete = parseFloat(row.complete ?? 0.0);
 
         let status;
         if (target !== 0) {
-          if (complete > target) status = 'Exceeded';
-          else if (complete === target) status = 'Completed';
-          else status = 'Pending';
+          if (complete > target) status = "Exceeded";
+          else if (complete === target) status = "Completed";
+          else status = "Pending";
         } else {
-          if (complete > 0) status = 'Extra';
-          else status = 'No Target'; // Add this to avoid undefined
+          if (complete > 0) status = "Extra";
+          else status = "No Target"; // Add this to avoid undefined
         }
 
         // let validity;
@@ -2198,7 +2225,6 @@ exports.getCenterTargetDAO = (companyCenterId, status, searchText, formattedToda
         // } else {
         //     validity = 'Expired'
         // }
-
 
         return {
           ...row,
@@ -2212,7 +2238,6 @@ exports.getCenterTargetDAO = (companyCenterId, status, searchText, formattedToda
     });
   });
 };
-
 
 exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
   return new Promise((resolve, reject) => {
@@ -2243,15 +2268,15 @@ exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
     if (status) {
       const statusLower = status.toLowerCase();
 
-      if (statusLower === 'completed') {
+      if (statusLower === "completed") {
         targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
-      } else if (statusLower === 'exceeded') {
+      } else if (statusLower === "exceeded") {
         targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
-      } else if (statusLower === 'pending') {
+      } else if (statusLower === "pending") {
         targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
-      } else if (statusLower === 'extra') {
+      } else if (statusLower === "extra") {
         targetSql += " AND dt.target = 0 AND dt.complete > 0";
-      } else if (statusLower === 'no target') {
+      } else if (statusLower === "no target") {
         targetSql += " AND dt.target = 0 AND dt.complete = 0";
       }
     }
@@ -2275,37 +2300,37 @@ exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
     // Execute query
     collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
       if (dataErr) {
-        console.error('Error in data query:', dataErr);
+        console.error("Error in data query:", dataErr);
         return reject(dataErr);
       }
 
       // Process results and add status + validity fields
-      const resultTarget = dataResults.map(row => {
-        const target = parseFloat(row.target ?? 0.00);
-        const complete = parseFloat(row.complete ?? 0.00);
+      const resultTarget = dataResults.map((row) => {
+        const target = parseFloat(row.target ?? 0.0);
+        const complete = parseFloat(row.complete ?? 0.0);
 
         let status;
         if (target !== 0) {
-          if (complete > target) status = 'Exceeded';
-          else if (complete === target) status = 'Completed';
-          else status = 'Pending';
+          if (complete > target) status = "Exceeded";
+          else if (complete === target) status = "Completed";
+          else status = "Pending";
         } else {
-          if (complete > 0) status = 'Extra';
-          else status = 'No Target';
+          if (complete > 0) status = "Extra";
+          else status = "No Target";
         }
 
         // Determine validity based on status
         let validity;
-        if (status === 'Completed') validity = 'Active';
-        else if (status === 'Extra') validity = 'Unassigned';
-        else validity = 'Expired';
+        if (status === "Completed") validity = "Active";
+        else if (status === "Extra") validity = "Unassigned";
+        else validity = "Expired";
 
         return {
           ...row,
           target: target.toFixed(2),
           complete: complete.toFixed(2),
           status,
-          validity
+          validity,
         };
       });
 
@@ -2313,7 +2338,6 @@ exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
     });
   });
 };
-
 
 exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
   return new Promise((resolve, reject) => {
@@ -2344,15 +2368,15 @@ exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
     if (status) {
       const statusLower = status.toLowerCase();
 
-      if (statusLower === 'completed') {
+      if (statusLower === "completed") {
         targetSql += " AND dt.target <> 0 AND dt.complete = dt.target";
-      } else if (statusLower === 'exceeded') {
+      } else if (statusLower === "exceeded") {
         targetSql += " AND dt.target <> 0 AND dt.complete > dt.target";
-      } else if (statusLower === 'pending') {
+      } else if (statusLower === "pending") {
         targetSql += " AND dt.target <> 0 AND dt.complete < dt.target";
-      } else if (statusLower === 'extra') {
+      } else if (statusLower === "extra") {
         targetSql += " AND dt.target = 0 AND dt.complete > 0";
-      } else if (statusLower === 'no target') {
+      } else if (statusLower === "no target") {
         targetSql += " AND dt.target = 0 AND dt.complete = 0";
       }
     }
@@ -2373,44 +2397,43 @@ exports.downloadCurrentTargetDAO = (companyCenterId, status, searchText) => {
     // Execute data query
     collectionofficer.query(targetSql, sqlParams, (dataErr, dataResults) => {
       if (dataErr) {
-        console.error('Error in data query:', dataErr);
+        console.error("Error in data query:", dataErr);
         return reject(dataErr);
       }
 
       // Process results to add status field
-      const resultTarget = dataResults.map(row => {
-        const target = parseFloat(row.target ?? 0.00);
-        const complete = parseFloat(row.complete ?? 0.00);
+      const resultTarget = dataResults.map((row) => {
+        const target = parseFloat(row.target ?? 0.0);
+        const complete = parseFloat(row.complete ?? 0.0);
 
         let status;
         if (target !== 0) {
-          if (complete > target) status = 'Exceeded';
-          else if (complete === target) status = 'Completed';
-          else status = 'Pending';
+          if (complete > target) status = "Exceeded";
+          else if (complete === target) status = "Completed";
+          else status = "Pending";
         } else {
-          if (complete > 0) status = 'Extra';
-          else status = 'No Target';
+          if (complete > 0) status = "Extra";
+          else status = "No Target";
         }
 
         // Determine validity based on status
         let validity;
-        if (status === 'Completed') validity = 'Active';
-        else if (status === 'Extra') validity = 'Unassigned';
-        else validity = 'Expired';
+        if (status === "Completed") validity = "Active";
+        else if (status === "Extra") validity = "Unassigned";
+        else validity = "Expired";
 
         return {
           ...row,
           target: target.toFixed(2),
           complete: complete.toFixed(2),
           status,
-          validity
+          validity,
         };
       });
       resolve({ resultTarget });
     });
   });
 };
-
 
 exports.checkCompanyRegNumberDao = (regNumber, id) => {
   return new Promise((resolve, reject) => {
