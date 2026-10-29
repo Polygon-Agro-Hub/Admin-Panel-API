@@ -5,11 +5,11 @@ const router = express.Router();
 const asyncHandler = require("../middlewares/asyncHandler");
 
 
-router.get(
-    "/call-center-dashbord",
-    authMiddleware,
-    CallCenterEP.getCallCenterDashbord
-);
+// router.get(
+//     "/call-center-dashbord",
+//     authMiddleware,
+//     CallCenterEP.getCallCenterDashbord
+// );
 
 router.get(
     "/trigger-officer-status",
