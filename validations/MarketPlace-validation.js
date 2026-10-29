@@ -118,3 +118,10 @@ exports.updateWholesaleCustomerCreditLimiteValidation = Joi.object({
   id: Joi.number().required(),
   creditLimit: Joi.number().min(0).required(),
 });
+
+exports.getTotalBuyerValueSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+  searchItem: Joi.string().allow("", null).optional(),
+  agent: Joi.string().allow("", null).optional(),
+});
