@@ -2042,33 +2042,37 @@ exports.getLoadedItemWeightSummaryDao = (loadedItemId) => {
     try {
       const sql = `
         SELECT 
-        li.id AS loadedItemId,
-        cv.varietyNameEnglish,
-        cv.image,
-        lc.grade,
-        lc.totalLoadedCrates,
-        lc.totalLoadedWeight,
-        uc.totalUnloadedCrates,
-        uc.totalUnloadedWeight
-      FROM transportload tl
-      LEFT JOIN loadeditems li ON li.transportId = tl.id
-      JOIN plant_care.cropvariety cv ON cv.id = li.varietyId
-      LEFT JOIN (
-        SELECT loadId, grade, 
-               SUM(crateCount) AS totalLoadedCrates, 
-               SUM(qty) AS totalLoadedWeight
-        FROM loadedcrates
-        GROUP BY loadId, grade
-      ) lc ON lc.loadId = li.id
-      LEFT JOIN (
-        SELECT loadId, grade, 
-               SUM(crateCount) AS totalUnloadedCrates, 
-               SUM(qty) AS totalUnloadedWeight
-        FROM unloadedcrates
-        GROUP BY loadId, grade
-      ) uc ON uc.loadId = li.id AND uc.grade = lc.grade
-      WHERE tl.id = ?
-      ORDER BY cv.varietyNameEnglish ASC, lc.grade ASC
+          li.id AS loadedItemId,
+          mi.displayName AS varietyNameEnglish,
+          cv.image,
+          lc.grade,
+          lc.totalLoadedCrates,
+          lc.totalLoadedWeight,
+          uc.totalUnloadedCrates,
+          uc.totalUnloadedWeight
+        FROM transportload tl
+        LEFT JOIN loadeditems li ON li.transportId = tl.id
+        JOIN plant_care.cropvariety cv ON cv.id = li.varietyId
+        LEFT JOIN marketplaceitems mi ON cv.id = mi.varietyId
+        LEFT JOIN (
+          SELECT loadId, grade,
+            SUM(crateCount) AS totalLoadedCrates,
+            SUM(qty) AS totalLoadedWeight
+          FROM loadedcrates
+          GROUP BY loadId, grade
+        ) lc ON lc.loadId = li.id
+        LEFT JOIN (
+          SELECT loadId, grade,
+          SUM(crateCount) AS totalUnloadedCrates,
+          SUM(qty) AS totalUnloadedWeight
+          FROM unloadedcrates
+          GROUP BY loadId, grade
+        ) uc ON uc.loadId = li.id AND uc.grade = lc.grade
+        WHERE tl.id = ?
+        AND ABS(
+          COALESCE(lc.totalLoadedWeight, 0) - COALESCE(uc.totalUnloadedWeight, 0)
+        ) > 0.001
+        ORDER BY mi.displayName ASC, lc.grade ASC
       `;
 
       collectionofficer.query(sql, [loadedItemId], (err, results) => {
@@ -2251,19 +2255,19 @@ exports.getLoadMismatchReportsTodayDao = (date = null) => {
       LEFT JOIN collection_officer.distributedcenter dc
         ON dc.id = dcc.centerId
       WHERE tl.journeyStatus = 'End'
-        AND tl.unloadTime IS NOT NULL
-        -- selected Sri Lanka day (UTC+5:30) expressed as a UTC range on unloadTime
-        AND tl.unloadTime >= DATE_SUB(
-              COALESCE(?, DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))),
-              INTERVAL 330 MINUTE
-            )
-        AND tl.unloadTime <  DATE_ADD(
-              DATE_SUB(
-                COALESCE(?, DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))),
-                INTERVAL 330 MINUTE
-              ),
-              INTERVAL 1 DAY
-            )
+      AND tl.unloadTime IS NOT NULL
+      AND tl.recomandation IS NULL
+      AND tl.unloadTime >= DATE_SUB(
+        COALESCE(?, DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))),
+        INTERVAL 330 MINUTE
+      )
+      AND tl.unloadTime < DATE_ADD(
+        DATE_SUB(
+          COALESCE(?, DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))),
+          INTERVAL 330 MINUTE
+        ),
+        INTERVAL 1 DAY
+      )
       GROUP BY tl.id, tl.driverId, tl.transferCode, dc.regCode, tl.unloadTime
       HAVING SUM(g.isMismatch) > 0
       ORDER BY tl.unloadTime ASC

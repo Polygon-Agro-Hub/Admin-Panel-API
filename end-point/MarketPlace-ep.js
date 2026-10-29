@@ -2497,3 +2497,37 @@ exports.updateWholesaleCustomerCreditLimite = async (req, res) => {
     });
   }
 };
+
+exports.getTotalBuyerValue = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { page, limit, searchItem, agent } =
+      await MarketPriceValidate.getTotalBuyerValueSchema.validateAsync(
+        req.query,
+      );
+
+    const offset = (page - 1) * limit;
+
+    const { total, fullTotal, items, agents } =
+      await MarketPlaceDao.getTotalBuyerValueDao(
+        limit,
+        offset,
+        searchItem,
+        agent,
+      );
+
+    res.json({
+      items,
+      total,
+      fullTotal,
+      agents,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
