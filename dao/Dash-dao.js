@@ -1312,6 +1312,6 @@ module.exports = {
   createSalesTarget,
   updateDashCustomerRatingDao,
   getWholesaleBuyerDocumentByUserIdDao,
-  updateWholesaleBuyerStatusDao
+  updateWholesaleBuyerStatusDao,
   getSalesAgentRatingsDao,
 };
