@@ -108,4 +108,11 @@ router.patch(
   authMiddleware,
   DashEp.updateWholesaleBuyerStatus
 );
+
+router.get(
+  "/get-sales-agent-ratings",
+  authMiddleware,
+  DashEp.getSalesAgentRatings,
+);
+
 module.exports = router;

@@ -1236,6 +1236,54 @@ const updateWholesaleBuyerStatusDao = async (userId, status, approvedBy) => {
     });
   });
 };
+const getSalesAgentRatingsDao = (formattedDate, agent) => {
+  return new Promise((resolve, reject) => {
+    const params = [];
+
+    let sql = `
+      SELECT
+        sa.empId,
+        CONCAT(sa.firstName, ' ', sa.lastName) AS name,
+        sas.target,
+        sas.completed,
+        DATE_FORMAT(sas.date, '%Y-%m-%d') AS date
+      FROM salesagent sa
+      LEFT JOIN salesagentstars sas ON sa.id = sas.salesagentId
+      WHERE 1=1
+    `;
+
+    if (formattedDate) {
+      sql += " AND DATE(sas.date) = ? ";
+      params.push(formattedDate);
+    }
+
+    if (agent) {
+      sql += " AND sa.empId = ? ";
+      params.push(agent);
+    }
+
+    sql += " ORDER BY sa.empId ASC";
+
+    const agentsSql = `
+      SELECT empId, CONCAT(firstName, ' ', lastName) AS name
+      FROM salesagent
+      ORDER BY empId ASC
+    `;
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+
+      collectionofficer.query(agentsSql, (agentErr, agentResults) => {
+        if (agentErr) return reject(agentErr);
+
+        resolve({
+          items: results,
+          agents: agentResults,
+        });
+      });
+    });
+  });
+};
 
 module.exports = {
   getSalesDashboard,
@@ -1265,4 +1313,5 @@ module.exports = {
   updateDashCustomerRatingDao,
   getWholesaleBuyerDocumentByUserIdDao,
   updateWholesaleBuyerStatusDao
+  getSalesAgentRatingsDao,
 };
