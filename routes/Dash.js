@@ -90,4 +90,10 @@ router.get(
   authMiddleware,
   DashEp.getDashUserOrders
 );
+
+router.get(
+  '/dashboard',
+  authMiddleware,
+  DashEp.getSalesDashboard
+);
 module.exports = router;

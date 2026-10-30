@@ -1108,7 +1108,87 @@ const createSalesTarget = (id) => {
   });
 };
 
+const getSalesDashboard = async () => {
+  const query = (sql) => new Promise((resolve, reject) => {
+  collectionofficer.query(sql, (error, rows) => error ? reject(error) : resolve(rows));
+});
+  const [buyers, types, requests, orders, packages] = await Promise.all([
+    query(`
+      SELECT
+        COALESCE(SUM(m.created_at < CURDATE() - INTERVAL 84 DAY), 0) AS existingBuyers,
+        COALESCE(SUM(m.created_at >= CURDATE() - INTERVAL 84 DAY), 0) AS newBuyers
+      FROM marketplaceusers m
+      WHERE m.created_at < CURDATE() + INTERVAL 1 DAY
+        AND m.salesAgent IS NOT NULL
+    `),
+    query(`
+      SELECT m.buyerType, COUNT(*) AS userCount
+      FROM marketplaceusers m
+      WHERE m.buyerType IS NOT NULL AND m.salesAgent IS NOT NULL
+      GROUP BY m.buyerType
+    `),
+    query(`
+      SELECT COUNT(*) AS reqCount
+      FROM pendingwholesaleusers
+      WHERE approveStatus = 'To Review'
+    `),
+    query(`
+      SELECT COUNT(p.id) AS orderCount,
+        COALESCE(SUM(CASE WHEN m.created_at < CURDATE() - INTERVAL 84 DAY
+          THEN p.amount END), 0) AS existingBuyersValue,
+        COALESCE(SUM(CASE WHEN m.created_at >= CURDATE() - INTERVAL 84 DAY
+          AND m.created_at < CURDATE() + INTERVAL 1 DAY
+          THEN p.amount END), 0) AS newBuyersValue
+      FROM marketplaceusers m
+      JOIN orders o ON o.userId = m.id
+      JOIN processorders p ON p.orderId = o.id
+      WHERE p.status IN ('Delivered', 'Picked up')
+        AND m.salesAgent IS NOT NULL
+        AND m.created_at < CURDATE() + INTERVAL 1 DAY
+    `),
+    query(`
+      SELECT MIN(mp.id) AS id, mp.displayName AS name, SUM(op.qty) AS purchases
+      FROM processorders p
+      LEFT JOIN orders o ON o.id = p.orderId
+      LEFT JOIN marketplaceusers m ON m.id = o.userId
+      LEFT JOIN orderpackage op ON op.orderId = p.id
+      LEFT JOIN marketplacepackages mp ON mp.id = op.packageId
+      WHERE p.status IN ('Delivered', 'Picked up')
+        AND mp.displayName IS NOT NULL
+        AND m.salesAgent IS NOT NULL
+      GROUP BY mp.displayName
+      ORDER BY mp.displayName
+    `),
+  ]);
+
+  const existingBuyers = Number(buyers[0].existingBuyers);
+  const newBuyers = Number(buyers[0].newBuyers);
+  const buyerCount = (type) => types
+    .filter((row) => String(row.buyerType).toLowerCase() === type)
+    .reduce((total, row) => total + Number(row.userCount), 0);
+
+  return {
+    totalBuyers: existingBuyers + newBuyers,
+    existingBuyers,
+    newBuyers,
+    retailBuyers: buyerCount('retail'),
+    wholesaleBuyers: buyerCount('wholesale'),
+    wholesaleRequests: Number(requests[0].reqCount),
+    existingBuyersValue: Number(orders[0].existingBuyersValue),
+    newBuyersValue: Number(orders[0].newBuyersValue),
+    totalOrdersPlaced: Number(orders[0].orderCount),
+    periodLabel: 'All time',
+    packages: packages.map((row) => ({
+      id: row.id,
+      name: row.name,
+      purchases: Number(row.purchases),
+    })),
+  };
+};
+
+
 module.exports = {
+  getSalesDashboard,
   GetAllSalesAgentComplainDAO,
   getAllSalesCustomers,
   getAllSalesAgents,

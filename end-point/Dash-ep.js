@@ -575,3 +575,16 @@ exports.getDashUserOrders = async (req, res) => {
     res.status(statusCode).json(errorResponse);
   }
 };
+
+exports.getSalesDashboard = async (req, res) => {
+  try {
+    const data = await DashDao.getSalesDashboard();
+    return res.status(200).json({ status: true, data });
+  } catch (error) {
+    console.error('Error fetching sales dashboard:', error);
+    return res.status(500).json({
+      status: false,
+      error: 'Unable to load sales dashboard data',
+    });
+  }
+};
