@@ -588,3 +588,67 @@ exports.getSalesDashboard = async (req, res) => {
     });
   }
 };
+
+exports.getWholesaleBuyerDocument = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    const document = await DashDao.getWholesaleBuyerDocumentByUserIdDao(userId);
+
+    if (!document || document.length === 0) {
+      return res.status(404).json({ error: "Wholesale buyer document not found" });
+    }
+
+    const data = Array.isArray(document) ? document[0] : document;
+
+    return res.status(200).json({
+      success: true,
+      data: data,
+    });
+  } catch (err) {
+    console.error("Error fetching wholesale buyer document:", err);
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while fetching wholesale buyer document",
+    });
+  }
+};
+
+exports.updateWholesaleBuyerStatus = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { status } = req.body;
+    const approvedBy = req.user.userId;
+
+    const statusMap = {
+      Approved: "Approve",
+      Rejected: "Reject",
+    };
+    const dbStatus = statusMap[status];
+
+    if (!userId || !dbStatus) {
+      return res.status(400).json({ success: false, error: "Valid user ID and status are required" });
+    }
+
+    const result = await DashDao.updateWholesaleBuyerStatusDao(userId, dbStatus, approvedBy);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: "Wholesale buyer record not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Document ${status.toLowerCase()} successfully`,
+    });
+  } catch (err) {
+    console.error("Error updating wholesale buyer status:", err);
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred while updating wholesale buyer status",
+    });
+  }
+};

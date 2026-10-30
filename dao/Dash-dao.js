@@ -1186,6 +1186,56 @@ const getSalesDashboard = async () => {
   };
 };
 
+const getWholesaleBuyerDocumentByUserIdDao = async (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        p.userId,
+        p.brImg,
+        p.approveStatus,
+        m.firstName,
+        m.lastName,
+        m.phoneCode,
+        m.phoneNumber,
+        m.companyPhoneCode,
+        m.companyPhone
+      FROM pendingwholesaleusers p
+      LEFT JOIN marketplaceusers m ON p.userId = m.id
+      WHERE p.userId = ?
+      ORDER BY p.createdAt DESC
+      LIMIT 1
+    `;
+
+    collectionofficer.query(sql, [userId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.length === 0) {
+        return resolve(null);
+      }
+
+      resolve(results[0]);
+    });
+  });
+};
+
+const updateWholesaleBuyerStatusDao = async (userId, status, approvedBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE pendingwholesaleusers
+      SET approveStatus = ?, approvedBy = ?, approvedAt = NOW()
+      WHERE userId = ?
+    `;
+
+    collectionofficer.query(sql, [status, approvedBy, userId], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
+};
 
 module.exports = {
   getSalesDashboard,
@@ -1213,4 +1263,6 @@ module.exports = {
   genarateNewSalesAgentIdDao,
   createSalesTarget,
   updateDashCustomerRatingDao,
+  getWholesaleBuyerDocumentByUserIdDao,
+  updateWholesaleBuyerStatusDao
 };

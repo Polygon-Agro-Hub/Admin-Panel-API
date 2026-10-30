@@ -96,4 +96,16 @@ router.get(
   authMiddleware,
   DashEp.getSalesDashboard
 );
+
+router.get(
+  "/view-wholesale-buyer-document/:userId",
+  authMiddleware,
+  DashEp.getWholesaleBuyerDocument
+);
+
+router.patch(
+  "/update-wholesale-buyer-status/:userId",
+  authMiddleware,
+  DashEp.updateWholesaleBuyerStatus
+);
 module.exports = router;
