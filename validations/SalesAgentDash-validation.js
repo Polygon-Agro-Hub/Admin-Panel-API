@@ -14,3 +14,11 @@ exports.deleteSalesAgentSchema = Joi.object({
     id: Joi.number().integer().positive().required()
 });
 
+exports.getSalesAgentRatingsSchema = Joi.object({
+  formattedDate: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .allow("", null)
+    .optional(),
+  agent: Joi.string().allow("", null).optional(),
+});
+

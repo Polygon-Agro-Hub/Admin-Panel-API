@@ -96,4 +96,11 @@ router.get(
   authMiddleware,
   DashEp.getSalesDashboard
 );
+
+router.get(
+  "/get-sales-agent-ratings",
+  authMiddleware,
+  DashEp.getSalesAgentRatings,
+);
+
 module.exports = router;
