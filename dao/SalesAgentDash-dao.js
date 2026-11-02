@@ -286,3 +286,100 @@ exports.getOnboardedOptionsDao = () => {
     });
   });
 };
+
+exports.checkMarketPlaceUserExistsDao = ({ email, phoneCode, phoneNumber, nic }) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, email, phoneNumber, nic
+      FROM marketplaceusers
+      WHERE deletedAt IS NULL
+        AND (email = ? OR (phoneCode = ? AND phoneNumber = ?) OR nic = ?)
+      LIMIT 1
+    `;
+    collectionofficer.query(sql, [email, phoneCode, phoneNumber, nic], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0] || null);
+    });
+  });
+};
+ 
+// ---------------------------------------------------------------
+// Create Wholesale marketplace user + pending application (single transaction)
+// ---------------------------------------------------------------
+exports.createWholesaleCustomerDao = async (data) => {
+  const conn = await collectionofficer.promise().getConnection();
+  try {
+    await conn.beginTransaction();
+ 
+    // ---- next cusId (MAR-00001, MAR-00002 ...) ----
+    const [last] = await conn.query(`
+      SELECT cusId
+      FROM marketplaceusers
+      WHERE cusId LIKE 'MAR-%'
+      ORDER BY CAST(SUBSTRING(cusId, 5) AS UNSIGNED) DESC
+      LIMIT 1
+      FOR UPDATE
+    `);
+    const lastId = last[0] ? last[0].cusId : null;
+ 
+    let nextId;
+    if (!lastId) {
+      nextId = "MAR-00001";
+    } else {
+      const numericPart = parseInt(lastId.split("-")[1], 10);
+      nextId = `MAR-${(numericPart + 1).toString().padStart(5, "0")}`;
+    }
+ 
+    // ---- marketplace user ----
+    const [userRes] = await conn.query(
+      `
+      INSERT INTO marketplaceusers (
+        salesAgent, cusId, title, firstName, lastName,
+        phoneCode, phoneNumber, docType, nic, buyerType, email, password,
+        companyPhoneCode, companyPhone, companyName,
+        isMarketPlaceUser, isPswUpdateed
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Wholesale', ?, ?, ?, ?, ?, 1, 0)
+      `,
+      [
+        data.salesAgent || null,
+        nextId,
+        data.title,
+        data.firstName,
+        data.lastName,
+        data.phoneCode,
+        data.phoneNumber,
+        data.docType,
+        data.nic,
+        data.email,
+        data.password, // bcrypt hash
+        data.companyPhoneCode,
+        data.companyPhone,
+        data.companyName,
+      ]
+    );
+ 
+    // ---- pending wholesale application ----
+    const [pendingRes] = await conn.query(
+      `
+      INSERT INTO pendingwholesaleusers (userId, approveStatus, brImg)
+      VALUES (?, 'To Review', ?)
+      `,
+      [userRes.insertId, data.brImg]
+    );
+ 
+    await conn.commit();
+ 
+    return {
+      userId: userRes.insertId,
+      applicationId: pendingRes.insertId,
+      cusId: nextId,
+    };
+  } catch (err) {
+    try {
+      await conn.rollback();
+    } catch (_) {}
+    throw err;
+  } finally {
+    conn.release();
+  }
+};
