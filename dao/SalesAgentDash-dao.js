@@ -273,7 +273,7 @@ exports.getPendingWholesaleBuyersDao = ({
 exports.getOnboardedOptionsDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT empId FROM salesagent
+      SELECT empId, firstName FROM salesagent
       WHERE status = 'Approved' AND empId IS NOT NULL
       ORDER BY empId
     `;
@@ -281,7 +281,10 @@ exports.getOnboardedOptionsDao = () => {
       if (err) return reject(err);
       resolve([
         { label: "Polygon", value: "Polygon" },
-        ...results.map((r) => ({ label: r.empId, value: r.empId })),
+        ...results.map((r) => ({
+          label: `${r.empId} - ${r.firstName}`,
+          value: r.empId,
+        })),
       ]);
     });
   });
