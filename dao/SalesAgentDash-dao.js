@@ -290,7 +290,7 @@ exports.getOnboardedOptionsDao = () => {
 exports.getSalesAgents = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT empId, firstName FROM salesagent
+      SELECT id, empId, firstName FROM salesagent
       WHERE status = 'Approved' AND empId IS NOT NULL
       ORDER BY empId
     `;
@@ -300,7 +300,7 @@ exports.getSalesAgents = () => {
         { label: "Polygon", value: "Polygon" },
         ...results.map((r) => ({
           label: `${r.empId} - ${r.firstName}`,
-          value: r.empId,
+          value: r.id,
         })),
       ]);
     });
