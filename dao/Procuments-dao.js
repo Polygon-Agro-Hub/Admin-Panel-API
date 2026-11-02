@@ -2053,7 +2053,13 @@ exports.getLoadedItemWeightSummaryDao = (loadedItemId) => {
         FROM transportload tl
         LEFT JOIN loadeditems li ON li.transportId = tl.id
         JOIN plant_care.cropvariety cv ON cv.id = li.varietyId
-        LEFT JOIN marketplaceitems mi ON cv.id = mi.varietyId
+        LEFT JOIN (
+  			  SELECT varietyId,
+        	GROUP_CONCAT(displayName ORDER BY category SEPARATOR ' / ') AS displayName,
+          MIN(id) AS id
+  			  FROM marketplaceitems
+  			  GROUP BY varietyId
+		    ) mi ON mi.varietyId = cv.id
         LEFT JOIN (
           SELECT loadId, grade,
             SUM(crateCount) AS totalLoadedCrates,
