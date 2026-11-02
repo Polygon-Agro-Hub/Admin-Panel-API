@@ -345,20 +345,22 @@ const updateSalesAgentDetails = (
 const getSalesAgentEmailDao = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-              SELECT email, firstName, empId AS empId
-              FROM salesagent
-              WHERE id = ?
-          `;
+  SELECT email, firstName, empId AS empId, phoneCode1, phoneNumber1
+  FROM salesagent
+  WHERE id = ?
+`;
     collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         return reject(err); // Reject promise if an error occurs
       }
       if (results.length > 0) {
         resolve({
-          email: results[0].email, // Resolve with email
-          firstName: results[0].firstName,
-          empId: results[0].empId, // Resolve with employeeType (empId)
-        });
+  email: results[0].email,
+  firstName: results[0].firstName,
+  empId: results[0].empId,
+  phoneCode1: results[0].phoneCode1,
+  phoneNumber1: results[0].phoneNumber1,
+});
       } else {
         resolve(null); // Resolve with null if no record is found
       }
@@ -1106,7 +1108,185 @@ const createSalesTarget = (id) => {
   });
 };
 
+const getSalesDashboard = async () => {
+  const query = (sql) => new Promise((resolve, reject) => {
+  collectionofficer.query(sql, (error, rows) => error ? reject(error) : resolve(rows));
+});
+  const [buyers, types, requests, orders, packages] = await Promise.all([
+    query(`
+      SELECT
+        COALESCE(SUM(m.created_at < CURDATE() - INTERVAL 84 DAY), 0) AS existingBuyers,
+        COALESCE(SUM(m.created_at >= CURDATE() - INTERVAL 84 DAY), 0) AS newBuyers
+      FROM marketplaceusers m
+      WHERE m.created_at < CURDATE() + INTERVAL 1 DAY
+        AND m.salesAgent IS NOT NULL
+    `),
+    query(`
+      SELECT m.buyerType, COUNT(*) AS userCount
+      FROM marketplaceusers m
+      WHERE m.buyerType IS NOT NULL AND m.salesAgent IS NOT NULL
+      GROUP BY m.buyerType
+    `),
+    query(`
+      SELECT COUNT(*) AS reqCount
+      FROM pendingwholesaleusers
+      WHERE approveStatus = 'To Review'
+    `),
+    query(`
+      SELECT COUNT(p.id) AS orderCount,
+        COALESCE(SUM(CASE WHEN m.created_at < CURDATE() - INTERVAL 84 DAY
+          THEN p.amount END), 0) AS existingBuyersValue,
+        COALESCE(SUM(CASE WHEN m.created_at >= CURDATE() - INTERVAL 84 DAY
+          AND m.created_at < CURDATE() + INTERVAL 1 DAY
+          THEN p.amount END), 0) AS newBuyersValue
+      FROM marketplaceusers m
+      JOIN orders o ON o.userId = m.id
+      JOIN processorders p ON p.orderId = o.id
+      WHERE p.status IN ('Delivered', 'Picked up')
+        AND m.salesAgent IS NOT NULL
+        AND m.created_at < CURDATE() + INTERVAL 1 DAY
+    `),
+    query(`
+      SELECT MIN(mp.id) AS id, mp.displayName AS name, SUM(op.qty) AS purchases
+      FROM processorders p
+      LEFT JOIN orders o ON o.id = p.orderId
+      LEFT JOIN marketplaceusers m ON m.id = o.userId
+      LEFT JOIN orderpackage op ON op.orderId = p.id
+      LEFT JOIN marketplacepackages mp ON mp.id = op.packageId
+      WHERE p.status IN ('Delivered', 'Picked up')
+        AND mp.displayName IS NOT NULL
+        AND m.salesAgent IS NOT NULL
+      GROUP BY mp.displayName
+      ORDER BY mp.displayName
+    `),
+  ]);
+
+  const existingBuyers = Number(buyers[0].existingBuyers);
+  const newBuyers = Number(buyers[0].newBuyers);
+  const buyerCount = (type) => types
+    .filter((row) => String(row.buyerType).toLowerCase() === type)
+    .reduce((total, row) => total + Number(row.userCount), 0);
+
+  return {
+    totalBuyers: existingBuyers + newBuyers,
+    existingBuyers,
+    newBuyers,
+    retailBuyers: buyerCount('retail'),
+    wholesaleBuyers: buyerCount('wholesale'),
+    wholesaleRequests: Number(requests[0].reqCount),
+    existingBuyersValue: Number(orders[0].existingBuyersValue),
+    newBuyersValue: Number(orders[0].newBuyersValue),
+    totalOrdersPlaced: Number(orders[0].orderCount),
+    periodLabel: 'All time',
+    packages: packages.map((row) => ({
+      id: row.id,
+      name: row.name,
+      purchases: Number(row.purchases),
+    })),
+  };
+};
+
+const getWholesaleBuyerDocumentByUserIdDao = async (userId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        p.userId,
+        p.brImg,
+        p.approveStatus,
+        m.firstName,
+        m.lastName,
+        m.phoneCode,
+        m.phoneNumber,
+        m.companyPhoneCode,
+        m.companyPhone
+      FROM pendingwholesaleusers p
+      LEFT JOIN marketplaceusers m ON p.userId = m.id
+      WHERE p.userId = ?
+      ORDER BY p.createdAt DESC
+      LIMIT 1
+    `;
+
+    collectionofficer.query(sql, [userId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (results.length === 0) {
+        return resolve(null);
+      }
+
+      resolve(results[0]);
+    });
+  });
+};
+
+const updateWholesaleBuyerStatusDao = async (userId, status, approvedBy) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE pendingwholesaleusers
+      SET approveStatus = ?, approvedBy = ?, approvedAt = NOW()
+      WHERE userId = ?
+    `;
+
+    collectionofficer.query(sql, [status, approvedBy, userId], (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(result);
+    });
+  });
+};
+const getSalesAgentRatingsDao = (formattedDate, agent) => {
+  return new Promise((resolve, reject) => {
+    const params = [];
+
+    let sql = `
+      SELECT
+        sa.empId,
+        CONCAT(sa.firstName, ' ', sa.lastName) AS name,
+        sas.target,
+        sas.completed,
+        DATE_FORMAT(sas.date, '%Y-%m-%d') AS date
+      FROM salesagent sa
+      LEFT JOIN salesagentstars sas ON sa.id = sas.salesagentId
+      WHERE 1=1
+    `;
+
+    if (formattedDate) {
+      sql += " AND DATE(sas.date) = ? ";
+      params.push(formattedDate);
+    }
+
+    if (agent) {
+      sql += " AND sa.empId = ? ";
+      params.push(agent);
+    }
+
+    sql += " ORDER BY sa.empId ASC";
+
+    const agentsSql = `
+      SELECT empId, CONCAT(firstName, ' ', lastName) AS name
+      FROM salesagent
+      ORDER BY empId ASC
+    `;
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+
+      collectionofficer.query(agentsSql, (agentErr, agentResults) => {
+        if (agentErr) return reject(agentErr);
+
+        resolve({
+          items: results,
+          agents: agentResults,
+        });
+      });
+    });
+  });
+};
+
 module.exports = {
+  getSalesDashboard,
   GetAllSalesAgentComplainDAO,
   getAllSalesCustomers,
   getAllSalesAgents,
@@ -1131,4 +1311,7 @@ module.exports = {
   genarateNewSalesAgentIdDao,
   createSalesTarget,
   updateDashCustomerRatingDao,
+  getWholesaleBuyerDocumentByUserIdDao,
+  updateWholesaleBuyerStatusDao,
+  getSalesAgentRatingsDao,
 };

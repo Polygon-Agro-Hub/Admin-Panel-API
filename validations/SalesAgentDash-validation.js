@@ -14,3 +14,20 @@ exports.deleteSalesAgentSchema = Joi.object({
     id: Joi.number().integer().positive().required()
 });
 
+exports.getSalesAgentRatingsSchema = Joi.object({
+  formattedDate: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .allow("", null)
+    .optional(),
+  agent: Joi.string().allow("", null).optional(),
+});
+
+
+exports.getPendingWholesaleBuyersSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+  searchText: Joi.string().allow("", null).optional(),
+  onboarded: Joi.string().allow("", null).optional(), // 'Polygon' or an empId like 'SA0001'
+  status: Joi.string().valid("To Review", "Approve", "Reject").default("To Review"),
+});
+

@@ -24,4 +24,17 @@ router.post(
     salesAgentDashEp.saveTarget
 )
 
+router.get(
+  "/get-pending-wholesale-buyers",
+  authMiddleware,
+  salesAgentDashEp.getPendingWholesaleBuyers
+);
+
+router.get(
+  "/get-onboarded-options",
+  authMiddleware,
+  salesAgentDashEp.getOnboardedOptions
+);
+
+
 module.exports = router;

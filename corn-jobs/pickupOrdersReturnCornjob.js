@@ -81,8 +81,26 @@ const insertHandlingFee = async (orders) => {
         );
         console.log(`✅ Handling fee inserted for order ID: ${order.id}`);
 
-        const currentCreditBalance = Number(order.creditBalance) || 0;
-        let newCrdBalance = currentCreditBalance - handleFee;
+        // const currentCreditBalance = Number(order.creditBalance) || 0;
+        // let newCrdBalance = currentCreditBalance - handleFee;
+        let newCrdBalance = Number(order.creditBalance) || 0;
+
+
+
+        // --------------------------------credit blance calculation logic-------------------------------------------------------------
+        if (order.paymentMethod === 'Cash') {
+          if (order.creditPaid !== 0) newCrdBalance = parseFloat(newCrdBalance) + parseFloat(order.creditPaid) - parseFloat(handleFee);
+          else newCrdBalance = parseFloat(newCrdBalance) - parseFloat(handleFee);
+        } else if (order.paymentMethod === 'Card' && order.isPaid === 1) {
+          if (order.creditPaid !== 0) newCrdBalance = parseFloat(newCrdBalance) + parseFloat(order.moneyPaid) + parseFloat(order.creditPaid) - parseFloat(handleFee);
+          else newCrdBalance = parseFloat(newCrdBalance) + parseFloat(order.amount) - parseFloat(handleFee);
+        }
+        //-------------------------------------------------------------------------------------------------------------------------------
+
+        // console.log('-------------------------------');
+        // console.log(newCrdBalance);
+
+
 
         const [result2] = await connection.query(
           `UPDATE processorders p
@@ -385,14 +403,14 @@ const processPickupOrdersReturn = async () => {
 const orderNotification = async (conn, orderId, invNo) => {
   try {
     const [result] =
-    await conn.query(
-      `INSERT INTO ordernotfication (orderId, Title, message)
+      await conn.query(
+        `INSERT INTO ordernotfication (orderId, Title, message)
        VALUES (?, 'Order Returned', ?)`,
-      [
-        orderId,
-        `Your order #${invNo} has been marked as returned. Reason: "Customer did not pick up the order during the day."`
-      ]
-    );
+        [
+          orderId,
+          `Your order #${invNo} has been marked as returned. Reason: "Customer did not pick up the order during the day."`
+        ]
+      );
     console.log(`✅ Order notification inserted for order ID: ${orderId}`, result);
     return true;
   } catch (err) {

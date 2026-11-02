@@ -173,10 +173,24 @@ exports.createCropVariety = async (
   descriptionTamil,
   image,
   bgColor,
+  modifyBy,
 ) => {
   return new Promise((resolve, reject) => {
-    const sql =
-      "INSERT INTO cropvariety (cropGroupId, varietyNameEnglish, varietyNameSinhala, varietyNameTamil, descriptionEnglish, descriptionSinhala, descriptionTamil, image, bgColor) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const sql = `
+      INSERT INTO cropvariety (
+        cropGroupId,
+        varietyNameEnglish,
+        varietyNameSinhala,
+        varietyNameTamil,
+        descriptionEnglish,
+        descriptionSinhala,
+        descriptionTamil,
+        image,
+        bgColor,
+        modifyBy,
+        modifyAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    `;
     const values = [
       cropGroupId,
       varietyNameEnglish,
@@ -187,6 +201,7 @@ exports.createCropVariety = async (
       descriptionTamil,
       image,
       bgColor,
+      modifyBy,
     ];
 
     plantcare.query(sql, values, (err, results) => {
@@ -879,7 +894,7 @@ exports.checkExistanceCropCalander = async (
 
 exports.cropGroupsDao = async (id) => {
   return new Promise((resolve, reject) => {
-    const sql = "SELECT id, cropNameEnglish FROM cropgroup WHERE displayFor IN ('Sales', 'Both')";
+    const sql = "SELECT id, cropNameEnglish FROM cropgroup WHERE displayFor IN ('Farmery', 'Both')";
     plantcare.query(sql, (err, results) => {
       if (err) {
         reject(err);

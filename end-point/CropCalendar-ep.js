@@ -251,6 +251,8 @@ exports.createCropVariety = async (req, res) => {
       bgColor,
     } = req.body;
 
+    const modifyBy = req.user.userId;
+
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
@@ -286,6 +288,7 @@ exports.createCropVariety = async (req, res) => {
       descriptionTamil,
       image,
       bgColor,
+      modifyBy,
     );
     return res.status(201).json({
       message: "crop variety created successfully",
