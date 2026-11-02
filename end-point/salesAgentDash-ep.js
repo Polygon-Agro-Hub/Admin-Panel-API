@@ -103,3 +103,13 @@ exports.getOnboardedOptions = async (req, res) => {
     res.status(500).json({ status: false, error: "An error occurred while fetching options" });
   }
 };
+
+exports.getSalesAgents = async (req, res) => {
+  try {
+    const salesAgents = await SalesAgentDAO.getSalesAgents();
+    res.status(200).json({ status: true, salesAgents });
+  } catch (error) {
+    console.error("Error fetching onboarded options:", error);
+    res.status(500).json({ status: false, error: "An error occurred while fetching options" });
+  }
+};

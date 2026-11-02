@@ -273,6 +273,23 @@ exports.getPendingWholesaleBuyersDao = ({
 exports.getOnboardedOptionsDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
+      SELECT empId FROM salesagent
+      WHERE status = 'Approved' AND empId IS NOT NULL
+      ORDER BY empId
+    `;
+    collectionofficer.query(sql, (err, results) => {
+      if (err) return reject(err);
+      resolve([
+        { label: "Polygon", value: "Polygon" },
+        ...results.map((r) => ({ label: r.empId, value: r.empId })),
+      ]);
+    });
+  });
+};
+
+exports.getSalesAgents = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
       SELECT empId, firstName FROM salesagent
       WHERE status = 'Approved' AND empId IS NOT NULL
       ORDER BY empId

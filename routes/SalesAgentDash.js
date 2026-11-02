@@ -36,5 +36,10 @@ router.get(
   salesAgentDashEp.getOnboardedOptions
 );
 
+router.get(
+  "/get-sales-agents",
+  authMiddleware,
+  salesAgentDashEp.getSalesAgents
+);
 
 module.exports = router;
