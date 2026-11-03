@@ -81,25 +81,29 @@ exports.createCropGroup = async (req, res) => {
       "cropgroup/image",
     );
 
+    const toNull = (value) =>
+      value === undefined || value === null || String(value).trim() === "" ? null : value;
+
     const newsId = await cropCalendarDao.createCropGroup(
       cropNameEnglish,
       cropNameSinhala,
       cropNameTamil,
       category,
-      costFeild,
-      incomeFeild,
+      toNull(costFeild),
+      toNull(incomeFeild),
       profileImageUrl,
       bgColor,
-      seedRate,
-      rowSpace,
-      plantSpace,
-      AvgYield,
-      nitrogen,
-      phosphorus,
-      potassium,
-      displayFor, // new
+      toNull(seedRate),
+      toNull(rowSpace),
+      toNull(plantSpace),
+      toNull(AvgYield),
+      toNull(nitrogen),
+      toNull(phosphorus),
+      toNull(potassium),
+      displayFor,
       modifyBy,
     );
+
     return res.status(201).json({
       message: "Crop group has been created successfully",
       id: newsId,
@@ -116,6 +120,7 @@ exports.createCropGroup = async (req, res) => {
       .json({ error: "An error occurred while creating crop group" });
   }
 };
+
 exports.checkDuplicateCropCalendar = async (req, res) => {
   try {
     const { varietyId, cultivationMethod, natureOfCultivation, excludeId } =
@@ -613,24 +618,27 @@ exports.updateGroup = async (req, res) => {
       image = await uploadFileToS3(fileBuffer, fileName, "cropgroup/image");
     }
 
+    const toNull = (value) =>
+      value === undefined || value === null || String(value).trim() === "" ? null : value;
+
     await cropCalendarDao.updateGroup(
       {
         cropNameEnglish,
         cropNameSinhala,
         cropNameTamil,
         category,
-        costFeild,
-        incomeFeild,
+        costFeild: toNull(costFeild),
+        incomeFeild: toNull(incomeFeild),
         bgColor,
         image,
-        seedRate,
-        rowSpace,
-        plantSpace,
-        AvgYield,
-        nitrogen,
-        phosphorus,
-        potassium,
-        displayFor, // new
+        seedRate: toNull(seedRate),
+        rowSpace: toNull(rowSpace),
+        plantSpace: toNull(plantSpace),
+        AvgYield: toNull(AvgYield),
+        nitrogen: toNull(nitrogen),
+        phosphorus: toNull(phosphorus),
+        potassium: toNull(potassium),
+        displayFor,
         userId,
       },
       id,
