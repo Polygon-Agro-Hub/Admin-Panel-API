@@ -359,4 +359,10 @@ router.patch(
   marketPlaceEp.updateWholesaleCustomerCreditLimite,
 );
 
+router.get(
+  "/get-total-buyer-value",
+  authMiddleware,
+  marketPlaceEp.getTotalBuyerValue,
+);
+
 module.exports = router;

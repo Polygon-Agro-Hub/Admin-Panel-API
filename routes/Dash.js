@@ -90,4 +90,29 @@ router.get(
   authMiddleware,
   DashEp.getDashUserOrders
 );
+
+router.get(
+  '/dashboard',
+  authMiddleware,
+  DashEp.getSalesDashboard
+);
+
+router.get(
+  "/view-wholesale-buyer-document/:userId",
+  authMiddleware,
+  DashEp.getWholesaleBuyerDocument
+);
+
+router.patch(
+  "/update-wholesale-buyer-status/:userId",
+  authMiddleware,
+  DashEp.updateWholesaleBuyerStatus
+);
+
+router.get(
+  "/get-sales-agent-ratings",
+  authMiddleware,
+  DashEp.getSalesAgentRatings,
+);
+
 module.exports = router;
