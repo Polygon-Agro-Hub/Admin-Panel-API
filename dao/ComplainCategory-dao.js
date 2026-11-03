@@ -110,11 +110,12 @@ exports.CheckCategoryEnglishExists = (categoryEnglish, appId) => {
 
 
 
-exports.AddNewComplainCategoryDao = (data) => {
+
+exports.AddNewComplainCategoryDao = (data, adminId) => {
   return new Promise((resolve, reject) => {
     const sql = `
-      INSERT INTO complaincategory (roleId, appId, categoryEnglish, categorySinhala, categoryTamil)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO complaincategory (roleId, appId, categoryEnglish, categorySinhala, categoryTamil, modifyBy)
+      VALUES (?, ?, ?, ?, ?, ?)
       `;
 
     admin.query(sql, [
@@ -122,7 +123,8 @@ exports.AddNewComplainCategoryDao = (data) => {
       data.appId,
       data.categoryEnglish,
       data.categorySinhala,
-      data.categoryTamil
+      data.categoryTamil,
+      adminId
     ],
       (err, results) => {
         if (err) {
