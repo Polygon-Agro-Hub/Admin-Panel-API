@@ -211,6 +211,7 @@ exports.AddNewComplaintCategory = async (req, res) => {
       await ComplainCategoryValidate.AddNewComplainCategorySchema.validateAsync(
         req.body
       );
+      const adminId = req.user.userId;
 
     // Check if the category already exists
     const exists = await ComplainCategoryDAO.CheckCategoryEnglishExists(
@@ -225,7 +226,7 @@ exports.AddNewComplaintCategory = async (req, res) => {
       });
     }
 
-    const result = await ComplainCategoryDAO.AddNewComplainCategoryDao(complainCategory);
+    const result = await ComplainCategoryDAO.AddNewComplainCategoryDao(complainCategory, adminId);
     console.log(result);
 
     if (result.affectedRows === 0) {
