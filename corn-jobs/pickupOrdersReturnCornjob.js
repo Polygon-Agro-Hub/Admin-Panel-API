@@ -86,7 +86,6 @@ const insertHandlingFee = async (orders) => {
           [order.id, handleFee],
         );
 
-        // ---- NEW CODE START ----
         const toNum = (v) => Number(v) || 0;
         const creditPaid = toNum(order.creditPaid);
         const moneyPaid = toNum(order.moneyPaid);
@@ -286,8 +285,7 @@ const sendBulkSMSNotification = async (orders) => {
           );
         }
 
-        const message = `Your order ${order.invNo} has been marked as return.
-Reason: "Customer did not picked up the order during the day."`;
+        const message = `Your order ${order.invNo} has been marked as return. Reason: "Customer did not picked up the order during the day."`;
 
         const requestData = {
           source: senderId,
