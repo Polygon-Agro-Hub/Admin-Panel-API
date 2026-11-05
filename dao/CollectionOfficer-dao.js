@@ -2227,14 +2227,15 @@ exports.downloadPurchaseReport = (centerId, startDate, endDate, search) => {
 exports.getAllCentersForPurchaseReport = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-        SELECT clc.id, 
-        clc.centerName As centerName,
-        clc.regCode As regCode
-        FROM companycenter cc
-        JOIN collectioncenter clc ON cc.centerId = clc.id
-        WHERE cc.companyId = 1
-        GROUP BY cc.centerId
-        `;
+    SELECT clc.id, 
+    clc.centerName As centerName,
+    clc.regCode As regCode
+    FROM companycenter cc
+    JOIN collectioncenter clc ON cc.centerId = clc.id
+    WHERE cc.companyId = 1
+    GROUP BY cc.centerId
+    ORDER BY clc.centerName ASC
+    `;
 
     collectionofficer.query(sql, (err, results) => {
       if (err) {
