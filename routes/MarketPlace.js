@@ -365,4 +365,8 @@ router.get(
   marketPlaceEp.getTotalBuyerValue,
 );
 
+router.get("/get-price-list/:type", marketPlaceEp.getPriceList);
+router.post("/upload-price-list/:type", marketPlaceEp.uploadPriceList);
+router.post("/check-price-list-ids/:type", marketPlaceEp.checkPriceListIds);
+
 module.exports = router;
