@@ -2110,7 +2110,8 @@ exports.getAllMarketplaceItems = (category) => {
         mpi.maxQuantity,
         mpi.productTypeId,
         mpi.isEnable,
-        pt.isValid  
+        pt.isValid,
+        mpi.pkgBasePrice
       FROM marketplaceitems mpi
       LEFT JOIN producttypes pt ON mpi.productTypeId = pt.id  
       WHERE mpi.category = 'Retail'
@@ -2145,6 +2146,7 @@ exports.getAllMarketplaceItems = (category) => {
         productTypeId: row.productTypeId,
         isValid: row.isValid,
         isEnable: row.isEnable,
+        pkgBasePrice: row.pkgBasePrice,
       }));
 
       resolve(items);
