@@ -1110,78 +1110,110 @@ const createSalesTarget = (id) => {
 
 const getSalesDashboard = async () => {
   const query = (sql) => new Promise((resolve, reject) => {
-  collectionofficer.query(sql, (error, rows) => error ? reject(error) : resolve(rows));
-});
-  const [buyers, types, requests, orders, packages] = await Promise.all([
+    collectionofficer.query(sql, (error, rows) => (error ? reject(error) : resolve(rows)));
+  });
+
+  const NEW_BUYER_DAYS = 84;
+
+  // Salesdash users: all Retail + Approved Wholesale
+  const buyerFilter = `
+    m.salesAgent IS NOT NULL
+    AND (
+      m.buyerType = 'Retail'
+      OR (
+        m.buyerType = 'Wholesale'
+        AND EXISTS (
+          SELECT 1
+          FROM pendingwholesaleusers p
+          WHERE p.userId = m.id
+            AND p.approveStatus = 'Approve'
+        )
+      )
+    )
+  `;
+
+  const [byType, requests, values, orderCount, packages] = await Promise.all([
     query(`
       SELECT
-        COALESCE(SUM(m.created_at < CURDATE() - INTERVAL 84 DAY), 0) AS existingBuyers,
-        COALESCE(SUM(m.created_at >= CURDATE() - INTERVAL 84 DAY), 0) AS newBuyers
+        m.buyerType AS buyerType,
+        COUNT(*) AS total,
+        COALESCE(SUM(m.created_at >= CURDATE() - INTERVAL ${NEW_BUYER_DAYS} DAY), 0) AS newCount,
+        COALESCE(SUM(m.created_at <  CURDATE() - INTERVAL ${NEW_BUYER_DAYS} DAY), 0) AS existingCount
       FROM marketplaceusers m
       WHERE m.created_at < CURDATE() + INTERVAL 1 DAY
-        AND m.salesAgent IS NOT NULL
-    `),
-    query(`
-      SELECT m.buyerType, COUNT(*) AS userCount
-      FROM marketplaceusers m
-      WHERE m.buyerType IS NOT NULL AND m.salesAgent IS NOT NULL
+        AND ${buyerFilter}
       GROUP BY m.buyerType
     `),
+
+    // Wholesale requests (To Review)
     query(`
-      SELECT COUNT(*) AS reqCount
-      FROM pendingwholesaleusers
-      WHERE approveStatus = 'To Review'
+      SELECT COUNT(DISTINCT p.userId) AS reqCount
+      FROM pendingwholesaleusers p
+      JOIN marketplaceusers m ON m.id = p.userId
+      WHERE p.approveStatus = 'To Review'
+        AND m.salesAgent IS NOT NULL
     `),
+
+    // New / Existing buyers completed order value
     query(`
-      SELECT COUNT(p.id) AS orderCount,
-        COALESCE(SUM(CASE WHEN m.created_at < CURDATE() - INTERVAL 84 DAY
-          THEN p.amount END), 0) AS existingBuyersValue,
-        COALESCE(SUM(CASE WHEN m.created_at >= CURDATE() - INTERVAL 84 DAY
-          AND m.created_at < CURDATE() + INTERVAL 1 DAY
-          THEN p.amount END), 0) AS newBuyersValue
+      SELECT
+        COALESCE(SUM(CASE WHEN m.created_at <  CURDATE() - INTERVAL ${NEW_BUYER_DAYS} DAY THEN p.amount END), 0) AS existingBuyersValue,
+        COALESCE(SUM(CASE WHEN m.created_at >= CURDATE() - INTERVAL ${NEW_BUYER_DAYS} DAY THEN p.amount END), 0) AS newBuyersValue
       FROM marketplaceusers m
       JOIN orders o ON o.userId = m.id
       JOIN processorders p ON p.orderId = o.id
       WHERE p.status IN ('Delivered', 'Picked up')
-        AND m.salesAgent IS NOT NULL
         AND m.created_at < CURDATE() + INTERVAL 1 DAY
+        AND ${buyerFilter}
     `),
+
+    // Total Orders Placed (Salesdash)
     query(`
-      SELECT MIN(mp.id) AS id, mp.displayName AS name, SUM(op.qty) AS purchases
+      SELECT COUNT(p.id) AS orderCount
       FROM processorders p
-      LEFT JOIN orders o ON o.id = p.orderId
-      LEFT JOIN marketplaceusers m ON m.id = o.userId
-      LEFT JOIN orderpackage op ON op.orderId = p.id
-      LEFT JOIN marketplacepackages mp ON mp.id = op.packageId
-      WHERE p.status IN ('Delivered', 'Picked up')
-        AND mp.displayName IS NOT NULL
-        AND m.salesAgent IS NOT NULL
-      GROUP BY mp.displayName
-      ORDER BY mp.displayName
+      JOIN orders o ON o.id = p.orderId
+      WHERE o.orderApp = 'Dash'
+    `),
+
+    // All packages A-Z, purchases from Salesdash orders
+    query(`
+      SELECT
+        mp.id AS id,
+        mp.displayName AS name,
+        COUNT(sales.packageId) AS purchases
+      FROM marketplacepackages mp
+      LEFT JOIN (
+        SELECT op.packageId
+        FROM orderpackage op
+        JOIN processorders p ON p.id = op.orderId
+        JOIN orders o ON o.id = p.orderId
+        WHERE o.orderApp = 'Dash'
+      ) sales ON sales.packageId = mp.id
+      WHERE mp.displayName IS NOT NULL
+      GROUP BY mp.id, mp.displayName
+      ORDER BY mp.displayName ASC
     `),
   ]);
 
-  const existingBuyers = Number(buyers[0].existingBuyers);
-  const newBuyers = Number(buyers[0].newBuyers);
-  const buyerCount = (type) => types
-    .filter((row) => String(row.buyerType).toLowerCase() === type)
-    .reduce((total, row) => total + Number(row.userCount), 0);
+  const sum = (field, type) => byType
+    .filter((r) => !type || r.buyerType === type)
+    .reduce((t, r) => t + Number(r[field] ?? 0), 0);
 
   return {
-    totalBuyers: existingBuyers + newBuyers,
-    existingBuyers,
-    newBuyers,
-    retailBuyers: buyerCount('retail'),
-    wholesaleBuyers: buyerCount('wholesale'),
-    wholesaleRequests: Number(requests[0].reqCount),
-    existingBuyersValue: Number(orders[0].existingBuyersValue),
-    newBuyersValue: Number(orders[0].newBuyersValue),
-    totalOrdersPlaced: Number(orders[0].orderCount),
+    totalBuyers: sum('total'),
+    newBuyers: sum('newCount'),
+    existingBuyers: sum('existingCount'),
+    retailBuyers: sum('total', 'Retail'),
+    wholesaleBuyers: sum('total', 'Wholesale'),
+    wholesaleRequests: Number(requests[0]?.reqCount ?? 0),
+    existingBuyersValue: Number(values[0]?.existingBuyersValue ?? 0),
+    newBuyersValue: Number(values[0]?.newBuyersValue ?? 0),
+    totalOrdersPlaced: Number(orderCount[0]?.orderCount ?? 0),
     periodLabel: 'All time',
-    packages: packages.map((row) => ({
-      id: row.id,
-      name: row.name,
-      purchases: Number(row.purchases),
+    packages: packages.map((r) => ({
+      id: r.id,
+      name: r.name,
+      purchases: Number(r.purchases),
     })),
   };
 };

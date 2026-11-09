@@ -93,7 +93,7 @@ const port = process.env.PORT || 3000;
 
 
 
-// Enable CORS for all routes
+// Enable CORS for all route
 app.use(
   cors({
     origin: "*", // For development. Use specific origins in production

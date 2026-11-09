@@ -138,7 +138,7 @@ exports.checkMarketEditProductExistsDao = async (
 exports.createMarketProductDao = async (product) => {
   return new Promise((resolve, reject) => {
     const sql =
-      "INSERT INTO marketplaceitems (displayName, normalPrice, productTypeId, discountedPrice, promo, unitType, startValue, changeby, tags, category, discount, varietyId, displayType, maxQuantity, comPrice, modifyBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      "INSERT INTO marketplaceitems (displayName, normalPrice, productTypeId, discountedPrice, promo, unitType, startValue, changeby, tags, category, discount, varietyId, displayType, maxQuantity, comPrice, pkgBasePrice, modifyBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     const values = [
       product.cropName,
       product.normalPrice,
@@ -155,6 +155,8 @@ exports.createMarketProductDao = async (product) => {
       product.displaytype || null,
       product.category === "WholeSale" ? product.maxQuantity : null,
       product.comPrice,
+      // Package based price applies to Retail only
+      product.category === "Retail" ? parseFloat(product.packagePrice) || null : null,
       product.modifyBy,
     ];
 
@@ -533,6 +535,7 @@ exports.getProductById = async (id) => {
             MPI.normalPrice,
             MPI.discountedPrice AS salePrice,
             MPI.comPrice,
+            MPI.pkgBasePrice AS packagePrice,
             MPI.promo,
             MPI.unitType,
             MPI.startValue,
@@ -587,6 +590,7 @@ exports.updateMarketProductDao = async (product, id, modifyBy) => {
         varietyId = ?,
         productTypeId = ?,
         comPrice = ?,
+        pkgBasePrice = ?,
         modifyBy = ?
       WHERE id = ?
     `;
@@ -606,6 +610,8 @@ exports.updateMarketProductDao = async (product, id, modifyBy) => {
       parseInt(product.varietyId) || null,
       parseInt(product.productTypeId) || null,
       parseFloat(product.comPrice) || 0,
+      // Package based price applies to Retail only
+      product.category === "Retail" ? parseFloat(product.packagePrice) || null : null,
       modifyBy || null,
       parseInt(id),
     ];
@@ -2110,7 +2116,8 @@ exports.getAllMarketplaceItems = (category) => {
         mpi.maxQuantity,
         mpi.productTypeId,
         mpi.isEnable,
-        pt.isValid  
+        pt.isValid,
+        mpi.pkgBasePrice
       FROM marketplaceitems mpi
       LEFT JOIN producttypes pt ON mpi.productTypeId = pt.id  
       WHERE mpi.category = 'Retail'
@@ -2145,6 +2152,7 @@ exports.getAllMarketplaceItems = (category) => {
         productTypeId: row.productTypeId,
         isValid: row.isValid,
         isEnable: row.isEnable,
+        pkgBasePrice: row.pkgBasePrice,
       }));
 
       resolve(items);
@@ -3746,6 +3754,88 @@ exports.getTotalBuyerValueDao = (limit, offset, searchItem, agent) => {
             agents: agentResults.map((a) => a.empId),
           });
         });
+      });
+    });
+  });
+};
+
+exports.getPriceListByCategory = (category) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        m.id,
+        m.displayName,
+        CASE WHEN m.isEnable = 1 THEN 'Enabled' ELSE 'Disabled' END AS validity,
+        CASE
+          WHEN m.normalPrice = m.discountedPrice THEN 'No Discount'
+          WHEN m.displayType = 'D&AP' THEN '%, Actual'
+          WHEN m.displayType = 'AP&SP' THEN 'Actual, Sale'
+          WHEN m.displayType = 'AP&SP&D' THEN '%, Actual, Sale'
+          ELSE 'No Discount'
+        END AS display,
+        m.normalPrice AS actualPrice,
+        m.discountedPrice AS salePrice,
+        m.comPrice AS competitorPrice,
+        m.pkgBasePrice AS packageBasedPrice
+      FROM marketplaceitems m
+      WHERE m.category = ?
+      ORDER BY m.displayName
+    `;
+ 
+    collectionofficer.query(sql, [category], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+ 
+exports.getItemsByIds = (ids, category) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, normalPrice, discountedPrice, comPrice, pkgBasePrice
+      FROM marketplaceitems
+      WHERE category = ? AND id IN (?)`;
+ 
+    collectionofficer.query(sql, [category, ids], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+const ALLOWED_COLUMNS = ["normalPrice", "discountedPrice", "comPrice", "pkgBasePrice", "discount"];
+ 
+exports.updatePrices = (changes, modifyBy) => {
+  return new Promise((resolve, reject) => {
+    collectionofficer.getConnection((connErr, conn) => {
+      if (connErr) return reject(connErr);
+ 
+      const fail = (err) => conn.rollback(() => { conn.release(); reject(err); });
+ 
+      conn.beginTransaction((txErr) => {
+        if (txErr) { conn.release(); return reject(txErr); }
+ 
+        const run = (i) => {
+          if (i >= changes.length) {
+            return conn.commit((commitErr) => {
+              if (commitErr) return fail(commitErr);
+              conn.release();
+              resolve(changes.length);
+            });
+          }
+ 
+          const { id, fields } = changes[i];
+          const cols = Object.keys(fields).filter((c) => ALLOWED_COLUMNS.includes(c));
+          const sql = `UPDATE marketplaceitems
+                       SET ${cols.map((c) => `${c} = ?`).join(", ")},
+                           modifyBy = COALESCE(?, modifyBy)
+                       WHERE id = ?`;
+          const params = [...cols.map((c) => fields[c]), modifyBy, id];
+ 
+          conn.query(sql, params, (err) => (err ? fail(err) : run(i + 1)));
+        };
+ 
+        run(0);
       });
     });
   });

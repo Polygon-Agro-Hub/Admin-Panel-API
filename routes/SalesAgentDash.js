@@ -12,6 +12,24 @@ const xlsx = require("xlsx");
 
 const router = express.Router();
 
+const upload1 = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const ok = ["image/jpeg", "image/png", "application/pdf"].includes(file.mimetype);
+    cb(ok ? null : new Error("Only .jpg, .png or .pdf files are allowed"), ok);
+  },
+});
+ 
+// Turns multer errors (file too big / wrong type) into clean 400 responses
+const uploadBrDocument = (req, res, next) => {
+  upload1.single("brDocument")(req, res, (err) => {
+    if (err) return res.status(400).json({ status: false, error: err.message });
+    next();
+  });
+};
+ 
+
 router.get(
     '/get-all-sales-agents',
     authMiddleware,
@@ -36,5 +54,16 @@ router.get(
   salesAgentDashEp.getOnboardedOptions
 );
 
+router.post(
+  "/onboard-wholesale-customer",
+  uploadBrDocument,
+  salesAgentDashEp.onboardWholesaleCustomer
+);
+
+router.get(
+  "/get-sales-agents",
+  authMiddleware,
+  salesAgentDashEp.getSalesAgents
+);
 
 module.exports = router;
