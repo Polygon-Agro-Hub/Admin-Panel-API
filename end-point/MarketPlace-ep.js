@@ -46,6 +46,7 @@ exports.createMarketProduct = async (req, res) => {
       maxQuantity: req.body.maxQuantity,
       productTypeId: req.body.productTypeId,
       comPrice: req.body.comPrice,
+      packagePrice: req.body.packagePrice,
       modifyBy,
     };
 
