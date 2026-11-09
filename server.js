@@ -207,6 +207,7 @@ app.use(BASE_PATH + '/api/finance', financeRoutes)
 app.use(BASE_PATH + '/api/shop', GoviShopRoutes)
 app.use(BASE_PATH + '/api/upload', upload);
 app.use(BASE_PATH + '/api/call-center', CallCenterRoutes);
+app.use(require("./middlewares/errorHandler"));
 
 
 app.use("/uploads", express.static("uploads"));

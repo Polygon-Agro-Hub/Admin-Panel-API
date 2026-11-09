@@ -438,9 +438,18 @@ exports.creatPackageDAO = async (data, profileImageUrl) => {
     // Convert ISO datetime strings to MySQL-compatible 'YYYY-MM-DD' format
     const formatDate = (value) => {
       if (!value) return null;
+
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return value; 
+      }
+
       const d = new Date(value);
       if (isNaN(d.getTime())) return null;
-      return d.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
     };
 
     const values = [
@@ -1464,7 +1473,7 @@ exports.getAllRetailOrderDetails = (
     }
 
     if (formattedDate) {
-      whereClause += " AND DATE(o.createdAt) = ?";
+      whereClause += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) = ?";
       searchParams.push(formattedDate);
     }
 
@@ -2768,7 +2777,7 @@ exports.getAllWholesaleOrderDetails = (
     }
 
     if (formattedDate) {
-      whereClause += " AND DATE(o.createdAt) = ?";
+      whereClause += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) = ?";
       searchParams.push(formattedDate);
     }
 
@@ -3656,6 +3665,88 @@ exports.updateWholesaleCustomerCreditLimiteDao = async (data) => {
       } else {
         resolve(results);
       }
+    });
+  });
+};
+
+exports.getTotalBuyerValueDao = (limit, offset, searchItem, agent) => {
+  return new Promise((resolve, reject) => {
+    const params = [];
+
+    let baseSql = `
+      SELECT
+        MP.id,
+        MP.cusId AS customerId,
+        CONCAT(MP.firstName, ' ', MP.lastName) AS customerName,
+        MP.buyerType,
+        CONCAT(MP.phoneCode, MP.phoneNumber) AS customerContact,
+        SA.empId AS agent,
+        COUNT(PO.id) AS orders,
+        COALESCE(SUM(PO.fullTotal), 0) AS orderValue
+      FROM marketplaceusers MP
+      LEFT JOIN pendingwholesaleusers PW ON PW.userId = MP.id
+        AND PW.approveStatus = 'Approved'
+      LEFT JOIN salesagent SA ON SA.id = MP.salesAgent
+      LEFT JOIN orders O ON O.userId = MP.id
+      LEFT JOIN processorders PO ON PO.orderId = O.id
+        AND PO.status IN ('Delivered', 'Picked up')
+      WHERE MP.isMarketPlaceUser = 0
+      AND (
+        MP.buyerType = 'Retail'
+        OR (MP.buyerType = 'Wholesale' AND PW.id IS NOT NULL)
+      )
+    `;
+
+    if (agent) {
+      baseSql += " AND SA.empId = ? ";
+      params.push(agent);
+    }
+
+    if (searchItem) {
+      baseSql +=
+        " AND (MP.cusId LIKE ? OR CONCAT(MP.firstName, ' ', MP.lastName) LIKE ?) ";
+      const search = `%${searchItem}%`;
+      params.push(search, search);
+    }
+
+    baseSql += `
+      GROUP BY MP.id, MP.cusId, MP.firstName, MP.lastName, MP.buyerType,
+        MP.phoneCode, MP.phoneNumber, SA.empId
+    `;
+
+    const countSql = `
+      SELECT
+        COUNT(*) AS total,
+        COALESCE(SUM(T.orderValue), 0) AS fullTotal
+      FROM (${baseSql}) T
+    `;
+
+    const dataSql = `${baseSql} ORDER BY MP.cusId ASC LIMIT ? OFFSET ?`;
+    const dataParams = [...params, parseInt(limit), parseInt(offset)];
+
+    const agentsSql = "SELECT empId FROM salesagent ORDER BY empId ASC";
+
+    collectionofficer.query(countSql, params, (countErr, countResults) => {
+      if (countErr) return reject(countErr);
+
+      collectionofficer.query(dataSql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) return reject(dataErr);
+
+        collectionofficer.query(agentsSql, (agentErr, agentResults) => {
+          if (agentErr) return reject(agentErr);
+
+          resolve({
+            total: countResults[0].total,
+            fullTotal: parseFloat(countResults[0].fullTotal) || 0,
+            items: dataResults.map((r) => ({
+              ...r,
+              orders: Number(r.orders),
+              orderValue: parseFloat(r.orderValue) || 0,
+            })),
+            agents: agentResults.map((a) => a.empId),
+          });
+        });
+      });
     });
   });
 };
