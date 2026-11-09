@@ -2532,3 +2532,114 @@ exports.getTotalBuyerValue = async (req, res) => {
     res.status(500).send("An error occurred while fetching data.");
   }
 };
+
+const CATEGORY_MAP = { retail: "Retail", wholesale: "WholeSale" };
+const isSame = (dbValue, newValue) =>
+  dbValue !== null && dbValue !== undefined && Math.abs(Number(dbValue) - Number(newValue)) < 0.005;
+const calcDiscount = (actual, sale) => Math.max(0, Math.round((actual - sale) * 100) / 100);
+ 
+exports.getPriceList = async (req, res) => {
+  try {
+    const { type } = await MarketPriceValidate.priceListTypeValidation.validateAsync(req.params);
+    const items = await MarketPlaceDao.getPriceListByCategory(CATEGORY_MAP[type]);
+    res.json({ items });
+  } catch (error) {
+    if (error.isJoi) return res.status(400).json({ error: error.details[0].message });
+    console.error("Error fetching price list:", error);
+    return res.status(500).json({ error: "An error occurred while fetching the price list" });
+  }
+};
+ 
+exports.uploadPriceList = async (req, res) => {
+  try {
+    const { type } = await MarketPriceValidate.priceListTypeValidation.validateAsync(req.params);
+    const category = CATEGORY_MAP[type];
+    const isRetail = type === "retail";
+ 
+    const { error, value } = MarketPriceValidate
+      .uploadPriceListValidation(isRetail)
+      .validate(req.body, { abortEarly: false, stripUnknown: true });
+
+    if (error) {
+      return res.status(400).json({
+        error: "Validation failed",
+        errors: MarketPriceValidate.formatPriceListErrors(error, req.body?.items),
+      });
+    }
+ 
+    const items = value.items;
+ 
+    const dbRows = await MarketPlaceDao.getItemsByIds(items.map((i) => i.productId), category);
+    const dbMap = new Map(dbRows.map((r) => [r.id, r]));
+ 
+    const missingRows = items.filter((i) => !dbMap.has(i.productId)).map((i) => i.rowNo);
+    if (missingRows.length) {
+      return res.status(400).json({
+        error: "Validation failed",
+        errors: [{ rows: missingRows, message: MarketPriceValidate.PRICE_LIST_MESSAGES.notFound }],
+      });
+    }
+ 
+    const changes = [];
+    for (const item of items) {
+      const db = dbMap.get(item.productId);
+      const fields = {};
+ 
+      if (!isSame(db.normalPrice, item.actualPrice)) fields.normalPrice = item.actualPrice;
+      if (!isSame(db.discountedPrice, item.salePrice)) fields.discountedPrice = item.salePrice;
+      if (!isSame(db.comPrice, item.competitorPrice)) fields.comPrice = item.competitorPrice;
+      if (isRetail && !isSame(db.pkgBasePrice, item.packageBasedPrice)) {
+        fields.pkgBasePrice = item.packageBasedPrice;
+      }
+ 
+      if ("normalPrice" in fields || "discountedPrice" in fields) {
+        fields.discount = calcDiscount(item.actualPrice, item.salePrice);
+      }
+ 
+      if (Object.keys(fields).length) changes.push({ id: item.productId, fields });
+    }
+ 
+    if (!changes.length) {
+      return res.json({ message: "No changes detected", updated: 0, unchanged: items.length });
+    }
+ 
+    const modifyBy = req.user?.userId ?? null;
+    await MarketPlaceDao.updatePrices(changes, modifyBy);
+ 
+    res.json({
+      message: "Prices updated successfully",
+      updated: changes.length,
+      unchanged: items.length - changes.length,
+    });
+  } catch (error) {
+    if (error.isJoi) return res.status(400).json({ error: error.details[0].message });
+    console.error("Error uploading price list:", error);
+    return res.status(500).json({ error: "An error occurred while uploading the price list" });
+  }
+};
+
+exports.checkPriceListIds = async (req, res) => {
+  try {
+    const { type } = await MarketPriceValidate.priceListTypeValidation.validateAsync(req.params);
+    const category = CATEGORY_MAP[type];
+ 
+    const { items } = await MarketPriceValidate.checkPriceListIdsValidation.validateAsync(
+      req.body,
+      { stripUnknown: true },
+    );
+ 
+    const dbRows = await MarketPlaceDao.getItemsByIds(items.map((i) => i.productId), category);
+    const found = new Set(dbRows.map((r) => r.id));
+ 
+    const notFoundRows = items
+      .filter((i) => !found.has(i.productId))
+      .map((i) => i.rowNo)
+      .sort((a, b) => a - b);
+ 
+    res.json({ notFoundRows });
+  } catch (error) {
+    if (error.isJoi) return res.status(400).json({ error: error.details[0].message });
+    console.error("Error checking price list IDs:", error);
+    return res.status(500).json({ error: "An error occurred while checking product IDs" });
+  }
+};

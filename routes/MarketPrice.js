@@ -58,21 +58,17 @@ router.get(
     MarketPriceEp.getAllCropName
 )
 
-
-
 const getCropVarietyData = () => {
     const sql = `
       SELECT 
         cropgroup.cropNameEnglish AS cropName,
         cropvariety.varietyNameEnglish AS varietyName,
         cropvariety.id AS varietyId
-      FROM 
-        cropvariety
-      JOIN 
-        cropgroup ON cropvariety.cropGroupId = cropgroup.id
-      ORDER BY 
-        cropgroup.cropNameEnglish ASC,
-        cropvariety.varietyNameEnglish ASC
+      FROM cropvariety
+      JOIN cropgroup ON cropvariety.cropGroupId = cropgroup.id
+      WHERE cropgroup.displayFor IN ('Sales', 'Both')
+      ORDER BY cropgroup.cropNameEnglish ASC, cropvariety.varietyNameEnglish ASC
+
     `;
     return new Promise((resolve, reject) => {
       plantcare.query(sql, (err, results) => {
@@ -84,8 +80,6 @@ const getCropVarietyData = () => {
       });
     });
   };
-
-
 
   router.get(
     "/get-market-prices-agroworld",

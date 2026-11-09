@@ -1,26 +1,30 @@
 // cronJobs.js
-const cron = require('node-cron');
-const { collectionofficer } = require('../startup/database');
-const axios = require('axios');
+const cron = require("node-cron");
+const { collectionofficer } = require("../startup/database");
+const axios = require("axios");
 
-const SHOUTOUT_API_URL = 'https://api.getshoutout.com/coreservice/messages';
+const SHOUTOUT_API_URL = "https://api.getshoutout.com/coreservice/messages";
 
 /**
  * Schedule all cron jobs
  */
 const pickupOrdersReturnCornjob = () => {
-  console.log('⏰ Initializing cron jobs...');
+  console.log("⏰ Initializing cron jobs...");
 
   // ✅ CRON JOB: Process pickup return orders every day at 9:30 PM
-  cron.schedule('00 16 * * *', async () => {
-    await processPickupOrdersReturn();
-  }, {
-    scheduled: true,
-    timezone: "Asia/Colombo"
-  });
+  cron.schedule(
+    "00 16 * * *",
+    async () => {
+      await processPickupOrdersReturn();
+    },
+    {
+      scheduled: true,
+      timezone: "Asia/Colombo",
+    },
+  );
 
-  console.log('✅ All cron jobs scheduled successfully');
-  console.log('📅 Pickup return orders job: 9:30 PM daily (16:00 UTC)');
+  console.log("✅ All cron jobs scheduled successfully");
+  console.log("📅 Pickup return orders job: 9:30 PM daily (16:00 UTC)");
 };
 
 // ----------------------------------------------------- DAO functions -------------------------------------------------
@@ -52,12 +56,12 @@ const getReadyToPickupOrders = async () => {
       LEFT JOIN orders o ON p.orderId = o.id
       LEFT JOIN marketplaceusers mu ON o.userId = mu.id
       WHERE p.status = 'Ready to Pickup' AND DATE(p.sheduleDate) <= CURDATE()
-      `
+      `,
     );
     return orders;
   } catch (error) {
-    console.error('❌ Error fetching ready to pickup orders:', error.message);
-    console.error('Stack trace:', error.stack);
+    console.error("❌ Error fetching ready to pickup orders:", error.message);
+    console.error("Stack trace:", error.stack);
     throw error;
   }
 };
@@ -70,95 +74,108 @@ const insertHandlingFee = async (orders) => {
 
   try {
     await connection.beginTransaction();
-    console.log('🔄 Transaction started for handling fee insertion and status update');
+    console.log(
+      "🔄 Transaction started for handling fee insertion and status update",
+    );
 
     for (const order of orders) {
       try {
         const handleFee = Number(order.handleFee) || 0;
         const [result1] = await connection.query(
           `INSERT INTO collection_officer.orderhandlingfee(orderId, fee) VALUES (?, ?)`,
-          [order.id, handleFee]
+          [order.id, handleFee],
         );
-        console.log(`✅ Handling fee inserted for order ID: ${order.id}`);
 
-        // const currentCreditBalance = Number(order.creditBalance) || 0;
-        // let newCrdBalance = currentCreditBalance - handleFee;
-        let newCrdBalance = Number(order.creditBalance) || 0;
+        const toNum = (v) => Number(v) || 0;
+        const creditPaid = toNum(order.creditPaid);
+        const moneyPaid = toNum(order.moneyPaid);
+        const amount = toNum(order.amount);
+        const method = (order.paymentMethod || "").trim().toLowerCase();
+        const isPaid = Buffer.isBuffer(order.isPaid)
+          ? order.isPaid[0] === 1
+          : Number(order.isPaid) === 1;
 
-
-
-        // --------------------------------credit blance calculation logic-------------------------------------------------------------
-        if (order.paymentMethod === 'Cash') {
-          if (order.creditPaid !== 0) newCrdBalance = parseFloat(newCrdBalance) + parseFloat(order.creditPaid) - parseFloat(handleFee);
-          else newCrdBalance = parseFloat(newCrdBalance) - parseFloat(handleFee);
-        } else if (order.paymentMethod === 'Card' && order.isPaid === 1) {
-          if (order.creditPaid !== 0) newCrdBalance = parseFloat(newCrdBalance) + parseFloat(order.moneyPaid) + parseFloat(order.creditPaid) - parseFloat(handleFee);
-          else newCrdBalance = parseFloat(newCrdBalance) + parseFloat(order.amount) - parseFloat(handleFee);
+        let refund = 0;
+        if (method === "cash") {
+          refund = creditPaid;
+        } else if (method === "card" && isPaid) {
+          refund = creditPaid > 0 ? moneyPaid + creditPaid : amount;
         }
-        //-------------------------------------------------------------------------------------------------------------------------------
+        const delta = refund - handleFee;
 
-        // console.log('-------------------------------');
-        // console.log(newCrdBalance);
-
-
+        console.log(
+          `Order ${order.id} | method=${method} isPaid=${isPaid} refund=${refund} fee=${handleFee} delta=${delta} userPhone=${order.phoneNumber}`,
+        );
 
         const [result2] = await connection.query(
           `UPDATE processorders p
-           LEFT JOIN orders o ON p.orderId = o.id
-           LEFT JOIN marketplaceusers mu ON o.userId = mu.id
-           SET 
-            p.status = 'Return Received',
-            mu.creditBalance = ?
-           WHERE p.id = ?`,
-          [newCrdBalance, order.id]
+          LEFT JOIN orders o ON p.orderId = o.id
+          LEFT JOIN marketplaceusers mu ON o.userId = mu.id
+          SET p.status = 'Return Received',
+          mu.creditBalance = COALESCE(mu.creditBalance, 0) + ?
+          WHERE p.id = ?`,
+          [delta, order.id],
         );
 
         if (result2.affectedRows === 0) {
-          throw new Error(`Order ${order.id} not found or status already updated`);
+          throw new Error(
+            `Order ${order.id} not found or status already updated`,
+          );
         }
 
-        let result3 = await orderNotification(connection, order.id, order.invNo);
+        let result3 = await orderNotification(
+          connection,
+          order.id,
+          order.invNo,
+        );
 
         successCount++;
-        console.log(`✅ Order ${order.id} status updated to 'Return Received' (${successCount}/${orders.length})`);
-
+        console.log(
+          `✅ Order ${order.id} status updated to 'Return Received' (${successCount}/${orders.length})`,
+        );
       } catch (error) {
         failedCount++;
         failedOrders.push({
           orderId: order.id,
-          error: error.message
+          error: error.message,
         });
-        console.error(`❌ Error processing order ID ${order.id}:`, error.message);
+        console.error(
+          `❌ Error processing order ID ${order.id}:`,
+          error.message,
+        );
 
         await connection.rollback();
-        console.log('🔄 Transaction rolled back due to error');
-        throw new Error(`Failed to process order ${order.id}: ${error.message}`);
+        console.log("🔄 Transaction rolled back due to error");
+        throw new Error(
+          `Failed to process order ${order.id}: ${error.message}`,
+        );
       }
     }
 
     await connection.commit();
-    console.log(`✅ Transaction committed successfully. Processed ${successCount} orders`);
+    console.log(
+      `✅ Transaction committed successfully. Processed ${successCount} orders`,
+    );
 
     return {
       success: true,
       successCount,
       failedCount,
-      failedOrders
+      failedOrders,
     };
-
   } catch (error) {
     try {
       await connection.rollback();
-      console.log('🔄 Transaction rolled back due to error');
+      console.log("🔄 Transaction rolled back due to error");
     } catch (rollbackError) {
       // ignore rollback error if already rolled back
     }
 
-    console.error('❌ Transaction failed:', error.message);
+    console.error("❌ Transaction failed:", error.message);
     throw error;
   } finally {
     connection.release();
-    console.log('🔌 Connection released');
+    console.log("🔌 Connection released");
   }
 };
 
@@ -211,11 +228,13 @@ function formatPhoneNumber(phoneNumber) {
  * Send bulk SMS notification to all customers whose orders were processed
  */
 const sendBulkSMSNotification = async (orders) => {
-  console.log(`📱 Preparing to send SMS notifications to ${orders.length} customers`);
+  console.log(
+    `📱 Preparing to send SMS notifications to ${orders.length} customers`,
+  );
 
   if (!orders || orders.length === 0) {
-    console.log('ℹ️ No orders to send SMS notifications for');
-    return { success: true, message: 'No orders to notify' };
+    console.log("ℹ️ No orders to send SMS notifications for");
+    return { success: true, message: "No orders to notify" };
   }
 
   try {
@@ -223,17 +242,19 @@ const sendBulkSMSNotification = async (orders) => {
     let successCount = 0;
     let failedCount = 0;
 
-    const apiKey = (process.env.SHOUTOUT_API_KEY).trim();
-    const senderId = ("Polygon").trim();
+    const apiKey = process.env.SHOUTOUT_API_KEY.trim();
+    const senderId = "Polygon".trim();
 
     if (!apiKey) {
-      console.error('❌ SHOUTOUT_API_KEY  is not configured in environment variables');
+      console.error(
+        "❌ SHOUTOUT_API_KEY  is not configured in environment variables",
+      );
       return {
         success: false,
-        error: 'SMS API key is not configured in environment variables',
+        error: "SMS API key is not configured in environment variables",
         total: orders.length,
         successCount: 0,
-        failedCount: orders.length
+        failedCount: orders.length,
       };
     }
 
@@ -248,18 +269,23 @@ const sendBulkSMSNotification = async (orders) => {
         let phoneCode = (order.phoneCode || "").toString().trim();
 
         let phoneNumber = rawPhone;
-        if (phoneCode && !rawPhone.startsWith("+") && !rawPhone.startsWith("94")) {
+        if (
+          phoneCode &&
+          !rawPhone.startsWith("+") &&
+          !rawPhone.startsWith("94")
+        ) {
           phoneNumber = phoneCode + rawPhone;
         }
 
         const formattedNumber = formatPhoneNumber(phoneNumber);
 
         if (!formattedNumber) {
-          throw new Error(`Invalid phone number: ${phoneNumber} (raw: ${rawPhone}, code: ${phoneCode})`);
+          throw new Error(
+            `Invalid phone number: ${phoneNumber} (raw: ${rawPhone}, code: ${phoneCode})`,
+          );
         }
 
-        const message = `Your order ${order.invNo} has been marked as return.
-Reason: "Customer did not picked up the order during the day."`;
+        const message = `Your order ${order.invNo} has been marked as return. Reason: "Customer did not picked up the order during the day."`;
 
         const requestData = {
           source: senderId,
@@ -268,50 +294,60 @@ Reason: "Customer did not picked up the order during the day."`;
           transports: ["sms"],
         };
 
-        console.log(`📤 Sending SMS to ${formattedNumber} for order #${order.invNo}`);
-
-        const response = await axios.post(
-          SHOUTOUT_API_URL,
-          requestData,
-          { headers, timeout: 10000 }
+        console.log(
+          `📤 Sending SMS to ${formattedNumber} for order #${order.invNo}`,
         );
 
-        console.log('📨 Response:', JSON.stringify(response.data, null, 2));
+        const response = await axios.post(SHOUTOUT_API_URL, requestData, {
+          headers,
+          timeout: 10000,
+        });
+
+        console.log("📨 Response:", JSON.stringify(response.data, null, 2));
 
         if (response.status >= 200 && response.status < 300) {
           successCount++;
-          console.log(`✅ SMS sent successfully to ${formattedNumber} for order #${order.invNo}`);
+          console.log(
+            `✅ SMS sent successfully to ${formattedNumber} for order #${order.invNo}`,
+          );
           results.push({
             orderId: order.id,
             phoneNumber: formattedNumber,
             success: true,
-            response: response.data
+            response: response.data,
           });
         } else {
           failedCount++;
-          console.error(`❌ Failed to send SMS to ${formattedNumber} for order #${order.invNo}`);
+          console.error(
+            `❌ Failed to send SMS to ${formattedNumber} for order #${order.invNo}`,
+          );
           results.push({
             orderId: order.id,
             phoneNumber: formattedNumber,
             success: false,
-            error: `Unexpected status: ${response.status}`
+            error: `Unexpected status: ${response.status}`,
           });
         }
-
       } catch (error) {
         failedCount++;
-        console.error(`❌ Error sending SMS to ${order.phoneNumber}:`, error.message);
+        console.error(
+          `❌ Error sending SMS to ${order.phoneNumber}:`,
+          error.message,
+        );
 
         if (error.response) {
-          console.error('Response status:', error.response.status);
-          console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+          console.error("Response status:", error.response.status);
+          console.error(
+            "Response data:",
+            JSON.stringify(error.response.data, null, 2),
+          );
 
           if (error.response.status === 401) {
-            console.error('AUTHENTICATION ERROR: Check your API key');
+            console.error("AUTHENTICATION ERROR: Check your API key");
           } else if (error.response.status === 400) {
-            console.error('BAD REQUEST: Check your request format');
+            console.error("BAD REQUEST: Check your request format");
           } else if (error.response.status === 429) {
-            console.error('RATE LIMIT EXCEEDED: Too many requests');
+            console.error("RATE LIMIT EXCEEDED: Too many requests");
           }
         }
 
@@ -320,7 +356,7 @@ Reason: "Customer did not picked up the order during the day."`;
           phoneNumber: order.phoneNumber,
           success: false,
           error: error.message,
-          responseData: error.response?.data
+          responseData: error.response?.data,
         });
       }
     }
@@ -334,18 +370,17 @@ Reason: "Customer did not picked up the order during the day."`;
       total: orders.length,
       successCount,
       failedCount,
-      results
+      results,
     };
-
   } catch (error) {
-    console.error('❌ Error sending bulk SMS notifications:', error.message);
-    console.error('Stack trace:', error.stack);
+    console.error("❌ Error sending bulk SMS notifications:", error.message);
+    console.error("Stack trace:", error.stack);
     throw error;
   }
 };
 
 const processPickupOrdersReturn = async () => {
-  console.log('🔄 Running scheduled job: Processing pickup orders return...');
+  console.log("🔄 Running scheduled job: Processing pickup orders return...");
   console.log(`⏰ Time: ${new Date().toLocaleString()}`);
 
   try {
@@ -358,17 +393,24 @@ const processPickupOrdersReturn = async () => {
 
       if (result.failedCount > 0) {
         console.log(`⚠️ Failed to process ${result.failedCount} orders`);
-        console.log('❌ Failed orders:', result.failedOrders);
+        console.log("❌ Failed orders:", result.failedOrders);
       }
 
       let smsResult = null;
       if (result.successCount > 0) {
-        console.log(`📱 Sending SMS notifications for ${result.successCount} orders...`);
+        console.log(
+          `📱 Sending SMS notifications for ${result.successCount} orders...`,
+        );
         try {
           smsResult = await sendBulkSMSNotification(orders);
-          console.log(`✅ SMS notifications sent: ${smsResult.successCount} succeeded, ${smsResult.failedCount} failed`);
+          console.log(
+            `✅ SMS notifications sent: ${smsResult.successCount} succeeded, ${smsResult.failedCount} failed`,
+          );
         } catch (smsError) {
-          console.error('⚠️ SMS notifications failed but orders were processed:', smsError.message);
+          console.error(
+            "⚠️ SMS notifications failed but orders were processed:",
+            smsError.message,
+          );
           smsResult = { success: false, error: smsError.message };
         }
       }
@@ -379,39 +421,40 @@ const processPickupOrdersReturn = async () => {
         processedCount: result.successCount,
         failedCount: result.failedCount,
         failedOrders: result.failedOrders,
-        smsResult
+        smsResult,
       };
     } else {
-      console.log('ℹ️ No orders found to process');
+      console.log("ℹ️ No orders found to process");
       return {
         success: true,
         ordersCount: 0,
-        message: 'No ready to pickup orders found for return processing today'
+        message: "No ready to pickup orders found for return processing today",
       };
     }
-
   } catch (error) {
-    console.error('❌ Error executing cron job:', error.message);
-    console.error('Stack trace:', error.stack);
+    console.error("❌ Error executing cron job:", error.message);
+    console.error("Stack trace:", error.stack);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
 
 const orderNotification = async (conn, orderId, invNo) => {
   try {
-    const [result] =
-      await conn.query(
-        `INSERT INTO ordernotfication (orderId, Title, message)
+    const [result] = await conn.query(
+      `INSERT INTO ordernotfication (orderId, Title, message)
        VALUES (?, 'Order Returned', ?)`,
-        [
-          orderId,
-          `Your order #${invNo} has been marked as returned. Reason: "Customer did not pick up the order during the day."`
-        ]
-      );
-    console.log(`✅ Order notification inserted for order ID: ${orderId}`, result);
+      [
+        orderId,
+        `Your order #${invNo} has been marked as returned. Reason: "Customer did not pick up the order during the day."`,
+      ],
+    );
+    console.log(
+      `✅ Order notification inserted for order ID: ${orderId}`,
+      result,
+    );
     return true;
   } catch (err) {
     console.error("Error inserting order notification:", err);

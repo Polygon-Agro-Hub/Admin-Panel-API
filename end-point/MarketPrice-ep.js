@@ -217,11 +217,6 @@ exports.getAllMarketPrice = async (req, res) => {
   }
 };
 
-
-
-
-
-
 exports.getAllCropName = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
@@ -242,8 +237,6 @@ exports.getAllCropName = async (req, res) => {
       return res.status(500).json({ error: "An error occurred while fetching collection officers" });
   }
 };
-
-
 
 exports.getAllMarketPriceAgro = async (req, res) => {
   try {

@@ -1115,6 +1115,7 @@ const getSalesDashboard = async () => {
 
   const NEW_BUYER_DAYS = 84;
 
+  // Salesdash users: all Retail + Approved Wholesale
   const buyerFilter = `
     m.salesAgent IS NOT NULL
     AND (
@@ -1125,30 +1126,26 @@ const getSalesDashboard = async () => {
           SELECT 1
           FROM pendingwholesaleusers p
           WHERE p.userId = m.id
-            AND p.approveStatus = 'Approved'
+            AND p.approveStatus = 'Approve'
         )
       )
     )
   `;
 
-  const [buyers, types, requests, values, orderCount, packages] = await Promise.all([
+  const [byType, requests, values, orderCount, packages] = await Promise.all([
     query(`
       SELECT
-        COALESCE(SUM(m.created_at <  CURDATE() - INTERVAL ${NEW_BUYER_DAYS} DAY), 0) AS existingBuyers,
-        COALESCE(SUM(m.created_at >= CURDATE() - INTERVAL ${NEW_BUYER_DAYS} DAY), 0) AS newBuyers
-      FROM marketplaceusers m
-      WHERE m.created_at < CURDATE() + INTERVAL 1 DAY
-        AND ${buyerFilter}
-    `),
-
-    query(`
-      SELECT m.buyerType AS buyerType, COUNT(*) AS userCount
+        m.buyerType AS buyerType,
+        COUNT(*) AS total,
+        COALESCE(SUM(m.created_at >= CURDATE() - INTERVAL ${NEW_BUYER_DAYS} DAY), 0) AS newCount,
+        COALESCE(SUM(m.created_at <  CURDATE() - INTERVAL ${NEW_BUYER_DAYS} DAY), 0) AS existingCount
       FROM marketplaceusers m
       WHERE m.created_at < CURDATE() + INTERVAL 1 DAY
         AND ${buyerFilter}
       GROUP BY m.buyerType
     `),
 
+    // Wholesale requests (To Review)
     query(`
       SELECT COUNT(DISTINCT p.userId) AS reqCount
       FROM pendingwholesaleusers p
@@ -1157,6 +1154,7 @@ const getSalesDashboard = async () => {
         AND m.salesAgent IS NOT NULL
     `),
 
+    // New / Existing buyers completed order value
     query(`
       SELECT
         COALESCE(SUM(CASE WHEN m.created_at <  CURDATE() - INTERVAL ${NEW_BUYER_DAYS} DAY THEN p.amount END), 0) AS existingBuyersValue,
@@ -1169,6 +1167,7 @@ const getSalesDashboard = async () => {
         AND ${buyerFilter}
     `),
 
+    // Total Orders Placed (Salesdash)
     query(`
       SELECT COUNT(p.id) AS orderCount
       FROM processorders p
@@ -1176,6 +1175,7 @@ const getSalesDashboard = async () => {
       WHERE o.orderApp = 'Dash'
     `),
 
+    // All packages A-Z, purchases from Salesdash orders
     query(`
       SELECT
         mp.id AS id,
@@ -1195,28 +1195,25 @@ const getSalesDashboard = async () => {
     `),
   ]);
 
-  const existingBuyers = Number(buyers[0]?.existingBuyers ?? 0);
-  const newBuyers = Number(buyers[0]?.newBuyers ?? 0);
-
-  const buyerCount = (type) => types
-    .filter((row) => row.buyerType === type)
-    .reduce((total, row) => total + Number(row.userCount), 0);
+  const sum = (field, type) => byType
+    .filter((r) => !type || r.buyerType === type)
+    .reduce((t, r) => t + Number(r[field] ?? 0), 0);
 
   return {
-    totalBuyers: existingBuyers + newBuyers,
-    existingBuyers,
-    newBuyers,
-    retailBuyers: buyerCount('Retail'),
-    wholesaleBuyers: buyerCount('Wholesale'),
+    totalBuyers: sum('total'),
+    newBuyers: sum('newCount'),
+    existingBuyers: sum('existingCount'),
+    retailBuyers: sum('total', 'Retail'),
+    wholesaleBuyers: sum('total', 'Wholesale'),
     wholesaleRequests: Number(requests[0]?.reqCount ?? 0),
     existingBuyersValue: Number(values[0]?.existingBuyersValue ?? 0),
     newBuyersValue: Number(values[0]?.newBuyersValue ?? 0),
     totalOrdersPlaced: Number(orderCount[0]?.orderCount ?? 0),
     periodLabel: 'All time',
-    packages: packages.map((row) => ({
-      id: row.id,
-      name: row.name,
-      purchases: Number(row.purchases),
+    packages: packages.map((r) => ({
+      id: r.id,
+      name: r.name,
+      purchases: Number(r.purchases),
     })),
   };
 };
