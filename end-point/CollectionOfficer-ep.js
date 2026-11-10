@@ -1852,7 +1852,6 @@ exports.getDriverVehicalRegistrationDetails = async (req, res) => {
   console.log(fullUrl);
 
   try {
-    id = req.params.id;
     const { id } =
       await collectionofficerValidate.driverIdSchema.validateAsync(req.params);
 

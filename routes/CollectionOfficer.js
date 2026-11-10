@@ -378,7 +378,7 @@ router.put(
 
 router.get(
   "/driver/get-driver-registration-details/:id",
-  // authMiddleware,
+  authMiddleware,
   CollectionOfficerEp.getDriverVehicalRegistrationDetails
 );
 
