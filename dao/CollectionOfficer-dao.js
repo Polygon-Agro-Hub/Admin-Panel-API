@@ -3194,6 +3194,7 @@ exports.getDriverVehicalRegistrationDetails = (id) => {
     const sql = `
       SELECT
         coff.id,
+        coff.companyId,
         coff.empId,
         coff.empType,
         coff.jobRole,
@@ -3260,6 +3261,7 @@ exports.getDriverVehicalRegistrationDetails = (id) => {
         {
           personalInfo: {
             id: r.id,
+            companyId: r.companyId,
             empId: r.empId,
             empType: r.empType,
             jobRole: r.jobRole,
@@ -3328,7 +3330,7 @@ exports.getDriverForApproval = (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT
-        coff.id, coff.jobRole, coff.empId, coff.status, coff.email,
+        coff.id, coff.companyId, coff.jobRole, coff.empId, coff.status, coff.email,
         coff.firstNameEnglish, coff.irmId,
         mgr.firstNameEnglish AS managerFirstName,
         mgr.lastNameEnglish AS managerLastName,
@@ -3347,7 +3349,35 @@ exports.getDriverForApproval = (id) => {
   });
 };
 
-exports.approveDriverDao = (id, lastId, hashedPassword, adminId) => {
+// Returns the manager only if they are an approved Distribution Centre Manager
+// of the given company and centre; otherwise null.
+exports.getDistributionManagerForApprovalDao = (managerId, companyId, centerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, firstNameEnglish, lastNameEnglish, phoneCode01, phoneNumber01
+      FROM collectionofficer
+      WHERE id = ?
+        AND jobRole = 'Distribution Centre Manager'
+        AND status = 'Approved'
+        AND companyId = ?
+        AND distributedCenterId = ?
+    `;
+    collectionofficer.query(sql, [managerId, companyId, centerId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.approveDriverDao = (
+  id,
+  lastId,
+  hashedPassword,
+  adminId,
+  { distributedCenterId, irmId, empType, driverCategoryId }
+) => {
   return new Promise(async (resolve, reject) => {
     try {
       // Prepare data for QR code generation
@@ -3366,13 +3396,24 @@ exports.approveDriverDao = (id, lastId, hashedPassword, adminId) => {
 
       const sql = `
         UPDATE collectionofficer
-        SET empId = ?, QRcode = ?, password = ?, passwordUpdated = 0, status = 'Approved', adminModifyBy = ?
+        SET empId = ?, QRcode = ?, password = ?, passwordUpdated = 0, status = 'Approved', adminModifyBy = ?,
+            distributedCenterId = ?, irmId = ?, empType = ?, driverCatId = ?, claimStatus = 1
         WHERE id = ?
       `;
 
       collectionofficer.query(
         sql,
-        [lastId, qrcodeURL, hashedPassword, adminId, id],
+        [
+          lastId,
+          qrcodeURL,
+          hashedPassword,
+          adminId,
+          distributedCenterId,
+          irmId,
+          empType,
+          driverCategoryId,
+          id,
+        ],
         (err, results) => {
           if (err) {
             console.log(err);
@@ -3448,6 +3489,76 @@ exports.getSelfRegisteredDrivers = (search, role) => {
     collectionofficer.query(sql, params, (err, results) => {
       if (err) return reject(err);
       resolve(results);
+    });
+  });
+};
+exports.getDistributionCenterNamesByCompanyDao = (companyId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT DC.id, DC.regCode, DC.centerName, DCC.companyId
+      FROM distributedcompanycenter DCC
+      INNER JOIN distributedcenter DC ON DCC.centerId = DC.id
+      WHERE DCC.companyId = ?
+      GROUP BY DC.id, DC.regCode, DC.centerName, DCC.companyId
+      ORDER BY DC.centerName ASC
+    `;
+    collectionofficer.query(sql, [companyId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+exports.getDistributionManagerNamesByCompanyDao = (companyId, centerId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, firstNameEnglish, lastNameEnglish, empId
+      FROM collectionofficer
+      WHERE jobRole = 'Distribution Centre Manager'
+        AND status = 'Approved'
+        AND companyId = ?
+        AND distributedCenterId = ?
+      ORDER BY firstNameEnglish ASC
+    `;
+    collectionofficer.query(sql, [companyId, centerId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results || []);
+    });
+  });
+};
+
+exports.getDriverCategoryNamesDao = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, catName
+      FROM drivercategory
+      ORDER BY catName ASC
+    `;
+    collectionofficer.query(sql, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results || []);
+    });
+  });
+};
+
+exports.getDriveCategorySlaveById = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, catId, slvCatName
+      FROM drivercategoryslave
+      WHERE id = ?
+    `;
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0] || null);
     });
   });
 };

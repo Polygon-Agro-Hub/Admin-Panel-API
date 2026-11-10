@@ -1891,6 +1891,10 @@ exports.approveDriver = async (req, res) => {
   try {
     const { id } =
       await collectionofficerValidate.driverIdSchema.validateAsync(req.params);
+    const { distributedCenterId, irmId, empType, driverCategoryId } =
+      await collectionofficerValidate.approveDriverBodySchema.validateAsync(
+        req.body
+      );
 
     const driver = await collectionofficerDao.getDriverForApproval(id);
     if (!driver) {
@@ -1910,6 +1914,29 @@ exports.approveDriver = async (req, res) => {
       return res
         .status(400)
         .json({ status: false, error: "Driver is already approved" });
+    }
+
+    // Manager must be an approved manager of the selected centre in the driver's company
+    const manager =
+      await collectionofficerDao.getDistributionManagerForApprovalDao(
+        irmId,
+        driver.companyId,
+        distributedCenterId
+      );
+    if (!manager) {
+      return res.status(400).json({
+        status: false,
+        error: "Selected manager does not belong to the selected distribution centre",
+      });
+    }
+
+    const category = await collectionofficerDao.getDriveCategorySlaveById(
+      driverCategoryId
+    );
+    if (!category) {
+      return res
+        .status(400)
+        .json({ status: false, error: "Selected driver category not found" });
     }
 
     const adminId = req.user.userId;
@@ -1934,6 +1961,7 @@ exports.approveDriver = async (req, res) => {
       lastId,
       hashedPassword,
       adminId,
+      { distributedCenterId, irmId, empType, driverCategoryId }
     );
 
     if (!result || result.affectedRows === 0) {
@@ -1953,12 +1981,12 @@ exports.approveDriver = async (req, res) => {
     );
 
     // Notify transporter mobile app with login details
-    const managerName = [driver.managerFirstName, driver.managerLastName]
+    const managerName = [manager.firstNameEnglish, manager.lastNameEnglish]
       .filter(Boolean)
       .join(" ");
     const managerPhone =
-      driver.managerPhoneNumber
-        ? `${driver.managerPhoneCode || ""}${driver.managerPhoneNumber}`
+      manager.phoneNumber01
+        ? `${manager.phoneCode01 || ""}${manager.phoneNumber01}`
         : "";
     const managerContact = [managerName, managerPhone && `(${managerPhone})`]
       .filter(Boolean)
@@ -2110,5 +2138,100 @@ exports.getSelfRegisteredDrivers = async (req, res) => {
     }
     console.error("Error fetching self registered drivers:", err);
     res.status(500).json({ error: "An error occurred while fetching self registered drivers" });
+  }
+};
+
+
+exports.getDistributionCenterNamesByCompany = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { companyId } =
+      await collectionofficerValidate.companyIdParamSchema.validateAsync(
+        req.params
+      );
+
+    const results =
+      await collectionofficerDao.getDistributionCenterNamesByCompanyDao(
+        companyId
+      );
+
+    return res.status(200).json({
+      status: true,
+      data: results,
+      count: results.length,
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res
+        .status(400)
+        .json({ status: false, error: error.details[0].message });
+    }
+
+    console.error("Error fetching distribution centers by company:", error);
+    return res.status(500).json({
+      status: false,
+      error: "An error occurred while fetching distribution centers",
+    });
+  }
+};
+
+
+exports.getDistributionManagerNamesByCompany = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { companyId, centerId } =
+      await collectionofficerValidate.companyCenterParamSchema.validateAsync(
+        req.params
+      );
+
+    const results =
+      await collectionofficerDao.getDistributionManagerNamesByCompanyDao(
+        companyId,
+        centerId
+      );
+
+    return res.status(200).json({
+      status: true,
+      data: results,
+      count: results.length,
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res
+        .status(400)
+        .json({ status: false, error: error.details[0].message });
+    }
+
+    console.error("Error fetching distribution managers by company:", error);
+    return res.status(500).json({
+      status: false,
+      error: "An error occurred while fetching distribution managers",
+    });
+  }
+};
+
+
+exports.getDriverCategoryNames = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const results = await collectionofficerDao.getDriverCategoryNamesDao();
+
+    return res.status(200).json({
+      status: true,
+      data: results,
+      count: results.length,
+    });
+  } catch (error) {
+    console.error("Error fetching driver category names:", error);
+    return res.status(500).json({
+      status: false,
+      error: "An error occurred while fetching driver categories",
+    });
   }
 };

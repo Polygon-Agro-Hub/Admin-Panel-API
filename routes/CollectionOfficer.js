@@ -394,12 +394,28 @@ router.post(
   CollectionOfficerEp.rejectDriver
 );
 
-
-
 router.get(
   "/get-self-registered-drivers",
   authMiddleware,
   CollectionOfficerEp.getSelfRegisteredDrivers
+);
+
+router.get(
+  "/driver/get-distribution-center-names-by-company/:companyId",
+  authMiddleware,
+  CollectionOfficerEp.getDistributionCenterNamesByCompany
+);
+
+router.get(
+  "/driver/get-distribution-manager-names-by-company/:companyId/:centerId",
+  authMiddleware,
+  CollectionOfficerEp.getDistributionManagerNamesByCompany
+);
+
+router.get(
+  "/driver/get-driver-category-names",
+  authMiddleware,
+  CollectionOfficerEp.getDriverCategoryNames
 );
 
 module.exports = router;

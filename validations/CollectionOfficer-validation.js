@@ -173,3 +173,19 @@ exports.getSelfRegisteredDriversSchema = Joi.object({
 exports.rejectDriverReasonSchema = Joi.object({
     reason: Joi.string().trim().min(1).max(500).required(),
 });
+
+exports.approveDriverBodySchema = Joi.object({
+    distributedCenterId: Joi.number().integer().required(),
+    irmId: Joi.number().integer().required(),
+    empType: Joi.string().valid("Permanent", "Temporary").required(),
+    driverCategoryId: Joi.number().integer().required(),
+});
+
+exports.companyIdParamSchema = Joi.object({
+    companyId: Joi.number().integer().required(),
+});
+
+exports.companyCenterParamSchema = Joi.object({
+    companyId: Joi.number().integer().required(),
+    centerId: Joi.number().integer().required(),
+});
