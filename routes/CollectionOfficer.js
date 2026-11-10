@@ -375,4 +375,24 @@ router.put(
   authMiddleware,
   CollectionOfficerEp.updateDriveCategory
 );
+
+router.get(
+  "/driver/get-driver-registration-details/:id",
+  // authMiddleware,
+  CollectionOfficerEp.getDriverVehicalRegistrationDetails
+);
+
+router.post(
+  "/driver/approve-driver/:id",
+  authMiddleware,
+  CollectionOfficerEp.approveDriver
+);
+
+router.post(
+  "/driver/reject-driver/:id",
+  authMiddleware,
+  CollectionOfficerEp.rejectDriver
+);
+
+
 module.exports = router;

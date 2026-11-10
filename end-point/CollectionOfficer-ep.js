@@ -11,6 +11,11 @@ const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
 const uploadFileToS3 = require("../middlewares/s3upload");
 const deleteFromS3 = require("../middlewares/s3delete");
+const DistributionDao = require("../dao/Distribution-dao");
+const DriverJobRoles = require("../assets/json/driverJobRole.json");
+
+const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
+const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
 
 // const s3 = new AWS.S3({
 //   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -469,7 +474,7 @@ exports.getAllCompanyNames = async (req, res) => {
   }
 };
 
-const notifyMobileApis = async (jobRole, userId) => {
+const notifyMobileApis = async (jobRole, userId, notification = null) => {
   console.log(`[notifyMobileApis] Started | Role: ${jobRole} | UserId: ${userId}`);
 
   // Transporter Mobile API - only for Drivers
@@ -485,7 +490,7 @@ const notifyMobileApis = async (jobRole, userId) => {
 
       const response = await axios.post(
         notifyEndpoint,
-        { userId },
+        notification ? { userId, notification } : { userId },
         { timeout: 5000 }
       );
 
@@ -1839,6 +1844,254 @@ exports.updateDriveCategory = async (req, res) => {
     res.status(500).json({
       status: false,
       error: 'An error occurred while updating the driver category.'
+    });
+  }
+};
+
+
+exports.getDriverVehicalRegistrationDetails = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    id = req.params.id;
+    const { id } =
+      await collectionofficerValidate.driverIdSchema.validateAsync(req.params);
+
+    const result =
+      await collectionofficerDao.getDriverVehicalRegistrationDetails(id);
+
+    if (!result) {
+      return res.status(404).json({
+        status: false,
+        error: "Driver not found",
+      });
+    }
+
+    console.log(result);
+
+    return res.status(200).json({
+      status: true,
+      data: result,
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res.status(400).json({ status: false, error: error.details[0].message });
+    }
+
+    console.error("Error fetching driver registration details:", error);
+    return res.status(500).json({
+      status: false,
+      error: "An error occurred while fetching driver registration details",
+    });
+  }
+};
+
+exports.approveDriver = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { id } =
+      await collectionofficerValidate.driverIdSchema.validateAsync(req.params);
+
+    const driver = await collectionofficerDao.getDriverForApproval(id);
+    if (!driver) {
+      return res.status(404).json({ status: false, error: "Driver not found" });
+    }
+
+    if (
+      driver.jobRole !== LIGHT_WEIGHT_DRIVER &&
+      driver.jobRole !== HEAVY_WEIGHT_DRIVER
+    ) {
+      return res
+        .status(400)
+        .json({ status: false, error: "Selected officer is not a driver" });
+    }
+
+    if (driver.status === "Approved") {
+      return res
+        .status(400)
+        .json({ status: false, error: "Driver is already approved" });
+    }
+
+    const adminId = req.user.userId;
+
+    const lastId = await DistributionDao.getDCIDforCreateEmpIdDao(
+      driver.jobRole,
+    );
+    if (lastId === null || lastId === undefined) {
+      console.error("Failed to generate employee ID for role:", driver.jobRole);
+      return res.status(500).json({
+        error: "Failed to generate employee ID",
+        status: false,
+      });
+    }
+
+    // Generate a new random password
+    const generatedPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+
+    const result = await collectionofficerDao.approveDriverDao(
+      id,
+      lastId,
+      hashedPassword,
+      adminId,
+    );
+
+    if (!result || result.affectedRows === 0) {
+      console.error("Driver approval failed - no rows affected");
+      return res.status(500).json({
+        error: "Failed to approve driver",
+        status: false,
+      });
+    }
+
+    // Send credentials email
+    const emailResult = await collectionofficerDao.SendGeneratedPasswordDao(
+      driver.email,
+      generatedPassword,
+      lastId,
+      driver.firstNameEnglish
+    );
+
+    // Notify transporter mobile app with login details
+    const managerName = [driver.managerFirstName, driver.managerLastName]
+      .filter(Boolean)
+      .join(" ");
+    const managerPhone =
+      driver.managerPhoneNumber
+        ? `${driver.managerPhoneCode || ""}${driver.managerPhoneNumber}`
+        : "";
+    const managerContact = [managerName, managerPhone && `(${managerPhone})`]
+      .filter(Boolean)
+      .join(" ");
+
+    const notification = {
+      title: "Welcome onboard!",
+      body: [
+        "Your registration has been approved.",
+        "GoVi-Trans Login:",
+        `Username: ${lastId}`,
+        `Password: ${generatedPassword}`,
+        "Best regards,",
+        "Polygon Team",
+        `Contact: ${managerContact || "N/A"}`,
+      ].join("\n"),
+      empId: lastId,
+      password: generatedPassword,
+      managerName: managerName || null,
+      managerPhone: managerPhone || null,
+    };
+
+    await notifyMobileApis(driver.jobRole, Number(id), notification);
+
+    if (!emailResult.success) {
+      return res.status(200).json({
+        status: true,
+        emailSent: false,
+        message: "Driver approved, but failed to send password email.",
+        result: { id, empId: lastId, email: driver.email, status: "Approved" },
+      });
+    }
+
+    return res.status(200).json({
+      status: true,
+      emailSent: true,
+      message: "Driver approved and password sent successfully.",
+      result: { id, empId: lastId, email: driver.email, status: "Approved" },
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res
+        .status(400)
+        .json({ status: false, error: error.details[0].message });
+    }
+
+    console.error("Error approving driver:", error);
+    return res.status(500).json({
+      status: false,
+      error: "An error occurred while approving the driver",
+    });
+  }
+};
+
+
+exports.rejectDriver = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+
+  try {
+    const { id } =
+      await collectionofficerValidate.driverIdSchema.validateAsync(req.params);
+    const { reason } =
+      await collectionofficerValidate.rejectDriverReasonSchema.validateAsync(
+        req.body
+      );
+
+    const driver = await collectionofficerDao.getDriverForApproval(id);
+    if (!driver) {
+      return res.status(404).json({ status: false, error: "Driver not found" });
+    }
+
+    if (
+      driver.jobRole !== LIGHT_WEIGHT_DRIVER &&
+      driver.jobRole !== HEAVY_WEIGHT_DRIVER
+    ) {
+      return res
+        .status(400)
+        .json({ status: false, error: "Selected officer is not a driver" });
+    }
+
+    if (driver.status === "Rejected") {
+      return res
+        .status(400)
+        .json({ status: false, error: "Driver is already rejected" });
+    }
+
+    const result = await collectionofficerDao.rejectDriverDao(
+      id,
+      req.user.userId
+    );
+
+    if (!result || result.affectedRows === 0) {
+      return res.status(500).json({
+        status: false,
+        error: "Failed to reject driver",
+      });
+    }
+
+    // Notify transporter mobile app with rejection reason
+    const notification = {
+      title: "Driver Registration Rejected",
+      body: [
+        "Dear Applicant,",
+        `your driver registration is rejected due to: ${reason}.`,
+        "Please reapply after meeting our requirements.",
+        "Thank you,",
+        "Polygon Team",
+      ].join("\n"),
+      reason,
+    };
+
+    await notifyMobileApis(driver.jobRole, Number(id), notification);
+
+    return res.status(200).json({
+      status: true,
+      message: "Driver rejected successfully",
+      result: { id, status: "Rejected", reason },
+    });
+  } catch (error) {
+    if (error.isJoi) {
+      return res
+        .status(400)
+        .json({ status: false, error: error.details[0].message });
+    }
+
+    console.error("Error rejecting driver:", error);
+    return res.status(500).json({
+      status: false,
+      error: "An error occurred while rejecting the driver",
     });
   }
 };

@@ -158,4 +158,12 @@ exports.claimDriverSchema = Joi.object({
     managerId: Joi.number().required()
 });
 
+exports.driverIdSchema = Joi.object({
+    id: Joi.number().required(),
+});
 
+
+
+exports.rejectDriverReasonSchema = Joi.object({
+    reason: Joi.string().trim().min(1).max(500).required(),
+});

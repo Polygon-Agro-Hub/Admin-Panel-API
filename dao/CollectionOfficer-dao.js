@@ -3185,3 +3185,219 @@ exports.getAllDriveCategoriesSlave = () => {
     });
   });
 };
+
+
+exports.getDriverVehicalRegistrationDetails = (id) => {
+  return new Promise((resolve, reject) => {
+
+    const sql = `
+      SELECT
+        coff.id,
+        coff.empId,
+        coff.empType,
+        coff.jobRole,
+        coff.firstNameEnglish,
+        coff.firstNameSinhala,
+        coff.firstNameTamil,
+        coff.lastNameEnglish,
+        coff.lastNameSinhala,
+        coff.lastNameTamil,
+        coff.phoneCode01,
+        coff.phoneNumber01,
+        coff.phoneCode02,
+        coff.phoneNumber02,
+        coff.nic,
+        coff.email,
+        coff.languages,
+        coff.image,
+        coff.status,
+        coff.houseNumber,
+        coff.streetName,
+        coff.city,
+        coff.district,
+        coff.province,
+        coff.country,
+        coff.accHolderName,
+        coff.accNumber,
+        coff.bankName,
+        coff.branchName,
+        vr.id AS vehicleRegId,
+        vr.licNo,
+        vr.licFrontImg,
+        vr.licBackImg,
+        vr.insNo,
+        DATE_FORMAT(vr.insExpDate, '%Y-%m-%d') AS insExpDate,
+        vr.insFrontImg,
+        vr.insBackImg,
+        vr.vType,
+        vr.vCapacity,
+        vr.vRegNo,
+        vr.vehFrontImg,
+        vr.vehBackImg,
+        vr.vehSideImgA,
+        vr.vehSideImgB
+      FROM collectionofficer coff
+      LEFT JOIN vehicleregistration vr ON coff.id = vr.coId
+      WHERE coff.id = ?
+      ORDER BY vr.id DESC
+      LIMIT 1
+    `;
+
+    collectionofficer.query(sql, [337391], (err, results) => {
+      if (err) {
+        console.error("Error fetching driver vehicle registration details:", err);
+        return reject(err);
+      }
+
+      if (results.length === 0) {
+        return resolve(null);
+      }
+
+      const r = results[0];
+
+      const structured = [
+        {
+          personalInfo: {
+            id: r.id,
+            empId: r.empId,
+            empType: r.empType,
+            jobRole: r.jobRole,
+            firstNameEnglish: r.firstNameEnglish,
+            firstNameSinhala: r.firstNameSinhala,
+            firstNameTamil: r.firstNameTamil,
+            lastNameEnglish: r.lastNameEnglish,
+            lastNameSinhala: r.lastNameSinhala,
+            lastNameTamil: r.lastNameTamil,
+            phoneCode01: r.phoneCode01,
+            phoneNumber01: r.phoneNumber01,
+            phoneCode02: r.phoneCode02,
+            phoneNumber02: r.phoneNumber02,
+            nic: r.nic,
+            email: r.email,
+            languages: r.languages,
+            image: r.image,
+            status: r.status,
+          },
+        },
+        {
+          residentialAndBankInfo: {
+            houseNumber: r.houseNumber,
+            streetName: r.streetName,
+            city: r.city,
+            district: r.district,
+            province: r.province,
+            country: r.country,
+            accHolderName: r.accHolderName,
+            accNumber: r.accNumber,
+            bankName: r.bankName,
+            branchName: r.branchName,
+          },
+        },
+        {
+          licenseAndInsuranceInfo: {
+            licNo: r.licNo,
+            licFrontImg: r.licFrontImg,
+            licBackImg: r.licBackImg,
+            insNo: r.insNo,
+            insExpDate: r.insExpDate,
+            insFrontImg: r.insFrontImg,
+            insBackImg: r.insBackImg,
+          },
+        },
+        {
+          vehicleInfo: {
+            vehicleRegId: r.vehicleRegId,
+            vType: r.vType,
+            vCapacity: r.vCapacity,
+            vRegNo: r.vRegNo,
+            vehFrontImg: r.vehFrontImg,
+            vehBackImg: r.vehBackImg,
+            vehSideImgA: r.vehSideImgA,
+            vehSideImgB: r.vehSideImgB,
+          },
+        },
+      ];
+
+      resolve(structured);
+    });
+  });
+};
+
+exports.getDriverForApproval = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        coff.id, coff.jobRole, coff.empId, coff.status, coff.email,
+        coff.firstNameEnglish, coff.irmId,
+        mgr.firstNameEnglish AS managerFirstName,
+        mgr.lastNameEnglish AS managerLastName,
+        mgr.phoneCode01 AS managerPhoneCode,
+        mgr.phoneNumber01 AS managerPhoneNumber
+      FROM collectionofficer coff
+      LEFT JOIN collectionofficer mgr ON coff.irmId = mgr.id
+      WHERE coff.id = ?
+    `;
+    collectionofficer.query(sql, [id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results[0] || null);
+    });
+  });
+};
+
+exports.approveDriverDao = (id, lastId, hashedPassword, adminId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Prepare data for QR code generation
+      const qrData = `{"empId":"${lastId}"}`;
+
+      const qrCodeBase64 = await QRCode.toDataURL(qrData);
+      const qrCodeBuffer = Buffer.from(
+        qrCodeBase64.replace(/^data:image\/png;base64,/, ""),
+        "base64"
+      );
+      const qrcodeURL = await uploadFileToS3(
+        qrCodeBuffer,
+        `${lastId}.png`,
+        "collectionofficer/QRcode"
+      );
+
+      const sql = `
+        UPDATE collectionofficer
+        SET empId = ?, QRcode = ?, password = ?, passwordUpdated = 0, status = 'Approved', adminModifyBy = ?
+        WHERE id = ?
+      `;
+
+      collectionofficer.query(
+        sql,
+        [lastId, qrcodeURL, hashedPassword, adminId, id],
+        (err, results) => {
+          if (err) {
+            console.log(err);
+            return reject(err);
+          }
+          resolve(results);
+        }
+      );
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+exports.rejectDriverDao = (id, adminId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE collectionofficer
+      SET status = 'Rejected', adminModifyBy = ?
+      WHERE id = ?
+    `;
+    collectionofficer.query(sql, [adminId, id], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
