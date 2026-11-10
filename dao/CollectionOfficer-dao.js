@@ -3186,3 +3186,51 @@ exports.getAllDriveCategoriesSlave = () => {
     });
   });
 };
+
+exports.getSelfRegisteredDrivers = (search, role) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT
+        coff.id,
+        coff.firstNameEnglish,
+        coff.lastNameEnglish,
+        coff.jobRole,
+        coff.phoneCode01,
+        coff.phoneNumber01,
+        coff.nic,
+        coff.createdAt
+      FROM collectionofficer coff
+      JOIN company cm ON coff.companyId = cm.id
+      WHERE coff.jobRole IN ('Light Weight Driver', 'Heavy Weight Driver')
+        AND (coff.empId IS NULL OR coff.empId = 'null')
+        AND cm.id = 2
+    `;
+ 
+    const params = [];
+ 
+    if (role) {
+      sql += " AND coff.jobRole = ?";
+      params.push(role);
+    }
+ 
+    if (search) {
+      sql += `
+        AND (
+          CONCAT(coff.firstNameEnglish, ' ', coff.lastNameEnglish) LIKE ?
+          OR CONCAT(coff.phoneCode01, coff.phoneNumber01) LIKE ?
+          OR coff.phoneNumber01 LIKE ?
+          OR coff.nic LIKE ?
+        )`;
+      const term = `%${search.trim()}%`;
+      const phoneTerm = `%${search.trim().replace(/^0+/, "")}%`;
+      params.push(term, term, phoneTerm, term);
+    }
+ 
+    sql += " ORDER BY coff.createdAt ASC";
+ 
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
