@@ -158,4 +158,11 @@ exports.claimDriverSchema = Joi.object({
     managerId: Joi.number().required()
 });
 
+exports.getSelfRegisteredDriversSchema = Joi.object({
+  search: Joi.string().allow("", null).optional(),
+  role: Joi.string()
+    .valid("Light Weight Driver", "Heavy Weight Driver")
+    .allow("", null)
+    .optional(),
+});
 

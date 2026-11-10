@@ -44,6 +44,8 @@ exports.getAdminUserData = async (req, res) => {
       await StakeholderDao.getActiveDistributionOfficers();
     const totalDistributionOfficers =
       await StakeholderDao.getTotalDistributionOfficers();
+    const selfRegisteredDriversCount =
+      await StakeholderDao.getSelfRegisteredDriversCount();
 
     res.status(200).json({
       firstRow: {
@@ -74,6 +76,7 @@ exports.getAdminUserData = async (req, res) => {
       sixthRow: {
         distributionOfficersByPosition: distributionOfficersByPosition,
         newDistributionOfficers: newDistributionOfficers,
+        selfRegisteredDriversCount: selfRegisteredDriversCount,
       },
     });
   } catch (error) {

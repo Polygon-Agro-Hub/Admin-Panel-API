@@ -375,4 +375,11 @@ router.put(
   authMiddleware,
   CollectionOfficerEp.updateDriveCategory
 );
+
+router.get(
+  "/get-self-registered-drivers",
+  authMiddleware,
+  CollectionOfficerEp.getSelfRegisteredDrivers
+);
+
 module.exports = router;

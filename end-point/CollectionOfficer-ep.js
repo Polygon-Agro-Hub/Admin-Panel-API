@@ -1380,10 +1380,6 @@ exports.getPurchaseReport = async (req, res) => {
   }
 };
 
-
-
-
-
 exports.getAllCentersForPurchaseReport = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
@@ -1840,5 +1836,24 @@ exports.updateDriveCategory = async (req, res) => {
       status: false,
       error: 'An error occurred while updating the driver category.'
     });
+  }
+};
+
+exports.getSelfRegisteredDrivers = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { search, role } =
+      await collectionofficerValidate.getSelfRegisteredDriversSchema.validateAsync(req.query);
+ 
+    const items = await collectionofficerDao.getSelfRegisteredDrivers(search, role);
+ 
+    res.json({ items, total: items.length });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error fetching self registered drivers:", err);
+    res.status(500).json({ error: "An error occurred while fetching self registered drivers" });
   }
 };
