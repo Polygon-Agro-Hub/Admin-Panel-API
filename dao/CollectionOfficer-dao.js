@@ -175,12 +175,13 @@ exports.checkEmpIdExist = (empId, excludeId) => {
 exports.createCollectionOfficerPersonal = (
   officerData,
   profileImageUrl,
-  lastId
+  lastId,
+  adminId
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
       console.log(officerData.empId);
-      
+
       // Prepare data for QR code generation
       const qrData = `{"empId":"${lastId}"}`;
 
@@ -197,7 +198,7 @@ exports.createCollectionOfficerPersonal = (
       console.log(qrcodeURL);
 
       // If no image URL, set it to null
-      const imageUrl = profileImageUrl || null; // Use null if profileImageUrl is not provided
+      const imageUrl = profileImageUrl || null;
       if (
         officerData.jobRole === "Collection Centre Manager" ||
         officerData.jobRole === "Collection Centre Head"
@@ -210,13 +211,12 @@ exports.createCollectionOfficerPersonal = (
                     centerId, companyId ,irmId ,firstNameEnglish, firstNameSinhala, firstNameTamil, lastNameEnglish,
                     lastNameSinhala, lastNameTamil, jobRole, empId, empType, phoneCode01, phoneNumber01, phoneCode02, phoneNumber02,
                     nic, email, houseNumber, streetName, city, district, province, country,
-                    languages, accHolderName, accNumber, bankName, branchName, image, QRcode, status
+                    languages, accHolderName, accNumber, bankName, branchName, image, QRcode, adminModifyBy, status
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                         ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?, 'Not Approved')
+                         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Not Approved')
             `;
 
-      // Database query with QR image data added
       collectionofficer.query(
         sql,
         [
@@ -230,7 +230,7 @@ exports.createCollectionOfficerPersonal = (
           officerData.lastNameSinhala,
           officerData.lastNameTamil,
           officerData.jobRole,
-          lastId, //this is latest empId
+          lastId, // latest empId
           officerData.empType,
           officerData.phoneCode01,
           officerData.phoneNumber01,
@@ -249,19 +249,20 @@ exports.createCollectionOfficerPersonal = (
           officerData.accNumber,
           officerData.bankName,
           officerData.branchName,
-          imageUrl, // Use the potentially null image URL
+          imageUrl,
           qrcodeURL,
+          adminId,
         ],
         (err, results) => {
           if (err) {
             console.log(err);
-            return reject(err); // Reject promise if an error occurs
+            return reject(err);
           }
-          resolve(results); // Resolve the promise with the query results
+          resolve(results);
         }
       );
     } catch (error) {
-      reject(error); // Reject if any error occurs during QR code generation
+      reject(error);
     }
   });
 };

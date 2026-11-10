@@ -81,6 +81,7 @@ const deleteFromS3 = require("../middlewares/s3delete");
 exports.createCollectionOfficer = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
+  const adminId = req.user.userId;
 
   try {
     const officerData = JSON.parse(req.body.officerData);
@@ -116,8 +117,8 @@ exports.createCollectionOfficer = async (req, res) => {
     // If any errors, return them all at once
     if (validationErrors.length > 0) {
       return res.status(400).json({
-        errors: validationErrors,   // e.g. ["Email", "PhoneNumber01"]
-        status: false
+        errors: validationErrors,
+        status: false,
       });
     }
 
@@ -149,7 +150,8 @@ exports.createCollectionOfficer = async (req, res) => {
     const resultsPersonal = await collectionofficerDao.createCollectionOfficerPersonal(
       officerData,
       profileImageUrl,
-      lastId
+      lastId,
+      adminId
     );
 
     console.log("Collection Officer created successfully");
