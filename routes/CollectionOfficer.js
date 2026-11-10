@@ -395,4 +395,11 @@ router.post(
 );
 
 
+
+router.get(
+  "/get-self-registered-drivers",
+  authMiddleware,
+  CollectionOfficerEp.getSelfRegisteredDrivers
+);
+
 module.exports = router;

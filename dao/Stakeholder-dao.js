@@ -522,6 +522,27 @@ exports.getNewDistributionOfficers = () => {
   });
 };
 
+exports.getSelfRegisteredDriversCount = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT COUNT(*) AS count
+      FROM collectionofficer coff
+      JOIN company cm ON coff.companyId = cm.id
+      WHERE coff.jobRole IN (?, ?)
+        AND (coff.empId IS NULL OR coff.empId = 'null')
+        AND cm.id = 2;
+    `;
+    collectionofficer.query(
+      sql,
+      [LIGHT_WEIGHT_DRIVER, HEAVY_WEIGHT_DRIVER],
+      (err, results) => {
+        if (err) return reject(err);
+        resolve(results[0].count);
+      }
+    );
+  });
+};
+
 // Get Active Distribution Officers
 exports.getActiveDistributionOfficers = () => {
   return new Promise((resolve, reject) => {
