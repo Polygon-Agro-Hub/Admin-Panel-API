@@ -3223,6 +3223,7 @@ exports.getDriverVehicalRegistrationDetails = (id) => {
         coff.accNumber,
         coff.bankName,
         coff.branchName,
+        coff.createdAt,
         vr.id AS vehicleRegId,
         vr.licNo,
         vr.licFrontImg,
@@ -3280,6 +3281,7 @@ exports.getDriverVehicalRegistrationDetails = (id) => {
             languages: r.languages,
             image: r.image,
             status: r.status,
+            createdAt: r.createdAt
           },
         },
         {
