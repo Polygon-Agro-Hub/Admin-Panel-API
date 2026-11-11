@@ -3444,6 +3444,50 @@ exports.rejectDriverDao = (id, adminId) => {
   });
 };
 
+// Permanently removes a rejected driver (and their vehicle registration) in a single transaction.
+exports.deleteRejectedDriverDao = (id) => {
+  return new Promise((resolve, reject) => {
+    collectionofficer.getConnection((connErr, connection) => {
+      if (connErr) return reject(connErr);
+
+      const rollback = (err) =>
+        connection.rollback(() => {
+          connection.release();
+          reject(err);
+        });
+
+      connection.beginTransaction((txErr) => {
+        if (txErr) {
+          connection.release();
+          return reject(txErr);
+        }
+
+        connection.query(
+          "DELETE FROM vehicleregistration WHERE coId = ?",
+          [id],
+          (vehErr) => {
+            if (vehErr) return rollback(vehErr);
+
+            connection.query(
+              "DELETE FROM collectionofficer WHERE id = ?",
+              [id],
+              (delErr, results) => {
+                if (delErr) return rollback(delErr);
+
+                connection.commit((commitErr) => {
+                  if (commitErr) return rollback(commitErr);
+                  connection.release();
+                  resolve(results);
+                });
+              }
+            );
+          }
+        );
+      });
+    });
+  });
+};
+
 
 exports.getSelfRegisteredDrivers = (search, role) => {
   return new Promise((resolve, reject) => {

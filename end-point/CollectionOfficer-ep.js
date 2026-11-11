@@ -2101,6 +2101,9 @@ exports.rejectDriver = async (req, res) => {
 
     await notifyMobileApis(driver.jobRole, Number(id), notification);
 
+    // Notification sent — now permanently remove the driver record
+    await collectionofficerDao.deleteRejectedDriverDao(id);
+
     return res.status(200).json({
       status: true,
       message: "Driver rejected successfully",
