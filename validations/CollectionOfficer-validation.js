@@ -158,4 +158,34 @@ exports.claimDriverSchema = Joi.object({
     managerId: Joi.number().required()
 });
 
+exports.driverIdSchema = Joi.object({
+    id: Joi.number().required(),
+});
 
+exports.getSelfRegisteredDriversSchema = Joi.object({
+  search: Joi.string().allow("", null).optional(),
+  role: Joi.string()
+    .valid("Light Weight Driver", "Heavy Weight Driver")
+    .allow("", null)
+    .optional(),
+});
+
+exports.rejectDriverReasonSchema = Joi.object({
+    reason: Joi.string().trim().min(1).max(500).required(),
+});
+
+exports.approveDriverBodySchema = Joi.object({
+    distributedCenterId: Joi.number().integer().required(),
+    irmId: Joi.number().integer().required(),
+    empType: Joi.string().valid("Permanent", "Temporary").required(),
+    driverCategoryId: Joi.number().integer().required(),
+});
+
+exports.companyIdParamSchema = Joi.object({
+    companyId: Joi.number().integer().required(),
+});
+
+exports.companyCenterParamSchema = Joi.object({
+    companyId: Joi.number().integer().required(),
+    centerId: Joi.number().integer().required(),
+});
