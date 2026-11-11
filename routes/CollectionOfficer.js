@@ -375,4 +375,47 @@ router.put(
   authMiddleware,
   CollectionOfficerEp.updateDriveCategory
 );
+
+router.get(
+  "/driver/get-driver-registration-details/:id",
+  authMiddleware,
+  CollectionOfficerEp.getDriverVehicalRegistrationDetails
+);
+
+router.post(
+  "/driver/approve-driver/:id",
+  authMiddleware,
+  CollectionOfficerEp.approveDriver
+);
+
+router.post(
+  "/driver/reject-driver/:id",
+  authMiddleware,
+  CollectionOfficerEp.rejectDriver
+);
+
+router.get(
+  "/get-self-registered-drivers",
+  authMiddleware,
+  CollectionOfficerEp.getSelfRegisteredDrivers
+);
+
+router.get(
+  "/driver/get-distribution-center-names-by-company/:companyId",
+  authMiddleware,
+  CollectionOfficerEp.getDistributionCenterNamesByCompany
+);
+
+router.get(
+  "/driver/get-distribution-manager-names-by-company/:companyId/:centerId",
+  authMiddleware,
+  CollectionOfficerEp.getDistributionManagerNamesByCompany
+);
+
+router.get(
+  "/driver/get-driver-category-names",
+  authMiddleware,
+  CollectionOfficerEp.getDriverCategoryNames
+);
+
 module.exports = router;

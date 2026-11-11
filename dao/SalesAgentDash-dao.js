@@ -296,13 +296,12 @@ exports.getSalesAgents = () => {
     `;
     collectionofficer.query(sql, (err, results) => {
       if (err) return reject(err);
-      resolve([
-        { label: "Polygon", value: "Polygon" },
-        ...results.map((r) => ({
+      resolve(
+        results.map((r) => ({
           label: `${r.empId} - ${r.firstName}`,
           value: r.id,
         })),
-      ]);
+      );
     });
   });
 };
