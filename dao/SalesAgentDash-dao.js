@@ -296,13 +296,12 @@ exports.getSalesAgents = () => {
     `;
     collectionofficer.query(sql, (err, results) => {
       if (err) return reject(err);
-      resolve([
-        { label: "Polygon", value: "Polygon" },
-        ...results.map((r) => ({
+      resolve(
+        results.map((r) => ({
           label: `${r.empId} - ${r.firstName}`,
           value: r.id,
         })),
-      ]);
+      );
     });
   });
 };
@@ -357,8 +356,8 @@ exports.createWholesaleCustomerDao = async (data) => {
         salesAgent, cusId, title, firstName, lastName,
         phoneCode, phoneNumber, docType, nic, buyerType, email, password,
         companyPhoneCode, companyPhone, companyName,
-        isMarketPlaceUser, isPswUpdateed
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Wholesale', ?, ?, ?, ?, ?, 1, 0)
+        isMarketPlaceUser, isPswUpdateed, nearesCity
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Wholesale', ?, ?, ?, ?, ?, 1, 0, ?)
       `,
       [
         data.salesAgent || null,
@@ -375,6 +374,7 @@ exports.createWholesaleCustomerDao = async (data) => {
         data.companyPhoneCode,
         data.companyPhone,
         data.companyName,
+        data.nearestCity
       ]
     );
  
@@ -403,3 +403,21 @@ exports.createWholesaleCustomerDao = async (data) => {
     conn.release();
   }
 };
+
+exports.getCities = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+	      dc.id,
+	      dc.city 
+      FROM deliverycharge dc
+      LEFT JOIN centerowncity c ON dc.id = c.cityId 
+      WHERE dc.id = c.cityId 
+      ORDER BY dc.city ASC
+    `;
+    collectionofficer.query(sql, (err, results) => {
+      if (err) return reject(err);
+      resolve(results.map((r) => ({ label: r.city, value: r.id })));
+    });
+  });
+}
