@@ -2121,7 +2121,7 @@ exports.getAllMarketplaceItems = (category) => {
       FROM marketplaceitems mpi
       LEFT JOIN producttypes pt ON mpi.productTypeId = pt.id  
       WHERE mpi.category = 'Retail'
-      ORDER BY createdAt DESC
+      ORDER BY mpi.displayName ASC
     `;
 
     collectionofficer.query(sql, [category], (err, results) => {

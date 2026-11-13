@@ -65,5 +65,6 @@ exports.onboardWholesaleCustomerSchema = Joi.object({
   companyPhone: Joi.string().pattern(/^[0-9]{9,12}$/).required().messages({
     "string.pattern.base": "Invalid company phone number",
   }),
+  nearestCity: Joi.string().trim().max(100).required(),
 });
  

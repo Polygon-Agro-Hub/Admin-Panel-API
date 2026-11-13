@@ -136,7 +136,7 @@ const itemSchema = (isRetail) =>
     productId: Joi.number().integer().positive().required(),
     display: Joi.string().allow("", null).optional(),
     actualPrice: Joi.number().greater(0).required(),
-    salePrice: Joi.number().greater(0).required(),
+    salePrice: Joi.number().greater(0).max(Joi.ref("actualPrice")).required(),
     competitorPrice: Joi.number().greater(Joi.ref("salePrice")).required(),
     ...(isRetail && { packageBasedPrice: Joi.number().greater(0).required() }),
   }).custom((item, helpers) => {
@@ -166,6 +166,10 @@ const MSG = {
   duplicate: "Duplicate Product IDs found.",
   salePrice:
     "Invalid Sale Price. Please enter a valid Sale Price greater than 0.",
+  salePrice:
+    "Invalid Sale Price. Please enter a valid Sale Price greater than 0.",
+  saleExceedsActual:
+    "Invalid Sale Price. Sale Price cannot be greater than the Actual Price.",
   actualPrice:
     "Invalid Actual Price. Please enter a valid Actual Price greater than 0.",
   noDiscountMismatch:
@@ -181,6 +185,7 @@ const ORDER = [
   MSG.notFound,
   MSG.duplicate,
   MSG.salePrice,
+  MSG.saleExceedsActual,
   MSG.actualPrice,
   MSG.noDiscountMismatch,
   MSG.competitorPrice,
@@ -198,6 +203,16 @@ exports.formatPriceListErrors = (error, rawItems = []) => {
     if (rowNo !== undefined) grouped.get(message).add(rowNo);
   };
 
+  const rowFields = new Map();
+  error.details.forEach((d) => {
+    if (d.type === "any.ref" || d.type === "array.unique") return;
+    const [, index, field] = d.path;
+    if (typeof index === "number" && typeof field === "string") {
+      if (!rowFields.has(index)) rowFields.set(index, new Set());
+      rowFields.get(index).add(field);
+    }
+  });
+
   error.details.forEach((d) => {
     if (d.type === "array.unique") {
       const a = rawItems[d.context.pos];
@@ -210,14 +225,31 @@ exports.formatPriceListErrors = (error, rawItems = []) => {
       return;
     }
 
+    if (d.type === "any.ref") return;
+
     const [, index, field] = d.path;
+
     if (d.type === "price.noDiscountMismatch") {
       add(MSG.noDiscountMismatch, rawItems[index]?.rowNo);
-    } else if (typeof index === "number" && MSG[field]) {
-      add(MSG[field], rawItems[index]?.rowNo);
-    } else {
-      add(d.message);
+      return;
     }
+
+    if (typeof index !== "number" || !MSG[field]) {
+      add(d.message);
+      return;
+    }
+
+    const fields = rowFields.get(index) ?? new Set();
+    const rowNo = rawItems[index]?.rowNo;
+
+    if (field === "salePrice" && d.type === "number.max") {
+      if (!fields.has("actualPrice")) add(MSG.saleExceedsActual, rowNo);
+      return;
+    }
+
+    if (field === "competitorPrice" && fields.has("salePrice")) return;
+
+    add(MSG[field], rowNo);
   });
 
   const result = [
