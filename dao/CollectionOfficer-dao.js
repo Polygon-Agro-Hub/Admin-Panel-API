@@ -3334,6 +3334,7 @@ exports.getDriverForApproval = (id) => {
       SELECT
         coff.id, coff.companyId, coff.jobRole, coff.empId, coff.status, coff.email,
         coff.firstNameEnglish, coff.irmId,
+        coff.phoneCode01, coff.phoneNumber01,
         mgr.firstNameEnglish AS managerFirstName,
         mgr.lastNameEnglish AS managerLastName,
         mgr.phoneCode01 AS managerPhoneCode,
