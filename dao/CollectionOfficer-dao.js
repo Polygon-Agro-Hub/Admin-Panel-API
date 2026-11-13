@@ -3246,7 +3246,7 @@ exports.getDriverVehicalRegistrationDetails = (id) => {
       LIMIT 1
     `;
 
-    collectionofficer.query(sql, [337391], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         console.error("Error fetching driver vehicle registration details:", err);
         return reject(err);
