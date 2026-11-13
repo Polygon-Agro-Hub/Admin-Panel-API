@@ -3580,9 +3580,9 @@ exports.getDistributionManagerNamesByCompanyDao = (companyId, centerId) => {
 exports.getDriverCategoryNamesDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT id, catName
-      FROM drivercategory
-      ORDER BY catName ASC
+      SELECT id, slvCatName AS catName 
+      FROM drivercategoryslave
+      ORDER BY slvCatName ASC
     `;
     collectionofficer.query(sql, (err, results) => {
       if (err) {
