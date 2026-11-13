@@ -13,6 +13,7 @@ const uploadFileToS3 = require("../middlewares/s3upload");
 const deleteFromS3 = require("../middlewares/s3delete");
 const DistributionDao = require("../dao/Distribution-dao");
 const DriverJobRoles = require("../assets/json/driverJobRole.json");
+const { buildFormattedPhone, sendSMS } = require("../utils/shoutout");
 
 const LIGHT_WEIGHT_DRIVER = DriverJobRoles.LIGHT_WEIGHT_DRIVER;
 const HEAVY_WEIGHT_DRIVER = DriverJobRoles.HEAVY_WEIGHT_DRIVER;
@@ -1884,6 +1885,34 @@ exports.getDriverVehicalRegistrationDetails = async (req, res) => {
   }
 };
 
+// Sends an SMS to the driver's phone via ShoutOUT. Never throws; returns true if sent.
+const sendDriverSms = async (driver, message, context) => {
+  try {
+    const formattedPhone = buildFormattedPhone(
+      driver.phoneCode01,
+      driver.phoneNumber01
+    );
+    if (!formattedPhone) {
+      throw new Error(
+        `Invalid phone number: ${driver.phoneCode01 || ""}${driver.phoneNumber01 || ""}`
+      );
+    }
+    const smsResult = await sendSMS(formattedPhone, message);
+    console.log(
+      `✅ [${context}] SMS sent to ${formattedPhone} | ShoutOUT response:`,
+      JSON.stringify(smsResult, null, 2)
+    );
+    return true;
+  } catch (smsError) {
+    console.error(
+      `❌ [${context}] SMS failed:`,
+      smsError.message,
+      JSON.stringify(smsError.response?.data ?? "", null, 2)
+    );
+    return false;
+  }
+};
+
 exports.approveDriver = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
@@ -1980,7 +2009,7 @@ exports.approveDriver = async (req, res) => {
       driver.firstNameEnglish
     );
 
-    // Notify transporter mobile app with login details
+    // Build login details message for the driver
     const managerName = [manager.firstNameEnglish, manager.lastNameEnglish]
       .filter(Boolean)
       .join(" ");
@@ -1992,29 +2021,25 @@ exports.approveDriver = async (req, res) => {
       .filter(Boolean)
       .join(" ");
 
-    const notification = {
-      title: "Welcome onboard!",
-      body: [
-        "Your registration has been approved.",
-        "GoVi-Trans Login:",
-        `Username: ${lastId}`,
-        `Password: ${generatedPassword}`,
-        "Best regards,",
-        "Polygon Team",
-        `Contact: ${managerContact || "N/A"}`,
-      ].join("\n"),
-      empId: lastId,
-      password: generatedPassword,
-      managerName: managerName || null,
-      managerPhone: managerPhone || null,
-    };
+    const smsMessage = [
+      "Welcome onboard!",
+      "Your registration has been approved.",
+      "GoVi-Trans Login:",
+      `Username: ${lastId}`,
+      `Password: ${generatedPassword}`,
+      "Best regards,",
+      "Polygon Team",
+      `Contact: ${managerContact || "N/A"}`,
+    ].join("\n");
 
-    await notifyMobileApis(driver.jobRole, Number(id), notification);
+    // Send login details to the driver by SMS (ShoutOUT)
+    const smsSent = await sendDriverSms(driver, smsMessage, "approveDriver");
 
     if (!emailResult.success) {
       return res.status(200).json({
         status: true,
         emailSent: false,
+        smsSent,
         message: "Driver approved, but failed to send password email.",
         result: { id, empId: lastId, email: driver.email, status: "Approved" },
       });
@@ -2023,6 +2048,7 @@ exports.approveDriver = async (req, res) => {
     return res.status(200).json({
       status: true,
       emailSent: true,
+      smsSent,
       message: "Driver approved and password sent successfully.",
       result: { id, empId: lastId, email: driver.email, status: "Approved" },
     });
@@ -2086,26 +2112,23 @@ exports.rejectDriver = async (req, res) => {
       });
     }
 
-    // Notify transporter mobile app with rejection reason
-    const notification = {
-      title: "Driver Registration Rejected",
-      body: [
-        "Dear Applicant,",
-        `your driver registration is rejected due to: ${reason}.`,
-        "Please reapply after meeting our requirements.",
-        "Thank you,",
-        "Polygon Team",
-      ].join("\n"),
-      reason,
-    };
+    const smsMessage = [
+      "Dear Applicant,",
+      `your driver registration is rejected due to: ${reason}.`,
+      "Please reapply after meeting our requirements.",
+      "Thank you,",
+      "Polygon Team",
+    ].join("\n");
 
-    await notifyMobileApis(driver.jobRole, Number(id), notification);
+    // Send rejection reason to the driver by SMS (ShoutOUT)
+    const smsSent = await sendDriverSms(driver, smsMessage, "rejectDriver");
 
-    // Notification sent — now permanently remove the driver record
+    // SMS attempted — now permanently remove the driver record
     await collectionofficerDao.deleteRejectedDriverDao(id);
 
     return res.status(200).json({
       status: true,
+      smsSent,
       message: "Driver rejected successfully",
       result: { id, status: "Rejected", reason },
     });
