@@ -2478,7 +2478,8 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         oa.buildingNo,
         oa.buildingName,
         oa.unitNo,
-        oa.floorNo
+        oa.floorNo,
+        po.deliveryCharge AS deliveryFee
       FROM orders o
       LEFT JOIN processorders po ON o.id = po.orderId
       LEFT JOIN orderhouse oh ON o.id = oh.orderId AND o.buildingType = 'House'
