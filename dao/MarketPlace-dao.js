@@ -191,7 +191,7 @@ exports.getMarketplaceItems = (
                     LEFT JOIN agro_world_admin.adminusers au ON m.modifyBy = au.id
                     LEFT JOIN collection_officer.producttypes pt ON m.productTypeId = pt.id`;
 
-    let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.comPrice, m.discount, m.startValue, m.maxQuantity, m.promo,
+    let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.comPrice, m.pkgBasePrice, m.discount, m.startValue, m.maxQuantity, m.promo,
                   m.unitType, m.changeby, m.normalPrice, m.category, m.displayType, m.isEnable, au.userName AS modifyBy,
                   cg.cropNameEnglish, cv.varietyNameEnglish,
                   pt.id AS productTypeId, pt.shortCode AS productTypeShortCode,
@@ -3416,7 +3416,10 @@ exports.getCouponByCodeDao = async (code) => {
 exports.removeMarketplacePckages = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-          DELETE FROM marketplacepackages 
+          UPDATE marketplacepackages 
+          SET 
+            isValid = 0,
+            status = 'Disabled'
           WHERE id = ?`;
     collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
@@ -3492,15 +3495,19 @@ exports.getPosPackageDetailsDAO = (orderId) => {
         mp.displayName AS packageName,               
         mp.productPrice AS packagePrice,             
         op.qty AS packageCount,                      
-        JSON_ARRAYAGG(                               
-            JSON_OBJECT(                             
-                'typeName', pt.typeName,             
-                'productName', mpi.displayName,
-                'unit', mpi.unitType,   
-                'price', mpi.discountedPrice,                   
-                'qty', opi.qty                       
-            )                                        
-        ) AS items                                   
+        JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'typeName', pt.typeName,
+            'productName', mpi.displayName,
+            'unit', mpi.unitType,
+            'price', opi.price,
+            'qty', opi.qty,
+            'displayQty', CASE
+                WHEN mpi.unitType = 'g' THEN ROUND(opi.qty * 1000)
+                ELSE opi.qty
+              END
+          )
+      ) AS items                               
       FROM orderpackage op
       LEFT JOIN marketplacepackages mp ON op.packageId = mp.id
       LEFT JOIN orderpackageitems opi ON op.id = opi.orderPackageId
