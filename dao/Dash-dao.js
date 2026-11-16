@@ -599,7 +599,8 @@ const getAllOrders = (
   deliveryType,
   searchText,
   date,
-  agentFilter
+  agentFilter,
+  orderedDate
 ) => {
   return new Promise((resolve, reject) => {
     page = parseInt(page, 10);
@@ -694,6 +695,14 @@ const getAllOrders = (
       const d = new Date(date);
       formattedDate = d.toISOString().split("T")[0];
       params.push(formattedDate);
+    }
+
+    // Ordered date (po.createdAt stored in UTC, compared in Sri Lanka time)
+    if (orderedDate) {
+      whereConditions.push(
+        `DATE(DATE_ADD(po.createdAt, INTERVAL 330 MINUTE)) = ?`
+      );
+      params.push(orderedDate);
     }
 
     // ── Agent filter ────────────────────────────────────────
