@@ -55,7 +55,7 @@ exports.onboardWholesaleCustomerSchema = Joi.object({
       then: Joi.string().pattern(/^([0-9]{9}[vVxX]|[0-9]{12})$/).messages({
         "string.pattern.base": "Invalid NIC number",
       }),
-      otherwise: Joi.string().pattern(/^[A-Za-z0-9]{5,12}$/).messages({
+      otherwise: Joi.string().pattern(/^[A-Za-z0-9]{8,12}$/).messages({
         "string.pattern.base": "Invalid passport number",
       }),
     }),
