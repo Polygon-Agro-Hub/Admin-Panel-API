@@ -71,6 +71,7 @@ exports.getAllRetailOrderSchema = Joi.object({
   method: Joi.string().optional(),
   searchItem: Joi.string().optional(),
   formattedDate: Joi.string().optional(),
+  scheduleDate: Joi.string().optional(),
 });
 
 exports.getmarketplaceCustomerParamSchema = Joi.object({

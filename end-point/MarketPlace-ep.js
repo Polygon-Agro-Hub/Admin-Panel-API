@@ -1391,7 +1391,7 @@ exports.getAllRetailOrders = async (req, res) => {
   const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
   console.log(fullUrl);
   try {
-    const { page, limit, status, method, searchItem, formattedDate } =
+    const { page, limit, status, method, searchItem, formattedDate, scheduleDate } =
       await MarketPriceValidate.getAllRetailOrderSchema.validateAsync(
         req.query,
       );
@@ -1405,6 +1405,7 @@ exports.getAllRetailOrders = async (req, res) => {
       method,
       searchItem,
       formattedDate,
+      scheduleDate,
     );
     res.json({
       items,
