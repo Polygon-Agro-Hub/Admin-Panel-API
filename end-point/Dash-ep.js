@@ -473,6 +473,7 @@ exports.getAllOrders = async (req, res) => {
       searchText,
       date,
       agentFilter,
+      orderedDate,
     } = req.query;
 
     // Call the DAO to get all collection officers
@@ -486,6 +487,7 @@ exports.getAllOrders = async (req, res) => {
       searchText,
       date,
       agentFilter,
+      orderedDate,
     );
 
     return res.status(200).json(result);
