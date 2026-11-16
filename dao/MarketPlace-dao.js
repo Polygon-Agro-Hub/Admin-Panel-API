@@ -3431,7 +3431,10 @@ exports.getCouponByCodeDao = async (code) => {
 exports.removeMarketplacePckages = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-          DELETE FROM marketplacepackages 
+          UPDATE marketplacepackages 
+          SET 
+            isValid = 0,
+            status = 'Disabled'
           WHERE id = ?`;
     collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
@@ -3507,15 +3510,19 @@ exports.getPosPackageDetailsDAO = (orderId) => {
         mp.displayName AS packageName,               
         mp.productPrice AS packagePrice,             
         op.qty AS packageCount,                      
-        JSON_ARRAYAGG(                               
-            JSON_OBJECT(                             
-                'typeName', pt.typeName,             
-                'productName', mpi.displayName,
-                'unit', mpi.unitType,   
-                'price', mpi.discountedPrice,                   
-                'qty', opi.qty                       
-            )                                        
-        ) AS items                                   
+        JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'typeName', pt.typeName,
+            'productName', mpi.displayName,
+            'unit', mpi.unitType,
+            'price', opi.price,
+            'qty', opi.qty,
+            'displayQty', CASE
+                WHEN mpi.unitType = 'g' THEN ROUND(opi.qty * 1000)
+                ELSE opi.qty
+              END
+          )
+      ) AS items                               
       FROM orderpackage op
       LEFT JOIN marketplacepackages mp ON op.packageId = mp.id
       LEFT JOIN orderpackageitems opi ON op.id = opi.orderPackageId
