@@ -3246,7 +3246,7 @@ exports.getDriverVehicalRegistrationDetails = (id) => {
       LIMIT 1
     `;
 
-    collectionofficer.query(sql, [337391], (err, results) => {
+    collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
         console.error("Error fetching driver vehicle registration details:", err);
         return reject(err);
@@ -3334,6 +3334,7 @@ exports.getDriverForApproval = (id) => {
       SELECT
         coff.id, coff.companyId, coff.jobRole, coff.empId, coff.status, coff.email,
         coff.firstNameEnglish, coff.irmId,
+        coff.phoneCode01, coff.phoneNumber01,
         mgr.firstNameEnglish AS managerFirstName,
         mgr.lastNameEnglish AS managerLastName,
         mgr.phoneCode01 AS managerPhoneCode,
@@ -3580,9 +3581,9 @@ exports.getDistributionManagerNamesByCompanyDao = (companyId, centerId) => {
 exports.getDriverCategoryNamesDao = () => {
   return new Promise((resolve, reject) => {
     const sql = `
-      SELECT id, catName
-      FROM drivercategory
-      ORDER BY catName ASC
+      SELECT id, slvCatName AS catName 
+      FROM drivercategoryslave
+      ORDER BY slvCatName ASC
     `;
     collectionofficer.query(sql, (err, results) => {
       if (err) {

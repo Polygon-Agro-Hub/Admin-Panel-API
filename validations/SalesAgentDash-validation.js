@@ -35,7 +35,7 @@ exports.onboardWholesaleCustomerSchema = Joi.object({
   // salesagent.id chosen in the "Select Agent" dropdown (optional => Polygon-onboarded)
   salesAgent: Joi.number().integer().allow(null, "").optional(),
  
-  title: Joi.string().valid("Mr.", "Mrs.", "Ms.", "Rev.", "Dr.").required(),
+  title: Joi.string().required(),
   firstName: Joi.string().trim().max(50).required(),
   lastName: Joi.string().trim().max(50).required(),
  
@@ -55,7 +55,7 @@ exports.onboardWholesaleCustomerSchema = Joi.object({
       then: Joi.string().pattern(/^([0-9]{9}[vVxX]|[0-9]{12})$/).messages({
         "string.pattern.base": "Invalid NIC number",
       }),
-      otherwise: Joi.string().pattern(/^[A-Za-z0-9]{5,12}$/).messages({
+      otherwise: Joi.string().pattern(/^[A-Za-z0-9]{8,12}$/).messages({
         "string.pattern.base": "Invalid passport number",
       }),
     }),

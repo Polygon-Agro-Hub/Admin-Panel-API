@@ -809,7 +809,26 @@ exports.updateVariety = async (req, res) => {
   try {
     let imageData = null;
     if (req.file) {
-      imageData = req.file.buffer;
+      const cropVariety = await cropCalendarDao.getVarietyByIds3(id);
+      if (!cropVariety) {
+        return res.status(404).json({ message: "Crop variety not found." });
+      }
+
+      // Upload new image to S3 and store its URL (not the raw file bytes)
+      imageData = await uploadFileToS3(
+        req.file.buffer,
+        req.file.originalname,
+        "cropvariety/image",
+      );
+
+      // Remove the old image from S3
+      if (cropVariety.image) {
+        try {
+          await deleteFromS3(cropVariety.image);
+        } catch (s3Err) {
+          console.warn("Failed to delete old variety image:", s3Err.message);
+        }
+      }
     }
 
     await cropCalendarDao.updateVariety(

@@ -191,7 +191,7 @@ exports.getMarketplaceItems = (
                     LEFT JOIN agro_world_admin.adminusers au ON m.modifyBy = au.id
                     LEFT JOIN collection_officer.producttypes pt ON m.productTypeId = pt.id`;
 
-    let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.comPrice, m.discount, m.startValue, m.maxQuantity, m.promo,
+    let dataSql = `SELECT m.id, m.displayName, m.discountedPrice, m.comPrice, m.pkgBasePrice, m.discount, m.startValue, m.maxQuantity, m.promo,
                   m.unitType, m.changeby, m.normalPrice, m.category, m.displayType, m.isEnable, au.userName AS modifyBy,
                   cg.cropNameEnglish, cv.varietyNameEnglish,
                   pt.id AS productTypeId, pt.shortCode AS productTypeShortCode,
@@ -1429,6 +1429,7 @@ exports.getAllRetailOrderDetails = (
   method,
   searchItem,
   formattedDate,
+  scheduleDate,
 ) => {
   return new Promise((resolve, reject) => {
     let countSql = `
@@ -1450,7 +1451,8 @@ exports.getAllRetailOrderDetails = (
         po.paymentMethod,
         po.creditPaid,
         po.moneyPaid,
-        o.createdAt AS orderdDate 
+        po.sheduleDate AS scheduleDate,
+        o.createdAt AS orderdDate
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
@@ -1481,6 +1483,11 @@ exports.getAllRetailOrderDetails = (
     if (formattedDate) {
       whereClause += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) = ?";
       searchParams.push(formattedDate);
+    }
+
+    if (scheduleDate) {
+      whereClause += " AND DATE(po.sheduleDate) = ?";
+      searchParams.push(scheduleDate);
     }
 
     countSql += whereClause;
@@ -2478,7 +2485,8 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         oa.buildingNo,
         oa.buildingName,
         oa.unitNo,
-        oa.floorNo
+        oa.floorNo,
+        po.deliveryCharge AS deliveryFee
       FROM orders o
       LEFT JOIN processorders po ON o.id = po.orderId
       LEFT JOIN orderhouse oh ON o.id = oh.orderId AND o.buildingType = 'House'
@@ -2525,6 +2533,8 @@ exports.getFamilyPackItemsDAO = (orderId) => {
         op.qty,
         mp.id AS packageId,
         mp.displayName AS name,
+        mp.packingFee,
+        mp.serviceFee,
         (mp.productPrice + mp.packingFee + mp.serviceFee) AS amount
       FROM orderpackage op
       JOIN marketplacepackages mp ON op.packageId = mp.id
@@ -3408,7 +3418,10 @@ exports.getCouponByCodeDao = async (code) => {
 exports.removeMarketplacePckages = async (id) => {
   return new Promise((resolve, reject) => {
     const sql = `
-          DELETE FROM marketplacepackages 
+          UPDATE marketplacepackages 
+          SET 
+            isValid = 0,
+            status = 'Disabled'
           WHERE id = ?`;
     collectionofficer.query(sql, [id], (err, results) => {
       if (err) {
@@ -3484,15 +3497,19 @@ exports.getPosPackageDetailsDAO = (orderId) => {
         mp.displayName AS packageName,               
         mp.productPrice AS packagePrice,             
         op.qty AS packageCount,                      
-        JSON_ARRAYAGG(                               
-            JSON_OBJECT(                             
-                'typeName', pt.typeName,             
-                'productName', mpi.displayName,
-                'unit', mpi.unitType,   
-                'price', mpi.discountedPrice,                   
-                'qty', opi.qty                       
-            )                                        
-        ) AS items                                   
+        JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'typeName', pt.typeName,
+            'productName', mpi.displayName,
+            'unit', mpi.unitType,
+            'price', opi.price,
+            'qty', opi.qty,
+            'displayQty', CASE
+                WHEN mpi.unitType = 'g' THEN ROUND(opi.qty * 1000)
+                ELSE opi.qty
+              END
+          )
+      ) AS items                               
       FROM orderpackage op
       LEFT JOIN marketplacepackages mp ON op.packageId = mp.id
       LEFT JOIN orderpackageitems opi ON op.id = opi.orderPackageId
