@@ -2350,6 +2350,8 @@ exports.getPostInvoiceDetails = async (req, res) => {
         packageId: item.packageId,
         name: item.name,
         amount: item.amount,
+        packingFee: item.packingFee,
+        serviceFee: item.serviceFee,
         packageDetails: matchedPackage ? matchedPackage.items : [],
       };
     });
