@@ -2533,6 +2533,8 @@ exports.getFamilyPackItemsDAO = (orderId) => {
         op.qty,
         mp.id AS packageId,
         mp.displayName AS name,
+        mp.packingFee,
+        mp.serviceFee,
         (mp.productPrice + mp.packingFee + mp.serviceFee) AS amount
       FROM orderpackage op
       JOIN marketplacepackages mp ON op.packageId = mp.id
