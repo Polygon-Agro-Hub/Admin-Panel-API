@@ -498,7 +498,7 @@ exports.getAllMarketplaceItems = (category, userId) => {
         MPI.displayName,
         MPI.category,
         MPI.normalPrice,
-        MPI.discountedPrice,
+        MPI.pkgBasePrice AS discountedPrice,
         MPI.discount,
         MPI.unitType,
         MPI.startValue,
@@ -796,7 +796,7 @@ exports.getOrderPackagesByOrderId = (orderId) => {
               displayName: row.productDisplayName,
               productId: row.productId,
               qty: row.qty,
-              price: row.discountedPrice,
+              price: row.price,
             });
           }
         }
