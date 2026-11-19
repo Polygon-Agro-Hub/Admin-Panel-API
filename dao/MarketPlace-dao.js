@@ -1451,6 +1451,9 @@ exports.getAllRetailOrderDetails = (
         po.paymentMethod,
         po.creditPaid,
         po.moneyPaid,
+        po.isConfirmed,
+        o.isPackage,
+        po.isFinalized,
         po.sheduleDate AS scheduleDate,
         o.createdAt AS orderdDate
       FROM collection_officer.orders o
@@ -2533,6 +2536,9 @@ exports.getFamilyPackItemsDAO = (orderId) => {
         op.qty,
         mp.id AS packageId,
         mp.displayName AS name,
+        mp.packingFee,
+        mp.serviceFee,
+        op.reviewValue,
         (mp.productPrice + mp.packingFee + mp.serviceFee) AS amount
       FROM orderpackage op
       JOIN marketplacepackages mp ON op.packageId = mp.id
@@ -2763,6 +2769,7 @@ exports.getAllWholesaleOrderDetails = (
         po.paymentMethod,
         po.creditPaid,
         po.moneyPaid,
+        po.isConfirmed,
         o.createdAt AS orderdDate,
         mu.companyName
       FROM collection_officer.orders o
