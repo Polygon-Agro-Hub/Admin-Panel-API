@@ -1454,11 +1454,13 @@ exports.getAllRetailOrderDetails = (
         po.isConfirmed,
         o.isPackage,
         po.isFinalized,
+        op.packingStatus,
         po.sheduleDate AS scheduleDate,
         o.createdAt AS orderdDate
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId 
     `;
 
     let whereClause = " WHERE 1=1";
@@ -2771,11 +2773,13 @@ exports.getAllWholesaleOrderDetails = (
         po.creditPaid,
         po.moneyPaid,
         po.isConfirmed,
+        op.packingStatus,
         o.createdAt AS orderdDate,
         mu.companyName
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId 
     `;
 
     let whereClause = " WHERE 1=1";
