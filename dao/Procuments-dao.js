@@ -285,7 +285,7 @@ exports.getAllOrdersWithProcessInfo = (
         ) op2 ON op1.orderId = op2.orderId AND op1.createdAt = op2.maxCreatedAt
         WHERE op1.packingStatus = 'Todo'
       ) op ON po.id = op.orderId
-      WHERE po.status = 'Processing'
+      WHERE po.status = 'Processing' AND o.isFinalizeImdt = 1
         ${statusFilter ?
         (statusFilter === "Paid" ? " AND po.isPaid = 1 " :
           statusFilter === "Pending" ? " AND po.isPaid = 0 " :
@@ -303,7 +303,7 @@ exports.getAllOrdersWithProcessInfo = (
       FROM processorders po
       INNER JOIN orders o ON po.orderId = o.id
       INNER JOIN orderpackage op ON po.id = op.orderId
-      WHERE op.packingStatus = 'Todo' 
+      WHERE op.packingStatus = 'Todo' AND o.isFinalizeImdt = 1
         AND po.status = 'Processing'
         ${statusFilter ?
         (statusFilter === "Paid" ? " AND po.isPaid = 1 " :
