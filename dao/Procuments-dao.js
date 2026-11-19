@@ -943,73 +943,100 @@ exports.updateDefinePackageItemData = (formattedData) => {
   return new Promise((resolve, reject) => {
     const { processOrderId, packages } = formattedData;
 
-    console.log('packages', packages)
-
     if (!Array.isArray(packages) || packages.length === 0) {
-      return reject("No packages to process");
+      return reject({ message: "No packages to process" });
     }
 
-    const updatePromises = [];
+    collectionofficer.getConnection((connErr, conn) => {
+      if (connErr) return reject({ message: 'Connection failed', error: connErr });
 
-    packages.forEach(pkg => {
-      const { orderpkgId, packageId, items } = pkg;
+      conn.beginTransaction((txErr) => {
+        if (txErr) {
+          conn.release();
+          return reject({ message: 'Could not start transaction', error: txErr });
+        }
 
-      // 1. Update packagingStatus to 'Completed'
-      const updateStatusSQL = `
-        UPDATE collection_officer.orderpackage
-        SET packingStatus = 'Dispatch'
-        WHERE packageId = ? AND orderId = ?
-      `;
-      updatePromises.push(new Promise((resolveInner, rejectInner) => {
-        collectionofficer.query(updateStatusSQL, [packageId, processOrderId], (err, result) => {
-          if (err) {
-            console.error(`Error updating packagingStatus for packageId ${packageId}:`, err);
-            return rejectInner(err);
-          }
-          resolveInner(result);
-        });
-      }));
+        const updatePromises = [];
 
-      // 2. Insert items
-      items.forEach(item => {
-        const insertItemSQL = `
-          INSERT INTO collection_officer.orderpackageitems (orderPackageId, productType, productId, qty, price)
-          VALUES (?, ?, ?, ?, ?)
+        // 0. Mark the process order as finalized
+        const finalizeOrderSQL = `
+          UPDATE collection_officer.processorders
+          SET isFinalized = 1
+          WHERE id = ?
         `;
-        const itemParams = [
-          orderpkgId,
-          item.productTypeId,
-          item.productId,
-          item.qty,
-          item.price,
-        ];
-
         updatePromises.push(new Promise((resolveInner, rejectInner) => {
-          collectionofficer.query(insertItemSQL, itemParams, (err, result) => {
+          conn.query(finalizeOrderSQL, [processOrderId], (err, result) => {
             if (err) {
-              console.error(`Error inserting item into packageId ${packageId}:`, err);
+              console.error(`Error finalizing processorders id ${processOrderId}:`, err);
               return rejectInner(err);
             }
             resolveInner(result);
           });
         }));
+
+        packages.forEach(pkg => {
+          const { orderpkgId, packageId, items = [] } = pkg;
+
+          // 1. Update packingStatus to 'Dispatch'
+          const updateStatusSQL = `
+            UPDATE collection_officer.orderpackage
+            SET packingStatus = 'Dispatch'
+            WHERE packageId = ? AND orderId = ?
+          `;
+          updatePromises.push(new Promise((resolveInner, rejectInner) => {
+            conn.query(updateStatusSQL, [packageId, processOrderId], (err, result) => {
+              if (err) {
+                console.error(`Error updating packingStatus for packageId ${packageId}:`, err);
+                return rejectInner(err);
+              }
+              resolveInner(result);
+            });
+          }));
+
+          // 2. Insert items
+          items.forEach(item => {
+            const insertItemSQL = `
+              INSERT INTO collection_officer.orderpackageitems (orderPackageId, productType, productId, qty, price)
+              VALUES (?, ?, ?, ?, ?)
+            `;
+            const itemParams = [orderpkgId, item.productTypeId, item.productId, item.qty, item.price];
+
+            updatePromises.push(new Promise((resolveInner, rejectInner) => {
+              conn.query(insertItemSQL, itemParams, (err, result) => {
+                if (err) {
+                  console.error(`Error inserting item into packageId ${packageId}:`, err);
+                  return rejectInner(err);
+                }
+                resolveInner(result);
+              });
+            }));
+          });
+        });
+
+        Promise.all(updatePromises)
+          .then(results => {
+            conn.commit((commitErr) => {
+              if (commitErr) {
+                return conn.rollback(() => {
+                  conn.release();
+                  reject({ message: 'Commit failed', error: commitErr });
+                });
+              }
+              conn.release();
+              resolve({
+                message: 'Packaging status updated and items inserted successfully',
+                affectedRows: results.reduce((total, result) => total + (result.affectedRows || 0), 0)
+              });
+            });
+          })
+          .catch(error => {
+            conn.rollback(() => {
+              conn.release();
+              reject({ message: 'One or more updates/inserts failed', error });
+            });
+          });
       });
     });
-
-
-    Promise.all(updatePromises)
-      .then(results => {
-        resolve({
-          message: 'Packaging status updated and items inserted successfully',
-          affectedRows: results.reduce((total, result) => total + (result.affectedRows || 0), 0)
-        });
-      })
-      .catch(error => {
-        reject({
-          message: 'One or more updates/inserts failed',
-          error
-        });
-      });
   });
 };
 

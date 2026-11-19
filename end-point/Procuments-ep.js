@@ -575,11 +575,7 @@ exports.updateDefinePackageData = async (req, res) => {
   console.log(fullUrl);
   try {
     const { definePackageItems, orderId } = req.body;
-    const userId = req.user.userId
-
-    console.log(req.body);
-
-    console.log('definePackageItems', definePackageItems)
+    const userId = req.user.userId;
 
     if (!Array.isArray(definePackageItems) || definePackageItems.length === 0) {
       return res.status(400).json({
@@ -588,13 +584,10 @@ exports.updateDefinePackageData = async (req, res) => {
       });
     }
 
-    console.log('items:', definePackageItems);
-
     const formattedData = {
       processOrderId: definePackageItems[0].processOrderId,
       packages: definePackageItems.map(pkg => {
         const {
-          itemId,
           orderpkgId,
           packageId,
           displayName,
@@ -609,21 +602,19 @@ exports.updateDefinePackageData = async (req, res) => {
           displayName,
           definePkgPrice,
           productPrice,
-          items
+          items: Array.isArray(items) ? items : []
         };
       })
     };
 
-    console.log('formattedData', formattedData.packages[0].items[1])
-
+    // Transaction: package status + items + processorders.isFinalized
     const updateResult = await procumentDao.updateDefinePackageItemData(formattedData);
 
-    const trackResult = await procumentDao.trackDispatchOfficerDao(userId, orderId);
-
+    await procumentDao.trackDispatchOfficerDao(userId, orderId);
 
     res.json({
       success: true,
-      message: `${formattedData.affectedRows} items updated`,
+      message: `${updateResult.affectedRows} rows updated`,
       updatedItems: updateResult
     });
 
