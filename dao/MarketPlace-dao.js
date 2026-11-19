@@ -2768,6 +2768,7 @@ exports.getAllWholesaleOrderDetails = (
         po.paymentMethod,
         po.creditPaid,
         po.moneyPaid,
+        po.isConfirmed,
         o.createdAt AS orderdDate,
         mu.companyName
       FROM collection_officer.orders o
