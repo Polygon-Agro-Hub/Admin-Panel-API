@@ -1451,6 +1451,9 @@ exports.getAllRetailOrderDetails = (
         po.paymentMethod,
         po.creditPaid,
         po.moneyPaid,
+        po.isConfirmed,
+        o.isPackage,
+        po.isFinalized,
         po.sheduleDate AS scheduleDate,
         o.createdAt AS orderdDate
       FROM collection_officer.orders o
