@@ -2706,9 +2706,9 @@ exports.getAllOrdersDao = (
         (
           SELECT
             CASE
-              WHEN SUM(CASE WHEN op2.packingStatus = 'Dispatch' THEN 1 ELSE 0 END) > 0
-                THEN 'Dispatch'
-              ELSE 'Todo'
+              WHEN SUM(CASE WHEN op2.packingStatus = 'Todo' THEN 1 ELSE 0 END) > 0
+                THEN 'Todo'
+              ELSE 'Dispatch'
             END
           FROM collection_officer.orderpackage op2
           WHERE op2.orderId = po.id
