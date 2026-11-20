@@ -2751,11 +2751,12 @@ exports.getAllWholesaleOrderDetails = (
   method,
   searchItem,
   formattedDate,
+  scheduleDate,
 ) => {
   return new Promise((resolve, reject) => {
     let countSql = `
-      SELECT COUNT(*) as total 
-      FROM collection_officer.orders o 
+      SELECT COUNT(*) as total
+      FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
     `;
@@ -2774,6 +2775,7 @@ exports.getAllWholesaleOrderDetails = (
         po.moneyPaid,
         po.isConfirmed,
         op.packingStatus,
+        po.sheduleDate AS scheduleDate,
         o.createdAt AS orderdDate,
         mu.companyName
       FROM collection_officer.orders o
@@ -2807,6 +2809,11 @@ exports.getAllWholesaleOrderDetails = (
     if (formattedDate) {
       whereClause += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) = ?";
       searchParams.push(formattedDate);
+    }
+
+    if (scheduleDate) {
+      whereClause += " AND DATE(po.sheduleDate) = ?";
+      searchParams.push(scheduleDate);
     }
 
     countSql += whereClause;

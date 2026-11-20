@@ -956,6 +956,15 @@ exports.updateDefinePackageItemData = (formattedData) => {
           return reject({ message: 'Could not start transaction', error: txErr });
         }
 
+        const rollbackAndReject = (rejection) => {
+          conn.rollback(() => {
+            conn.release();
+            reject(rejection);
+          });
+        };
+
+        // Runs the dispatch writes. Only called after the duplicate-dispatch guard below passes.
+        const performDispatch = () => {
         const updatePromises = [];
 
         // 0. Mark the process order as finalized
@@ -1035,6 +1044,38 @@ exports.updateDefinePackageItemData = (formattedData) => {
               reject({ message: 'One or more updates/inserts failed', error });
             });
           });
+        };
+
+        // ── Duplicate-dispatch guard ────────────────────────────────────────
+        // Lock the process order row and check isFinalized. A concurrent dispatch
+        // of the same order (double click, two users, two tabs, retry) waits here
+        // until this transaction commits, then sees isFinalized = 1 and is rejected.
+        const lockOrderSQL = `
+          SELECT isFinalized
+          FROM collection_officer.processorders
+          WHERE id = ?
+          FOR UPDATE
+        `;
+        conn.query(lockOrderSQL, [processOrderId], (lockErr, lockRows) => {
+          if (lockErr) {
+            console.error(`Error locking processorders id ${processOrderId}:`, lockErr);
+            return rollbackAndReject({ message: 'Could not lock the order', error: lockErr });
+          }
+          if (!lockRows || lockRows.length === 0) {
+            return rollbackAndReject({ code: 'ORDER_NOT_FOUND', message: 'Order not found' });
+          }
+
+          if (Number(lockRows[0].isFinalized) === 1) {
+            console.warn(`Duplicate dispatch blocked for processorders id ${processOrderId}`);
+            return rollbackAndReject({
+              code: 'ALREADY_DISPATCHED',
+              message: 'This order has already been dispatched',
+            });
+          }
+
+          // Safe to dispatch — still inside the same transaction / lock
+          performDispatch();
+        });
       });
     });
   });
