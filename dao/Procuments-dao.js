@@ -2623,3 +2623,171 @@ exports.reorderContainerSizesDao = (orderedIds, modifyBy) => {
     });
   });
 };
+
+exports.getAllOrdersDao = (
+  limit,
+  offset,
+  status,
+  method,
+  searchItem,
+  formattedDate,
+  scheduleDate,
+) => {
+  return new Promise((resolve, reject) => {
+    let countSql = `
+      SELECT COUNT(*) as total 
+      FROM collection_officer.orders o 
+      LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
+      LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+    `;
+
+    let sql = `
+       SELECT 
+        o.id, 
+        po.id AS orderId,
+        po.invNo, 
+        o.orderApp,
+        po.sheduleDate AS scheduleDate,
+        o.fullName AS customerName, 
+        mu.buyerType,
+        c.companyNameEnglish,
+        o.delivaryMethod AS method, 
+        po.paymentMethod,
+        po.creditPaid,
+        po.moneyPaid,
+        po.fullTotal AS amount,   
+        po.status,
+        po.qrCode,
+        o.createdAt AS orderdDate,
+        po.isConfirmed,
+        o.isPackage,
+        po.isFinalized,
+        op.packingStatus
+      FROM collection_officer.orders o
+      LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
+      LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId
+      LEFT JOIN collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id 
+      LEFT JOIN collection_officer.company c ON dcc.companyId = c.id
+
+    `;
+
+    let whereClause = " WHERE 1=1";
+    const searchParams = [];
+
+    if (searchItem) {
+      const searchQuery = `%${searchItem.split("").join("%")}%`;
+      whereClause += " AND (po.invNo LIKE ? OR o.fullName LIKE ?)";
+      searchParams.push(searchQuery, searchQuery);
+    }
+
+    if (status) {
+      whereClause += " AND po.status = ?";
+      searchParams.push(status);
+    }
+
+    if (method) {
+      whereClause += " AND o.delivaryMethod = ?";
+      searchParams.push(method);
+    }
+
+    if (formattedDate) {
+      whereClause += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) = ?";
+      searchParams.push(formattedDate);
+    }
+
+    if (scheduleDate) {
+      whereClause += " AND DATE(po.sheduleDate) = ?";
+      searchParams.push(scheduleDate);
+    }
+
+    countSql += whereClause;
+    sql += whereClause + " ORDER BY po.createdAt DESC LIMIT ? OFFSET ?";
+    const dataParams = [...searchParams, limit, offset];
+
+    collectionofficer.query(countSql, searchParams, (countErr, countResults) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResults[0].total;
+
+      collectionofficer.query(sql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          return reject(dataErr);
+        }
+
+        resolve({
+          total: total,
+          items: dataResults,
+        });
+      });
+    });
+  });
+}
+
+exports.downloadOrdersDao = ({
+  orderedFrom,
+  orderedTo,
+  scheduledFrom,
+  scheduledTo,
+  confirmation,
+}) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        po.invNo,
+        o.orderApp AS platform,
+        po.sheduleDate AS scheduleDate,
+        o.fullName AS customerName,
+        mu.buyerType AS customerType,
+        c.companyNameEnglish AS companyName,
+        o.delivaryMethod AS method,
+        po.paymentMethod,
+        po.creditPaid,
+        po.moneyPaid,
+        po.isConfirmed,
+        po.isFinalized,
+        po.fullTotal AS amount,
+        po.status,
+        o.createdAt AS orderedDate
+      FROM collection_officer.orders o
+      LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
+      LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+      LEFT JOIN collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id
+      LEFT JOIN collection_officer.company c ON dcc.companyId = c.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (orderedFrom) {
+      sql += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) >= ?";
+      params.push(orderedFrom);
+    }
+    if (orderedTo) {
+      sql += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) <= ?";
+      params.push(orderedTo);
+    }
+    if (scheduledFrom) {
+      sql += " AND DATE(po.sheduleDate) >= ?";
+      params.push(scheduledFrom);
+    }
+    if (scheduledTo) {
+      sql += " AND DATE(po.sheduleDate) <= ?";
+      params.push(scheduledTo);
+    }
+
+    if (confirmation === "Confirmed") {
+      sql += " AND po.isConfirmed = 1 AND po.isFinalized = 1";
+    } else if (confirmation === "Not Confirmed") {
+      sql += " AND po.isConfirmed = 0 AND po.isFinalized = 0";
+    }
+
+    sql += " ORDER BY po.createdAt DESC";
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};

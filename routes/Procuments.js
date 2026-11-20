@@ -276,4 +276,14 @@ router.put(
   ProcumentsEP.reorderContainerSizesEP
 );
 
+router.get(
+  "/get-all-order",
+  ProcumentsEP.getAllOrders
+);
+
+router.get(
+  "/download-orders",
+  ProcumentsEP.downloadOrders
+);
+
 module.exports = router;
