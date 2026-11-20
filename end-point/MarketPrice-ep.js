@@ -64,26 +64,43 @@ exports.createMarketPriceXLSX = async (req, res) => {
       });
     }
 
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
+    const isEmpty = (v) => v === undefined || v === null || String(v).trim() === "";
+
+    const formatRows = (rows, limit = 10) => {
+    const shown = rows.slice(0, limit).map((r) => `Row ${r}`).join(", ");
+    return rows.length > limit
+      ? `${shown} and ${rows.length - limit} more`
+      : shown;
+    };
+
+    const emptyRows = [];
+    const invalidPriceRows = [];
+
+    data.forEach((row, i) => {
       const rowNo = i + 2;
 
-      if (
-        row["Variety Id"] === undefined || row["Variety Id"] === "" ||
-        row["Grade"] === undefined || row["Grade"] === "" ||
-        row["Price"] === undefined || row["Price"] === ""
-      ) {
-        return res.status(400).json({
-          error: `Row ${rowNo} has empty values. Variety Id, Grade and Price are required.`,
-        });
-      }
-
-      if (isNaN(Number(row["Price"])) || Number(row["Price"]) < 0) {
-        return res.status(400).json({
-          error: `Row ${rowNo} has an invalid price.`,
-        });
-      }
+    if (
+      isEmpty(row["Variety Id"]) ||
+      isEmpty(row["Grade"]) ||
+      isEmpty(row["Price"])
+    ) {
+      emptyRows.push(rowNo);
+    } else if (isNaN(Number(row["Price"])) || Number(row["Price"]) < 0) {
+      invalidPriceRows.push(rowNo);
     }
+  });
+
+  const errors = [];
+  if (emptyRows.length > 0) {
+    errors.push(`Empty values found (${formatRows(emptyRows)})`);
+  }
+  if (invalidPriceRows.length > 0) {
+    errors.push(`Invalid price found (${formatRows(invalidPriceRows)})`);
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ error: errors.join(". ") });
+  }
 
     xlindex = await marketPriceDao.createxlhistory(xlName);
 
