@@ -1708,8 +1708,7 @@ exports.downloadOrders = async (req, res) => {
 
     rows.forEach((r, i) => {
       const pay = buildPayment(r);
-      const isConfirmed =
-        Number(r.isConfirmed) === 1 && Number(r.isFinalized) === 1;
+      const isConfirmed = Number(r.isConfirmed) === 1;
 
       aoa.push([
         String(i + 1).padStart(3, "0"),
@@ -1746,14 +1745,16 @@ exports.downloadOrders = async (req, res) => {
 
     const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    );
+    const toYMD = (d) =>
+      new Date(d).toLocaleDateString("en-CA", { timeZone: "Asia/Colombo" });
+
+    const fileName = `All Orders ordered between ${toYMD(filters.orderedFrom)} - ${toYMD(filters.orderedTo)}.xlsx`;
+
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=orders_${Date.now()}.xlsx`,
+      `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
     );
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
     res.send(buffer);
   } catch (err) {
     if (err.isJoi) {
