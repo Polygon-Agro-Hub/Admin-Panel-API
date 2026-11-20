@@ -620,6 +620,23 @@ exports.updateDefinePackageData = async (req, res) => {
     });
 
   } catch (err) {
+    // Duplicate dispatch blocked by the DAO guard (order already finalized / items already inserted)
+    if (err?.code === 'ALREADY_DISPATCHED') {
+      return res.status(409).json({
+        success: false,
+        code: 'ALREADY_DISPATCHED',
+        message: err.message || 'This order has already been dispatched'
+      });
+    }
+
+    if (err?.code === 'ORDER_NOT_FOUND') {
+      return res.status(404).json({
+        success: false,
+        code: 'ORDER_NOT_FOUND',
+        message: err.message || 'Order not found'
+      });
+    }
+
     console.error("Error updating packed status:", err);
 
     res.status(500).json({
