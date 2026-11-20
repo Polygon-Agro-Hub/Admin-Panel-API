@@ -6,21 +6,30 @@ const path = require('path');
 exports.createxlhistory = (xlName) => {
   return new Promise((resolve, reject) => {
     const sql = "INSERT INTO xlsxhistory (`xlName`) VALUES (?)";
-    const values = [xlName];
 
-    collectionofficer.query(sql, [values], (err, results) => {
+    collectionofficer.query(sql, [xlName], (err, results) => {
       if (err) {
-        reject(err);
-      } else {
-        // Resolve with the inserted ID (xlindex)
-        resolve(results.insertId);
-        console.log(results.insertId);
+        return reject(err);
       }
+      resolve(results.insertId); // xlindex
     });
   });
 };
 
+const runQuery = (sql, params) => {
+  return new Promise((resolve, reject) => {
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
 
+exports.rollbackXlUpload = async (xlindex) => {
+  await runQuery("DELETE FROM marketpriceserve WHERE xlindex = ?", [xlindex]);
+  await runQuery("DELETE FROM marketprice WHERE xlindex = ?", [xlindex]);
+  await runQuery("DELETE FROM xlsxhistory WHERE id = ?", [xlindex]);
+};
 
 exports.insertMarketPriceXLSXData = (xlindex, data) => {
   return new Promise((resolve, reject) => {
