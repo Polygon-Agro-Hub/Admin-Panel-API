@@ -956,6 +956,15 @@ exports.updateDefinePackageItemData = (formattedData) => {
           return reject({ message: 'Could not start transaction', error: txErr });
         }
 
+        const rollbackAndReject = (rejection) => {
+          conn.rollback(() => {
+            conn.release();
+            reject(rejection);
+          });
+        };
+
+        // Runs the dispatch writes. Only called after the duplicate-dispatch guard below passes.
+        const performDispatch = () => {
         const updatePromises = [];
 
         // 0. Mark the process order as finalized
@@ -1035,6 +1044,38 @@ exports.updateDefinePackageItemData = (formattedData) => {
               reject({ message: 'One or more updates/inserts failed', error });
             });
           });
+        };
+
+        // ── Duplicate-dispatch guard ────────────────────────────────────────
+        // Lock the process order row and check isFinalized. A concurrent dispatch
+        // of the same order (double click, two users, two tabs, retry) waits here
+        // until this transaction commits, then sees isFinalized = 1 and is rejected.
+        const lockOrderSQL = `
+          SELECT isFinalized
+          FROM collection_officer.processorders
+          WHERE id = ?
+          FOR UPDATE
+        `;
+        conn.query(lockOrderSQL, [processOrderId], (lockErr, lockRows) => {
+          if (lockErr) {
+            console.error(`Error locking processorders id ${processOrderId}:`, lockErr);
+            return rollbackAndReject({ message: 'Could not lock the order', error: lockErr });
+          }
+          if (!lockRows || lockRows.length === 0) {
+            return rollbackAndReject({ code: 'ORDER_NOT_FOUND', message: 'Order not found' });
+          }
+
+          if (Number(lockRows[0].isFinalized) === 1) {
+            console.warn(`Duplicate dispatch blocked for processorders id ${processOrderId}`);
+            return rollbackAndReject({
+              code: 'ALREADY_DISPATCHED',
+              message: 'This order has already been dispatched',
+            });
+          }
+
+          // Safe to dispatch — still inside the same transaction / lock
+          performDispatch();
+        });
       });
     });
   });
@@ -2642,7 +2683,7 @@ exports.getAllOrdersDao = (
     `;
 
     let sql = `
-       SELECT 
+      SELECT 
         o.id, 
         po.id AS orderId,
         po.invNo, 
@@ -2662,14 +2703,21 @@ exports.getAllOrdersDao = (
         po.isConfirmed,
         o.isPackage,
         po.isFinalized,
-        op.packingStatus
+        (
+          SELECT
+            CASE
+              WHEN SUM(CASE WHEN op2.packingStatus = 'Todo' THEN 1 ELSE 0 END) > 0
+                THEN 'Todo'
+              ELSE 'Dispatch'
+            END
+          FROM collection_officer.orderpackage op2
+          WHERE op2.orderId = po.id
+        ) AS packingStatus
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
-      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId
       LEFT JOIN collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id 
       LEFT JOIN collection_officer.company c ON dcc.companyId = c.id
-
     `;
 
     let whereClause = " WHERE 1=1";
@@ -2724,7 +2772,7 @@ exports.getAllOrdersDao = (
       });
     });
   });
-}
+};
 
 exports.downloadOrdersDao = ({
   orderedFrom,
@@ -2750,6 +2798,7 @@ exports.downloadOrdersDao = ({
         po.isFinalized,
         po.fullTotal AS amount,
         po.status,
+        o.isPackage,
         o.createdAt AS orderedDate
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
@@ -2778,9 +2827,9 @@ exports.downloadOrdersDao = ({
     }
 
     if (confirmation === "Confirmed") {
-      sql += " AND po.isConfirmed = 1 AND po.isFinalized = 1";
+      sql += " AND po.isConfirmed = 1";
     } else if (confirmation === "Not Confirmed") {
-      sql += " AND po.isConfirmed = 0 AND po.isFinalized = 0";
+      sql += " AND po.isConfirmed = 0";
     }
 
     sql += " ORDER BY po.createdAt DESC";

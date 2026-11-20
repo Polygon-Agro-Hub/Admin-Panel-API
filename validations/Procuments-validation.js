@@ -18,9 +18,9 @@ exports.getAllOrderSchema = Joi.object({
 });
 
 exports.downloadOrdersSchema = Joi.object({
-  orderedFrom: Joi.string().isoDate().allow("", null),
-  orderedTo: Joi.string().isoDate().allow("", null),
+  orderedFrom: Joi.string().isoDate().required(),
+  orderedTo: Joi.string().isoDate().required(),
   scheduledFrom: Joi.string().isoDate().allow("", null),
   scheduledTo: Joi.string().isoDate().allow("", null),
-  confirmation: Joi.string().valid("Confirmed", "Not Confirmed").allow("", null),
+  confirmation: Joi.string().valid("Confirmed", "Not Confirmed").required(),
 });

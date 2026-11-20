@@ -612,7 +612,6 @@ const getAllOrders = (
       JOIN marketplaceusers c ON o.userId = c.id
       JOIN salesagent sa ON c.salesAgent = sa.id
       JOIN processorders po ON o.id = po.orderId
-      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId 
       WHERE o.orderApp = 'Dash'
     `;
 
@@ -638,7 +637,16 @@ const getAllOrders = (
         c.firstName,
         c.lastName,
         sa.empId,
-        op.packingStatus,
+        (
+          SELECT 
+              CASE 
+                  WHEN SUM(CASE WHEN op2.packingStatus = 'Todo' THEN 1 ELSE 0 END) > 0 
+                      THEN 'Todo'
+                  ELSE 'Dispatch'
+              END
+          FROM collection_officer.orderpackage op2
+          WHERE op2.orderId = po.id
+        ) AS packingStatus,
         po.qrCode
       ${baseSql}
     `;
