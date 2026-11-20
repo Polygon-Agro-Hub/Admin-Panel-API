@@ -5,26 +5,14 @@ const ValidateSchema = require("../validations/Admin-validation");
 
 
 exports.createMarketPriceXLSX = async (req, res) => {
-  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  console.log(`Full request URL: ${fullUrl}`);
+  let xlindex = null;
 
   try {
     const { xlName } = req.body;
 
-    const xlcount = await marketPriceDao.getAllxlsxlistCount();
-
-    console.log('chalana',xlcount.total);
-
-    if(xlcount.total != 0){
-      return res.status(400).json({ error: "There is an existing file. Please first delete that and try upload again" });
-    }
-
-    const xlindex = await marketPriceDao.createxlhistory(xlName);
-
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded." });
     }
-    console.log('File received:', req.file.originalname);
 
     const allowedExtensions = [".xlsx", ".xls"];
     const fileExtension = path.extname(req.file.originalname).toLowerCase();
@@ -33,16 +21,19 @@ exports.createMarketPriceXLSX = async (req, res) => {
         error: "Invalid file type. Only XLSX and XLS files are allowed.",
       });
     }
-    console.log('File type validated:', fileExtension);
 
+    const xlcount = await marketPriceDao.getAllxlsxlistCount();
+    if (xlcount.total != 0) {
+      return res.status(400).json({
+        error: "There is an existing file. Please first delete that and try upload again",
+      });
+    }
 
     let workbook;
     try {
       if (req.file.buffer) {
-        // If file buffer exists, read from buffer
         workbook = xlsx.read(req.file.buffer, { type: "buffer" });
       } else if (req.file.path) {
-        // If file path exists, read from file path
         workbook = xlsx.readFile(req.file.path);
       } else {
         throw new Error("Neither file buffer nor path is available for reading.");
@@ -53,36 +44,87 @@ exports.createMarketPriceXLSX = async (req, res) => {
         error: "Unable to read the uploaded file. Ensure it's a valid XLSX or XLS file.",
       });
     }
-    console.log('File successfully read.');
 
     if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
       return res.status(400).json({ error: "The uploaded file is empty or invalid." });
     }
-    
-    const sheetName = workbook.SheetNames[0]; // Using the first sheet
-    const worksheet = workbook.Sheets[sheetName];
+
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const data = xlsx.utils.sheet_to_json(worksheet);
 
-    // Validate the data structure, including the date
     if (data.length === 0) {
       return res.status(400).json({ error: "The uploaded file contains no valid data." });
     }
 
-    console.log(`Data extracted from XLSX: ${data.length} rows`);
+    const requiredColumns = ["Variety Id", "Grade", "Price"];
+    const missingColumns = requiredColumns.filter((col) => !(col in data[0]));
+    if (missingColumns.length > 0) {
+      return res.status(400).json({
+        error: `Invalid file format. Missing column(s): ${missingColumns.join(", ")}`,
+      });
+    }
 
-    
+    const isEmpty = (v) => v === undefined || v === null || String(v).trim() === "";
+
+    const formatRows = (rows, limit = 10) => {
+    const shown = rows.slice(0, limit).map((r) => `Row ${r}`).join(", ");
+    return rows.length > limit
+      ? `${shown} and ${rows.length - limit} more`
+      : shown;
+    };
+
+    const emptyRows = [];
+    const invalidPriceRows = [];
+
+    data.forEach((row, i) => {
+      const rowNo = i + 2;
+
+    if (
+      isEmpty(row["Variety Id"]) ||
+      isEmpty(row["Grade"]) ||
+      isEmpty(row["Price"])
+    ) {
+      emptyRows.push(rowNo);
+    } else if (isNaN(Number(row["Price"])) || Number(row["Price"]) < 0) {
+      invalidPriceRows.push(rowNo);
+    }
+  });
+
+  const errors = [];
+  if (emptyRows.length > 0) {
+    errors.push(`Empty values found (${formatRows(emptyRows)})`);
+  }
+  if (invalidPriceRows.length > 0) {
+    errors.push(`Invalid price found (${formatRows(invalidPriceRows)})`);
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ error: errors.join(". ") });
+  }
+
+    xlindex = await marketPriceDao.createxlhistory(xlName);
+
     const marketPriceResult = await marketPriceDao.insertMarketPriceXLSXData(xlindex, data);
-    console.log('Market price data successfully inserted.');
 
-    // Step 9: Respond with success message
     return res.status(200).json({
       message: "File uploaded and data inserted successfully",
       xlindex,
       marketPriceResult,
     });
-  } catch (error) {
+    } catch (error) {
     console.error("Error processing XLSX file:", error);
-    res.status(500).json({ error: "An error occurred while processing the XLSX file. Please try again." });
+
+    if (xlindex) {
+      try {
+        await marketPriceDao.rollbackXlUpload(xlindex);
+      } catch (cleanupErr) {
+        console.error("Failed to roll back upload:", cleanupErr);
+      }
+    }
+
+    return res.status(500).json({
+      error: "An error occurred while processing the XLSX file. Please try again.",
+    });
   }
 };
 

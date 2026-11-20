@@ -2791,6 +2791,7 @@ exports.downloadOrdersDao = ({
         po.isFinalized,
         po.fullTotal AS amount,
         po.status,
+        o.isPackage,
         o.createdAt AS orderedDate
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
@@ -2819,9 +2820,9 @@ exports.downloadOrdersDao = ({
     }
 
     if (confirmation === "Confirmed") {
-      sql += " AND po.isConfirmed = 1 AND po.isFinalized = 1";
+      sql += " AND po.isConfirmed = 1";
     } else if (confirmation === "Not Confirmed") {
-      sql += " AND po.isConfirmed = 0 AND po.isFinalized = 0";
+      sql += " AND po.isConfirmed = 0";
     }
 
     sql += " ORDER BY po.createdAt DESC";
