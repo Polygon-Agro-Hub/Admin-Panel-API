@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const xlsx = require("xlsx");
 const { log } = require("console");
+const ProcumentsValidateSchema = require("../validations/Procuments-validation");
 const procumentDao = require("../dao/Procuments-dao");
 const ValidateSchema = require("../validations/Admin-validation");
 const { type } = require("os");
@@ -619,6 +620,23 @@ exports.updateDefinePackageData = async (req, res) => {
     });
 
   } catch (err) {
+    // Duplicate dispatch blocked by the DAO guard (order already finalized / items already inserted)
+    if (err?.code === 'ALREADY_DISPATCHED') {
+      return res.status(409).json({
+        success: false,
+        code: 'ALREADY_DISPATCHED',
+        message: err.message || 'This order has already been dispatched'
+      });
+    }
+
+    if (err?.code === 'ORDER_NOT_FOUND') {
+      return res.status(404).json({
+        success: false,
+        code: 'ORDER_NOT_FOUND',
+        message: err.message || 'Order not found'
+      });
+    }
+
     console.error("Error updating packed status:", err);
 
     res.status(500).json({
@@ -1577,5 +1595,189 @@ exports.reorderContainerSizesEP = async (req, res) => {
       success: false,
       message: "An error occurred while reordering container sizes",
     });
+  }
+};
+
+exports.getAllOrders = async (req, res) => {
+  const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  console.log(fullUrl);
+  try {
+    const { page, limit, status, method, searchItem, formattedDate, scheduleDate } =
+      await ProcumentsValidateSchema.getAllOrderSchema.validateAsync(
+        req.query,
+      );
+
+    const offset = (page - 1) * limit;
+
+    const { total, items } = await procumentDao.getAllOrdersDao(
+      limit,
+      offset,
+      status,
+      method,
+      searchItem,
+      formattedDate,
+      scheduleDate,
+    );
+    res.json({
+      items,
+      total,
+    });
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error executing query:", err);
+    res.status(500).send("An error occurred while fetching data.");
+  }
+};
+
+// ---------- Helpers ----------
+const formatRs = (n) =>
+  `Rs. ${Number(n || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+const formatDate = (d) => {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString("en-GB", {
+    timeZone: "Asia/Colombo",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }); // 10 Nov 2024
+};
+
+const formatDateTime = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  const timePart = date
+    .toLocaleTimeString("en-US", {
+      timeZone: "Asia/Colombo",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .replace(" ", ""); // 1:55PM
+  return `${formatDate(date)} ${timePart}`; // 5 Nov 2024 1:55PM
+};
+
+const buildPayment = (row) => {
+  const total = Number(row.amount || 0);
+  const credit = Number(row.creditPaid || 0);
+  const card = Number(row.moneyPaid || 0);
+  const pm = (row.paymentMethod || "").trim().toLowerCase();
+
+  let cash = Math.round((total - credit - card) * 100) / 100;
+  if (cash < 0) cash = 0;
+
+  const parts = [];
+  if (credit > 0) parts.push({ label: "Credit Balance", amount: credit });
+  if (card > 0) parts.push({ label: "Card", amount: card });
+  if (cash > 0) parts.push({ label: "Cash", amount: cash });
+
+  if (parts.length === 0) {
+    const label = pm === "card" ? "Card" : pm === "cash" ? "Cash" : "";
+    return { method: label, breakdown: formatRs(0) };
+  }
+
+  if (parts.length === 1) {
+    return { method: parts[0].label, breakdown: formatRs(parts[0].amount) };
+  }
+
+  return {
+    method: parts.map((p) => p.label).join(" + "),
+    breakdown: parts.map((p) => `${p.label} ${formatRs(p.amount)}`).join("; "),
+  };
+};
+
+const HEADERS = [
+  "No.",
+  "Invoice No.",
+  "Platform",
+  "Scheduled Date",
+  "Customer Name",
+  "Customer Type",
+  "Company Name",
+  "Method",
+  "Payment Method",
+  "Payment Breakdown",
+  "Confirmation",
+  "Amount (Rs.)",
+  "Status",
+  "Ordered Date",
+];
+
+const COL_WIDTHS = [7, 14, 12, 16, 24, 15, 20, 11, 22, 46, 16, 14, 18, 22];
+const AMOUNT_COL = 11; // "Amount (Rs.)" index
+
+exports.downloadOrders = async (req, res) => {
+  try {
+    const filters =
+      await ProcumentsValidateSchema.downloadOrdersSchema.validateAsync(
+        req.query,
+      );
+
+    const rows = await procumentDao.downloadOrdersDao(filters);
+
+    // header row + data rows
+    const aoa = [HEADERS];
+
+    rows.forEach((r, i) => {
+      const pay = buildPayment(r);
+      const isConfirmed = Number(r.isConfirmed) === 1;
+
+      aoa.push([
+        String(i + 1).padStart(3, "0"),
+        r.invNo || "",
+        r.platform || "",
+        formatDate(r.scheduleDate),
+        r.customerName || "",
+        r.customerType || "",
+        r.companyName || "—",
+        r.method || "",
+        pay.method,
+        pay.breakdown,
+        isConfirmed ? "Confirmed" : "Not Confirmed",
+        Number(r.amount || 0),
+        r.status || "",
+        formatDateTime(r.orderedDate),
+      ]);
+    });
+
+    const worksheet = xlsx.utils.aoa_to_sheet(aoa);
+
+    // Amount column number format (#,##0.00)
+    const range = xlsx.utils.decode_range(worksheet["!ref"]);
+    for (let R = 1; R <= range.e.r; R++) {
+      const cell = worksheet[xlsx.utils.encode_cell({ r: R, c: AMOUNT_COL })];
+      if (cell) cell.z = "#,##0.00";
+    }
+
+    worksheet["!cols"] = COL_WIDTHS.map((wch) => ({ wch }));
+    worksheet["!autofilter"] = { ref: worksheet["!ref"] };
+
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Orders");
+
+    const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+    const toYMD = (d) =>
+      new Date(d).toLocaleDateString("en-CA", { timeZone: "Asia/Colombo" });
+
+    const fileName = `All Orders ordered between ${toYMD(filters.orderedFrom)} - ${toYMD(filters.orderedTo)}.xlsx`;
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+    );
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+    res.send(buffer);
+  } catch (err) {
+    if (err.isJoi) {
+      return res.status(400).json({ error: err.details[0].message });
+    }
+    console.error("Error generating orders excel:", err);
+    res.status(500).send("An error occurred while generating the file.");
   }
 };

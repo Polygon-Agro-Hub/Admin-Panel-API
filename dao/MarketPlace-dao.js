@@ -1454,11 +1454,13 @@ exports.getAllRetailOrderDetails = (
         po.isConfirmed,
         o.isPackage,
         po.isFinalized,
+        op.packingStatus,
         po.sheduleDate AS scheduleDate,
         o.createdAt AS orderdDate
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId 
     `;
 
     let whereClause = " WHERE 1=1";
@@ -2489,7 +2491,8 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         oa.buildingName,
         oa.unitNo,
         oa.floorNo,
-        po.deliveryCharge AS deliveryFee
+        po.deliveryCharge AS deliveryFee,
+        po.curDlvrCharge AS currentDeliveryCharge
       FROM orders o
       LEFT JOIN processorders po ON o.id = po.orderId
       LEFT JOIN orderhouse oh ON o.id = oh.orderId AND o.buildingType = 'House'
@@ -2748,11 +2751,12 @@ exports.getAllWholesaleOrderDetails = (
   method,
   searchItem,
   formattedDate,
+  scheduleDate,
 ) => {
   return new Promise((resolve, reject) => {
     let countSql = `
-      SELECT COUNT(*) as total 
-      FROM collection_officer.orders o 
+      SELECT COUNT(*) as total
+      FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
     `;
@@ -2770,11 +2774,14 @@ exports.getAllWholesaleOrderDetails = (
         po.creditPaid,
         po.moneyPaid,
         po.isConfirmed,
+        op.packingStatus,
+        po.sheduleDate AS scheduleDate,
         o.createdAt AS orderdDate,
         mu.companyName
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId 
     `;
 
     let whereClause = " WHERE 1=1";
@@ -2802,6 +2809,11 @@ exports.getAllWholesaleOrderDetails = (
     if (formattedDate) {
       whereClause += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) = ?";
       searchParams.push(formattedDate);
+    }
+
+    if (scheduleDate) {
+      whereClause += " AND DATE(po.sheduleDate) = ?";
+      searchParams.push(scheduleDate);
     }
 
     countSql += whereClause;
