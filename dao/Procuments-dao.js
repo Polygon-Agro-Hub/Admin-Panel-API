@@ -2642,7 +2642,7 @@ exports.getAllOrdersDao = (
     `;
 
     let sql = `
-       SELECT 
+      SELECT 
         o.id, 
         po.id AS orderId,
         po.invNo, 
@@ -2662,14 +2662,21 @@ exports.getAllOrdersDao = (
         po.isConfirmed,
         o.isPackage,
         po.isFinalized,
-        op.packingStatus
+        (
+          SELECT
+            CASE
+              WHEN SUM(CASE WHEN op2.packingStatus = 'Dispatch' THEN 1 ELSE 0 END) > 0
+                THEN 'Dispatch'
+              ELSE 'Todo'
+            END
+          FROM collection_officer.orderpackage op2
+          WHERE op2.orderId = po.id
+        ) AS packingStatus
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
-      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId
       LEFT JOIN collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id 
       LEFT JOIN collection_officer.company c ON dcc.companyId = c.id
-
     `;
 
     let whereClause = " WHERE 1=1";
@@ -2724,7 +2731,7 @@ exports.getAllOrdersDao = (
       });
     });
   });
-}
+};
 
 exports.downloadOrdersDao = ({
   orderedFrom,
