@@ -1396,6 +1396,9 @@ exports.createDistributionOfficer = async (req, res) => {
         .json({ error: "Officer data is required", status: false });
     }
 
+    // Logged-in admin creating this officer
+    const adminId = req.user.userId;
+
     const officerData = sanitizeOfficerData(req.body.officerData);
     const profileImageUrl = req.body.profileImageUrl || null;
 
@@ -1491,6 +1494,7 @@ exports.createDistributionOfficer = async (req, res) => {
       officerData,
       profileImageUrl,
       lastId,
+      adminId,
     );
 
     if (!result || result.affectedRows === 0 || !result.insertId) {
@@ -1505,7 +1509,10 @@ exports.createDistributionOfficer = async (req, res) => {
     }
 
     officerId = result.insertId;
-    if (officerData.jobRole === LIGHT_WEIGHT_DRIVER || officerData.jobRole === HEAVY_WEIGHT_DRIVER) {
+    if (
+      officerData.jobRole === LIGHT_WEIGHT_DRIVER ||
+      officerData.jobRole === HEAVY_WEIGHT_DRIVER
+    ) {
       const driverData = req.body.driverData;
 
       const driverResult = await DistributionDao.vehicleRegisterDao(
@@ -1526,7 +1533,7 @@ exports.createDistributionOfficer = async (req, res) => {
       }
     }
 
-     // Notify mobile APIs based on job role
+    // Notify mobile APIs based on job role
     await notifyMobileApis(officerData.jobRole, Number(officerId));
 
     return res.status(201).json({
