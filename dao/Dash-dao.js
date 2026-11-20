@@ -612,6 +612,7 @@ const getAllOrders = (
       JOIN marketplaceusers c ON o.userId = c.id
       JOIN salesagent sa ON c.salesAgent = sa.id
       JOIN processorders po ON o.id = po.orderId
+      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId 
       WHERE o.orderApp = 'Dash'
     `;
 
@@ -622,6 +623,9 @@ const getAllOrders = (
         po.InvNo AS invNo,
         po.status AS orderStatus,
         po.sheduleDate AS scheduleDate,
+        po.isConfirmed,
+        o.isPackage,
+        po.isFinalized,
         po.paymentMethod,
         po.isPaid AS paymentStatus,
         po.discount AS fullDiscount,
@@ -634,6 +638,7 @@ const getAllOrders = (
         c.firstName,
         c.lastName,
         sa.empId,
+        op.packingStatus,
         po.qrCode
       ${baseSql}
     `;

@@ -1451,11 +1451,16 @@ exports.getAllRetailOrderDetails = (
         po.paymentMethod,
         po.creditPaid,
         po.moneyPaid,
+        po.isConfirmed,
+        o.isPackage,
+        po.isFinalized,
+        op.packingStatus,
         po.sheduleDate AS scheduleDate,
         o.createdAt AS orderdDate
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId 
     `;
 
     let whereClause = " WHERE 1=1";
@@ -2486,7 +2491,8 @@ exports.getInvoiceDetailsDAO = (processOrderId) => {
         oa.buildingName,
         oa.unitNo,
         oa.floorNo,
-        po.deliveryCharge AS deliveryFee
+        po.deliveryCharge AS deliveryFee,
+        po.curDlvrCharge AS currentDeliveryCharge
       FROM orders o
       LEFT JOIN processorders po ON o.id = po.orderId
       LEFT JOIN orderhouse oh ON o.id = oh.orderId AND o.buildingType = 'House'
@@ -2535,6 +2541,7 @@ exports.getFamilyPackItemsDAO = (orderId) => {
         mp.displayName AS name,
         mp.packingFee,
         mp.serviceFee,
+        op.reviewValue,
         (mp.productPrice + mp.packingFee + mp.serviceFee) AS amount
       FROM orderpackage op
       JOIN marketplacepackages mp ON op.packageId = mp.id
@@ -2765,11 +2772,14 @@ exports.getAllWholesaleOrderDetails = (
         po.paymentMethod,
         po.creditPaid,
         po.moneyPaid,
+        po.isConfirmed,
+        op.packingStatus,
         o.createdAt AS orderdDate,
         mu.companyName
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId 
     `;
 
     let whereClause = " WHERE 1=1";

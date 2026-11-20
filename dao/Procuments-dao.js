@@ -285,7 +285,7 @@ exports.getAllOrdersWithProcessInfo = (
         ) op2 ON op1.orderId = op2.orderId AND op1.createdAt = op2.maxCreatedAt
         WHERE op1.packingStatus = 'Todo'
       ) op ON po.id = op.orderId
-      WHERE po.status = 'Processing'
+      WHERE po.status = 'Processing' AND o.isFinalizeImdt = 1
         ${statusFilter ?
         (statusFilter === "Paid" ? " AND po.isPaid = 1 " :
           statusFilter === "Pending" ? " AND po.isPaid = 0 " :
@@ -303,7 +303,7 @@ exports.getAllOrdersWithProcessInfo = (
       FROM processorders po
       INNER JOIN orders o ON po.orderId = o.id
       INNER JOIN orderpackage op ON po.id = op.orderId
-      WHERE op.packingStatus = 'Todo' 
+      WHERE op.packingStatus = 'Todo' AND o.isFinalizeImdt = 1
         AND po.status = 'Processing'
         ${statusFilter ?
         (statusFilter === "Paid" ? " AND po.isPaid = 1 " :
@@ -943,73 +943,100 @@ exports.updateDefinePackageItemData = (formattedData) => {
   return new Promise((resolve, reject) => {
     const { processOrderId, packages } = formattedData;
 
-    console.log('packages', packages)
-
     if (!Array.isArray(packages) || packages.length === 0) {
-      return reject("No packages to process");
+      return reject({ message: "No packages to process" });
     }
 
-    const updatePromises = [];
+    collectionofficer.getConnection((connErr, conn) => {
+      if (connErr) return reject({ message: 'Connection failed', error: connErr });
 
-    packages.forEach(pkg => {
-      const { orderpkgId, packageId, items } = pkg;
+      conn.beginTransaction((txErr) => {
+        if (txErr) {
+          conn.release();
+          return reject({ message: 'Could not start transaction', error: txErr });
+        }
 
-      // 1. Update packagingStatus to 'Completed'
-      const updateStatusSQL = `
-        UPDATE collection_officer.orderpackage
-        SET packingStatus = 'Dispatch'
-        WHERE packageId = ? AND orderId = ?
-      `;
-      updatePromises.push(new Promise((resolveInner, rejectInner) => {
-        collectionofficer.query(updateStatusSQL, [packageId, processOrderId], (err, result) => {
-          if (err) {
-            console.error(`Error updating packagingStatus for packageId ${packageId}:`, err);
-            return rejectInner(err);
-          }
-          resolveInner(result);
-        });
-      }));
+        const updatePromises = [];
 
-      // 2. Insert items
-      items.forEach(item => {
-        const insertItemSQL = `
-          INSERT INTO collection_officer.orderpackageitems (orderPackageId, productType, productId, qty, price)
-          VALUES (?, ?, ?, ?, ?)
+        // 0. Mark the process order as finalized
+        const finalizeOrderSQL = `
+          UPDATE collection_officer.processorders
+          SET isFinalized = 1
+          WHERE id = ?
         `;
-        const itemParams = [
-          orderpkgId,
-          item.productTypeId,
-          item.productId,
-          item.qty,
-          item.price,
-        ];
-
         updatePromises.push(new Promise((resolveInner, rejectInner) => {
-          collectionofficer.query(insertItemSQL, itemParams, (err, result) => {
+          conn.query(finalizeOrderSQL, [processOrderId], (err, result) => {
             if (err) {
-              console.error(`Error inserting item into packageId ${packageId}:`, err);
+              console.error(`Error finalizing processorders id ${processOrderId}:`, err);
               return rejectInner(err);
             }
             resolveInner(result);
           });
         }));
+
+        packages.forEach(pkg => {
+          const { orderpkgId, packageId, items = [] } = pkg;
+
+          // 1. Update packingStatus to 'Dispatch'
+          const updateStatusSQL = `
+            UPDATE collection_officer.orderpackage
+            SET packingStatus = 'Dispatch'
+            WHERE packageId = ? AND orderId = ?
+          `;
+          updatePromises.push(new Promise((resolveInner, rejectInner) => {
+            conn.query(updateStatusSQL, [packageId, processOrderId], (err, result) => {
+              if (err) {
+                console.error(`Error updating packingStatus for packageId ${packageId}:`, err);
+                return rejectInner(err);
+              }
+              resolveInner(result);
+            });
+          }));
+
+          // 2. Insert items
+          items.forEach(item => {
+            const insertItemSQL = `
+              INSERT INTO collection_officer.orderpackageitems (orderPackageId, productType, productId, qty, price)
+              VALUES (?, ?, ?, ?, ?)
+            `;
+            const itemParams = [orderpkgId, item.productTypeId, item.productId, item.qty, item.price];
+
+            updatePromises.push(new Promise((resolveInner, rejectInner) => {
+              conn.query(insertItemSQL, itemParams, (err, result) => {
+                if (err) {
+                  console.error(`Error inserting item into packageId ${packageId}:`, err);
+                  return rejectInner(err);
+                }
+                resolveInner(result);
+              });
+            }));
+          });
+        });
+
+        Promise.all(updatePromises)
+          .then(results => {
+            conn.commit((commitErr) => {
+              if (commitErr) {
+                return conn.rollback(() => {
+                  conn.release();
+                  reject({ message: 'Commit failed', error: commitErr });
+                });
+              }
+              conn.release();
+              resolve({
+                message: 'Packaging status updated and items inserted successfully',
+                affectedRows: results.reduce((total, result) => total + (result.affectedRows || 0), 0)
+              });
+            });
+          })
+          .catch(error => {
+            conn.rollback(() => {
+              conn.release();
+              reject({ message: 'One or more updates/inserts failed', error });
+            });
+          });
       });
     });
-
-
-    Promise.all(updatePromises)
-      .then(results => {
-        resolve({
-          message: 'Packaging status updated and items inserted successfully',
-          affectedRows: results.reduce((total, result) => total + (result.affectedRows || 0), 0)
-        });
-      })
-      .catch(error => {
-        reject({
-          message: 'One or more updates/inserts failed',
-          error
-        });
-      });
   });
 };
 
@@ -2593,6 +2620,174 @@ exports.reorderContainerSizesDao = (orderedIds, modifyBy) => {
         return reject(err);
       }
       resolve(result);
+    });
+  });
+};
+
+exports.getAllOrdersDao = (
+  limit,
+  offset,
+  status,
+  method,
+  searchItem,
+  formattedDate,
+  scheduleDate,
+) => {
+  return new Promise((resolve, reject) => {
+    let countSql = `
+      SELECT COUNT(*) as total 
+      FROM collection_officer.orders o 
+      LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
+      LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+    `;
+
+    let sql = `
+       SELECT 
+        o.id, 
+        po.id AS orderId,
+        po.invNo, 
+        o.orderApp,
+        po.sheduleDate AS scheduleDate,
+        o.fullName AS customerName, 
+        mu.buyerType,
+        c.companyNameEnglish,
+        o.delivaryMethod AS method, 
+        po.paymentMethod,
+        po.creditPaid,
+        po.moneyPaid,
+        po.fullTotal AS amount,   
+        po.status,
+        po.qrCode,
+        o.createdAt AS orderdDate,
+        po.isConfirmed,
+        o.isPackage,
+        po.isFinalized,
+        op.packingStatus
+      FROM collection_officer.orders o
+      LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
+      LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId
+      LEFT JOIN collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id 
+      LEFT JOIN collection_officer.company c ON dcc.companyId = c.id
+
+    `;
+
+    let whereClause = " WHERE 1=1";
+    const searchParams = [];
+
+    if (searchItem) {
+      const searchQuery = `%${searchItem.split("").join("%")}%`;
+      whereClause += " AND (po.invNo LIKE ? OR o.fullName LIKE ?)";
+      searchParams.push(searchQuery, searchQuery);
+    }
+
+    if (status) {
+      whereClause += " AND po.status = ?";
+      searchParams.push(status);
+    }
+
+    if (method) {
+      whereClause += " AND o.delivaryMethod = ?";
+      searchParams.push(method);
+    }
+
+    if (formattedDate) {
+      whereClause += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) = ?";
+      searchParams.push(formattedDate);
+    }
+
+    if (scheduleDate) {
+      whereClause += " AND DATE(po.sheduleDate) = ?";
+      searchParams.push(scheduleDate);
+    }
+
+    countSql += whereClause;
+    sql += whereClause + " ORDER BY po.createdAt DESC LIMIT ? OFFSET ?";
+    const dataParams = [...searchParams, limit, offset];
+
+    collectionofficer.query(countSql, searchParams, (countErr, countResults) => {
+      if (countErr) {
+        return reject(countErr);
+      }
+
+      const total = countResults[0].total;
+
+      collectionofficer.query(sql, dataParams, (dataErr, dataResults) => {
+        if (dataErr) {
+          return reject(dataErr);
+        }
+
+        resolve({
+          total: total,
+          items: dataResults,
+        });
+      });
+    });
+  });
+}
+
+exports.downloadOrdersDao = ({
+  orderedFrom,
+  orderedTo,
+  scheduledFrom,
+  scheduledTo,
+  confirmation,
+}) => {
+  return new Promise((resolve, reject) => {
+    let sql = `
+      SELECT 
+        po.invNo,
+        o.orderApp AS platform,
+        po.sheduleDate AS scheduleDate,
+        o.fullName AS customerName,
+        mu.buyerType AS customerType,
+        c.companyNameEnglish AS companyName,
+        o.delivaryMethod AS method,
+        po.paymentMethod,
+        po.creditPaid,
+        po.moneyPaid,
+        po.isConfirmed,
+        po.isFinalized,
+        po.fullTotal AS amount,
+        po.status,
+        o.createdAt AS orderedDate
+      FROM collection_officer.orders o
+      LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
+      LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
+      LEFT JOIN collection_officer.distributedcompanycenter dcc ON o.assignCoMCenId = dcc.id
+      LEFT JOIN collection_officer.company c ON dcc.companyId = c.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (orderedFrom) {
+      sql += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) >= ?";
+      params.push(orderedFrom);
+    }
+    if (orderedTo) {
+      sql += " AND DATE(DATE_ADD(o.createdAt, INTERVAL 330 MINUTE)) <= ?";
+      params.push(orderedTo);
+    }
+    if (scheduledFrom) {
+      sql += " AND DATE(po.sheduleDate) >= ?";
+      params.push(scheduledFrom);
+    }
+    if (scheduledTo) {
+      sql += " AND DATE(po.sheduleDate) <= ?";
+      params.push(scheduledTo);
+    }
+
+    if (confirmation === "Confirmed") {
+      sql += " AND po.isConfirmed = 1 AND po.isFinalized = 1";
+    } else if (confirmation === "Not Confirmed") {
+      sql += " AND po.isConfirmed = 0 AND po.isFinalized = 0";
+    }
+
+    sql += " ORDER BY po.createdAt DESC";
+
+    collectionofficer.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
     });
   });
 };
