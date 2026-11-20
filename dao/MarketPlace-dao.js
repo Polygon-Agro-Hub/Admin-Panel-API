@@ -442,7 +442,7 @@ exports.creatPackageDAO = async (data, profileImageUrl) => {
       if (!value) return null;
 
       if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        return value; 
+        return value;
       }
 
       const d = new Date(value);
@@ -1454,13 +1454,21 @@ exports.getAllRetailOrderDetails = (
         po.isConfirmed,
         o.isPackage,
         po.isFinalized,
-        op.packingStatus,
+        (
+          SELECT 
+              CASE 
+                  WHEN SUM(CASE WHEN op2.packingStatus = 'Todo' THEN 1 ELSE 0 END) > 0 
+                      THEN 'Todo'
+                  ELSE 'Dispatch'
+              END
+          FROM collection_officer.orderpackage op2
+          WHERE op2.orderId = po.id
+        ) AS packingStatus,
         po.sheduleDate AS scheduleDate,
         o.createdAt AS orderdDate
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
-      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId 
     `;
 
     let whereClause = " WHERE 1=1";
@@ -2774,14 +2782,12 @@ exports.getAllWholesaleOrderDetails = (
         po.creditPaid,
         po.moneyPaid,
         po.isConfirmed,
-        op.packingStatus,
         po.sheduleDate AS scheduleDate,
         o.createdAt AS orderdDate,
         mu.companyName
       FROM collection_officer.orders o
       LEFT JOIN collection_officer.processorders po ON o.id = po.orderId
       LEFT JOIN collection_officer.marketplaceusers mu ON o.userId = mu.id
-      LEFT JOIN collection_officer.orderpackage op ON po.id = op.orderId 
     `;
 
     let whereClause = " WHERE 1=1";
@@ -3815,21 +3821,21 @@ exports.getPriceListByCategory = (category) => {
       WHERE m.category = ?
       ORDER BY m.displayName
     `;
- 
+
     collectionofficer.query(sql, [category], (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
   });
 };
- 
+
 exports.getItemsByIds = (ids, category) => {
   return new Promise((resolve, reject) => {
     const sql = `
       SELECT id, normalPrice, discountedPrice, comPrice, pkgBasePrice
       FROM marketplaceitems
       WHERE category = ? AND id IN (?)`;
- 
+
     collectionofficer.query(sql, [category, ids], (err, results) => {
       if (err) return reject(err);
       resolve(results);
@@ -3838,17 +3844,17 @@ exports.getItemsByIds = (ids, category) => {
 };
 
 const ALLOWED_COLUMNS = ["normalPrice", "discountedPrice", "comPrice", "pkgBasePrice", "discount"];
- 
+
 exports.updatePrices = (changes, modifyBy) => {
   return new Promise((resolve, reject) => {
     collectionofficer.getConnection((connErr, conn) => {
       if (connErr) return reject(connErr);
- 
+
       const fail = (err) => conn.rollback(() => { conn.release(); reject(err); });
- 
+
       conn.beginTransaction((txErr) => {
         if (txErr) { conn.release(); return reject(txErr); }
- 
+
         const run = (i) => {
           if (i >= changes.length) {
             return conn.commit((commitErr) => {
@@ -3857,7 +3863,7 @@ exports.updatePrices = (changes, modifyBy) => {
               resolve(changes.length);
             });
           }
- 
+
           const { id, fields } = changes[i];
           const cols = Object.keys(fields).filter((c) => ALLOWED_COLUMNS.includes(c));
           const sql = `UPDATE marketplaceitems
@@ -3865,10 +3871,10 @@ exports.updatePrices = (changes, modifyBy) => {
                            modifyBy = COALESCE(?, modifyBy)
                        WHERE id = ?`;
           const params = [...cols.map((c) => fields[c]), modifyBy, id];
- 
+
           conn.query(sql, params, (err) => (err ? fail(err) : run(i + 1)));
         };
- 
+
         run(0);
       });
     });
