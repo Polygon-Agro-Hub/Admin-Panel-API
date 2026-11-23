@@ -2023,10 +2023,12 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
     }
 
     let profileImageUrl = existingOfficer.image;
+    let oldProfileImageToDelete = null;
 
     if (req.body.profileImageUrl) {
-      if (existingOfficer.image) {
-        await deleteFromS3(existingOfficer.image);
+      // Old image is deleted only after the DB update succeeds (below)
+      if (existingOfficer.image && existingOfficer.image !== req.body.profileImageUrl) {
+        oldProfileImageToDelete = existingOfficer.image;
       }
       profileImageUrl = req.body.profileImageUrl;
       newlyUploadedUrls.push(profileImageUrl);
@@ -2070,6 +2072,16 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
 
     console.log("Officer details updated successfully");
 
+    // The officer row now references the new profile image, so it is committed:
+    // stop tracking it for rollback and remove the old one from S3.
+    if (req.body.profileImageUrl) {
+      const idx = newlyUploadedUrls.indexOf(profileImageUrl);
+      if (idx !== -1) newlyUploadedUrls.splice(idx, 1);
+    }
+    if (oldProfileImageToDelete) {
+      await safeDeleteFromS3(oldProfileImageToDelete);
+    }
+
     if (officerData.jobRole === LIGHT_WEIGHT_DRIVER || officerData.jobRole === HEAVY_WEIGHT_DRIVER) {
       try {
         const driverData = req.body.driverData;
@@ -2111,7 +2123,10 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
         if (req.body.vehiSideAUrl && existingDriverData?.vehSideImgA) oldImagesToDelete.push(existingDriverData.vehSideImgA);
         if (req.body.vehiSideBUrl && existingDriverData?.vehSideImgB) oldImagesToDelete.push(existingDriverData.vehSideImgB);
 
-        await Promise.all(oldImagesToDelete.map((url) => deleteFromS3(url)));
+        const driverNewUrls = [
+          req.body.licFrontUrl, req.body.licBackUrl, req.body.insFrontUrl, req.body.insBackUrl,
+          req.body.vehiFrontUrl, req.body.vehiBackUrl, req.body.vehiSideAUrl, req.body.vehiSideBUrl,
+        ].filter(Boolean);
 
         if (existingDriverData) {
           await DistributionDao.updateVehicleRegisterDao(
@@ -2142,6 +2157,15 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
           );
           console.log("Driver data created successfully");
         }
+
+        // The driver row now references the new images, so they are committed:
+        // stop tracking them for rollback and remove the old ones from S3.
+        newlyUploadedUrls.length = 0;
+        await Promise.all(
+          oldImagesToDelete
+            .filter((url) => !driverNewUrls.includes(url))
+            .map((url) => safeDeleteFromS3(url)),
+        );
       } catch (driverError) {
         console.error("Error processing driver data:", driverError);
         await Promise.all(newlyUploadedUrls.map((url) => deleteFromS3(url)));
@@ -2213,6 +2237,15 @@ exports.updateDistributionOfficerDetails = async (req, res) => {
     });
   }
 };
+
+// Removing an old, no-longer-referenced image must not fail an update that already succeeded.
+async function safeDeleteFromS3(url) {
+  try {
+    await deleteFromS3(url);
+  } catch (err) {
+    console.error("Failed to delete old image from S3:", url, err?.message);
+  }
+}
 
 function resolveImageUrl(newUrl, existingUrl, trackingArray) {
   if (newUrl) {
