@@ -827,31 +827,36 @@ exports.updateVariety = async (req, res) => {
   const id = req.params.id;
   const modifyBy = req.user.userId;
 
-  try {
-    let imageData = null;
-    if (req.file) {
-      const cropVariety = await cropCalendarDao.getVarietyByIds3(id);
-      if (!cropVariety) {
-        return res.status(404).json({ message: "Crop variety not found." });
-      }
+  let newImageUrl = null; // URL of the newly uploaded image (null = keep existing)
 
-      // Upload new image to S3 and store its URL (not the raw file bytes)
-      imageData = await uploadFileToS3(
+  // Never throws, so a failed cleanup can't break the request
+  const safeDeleteFromS3 = async (url) => {
+    if (!url) return;
+    try {
+      await deleteFromS3(url);
+    } catch (err) {
+      console.error("S3 cleanup failed for:", url, err.message);
+    }
+  };
+
+  try {
+    const cropVariety = await cropCalendarDao.getVarietyByIds3(id);
+    if (!cropVariety) {
+      return res.status(404).json({ message: "Crop variety not found." });
+    }
+
+    const oldImageUrl = cropVariety.image;
+
+    // 1. Upload the new image first (old image is untouched)
+    if (req.file) {
+      newImageUrl = await uploadFileToS3(
         req.file.buffer,
         req.file.originalname,
         "cropvariety/image",
       );
-
-      // Remove the old image from S3
-      if (cropVariety.image) {
-        try {
-          await deleteFromS3(cropVariety.image);
-        } catch (s3Err) {
-          console.warn("Failed to delete old variety image:", s3Err.message);
-        }
-      }
     }
 
+    // 2. Update the database
     await cropCalendarDao.updateVariety(
       {
         varietyNameEnglish,
@@ -861,15 +866,24 @@ exports.updateVariety = async (req, res) => {
         descriptionSinhala,
         descriptionTamil,
         bgColor,
-        image: imageData,
+        image: newImageUrl, // null = keep existing image
         modifyBy,
       },
       id,
     );
-    res.json({ message: "Crop group updated successfully." });
+
+    // 3. Only now delete the old image, and only if it was replaced
+    if (newImageUrl && oldImageUrl && oldImageUrl !== newImageUrl) {
+      await safeDeleteFromS3(oldImageUrl);
+    }
+
+    res.json({ message: "Crop variety updated successfully." });
   } catch (err) {
-    console.error("Error updating crop group:", err);
-    res.status(500).send("An error occurred while updating the crop group.");
+    // Roll back: remove the newly uploaded file, old image stays
+    await safeDeleteFromS3(newImageUrl);
+
+    console.error("Error updating crop variety:", err);
+    res.status(500).send("An error occurred while updating the crop variety.");
   }
 };
 
