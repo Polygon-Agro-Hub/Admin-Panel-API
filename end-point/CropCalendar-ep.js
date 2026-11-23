@@ -571,7 +571,7 @@ exports.updateGroup = async (req, res) => {
   const id = req.params.id;
   const Existname = req.params.name;
   const userId = req.user?.userId;
-  let image = null;
+  let image = null; // URL of the newly uploaded image (null = keep existing)
 
   if (!userId) {
     return res.status(401).json({
@@ -589,13 +589,23 @@ exports.updateGroup = async (req, res) => {
     });
   }
 
+  // Never throws, so a failed cleanup can't break the request
+  const safeDeleteFromS3 = async (url) => {
+    if (!url) return;
+    try {
+      await deleteFromS3(url);
+    } catch (err) {
+      console.error("S3 cleanup failed for:", url, err.message);
+    }
+  };
+
   try {
     const cropGroup = await cropCalendarDao.getGroupByIds3(id);
     if (!cropGroup) {
       return res.status(404).json({ message: "Crop group not found" });
     }
 
-    const imageUrl = cropGroup.image;
+    const oldImageUrl = cropGroup.image;
 
     if (Existname !== cropNameEnglish) {
       const checkCropName =
@@ -609,18 +619,21 @@ exports.updateGroup = async (req, res) => {
       }
     }
 
+    // 1. Upload the new image first (old image is untouched)
     if (req.file) {
-      const fileBuffer = req.file.buffer;
-      const fileName = req.file.originalname;
-      if (imageUrl) {
-        await deleteFromS3(imageUrl);
-      }
-      image = await uploadFileToS3(fileBuffer, fileName, "cropgroup/image");
+      image = await uploadFileToS3(
+        req.file.buffer,
+        req.file.originalname,
+        "cropgroup/image",
+      );
     }
 
     const toNull = (value) =>
-      value === undefined || value === null || String(value).trim() === "" ? null : value;
+      value === undefined || value === null || String(value).trim() === ""
+        ? null
+        : value;
 
+    // 2. Update the database
     await cropCalendarDao.updateGroup(
       {
         cropNameEnglish,
@@ -630,7 +643,7 @@ exports.updateGroup = async (req, res) => {
         costFeild: toNull(costFeild),
         incomeFeild: toNull(incomeFeild),
         bgColor,
-        image,
+        image, // null = keep existing image
         seedRate: toNull(seedRate),
         rowSpace: toNull(rowSpace),
         plantSpace: toNull(plantSpace),
@@ -644,8 +657,16 @@ exports.updateGroup = async (req, res) => {
       id,
     );
 
+    // 3. Only now delete the old image, and only if it was replaced
+    if (image && oldImageUrl && oldImageUrl !== image) {
+      await safeDeleteFromS3(oldImageUrl);
+    }
+
     res.json({ message: "Crop group updated successfully.", status: true });
   } catch (err) {
+    // Roll back: remove the newly uploaded file, old image stays
+    await safeDeleteFromS3(image);
+
     console.error("Error updating crop group:", err);
     res.status(500).send("An error occurred while updating the crop group.");
   }
