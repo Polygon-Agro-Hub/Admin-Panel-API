@@ -623,7 +623,7 @@ exports.checkPhoneExistExceptId = (phone, id) => {
 exports.GetAllCompanyList = () => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, companyNameEnglish FROM company WHERE company.isDistributed = 1 ORDER BY companyNameEnglish ASC";
+      "SELECT id, companyNameEnglish FROM company WHERE company.isDistributed = 1 ORDER BY CASE WHEN companyNameEnglish = 'Polygon Holdings Private Limited' THEN 0 ELSE 1 END, companyNameEnglish ASC";
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);

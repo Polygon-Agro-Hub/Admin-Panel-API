@@ -950,7 +950,7 @@ exports.createCompany = (
 exports.GetAllCompanyList = () => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, companyNameEnglish FROM company WHERE company.isCollection = 1";
+      "SELECT id, companyNameEnglish FROM company WHERE company.isCollection = 1 ORDER BY CASE WHEN companyNameEnglish = 'Polygon Holdings Private Limited' THEN 0 ELSE 1 END, companyNameEnglish ASC";
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
@@ -1779,7 +1779,7 @@ exports.GetComplainCategoriesByRoleSuper = (id) => {
 exports.GetAllCompanyForOfficerComplain = () => {
   return new Promise((resolve, reject) => {
     const sql =
-      "SELECT id, companyNameEnglish FROM company WHERE isCollection = 1";
+      "SELECT id, companyNameEnglish FROM company WHERE isCollection = 1 ORDER BY CASE WHEN companyNameEnglish = 'Polygon Holdings Private Limited' THEN 0 ELSE 1 END, companyNameEnglish ASC";
     collectionofficer.query(sql, (err, results) => {
       if (err) {
         return reject(err);
