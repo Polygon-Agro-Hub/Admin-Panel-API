@@ -207,6 +207,18 @@ exports.getCertificateCompanyById = async (req, res) => {
 
 // Update certificate company
 exports.updateCertificateCompany = async (req, res) => {
+  let newLogoUrl = null; // URL of the newly uploaded logo (null = keep existing)
+
+  // Never throws, so a failed cleanup can't break the request
+  const safeDeleteFromS3 = async (url) => {
+    if (!url) return;
+    try {
+      await deleteFromS3(url);
+    } catch (err) {
+      console.error("S3 cleanup failed for:", url, err.message);
+    }
+  };
+
   try {
     const { id } = req.params;
     const userId = req.user?.userId;
@@ -247,7 +259,7 @@ exports.updateCertificateCompany = async (req, res) => {
       if (dialCode === "+94") {
         // Must be exactly 9 digits AND start with 7
         if (!/^[0-9]{9}$/.test(number)) return false;
-        if (!number.startsWith('7')) return false;
+        if (!number.startsWith("7")) return false;
       }
       if (dialCode !== "+94" && !/^[0-9]+$/.test(number)) return false;
       return true;
@@ -294,9 +306,8 @@ exports.updateCertificateCompany = async (req, res) => {
 
     // Only check for duplicate registration number if it's being changed
     if (currentCompany.regNumber !== regNumber) {
-      const existingRegNumber = await certificateCompanyDao.checkByRegNumber(
-        regNumber
-      );
+      const existingRegNumber =
+        await certificateCompanyDao.checkByRegNumber(regNumber);
       if (existingRegNumber.length > 0) {
         duplicateErrors.push(`Registration Number`);
       }
@@ -316,11 +327,10 @@ exports.updateCertificateCompany = async (req, res) => {
       phoneNumber1,
       phoneCode2,
       phoneNumber2,
-      id // Exclude current company
+      id, // Exclude current company
     );
 
     if (existingPhones.length > 0) {
-      // Check which specific phone numbers are duplicates
       existingPhones.forEach((existing) => {
         // Check if Phone 1 is duplicate (and if it's being changed)
         if (
@@ -361,24 +371,20 @@ exports.updateCertificateCompany = async (req, res) => {
       });
     }
 
-    let logoUrl = currentCompany?.logo || null;
+    const oldLogoUrl = currentCompany.logo || null;
+    let logoUrl = oldLogoUrl;
 
-    // If new logo uploaded
+    // 1. Upload the new logo first (old logo is untouched)
     if (req.file) {
-      const uploadedUrl = await uploadFileToS3(
+      newLogoUrl = await uploadFileToS3(
         req.file.buffer,
         req.file.originalname,
-        "certificatecompany/logo"
+        "certificatecompany/logo",
       );
-      logoUrl = uploadedUrl;
-
-      // Delete old logo if exists
-      if (currentCompany?.logo) {
-        await deleteFromS3(currentCompany.logo);
-      }
+      logoUrl = newLogoUrl;
     }
 
-    // Update record
+    // 2. Update the database
     const updated = await certificateCompanyDao.updateCertificateCompany(
       id,
       companyName,
@@ -390,13 +396,19 @@ exports.updateCertificateCompany = async (req, res) => {
       phoneNumber2,
       address,
       userId,
-      logoUrl
+      logoUrl,
     );
 
     if (!updated) {
+      await safeDeleteFromS3(newLogoUrl); // roll back new upload
       return res
         .status(404)
         .json({ message: "Company not found", status: false });
+    }
+
+    // 3. Only now delete the old logo, and only if it was replaced
+    if (newLogoUrl && oldLogoUrl && oldLogoUrl !== newLogoUrl) {
+      await safeDeleteFromS3(oldLogoUrl);
     }
 
     res.json({
@@ -405,6 +417,9 @@ exports.updateCertificateCompany = async (req, res) => {
       logo: logoUrl,
     });
   } catch (err) {
+    // Roll back: remove the newly uploaded file, old logo stays
+    await safeDeleteFromS3(newLogoUrl);
+
     console.error("Error updating certificate company:", err);
     res.status(500).json({
       message: "An error occurred while updating certificate company",

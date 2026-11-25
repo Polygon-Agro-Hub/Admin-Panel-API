@@ -756,14 +756,14 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
     }
 
     // === Image upload logic ===
+    // The old image is deleted only after the DB update succeeds.
     let profileImageUrl = null;
+    let newlyUploadedImageUrl = null;
     const qrCode = await collectionofficerDao.getQrImage(id);
+    const oldImageUrl = qrCode?.image || null;
 
     if (req.body.file) {
       console.log("Received");
-      if (qrCode.image) {
-        await deleteFromS3(qrCode.image);
-      }
 
       const base64String = req.body.file.split(",")[1];
       const mimeType = req.body.file.match(/data:(.*?);base64,/)[1];
@@ -773,12 +773,14 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
       const fileName = `${officerData.firstNameEnglish}_${officerData.lastNameEnglish}.${fileExtension}`;
 
       profileImageUrl = await uploadFileToS3(fileBuffer, fileName, "collectionofficer/image");
+      newlyUploadedImageUrl = profileImageUrl;
     } else {
-      profileImageUrl = qrCode.image;
+      profileImageUrl = oldImageUrl;
     }
 
     // === Update officer details ===
-    await collectionofficerDao.updateOfficerDetails(
+    try {
+      await collectionofficerDao.updateOfficerDetails(
       id,
       officerData.centerId,
       officerData.companyId,
@@ -811,7 +813,27 @@ exports.updateCollectionOfficerDetails = async (req, res) => {
       officerData.branchName,
       profileImageUrl,
       adminId
-    );
+      );
+    } catch (updateErr) {
+      // DB still points at the old image: discard the new upload and keep the old one.
+      if (newlyUploadedImageUrl) {
+        try {
+          await deleteFromS3(newlyUploadedImageUrl);
+        } catch (cleanupErr) {
+          console.error("Failed to delete new image after update error:", cleanupErr?.message);
+        }
+      }
+      throw updateErr;
+    }
+
+    // Officer now references the new image, so the old one is safe to remove.
+    if (newlyUploadedImageUrl && oldImageUrl && oldImageUrl !== newlyUploadedImageUrl) {
+      try {
+        await deleteFromS3(oldImageUrl);
+      } catch (deleteErr) {
+        console.error("Failed to delete old profile image from S3:", oldImageUrl, deleteErr?.message);
+      }
+    }
 
     // Notify mobile APIs based on job role (errors are only logged)
     await notifyMobileApis(officerData.jobRole, Number(id));
