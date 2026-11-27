@@ -2691,7 +2691,7 @@ exports.getAllOrdersDao = (
         po.sheduleDate AS scheduleDate,
         o.fullName AS customerName, 
         mu.buyerType,
-        c.companyNameEnglish,
+        mu.companyName AS companyNameEnglish,
         o.delivaryMethod AS method, 
         po.paymentMethod,
         po.creditPaid,
